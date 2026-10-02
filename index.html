@@ -99,7 +99,7 @@
 
   <script>
     (function () {
-      var APP_SRC = "calcolatore-portate.html?v=wwt5";
+      var APP_SRC = "calcolatore-portate.html?v=wwt6";
       var frame = document.getElementById("app-frame");
       var landing = document.getElementById("landing");
       var urlEl = document.getElementById("public-url");
@@ -124,7 +124,7 @@
       document.getElementById("open-btn").addEventListener("click", showApp);
 
       if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("./sw.js?v=wwt5", { scope: "./" }).then(function (reg) {
+        navigator.serviceWorker.register("./sw.js?v=wwt6", { scope: "./" }).then(function (reg) {
           try { reg.update(); } catch (_) {}
           if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
         }).catch(function () {});

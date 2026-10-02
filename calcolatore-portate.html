@@ -287,106 +287,131 @@
       align-items: center;
       justify-content: center;
       background: rgba(2, 8, 20, 0.72);
-      padding: 16px;
+      padding: 12px;
+      /* niente menu copia/incolla di sistema */
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
     }
     .flow-edit-back.show { display: flex; }
     .flow-edit-panel {
-      width: min(320px, 100%);
+      width: min(360px, 100%);
       background: var(--panel);
       border: 1px solid var(--line);
       border-radius: 14px;
-      padding: 16px 18px 14px;
+      padding: 14px 16px 12px;
       box-shadow: 0 16px 48px rgba(0,0,0,.45);
       text-align: center;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    .flow-edit-panel.has-numpad {
+      width: min(380px, 100%);
     }
     .flow-edit-panel h3 {
-      margin: 0 0 6px;
-      font-size: 0.95rem;
+      margin: 0 0 4px;
+      font-size: 0.92rem;
       font-weight: 700;
       color: var(--text);
     }
     .flow-edit-panel .flow-edit-unit {
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       color: var(--muted);
-      margin: 0 0 10px;
+      margin: 0 0 8px;
       font-weight: 600;
     }
+    /* Numero a sinistra, frecce ▲▼ a destra */
     .flow-edit-spin {
       display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-      margin: 4px 0 14px;
+      flex-direction: row;
+      align-items: stretch;
+      justify-content: center;
+      gap: 10px;
+      margin: 2px 0 10px;
     }
-    .flow-edit-spin button {
+    .flow-edit-arrows {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .flow-edit-arrows button {
       appearance: none;
-      width: 72px;
-      height: 48px;
+      width: 52px;
+      height: 40px;
       border-radius: 10px;
       border: 1px solid var(--line);
       background: var(--panel-2);
       color: var(--accent);
-      font-size: 1.45rem;
+      font-size: 1.15rem;
       font-weight: 800;
       cursor: pointer;
       line-height: 1;
       touch-action: manipulation;
       -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      user-select: none;
     }
-    .flow-edit-spin button:hover { border-color: var(--accent); color: #fff; }
-    .flow-edit-spin button:active { background: #0c4a6e; }
+    .flow-edit-arrows button:hover { border-color: var(--accent); color: #fff; }
+    .flow-edit-arrows button:active { background: #0c4a6e; }
     #svgInlineInput {
       display: block;
-      width: 168px;
-      max-width: 100%;
-      margin: 0 auto;
-      padding: 12px 10px;
+      flex: 1;
+      width: auto;
+      min-width: 0;
+      max-width: none;
+      margin: 0;
+      padding: 10px 12px;
       border-radius: 10px;
       border: 2px solid var(--accent);
       background: #0b1220;
       color: #fff;
-      font-size: 1.5rem;
+      font-size: 1.55rem;
       font-weight: 800;
       font-variant-numeric: tabular-nums;
       text-align: center;
       box-sizing: border-box;
       caret-color: var(--accent);
-    }
-    /* Mobile: niente tastiera di sistema sul campo */
-    html.touch-ui #svgInlineInput {
-      inputmode: none;
+      -webkit-touch-callout: none;
       -webkit-user-select: none;
       user-select: none;
     }
+    html.touch-ui #svgInlineInput {
+      pointer-events: auto;
+    }
     .flow-numpad {
       display: none;
-      margin: 0 0 12px;
-      padding-top: 4px;
+      margin: 0 0 10px;
+      padding-top: 2px;
     }
     .flow-numpad.show { display: block; }
     .flow-numpad-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      max-width: 260px;
+      gap: 7px;
+      width: 100%;
+      max-width: none;
       margin: 0 auto;
     }
     .flow-numpad-grid button {
       appearance: none;
-      height: 48px;
+      height: 44px;
       border-radius: 10px;
       border: 1px solid var(--line);
       background: #0b1220;
       color: #e8eef5;
-      font-size: 1.2rem;
+      font-size: 1.15rem;
       font-weight: 800;
       cursor: pointer;
       touch-action: manipulation;
       -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      user-select: none;
     }
     .flow-numpad-grid button:active { background: #0c4a6e; border-color: var(--accent); }
     .flow-numpad-grid button.np-back { color: #fbbf24; }
-    .flow-numpad-grid button.np-clear { color: #f87171; font-size: 0.85rem; }
+    .flow-numpad-grid button.np-clear { color: #f87171; font-size: 0.82rem; }
     .flow-edit-actions {
       display: flex;
       gap: 8px;
@@ -396,11 +421,13 @@
       appearance: none;
       border-radius: 10px;
       border: 1px solid var(--line);
-      padding: 12px 10px;
+      padding: 11px 10px;
       font-size: 0.9rem;
       font-weight: 700;
       cursor: pointer;
       touch-action: manipulation;
+      -webkit-touch-callout: none;
+      user-select: none;
     }
     .flow-edit-actions .flow-ok {
       background: #14532d;
@@ -410,6 +437,12 @@
     .flow-edit-actions .flow-cancel {
       background: var(--panel-2);
       color: var(--text);
+    }
+    /* Blocca menu contestuale copia/incolla su schema e popup */
+    .sketch, .sketch *, .flow-edit-back, .flow-edit-back * {
+      -webkit-touch-callout: none !important;
+      -webkit-user-select: none !important;
+      user-select: none !important;
     }
     .proc-label {
       display: flex;
@@ -1155,9 +1188,11 @@
       <h3 id="flowEditTitle">Portata</h3>
       <p class="flow-edit-unit" id="flowEditUnit">m³/h</p>
       <div class="flow-edit-spin">
-        <button type="button" id="flowEditUp" aria-label="Aumenta">▲</button>
-        <input type="text" id="svgInlineInput" inputmode="decimal" autocomplete="off" enterkeyhint="done" />
-        <button type="button" id="flowEditDown" aria-label="Diminuisci">▼</button>
+        <input type="text" id="svgInlineInput" inputmode="none" autocomplete="off" enterkeyhint="done" />
+        <div class="flow-edit-arrows">
+          <button type="button" id="flowEditUp" aria-label="Aumenta">▲</button>
+          <button type="button" id="flowEditDown" aria-label="Diminuisci">▼</button>
+        </div>
       </div>
       <div class="flow-numpad" id="flowNumpad" aria-label="Tastierino numerico">
         <div class="flow-numpad-grid">
@@ -4637,12 +4672,14 @@
 
     function hideFlowNumpad() {
       if (flowNumpad) flowNumpad.classList.remove("show");
+      flowEditBack?.querySelector(".flow-edit-panel")?.classList.remove("has-numpad");
       __flowNumpadFresh = false;
     }
 
     function showFlowNumpad() {
       if (!isTouchUi() || !flowNumpad) return;
       flowNumpad.classList.add("show");
+      flowEditBack?.querySelector(".flow-edit-panel")?.classList.add("has-numpad");
       __flowNumpadFresh = true;
     }
 
@@ -4655,7 +4692,7 @@
 
     function nudgeFlowEdit(dir) {
       if (!inlineCtx || !inlineInp) return;
-      hideFlowNumpad(); // frecce: niente tastierino
+      // frecce: cambiano valore, numpad resta se già aperto
       const step = flowEditStep(inlineCtx.field);
       const raw = String(inlineInp.value ?? "").trim().replace(",", ".");
       let v = parseFloat(raw);
@@ -4892,19 +4929,19 @@
       }
       if (flowEditTitle) flowEditTitle.textContent = FLOW_EDIT_LABELS[field] || "Portata";
       if (flowEditUnit) flowEditUnit.textContent = field === "freqHz" ? "Hz" : "m³/h";
-      hideFlowNumpad();
       __flowNumpadFresh = true;
       if (isTouchUi()) {
-        // Mobile/tablet: niente tastiera di sistema all’apertura
+        // Mobile: popup già pronto con numpad, niente tastiera di sistema
         inlineInp.setAttribute("readonly", "readonly");
         inlineInp.setAttribute("inputmode", "none");
         inlineInp.blur();
+        if (flowEditBack) flowEditBack.classList.add("show");
+        showFlowNumpad();
       } else {
+        hideFlowNumpad();
         inlineInp.removeAttribute("readonly");
         inlineInp.setAttribute("inputmode", step >= 1 ? "numeric" : "decimal");
-      }
-      if (flowEditBack) flowEditBack.classList.add("show");
-      if (!isTouchUi()) {
+        if (flowEditBack) flowEditBack.classList.add("show");
         setTimeout(() => {
           inlineInp.focus();
           inlineInp.select();
@@ -4988,6 +5025,22 @@
       e.preventDefault();
       e.stopPropagation();
       applyNumpadKey(btn.getAttribute("data-np"));
+    });
+
+    // Blocca copia/incolla / menu contestuale su mobile (schema + popup)
+    function blockNativeClipboardMenu(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    }
+    ["contextmenu", "selectstart", "copy", "cut", "paste"].forEach((ev) => {
+      document.addEventListener(ev, (e) => {
+        const t = e.target;
+        if (!t) return;
+        if (t.closest && (t.closest(".flow-edit-back") || t.closest(".sketch") || t.closest(".flow-edit"))) {
+          blockNativeClipboardMenu(e);
+        }
+      }, { capture: true });
     });
     // niente blur→commit: si conferma con OK (meglio su tablet)
 
@@ -5512,7 +5565,7 @@
       }
     } catch (_) { /* ok */ }
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt5", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt6", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
