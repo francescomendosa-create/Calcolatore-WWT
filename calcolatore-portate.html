@@ -12,9 +12,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Process Managed" />
-  <link rel="manifest" href="manifest.json?v=wwt8" />
-  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt8" />
-  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt8" />
+  <link rel="manifest" href="manifest.json?v=wwt9" />
+  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt9" />
+  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt9" />
   <style>
     :root {
       --bg: #0b1220;
@@ -1748,7 +1748,7 @@
         </div>
         <p class="mini">TK 11007: a stop riempimento (97%) le membrane FERMANO; a start (90%) ripartono.</p>
       </div>
-      <p class="mini">Ciclo lavoro/pausa a coppie sfalsate (A+D, B+G, C+E, F). In pausa di ciclo o blocco livello: rosse e portata 0.</p>
+      <p class="mini">Ciclo comune A–G: lavoro′ verdi, poi pausa′ rosse tutte insieme (es. 7′ + 1′). Blocco livello / TK 11007: tutte rosse e portata 0.</p>
       <label><strong>TOTALE membrane ON (m³/h)</strong>
         <input type="number" id="qMemTotale" class="tot-mem" min="0" max="500" step="0.1" value="171.4" />
       </label>
@@ -1962,13 +1962,7 @@
     const RATE_PCT_CLAMP = 2.5; // tetto %/min: REGOLAZIONI estreme non devono far saltare i livelli
     const round2 = (v) => Math.round(Number(v) * 100) / 100;
     const MBR_MEM_IDS = ["A", "B", "C", "D", "E", "F", "G"]; // H fuori uso
-    // Pause a coppie sfalsate (stesso ciclo 7′+1′, non tutte insieme)
-    const MBR_PAUSE_PAIRS = [
-      ["A", "D"],
-      ["B", "G"],
-      ["C", "E"],
-      ["F"],
-    ];
+    // Tutte sullo stesso orologio: lavoro′ ON, poi pausa′ OFF (niente sfalsamento)
     let __flowMode = "auto"; // "auto" = bilancia portate · "manual" = portate libere
 
     function isAutoMode() {
@@ -2449,21 +2443,12 @@
     }
 
     /**
-     * Ciclo da PROCESSO: lavoro′ ON + pausa′ OFF, per ogni membrana.
-     * Coppie sfalsate: A+D, B+G, C+E, F — ciascuna fa i suoi 7′+1′, ma le pause
-     * delle coppie sono distanziate di (lavoro+pausa)/nCoppie minuti (con 8′ → ogni 2′).
-     * Mai “una al minuto”: con pausa=1′ e 4 coppie, una coppia in pausa ogni 2′.
+     * Ciclo da PROCESSO: tutte le membrane A–G insieme.
+     * lavoro′ ON, poi pausa′ OFF, poi di nuovo (es. 7′ lavoro + 1′ pausa).
      */
-    function membranePairIndex(letter) {
-      for (let p = 0; p < MBR_PAUSE_PAIRS.length; p++) {
-        if (MBR_PAUSE_PAIRS[p].includes(letter)) return p;
-      }
-      return 0;
-    }
-
     function membraneCycleLen() {
       const lavoro = Math.max(0.1, num("cicloLavoro") || 7);
-      const pausa = Math.max(0.05, num("cicloPausa") || 1);
+      const pausa = Math.max(0, num("cicloPausa") || 1);
       return { lavoro, pausa, cycle: lavoro + pausa };
     }
 
@@ -2606,25 +2591,20 @@
       if (hi) { hi.textContent = fmtPct(stopR); hi.setAttribute("fill", blocked ? "#f87171" : "#fbbf24"); }
     }
 
-    /** true = in pausa (rossa / portata 0). Usa orologio ciclo membrane (congelabile). */
+    /** true = in pausa (rossa / portata 0). Tutte A–G sullo stesso orologio. */
     function membraneIsPaused(cycleMin, letter) {
       // Blocco processo: MBR basso o TK 11007 pieno → tutte ferme
       if (!membranesProcessAllowed()) return true;
-      const { lavoro, pausa, cycle } = membraneCycleLen();
-      const cyc = Math.max(2, Math.round(cycle));
+      const L = String(letter || "").toUpperCase();
+      if (L === "H") return true;
+      const { lavoro, pausa } = membraneCycleLen();
       const lavoroR = Math.max(1, Math.round(lavoro));
-      const pausaR = Math.max(1, Math.round(pausa));
-      const nPairs = Math.max(1, MBR_PAUSE_PAIRS.length);
-      const spacing = cyc / nPairs;
-      const pairIdx = membranePairIndex(letter);
-      // Prima pausa dopo un periodo pieno di lavoro; poi ogni `cycle` minuti
-      // es. 7′ lavoro: pause a 7 (A+D), 9 (B+G), 11 (C+E), 13 (F), poi +8′…
-      const firstPause = lavoroR + Math.round(pairIdx * spacing);
+      const pausaR = Math.max(0, Math.round(pausa));
+      if (pausaR <= 0) return false; // solo lavoro continuo
+      const cyc = Math.max(1, lavoroR + pausaR);
       const t = Math.floor(Number(cycleMin) || 0);
-      if (t < firstPause) return false;
-      let u = (t - firstPause) % cyc;
-      if (u < 0) u += cyc;
-      return u < pausaR;
+      // 0…lavoroR−1 = lavoro; lavoroR…cyc−1 = pausa (es. 0–6 ON, 7 OFF)
+      return (t % cyc) >= lavoroR;
     }
 
     function membranePhaseAt(cycleMin, indexOrLetter) {
@@ -3262,7 +3242,7 @@
           if (isAutoMode()) ensurePumpsFlowing();
         }
         if (isAutoMode() && (__startupPumpHold || p11011Allowed())) ensurePumpsFlowing();
-        // Avanza il minuto, poi simula con quello stato (7′ lavoro / 1′ pausa a coppie)
+        // Avanza il minuto, poi simula (7′ lavoro / 1′ pausa tutte insieme)
         __simMin = __simMin + SIM_STEP_MIN;
         simulateOneStep(SIM_STEP_MIN);
         paintMembraneCycleUI(__mbrCycleMin);
@@ -5652,7 +5632,7 @@
       }
     } catch (_) { /* ok */ }
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt8", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt9", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
