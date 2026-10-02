@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
   <title>Process Managed</title>
   <meta name="theme-color" content="#0b1220" />
   <meta name="application-name" content="Process Managed" />
@@ -10,9 +12,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Process Managed" />
-  <link rel="manifest" href="manifest.json?v=wwt4" />
-  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt4" />
-  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt4" />
+  <link rel="manifest" href="manifest.json?v=wwt5" />
+  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt5" />
+  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt5" />
   <style>
     :root {
       --bg: #0b1220;
@@ -348,7 +350,43 @@
       font-variant-numeric: tabular-nums;
       text-align: center;
       box-sizing: border-box;
+      caret-color: var(--accent);
     }
+    /* Mobile: niente tastiera di sistema sul campo */
+    html.touch-ui #svgInlineInput {
+      inputmode: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    .flow-numpad {
+      display: none;
+      margin: 0 0 12px;
+      padding-top: 4px;
+    }
+    .flow-numpad.show { display: block; }
+    .flow-numpad-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      max-width: 260px;
+      margin: 0 auto;
+    }
+    .flow-numpad-grid button {
+      appearance: none;
+      height: 48px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: #0b1220;
+      color: #e8eef5;
+      font-size: 1.2rem;
+      font-weight: 800;
+      cursor: pointer;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .flow-numpad-grid button:active { background: #0c4a6e; border-color: var(--accent); }
+    .flow-numpad-grid button.np-back { color: #fbbf24; }
+    .flow-numpad-grid button.np-clear { color: #f87171; font-size: 0.85rem; }
     .flow-edit-actions {
       display: flex;
       gap: 8px;
@@ -1111,15 +1149,32 @@
     </div>
   </div>
 
-  <!-- Popup centrale modifica portata (tablet / PC) -->
+  <!-- Popup centrale modifica portata (tablet / PC / mobile) -->
   <div class="flow-edit-back" id="popFlowEdit" role="dialog" aria-modal="true" aria-labelledby="flowEditTitle">
     <div class="flow-edit-panel">
       <h3 id="flowEditTitle">Portata</h3>
       <p class="flow-edit-unit" id="flowEditUnit">m³/h</p>
       <div class="flow-edit-spin">
         <button type="button" id="flowEditUp" aria-label="Aumenta">▲</button>
-        <input type="number" id="svgInlineInput" step="0.1" inputmode="decimal" />
+        <input type="text" id="svgInlineInput" inputmode="decimal" autocomplete="off" enterkeyhint="done" />
         <button type="button" id="flowEditDown" aria-label="Diminuisci">▼</button>
+      </div>
+      <div class="flow-numpad" id="flowNumpad" aria-label="Tastierino numerico">
+        <div class="flow-numpad-grid">
+          <button type="button" data-np="7">7</button>
+          <button type="button" data-np="8">8</button>
+          <button type="button" data-np="9">9</button>
+          <button type="button" data-np="4">4</button>
+          <button type="button" data-np="5">5</button>
+          <button type="button" data-np="6">6</button>
+          <button type="button" data-np="1">1</button>
+          <button type="button" data-np="2">2</button>
+          <button type="button" data-np="3">3</button>
+          <button type="button" data-np=".">.</button>
+          <button type="button" data-np="0">0</button>
+          <button type="button" class="np-back" data-np="back" aria-label="Cancella">⌫</button>
+          <button type="button" class="np-clear" data-np="clear" style="grid-column:1/-1">Pulisci</button>
+        </div>
       </div>
       <div class="flow-edit-actions">
         <button type="button" class="flow-cancel" id="flowEditCancel">Annulla</button>
@@ -4532,12 +4587,14 @@
       });
     });
 
-    /* Edit portata: popup centrale con freccette + digitazione */
+    /* Edit portata: popup centrale con freccette + digitazione / numpad mobile */
     const sketch = el("sketch");
     const inlineInp = el("svgInlineInput");
     const flowEditBack = el("popFlowEdit");
     const flowEditTitle = el("flowEditTitle");
     const flowEditUnit = el("flowEditUnit");
+    const flowNumpad = el("flowNumpad");
+    let __flowNumpadFresh = false; // prossimo tasto numpad sostituisce il valore
     // inlineCtx dichiarato in alto (condiviso con isEditing / applyBalance)
 
     const FLOW_EDIT_LABELS = {
@@ -4558,26 +4615,97 @@
       qOsmosiC: "Osmosi C",
     };
 
+    function isTouchUi() {
+      try {
+        return window.matchMedia("(pointer: coarse)").matches
+          || window.matchMedia("(hover: none)").matches
+          || (("ontouchstart" in window) && Math.min(screen.width, screen.height) <= 1024);
+      } catch (_) {
+        return "ontouchstart" in window;
+      }
+    }
+
+    function syncTouchUiClass() {
+      document.documentElement.classList.toggle("touch-ui", isTouchUi());
+    }
+    syncTouchUiClass();
+
     function flowEditStep(field) {
       if (field === "freqHz" || field === "qIn") return 1;
       return 0.1;
     }
 
+    function hideFlowNumpad() {
+      if (flowNumpad) flowNumpad.classList.remove("show");
+      __flowNumpadFresh = false;
+    }
+
+    function showFlowNumpad() {
+      if (!isTouchUi() || !flowNumpad) return;
+      flowNumpad.classList.add("show");
+      __flowNumpadFresh = true;
+    }
+
     function hideInline() {
+      hideFlowNumpad();
       if (flowEditBack) flowEditBack.classList.remove("show");
       inlineCtx = null;
+      try { if (inlineInp) inlineInp.blur(); } catch (_) { /* ignore */ }
     }
 
     function nudgeFlowEdit(dir) {
       if (!inlineCtx || !inlineInp) return;
+      hideFlowNumpad(); // frecce: niente tastierino
       const step = flowEditStep(inlineCtx.field);
       const raw = String(inlineInp.value ?? "").trim().replace(",", ".");
       let v = parseFloat(raw);
       if (!Number.isFinite(v)) v = 0;
-      v = Math.max(0, round1(v + dir * step));
+      v = Math.max(0, v + dir * step);
       if (step >= 1) v = Math.round(v);
       else v = round1(v);
       inlineInp.value = step >= 1 ? String(v) : String(v);
+      __flowNumpadFresh = true;
+      applyInlineLive();
+    }
+
+    function applyNumpadKey(key) {
+      if (!inlineCtx || !inlineInp) return;
+      let cur = String(inlineInp.value ?? "");
+      const step = inlineCtx ? flowEditStep(inlineCtx.field) : 0.1;
+      if (key === "clear") {
+        inlineInp.value = "";
+        __flowNumpadFresh = false;
+        return;
+      }
+      if (key === "back") {
+        if (__flowNumpadFresh) {
+          inlineInp.value = "";
+          __flowNumpadFresh = false;
+        } else {
+          inlineInp.value = cur.slice(0, -1);
+        }
+        applyInlineLive();
+        return;
+      }
+      if (key === ".") {
+        if (step >= 1) return; // interi: niente decimali
+        if (__flowNumpadFresh) {
+          inlineInp.value = "0.";
+          __flowNumpadFresh = false;
+        } else if (!cur.includes(".")) {
+          inlineInp.value = (cur === "" ? "0" : cur) + ".";
+        }
+        applyInlineLive();
+        return;
+      }
+      if (__flowNumpadFresh) {
+        inlineInp.value = key;
+        __flowNumpadFresh = false;
+      } else {
+        // evita zeri inutili a sinistra
+        if (cur === "0" && key !== ".") inlineInp.value = key;
+        else inlineInp.value = cur + key;
+      }
       applyInlineLive();
     }
 
@@ -4758,19 +4886,30 @@
       const step = flowEditStep(field);
       inlineInp.step = String(step);
       if (step >= 1) {
-        inlineInp.inputMode = "numeric";
         inlineInp.value = String(Math.round(val));
       } else {
-        inlineInp.inputMode = "decimal";
         inlineInp.value = String(round1(val));
       }
       if (flowEditTitle) flowEditTitle.textContent = FLOW_EDIT_LABELS[field] || "Portata";
       if (flowEditUnit) flowEditUnit.textContent = field === "freqHz" ? "Hz" : "m³/h";
+      hideFlowNumpad();
+      __flowNumpadFresh = true;
+      if (isTouchUi()) {
+        // Mobile/tablet: niente tastiera di sistema all’apertura
+        inlineInp.setAttribute("readonly", "readonly");
+        inlineInp.setAttribute("inputmode", "none");
+        inlineInp.blur();
+      } else {
+        inlineInp.removeAttribute("readonly");
+        inlineInp.setAttribute("inputmode", step >= 1 ? "numeric" : "decimal");
+      }
       if (flowEditBack) flowEditBack.classList.add("show");
-      setTimeout(() => {
-        inlineInp.focus();
-        inlineInp.select();
-      }, 30);
+      if (!isTouchUi()) {
+        setTimeout(() => {
+          inlineInp.focus();
+          inlineInp.select();
+        }, 30);
+      }
     }
 
     document.querySelectorAll(".flow-edit").forEach((g) => {
@@ -4807,7 +4946,30 @@
       }
     });
 
-    inlineInp.addEventListener("click", (e) => e.stopPropagation());
+    // Click sul numero: su mobile apre il numpad (non la tastiera di sistema)
+    inlineInp.addEventListener("pointerdown", (e) => {
+      e.stopPropagation();
+      if (isTouchUi()) {
+        e.preventDefault();
+        showFlowNumpad();
+        try { inlineInp.blur(); } catch (_) { /* ignore */ }
+      }
+    });
+    inlineInp.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (isTouchUi()) {
+        e.preventDefault();
+        showFlowNumpad();
+        try { inlineInp.blur(); } catch (_) { /* ignore */ }
+      }
+    });
+    inlineInp.addEventListener("focus", (e) => {
+      if (isTouchUi()) {
+        // blocca focus → tastiera
+        try { inlineInp.blur(); } catch (_) { /* ignore */ }
+        showFlowNumpad();
+      }
+    });
     inlineInp.addEventListener("input", applyInlineLive);
     inlineInp.addEventListener("keydown", (e) => {
       if (e.key === "Enter") { e.preventDefault(); commitInline(); }
@@ -4818,6 +4980,14 @@
       }
       if (e.key === "ArrowUp") { e.preventDefault(); nudgeFlowEdit(1); }
       if (e.key === "ArrowDown") { e.preventDefault(); nudgeFlowEdit(-1); }
+    });
+
+    flowNumpad?.addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-np]");
+      if (!btn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      applyNumpadKey(btn.getAttribute("data-np"));
     });
     // niente blur→commit: si conferma con OK (meglio su tablet)
 
@@ -5342,7 +5512,10 @@
       }
     } catch (_) { /* ok */ }
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt1", { scope: "./" }).catch(function () {});
+      navigator.serviceWorker.register("sw.js?v=wwt5", { scope: "./" }).then(function (reg) {
+        try { reg.update(); } catch (_) {}
+        if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
+      }).catch(function () {});
     }
   </script>
 </body>

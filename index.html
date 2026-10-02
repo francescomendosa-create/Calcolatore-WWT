@@ -10,9 +10,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Process Managed" />
-  <link rel="manifest" href="manifest.json?v=wwt4" />
-  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt4" />
-  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt4" />
+  <link rel="manifest" href="manifest.json?v=wwt5" />
+  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt5" />
+  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt5" />
   <style>
     html, body {
       margin: 0;
@@ -99,7 +99,7 @@
 
   <script>
     (function () {
-      var APP_SRC = "calcolatore-portate.html";
+      var APP_SRC = "calcolatore-portate.html?v=wwt5";
       var frame = document.getElementById("app-frame");
       var landing = document.getElementById("landing");
       var urlEl = document.getElementById("public-url");
@@ -111,7 +111,7 @@
       function showApp() {
         if (frame) {
           frame.style.display = "block";
-          frame.src = APP_SRC;
+          frame.src = APP_SRC + "&t=" + Date.now();
         }
         if (landing) landing.style.display = "none";
       }
@@ -124,7 +124,10 @@
       document.getElementById("open-btn").addEventListener("click", showApp);
 
       if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("./sw.js?v=wwt1", { scope: "./" }).catch(function () {});
+        navigator.serviceWorker.register("./sw.js?v=wwt5", { scope: "./" }).then(function (reg) {
+          try { reg.update(); } catch (_) {}
+          if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
+        }).catch(function () {});
       }
 
       window.addEventListener("beforeinstallprompt", function (e) {
