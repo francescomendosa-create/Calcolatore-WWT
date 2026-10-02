@@ -294,24 +294,103 @@
     }
     .settings-block .row { margin-bottom: 2px; }
     .modal.wide-settings { width: min(520px, 100%); }
-    .flow-edit { cursor: text; }
-    .svg-inline-input {
-      position: absolute;
-      z-index: 20;
+    .flow-edit { cursor: pointer; }
+    .flow-edit-back {
+      position: fixed;
+      inset: 0;
+      z-index: 12000;
       display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(2, 8, 20, 0.72);
+      padding: 16px;
+    }
+    .flow-edit-back.show { display: flex; }
+    .flow-edit-panel {
+      width: min(320px, 100%);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px 18px 14px;
+      box-shadow: 0 16px 48px rgba(0,0,0,.45);
+      text-align: center;
+    }
+    .flow-edit-panel h3 {
+      margin: 0 0 6px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .flow-edit-panel .flow-edit-unit {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin: 0 0 10px;
+      font-weight: 600;
+    }
+    .flow-edit-spin {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      margin: 4px 0 14px;
+    }
+    .flow-edit-spin button {
+      appearance: none;
       width: 72px;
-      padding: 4px 6px;
-      border-radius: 6px;
+      height: 48px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      color: var(--accent);
+      font-size: 1.45rem;
+      font-weight: 800;
+      cursor: pointer;
+      line-height: 1;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .flow-edit-spin button:hover { border-color: var(--accent); color: #fff; }
+    .flow-edit-spin button:active { background: #0c4a6e; }
+    #svgInlineInput {
+      display: block;
+      width: 168px;
+      max-width: 100%;
+      margin: 0 auto;
+      padding: 12px 10px;
+      border-radius: 10px;
       border: 2px solid var(--accent);
       background: #0b1220;
       color: #fff;
-      font-size: 14px;
-      font-weight: 700;
+      font-size: 1.5rem;
+      font-weight: 800;
       font-variant-numeric: tabular-nums;
       text-align: center;
-      box-shadow: 0 4px 16px rgba(0,0,0,.4);
+      box-sizing: border-box;
     }
-    .svg-inline-input.show { display: block; }
+    .flow-edit-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .flow-edit-actions button {
+      flex: 1;
+      appearance: none;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      padding: 12px 10px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    .flow-edit-actions .flow-ok {
+      background: #14532d;
+      border-color: #4ade80;
+      color: #bbf7d0;
+    }
+    .flow-edit-actions .flow-cancel {
+      background: var(--panel-2);
+      color: var(--text);
+    }
     .proc-label {
       display: flex;
       align-items: center;
