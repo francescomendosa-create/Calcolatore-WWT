@@ -2030,19 +2030,48 @@
       return false;
     }
 
-    function rememberFlowSetpoint(id, v) {
+    /** Memorizza setpoint comando. NON accetta 0 (pompe ferme ≠ setpoint azzerato). */
+    function rememberFlowSetpoint(id, v, { allowZero = false } = {}) {
       const s = Math.max(0, round1(Number(v) || 0));
+      if (s < 0.05 && !allowZero) return __flowSetpoint[id];
       __flowSetpoint[id] = s;
       if (id === "qPump") lastQPump = s;
       if (id === "qMandata") lastQMandata = s;
       return s;
     }
 
-    /** Setpoint da mostrare/editare nel popup (mai la misura a zero per blocco pompe). */
+    /**
+     * Setpoint da mostrare/editare nel popup.
+     * Mai la portata viva a 0 per blocco pompe: usa memoria comando / floor processo.
+     */
     function flowSetpointOf(id) {
-      if (id === "qPump") return Math.max(0, round1(__flowSetpoint.qPump ?? lastQPump));
-      if (id === "qMandata") return Math.max(0, round1(__flowSetpoint.qMandata ?? lastQMandata));
-      if (__flowSetpoint[id] != null) return Math.max(0, round1(__flowSetpoint[id]));
+      if (id === "qPump") {
+        let s = Math.max(0, Number(__flowSetpoint.qPump) || 0, Number(lastQPump) || 0);
+        if (s < 0.05) {
+          try { s = clampPump(pumpFloorForIngresso(Math.max(0, num("qIn")))); }
+          catch (_) { s = 0; }
+        }
+        return round1(s);
+      }
+      if (id === "qMandata") {
+        let s = Math.max(0, Number(__flowSetpoint.qMandata) || 0, Number(lastQMandata) || 0);
+        if (s < 0.05) s = flowSetpointOf("qPump");
+        return round1(s);
+      }
+      if (id === "qRecycle") {
+        let s = Math.max(0, Number(__flowSetpoint.qRecycle) || 0);
+        if (s < 0.05) {
+          const qp = flowSetpointOf("qPump");
+          const qIn = Math.max(0, num("qIn"));
+          s = Math.max(0, round1(qp - qIn));
+        }
+        return round1(s);
+      }
+      if (id === "qP11019") {
+        let s = Math.max(0, Number(__flowSetpoint.qP11019) || 0);
+        if (s < 0.05) s = Math.max(0, num("qIn"));
+        return round1(s);
+      }
       return Math.max(0, round1(num(id)));
     }
 
@@ -2112,7 +2141,8 @@
      */
     function commitFlow(id, target, { force = true, instant = false, svgId = null, setpoint = undefined } = {}) {
       const tgt = Math.max(0, round1(Number(target) || 0));
-      if (setpoint !== undefined && setpoint !== null) {
+      // Aggiorna setpoint solo se > 0 (o esplicito > 0). Mai cancellarlo con lo stop pompe.
+      if (setpoint !== undefined && setpoint !== null && Number(setpoint) > 0.05) {
         rememberFlowSetpoint(id, setpoint);
       } else if (tgt > 0.05) {
         rememberFlowSetpoint(id, tgt);
@@ -4388,11 +4418,13 @@
         }
 
         if (!isEditing("qPump") && Number.isFinite(qPump)) {
-          // Aggiorna setpoint solo a pompe in marcia (o in Manuale). A OFF non azzerare.
-          if (auto) {
-            if (pumpOn && qPump > 0.05) rememberFlowSetpoint("qPump", clampPump(qPump));
-          } else {
-            rememberFlowSetpoint("qPump", Math.max(0, qPump));
+          // Solo valori > 0: a pompe ferme la viva è 0 ma il setpoint NON si cancella
+          if (qPump > 0.05) {
+            if (auto) {
+              if (pumpOn) rememberFlowSetpoint("qPump", clampPump(qPump));
+            } else {
+              rememberFlowSetpoint("qPump", Math.max(0, qPump));
+            }
           }
         }
 
@@ -5369,8 +5401,19 @@
       const field = flowGroup.dataset.field;
       const source = flowGroup.dataset.source;
       inlineCtx = { field, source };
-      // Pompe: nel popup sempre il SETPOINT (non la viva a 0 se ferme)
-      let val = FLOW_IDS.includes(field) ? flowSetpointOf(field) : num(field);
+      // Pompe: nel popup SEMPRE il SETPOINT (mai la viva a 0 se la pompa è ferma)
+      let val;
+      if (field === "qPump" || field === "qMandata" || field === "qRecycle" || field === "qP11019") {
+        val = flowSetpointOf(field);
+        // Se per qualche motivo è ancora 0, riparti dal floor di processo
+        if (!(val > 0.05) && field === "qPump") {
+          try { val = clampPump(pumpFloorForIngresso(Math.max(0, num("qIn")))); }
+          catch (_) { val = Math.max(0, lastQPump); }
+          if (val > 0.05) rememberFlowSetpoint("qPump", val);
+        }
+      } else {
+        val = num(field);
+      }
       if (field === "livelloAttuale") val = num("livelloAttuale");
       const step = flowEditStep(field);
       inlineInp.step = String(step);
@@ -5379,7 +5422,10 @@
       } else {
         inlineInp.value = String(round1(val));
       }
-      if (flowEditTitle) flowEditTitle.textContent = FLOW_EDIT_LABELS[field] || "Portata";
+      if (flowEditTitle) {
+        const base = FLOW_EDIT_LABELS[field] || "Portata";
+        flowEditTitle.textContent = FLOW_IDS.includes(field) ? (base + " · setpoint") : base;
+      }
       if (flowEditUnit) flowEditUnit.textContent = field === "freqHz" ? "Hz" : "m³/h";
       __flowNumpadFresh = true;
       if (isTouchUi()) {
