@@ -4532,14 +4532,53 @@
       });
     });
 
-    /* Edit inline sul numerino portata */
+    /* Edit portata: popup centrale con freccette + digitazione */
     const sketch = el("sketch");
     const inlineInp = el("svgInlineInput");
+    const flowEditBack = el("popFlowEdit");
+    const flowEditTitle = el("flowEditTitle");
+    const flowEditUnit = el("flowEditUnit");
     // inlineCtx dichiarato in alto (condiviso con isEditing / applyBalance)
 
+    const FLOW_EDIT_LABELS = {
+      qIn: "Ingresso chimico-fisico",
+      qPump: "P11011 A/B",
+      freqHz: "Frequenza P11011",
+      qMandata: "Mandata MP 11036",
+      qMemTotale: "Totale membrane ON",
+      qRecycle: "Riciclo 11014 A/B",
+      qP11019: "P11019",
+      qUfTotale: "Totale UF",
+      qUfA: "UF linea A",
+      qUfB: "UF linea B",
+      qUfC: "UF linea C",
+      qUfD: "UF linea D",
+      qOsmosiA: "Osmosi A",
+      qOsmosiB: "Osmosi B",
+      qOsmosiC: "Osmosi C",
+    };
+
+    function flowEditStep(field) {
+      if (field === "freqHz" || field === "qIn") return 1;
+      return 0.1;
+    }
+
     function hideInline() {
-      inlineInp.classList.remove("show");
+      if (flowEditBack) flowEditBack.classList.remove("show");
       inlineCtx = null;
+    }
+
+    function nudgeFlowEdit(dir) {
+      if (!inlineCtx || !inlineInp) return;
+      const step = flowEditStep(inlineCtx.field);
+      const raw = String(inlineInp.value ?? "").trim().replace(",", ".");
+      let v = parseFloat(raw);
+      if (!Number.isFinite(v)) v = 0;
+      v = Math.max(0, round1(v + dir * step));
+      if (step >= 1) v = Math.round(v);
+      else v = round1(v);
+      inlineInp.value = step >= 1 ? String(v) : String(v);
+      applyInlineLive();
     }
 
     function applyInlineLive() {
@@ -4624,14 +4663,14 @@
 
     function commitInline() {
       if (!inlineCtx) {
-        inlineInp.classList.remove("show");
+        if (flowEditBack) flowEditBack.classList.remove("show");
         return;
       }
       const { field, source } = inlineCtx;
       const raw = String(inlineInp.value ?? "").trim().replace(",", ".");
       const v = parseFloat(raw);
       inlineCtx = null;
-      inlineInp.classList.remove("show");
+      if (flowEditBack) flowEditBack.classList.remove("show");
       if (!Number.isFinite(v)) {
         if (field === "qUfTotale") { syncUf("uf-totale"); return; }
         if (field === "qUfA" || field === "qUfB" || field === "qUfC" || field === "qUfD") { syncUf("uf-linea"); return; }
@@ -4713,30 +4752,25 @@
     function startInlineEdit(flowGroup) {
       const field = flowGroup.dataset.field;
       const source = flowGroup.dataset.source;
-      const hit = flowGroup.querySelector(".badge") || flowGroup.querySelector("text") || flowGroup;
-      const r = hit.getBoundingClientRect();
-      const sr = sketch.getBoundingClientRect();
       inlineCtx = { field, source };
       let val = num(field);
       if (field === "livelloAttuale") val = num("livelloAttuale");
-      if (field === "freqHz") {
-        inlineInp.step = "1";
-        inlineInp.inputMode = "numeric";
-        inlineInp.value = String(Math.round(val));
-      } else if (field === "qIn") {
-        inlineInp.step = "1";
+      const step = flowEditStep(field);
+      inlineInp.step = String(step);
+      if (step >= 1) {
         inlineInp.inputMode = "numeric";
         inlineInp.value = String(Math.round(val));
       } else {
-        inlineInp.step = "0.1";
         inlineInp.inputMode = "decimal";
         inlineInp.value = String(round1(val));
       }
-      inlineInp.style.left = Math.max(4, r.left - sr.left + (r.width - 72) / 2) + "px";
-      inlineInp.style.top = Math.max(4, r.top - sr.top - 2) + "px";
-      inlineInp.classList.add("show");
-      inlineInp.focus();
-      inlineInp.select();
+      if (flowEditTitle) flowEditTitle.textContent = FLOW_EDIT_LABELS[field] || "Portata";
+      if (flowEditUnit) flowEditUnit.textContent = field === "freqHz" ? "Hz" : "m³/h";
+      if (flowEditBack) flowEditBack.classList.add("show");
+      setTimeout(() => {
+        inlineInp.focus();
+        inlineInp.select();
+      }, 30);
     }
 
     document.querySelectorAll(".flow-edit").forEach((g) => {
@@ -4747,13 +4781,45 @@
       });
     });
 
+    el("flowEditUp")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      nudgeFlowEdit(1);
+    });
+    el("flowEditDown")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      nudgeFlowEdit(-1);
+    });
+    el("flowEditOk")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      commitInline();
+    });
+    el("flowEditCancel")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      hideInline();
+      try { applyBalance("livello"); } catch (_) { /* ignore */ }
+    });
+    flowEditBack?.addEventListener("click", (e) => {
+      if (e.target === flowEditBack) {
+        hideInline();
+        try { applyBalance("livello"); } catch (_) { /* ignore */ }
+      }
+    });
+
     inlineInp.addEventListener("click", (e) => e.stopPropagation());
     inlineInp.addEventListener("input", applyInlineLive);
     inlineInp.addEventListener("keydown", (e) => {
       if (e.key === "Enter") { e.preventDefault(); commitInline(); }
-      if (e.key === "Escape") { e.preventDefault(); hideInline(); applyBalance("pompa"); }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        hideInline();
+        try { applyBalance("livello"); } catch (_) { /* ignore */ }
+      }
+      if (e.key === "ArrowUp") { e.preventDefault(); nudgeFlowEdit(1); }
+      if (e.key === "ArrowDown") { e.preventDefault(); nudgeFlowEdit(-1); }
     });
-    inlineInp.addEventListener("blur", () => { setTimeout(commitInline, 0); });
+    // niente blur→commit: si conferma con OK (meglio su tablet)
 
     document.querySelectorAll("[data-close]").forEach((btn) => {
       btn.addEventListener("click", closePopups);
