@@ -12,9 +12,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Process Managed" />
-  <link rel="manifest" href="manifest.json?v=wwt11" />
-  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt11" />
-  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt11" />
+  <link rel="manifest" href="manifest.json?v=wwt12" />
+  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt12" />
+  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt12" />
   <style>
     :root {
       --bg: #0b1220;
@@ -91,22 +91,22 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
-      margin: 0 12px 6px;
+      gap: 10px;
+      margin: 0 12px 8px;
       flex-wrap: nowrap;
     }
     .sim-mode {
       display: flex;
       align-items: center;
-      gap: 5px;
+      gap: 6px;
       flex-shrink: 0;
       background: #0b1220;
       border: 1px solid var(--line);
-      border-radius: 7px;
-      padding: 3px 7px;
+      border-radius: 8px;
+      padding: 5px 9px;
     }
     .sim-mode .sim-label {
-      font-size: 0.65rem;
+      font-size: 0.72rem;
       font-weight: 700;
       letter-spacing: 0.05em;
       text-transform: uppercase;
@@ -117,13 +117,13 @@
       border: 1px solid var(--line);
       background: var(--panel-2);
       color: var(--text);
-      border-radius: 5px;
-      padding: 3px 9px;
-      font-size: 0.75rem;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 0.85rem;
       font-weight: 700;
       cursor: pointer;
       transition: background 0.12s, border-color 0.12s, color 0.12s;
-      line-height: 1.2;
+      line-height: 1.25;
     }
     .sim-mode button:hover { border-color: #86efac; color: #fff; }
     .sim-mode button.is-on {
@@ -134,25 +134,25 @@
     .sim-time {
       display: flex;
       align-items: center;
-      gap: 5px;
+      gap: 6px;
       flex-shrink: 0;
       margin-left: auto;
       background: #0b1220;
       border: 1px solid var(--line);
-      border-radius: 7px;
-      padding: 3px 7px;
+      border-radius: 8px;
+      padding: 5px 9px;
     }
     .sim-time .sim-label {
-      font-size: 0.65rem;
+      font-size: 0.72rem;
       font-weight: 700;
       letter-spacing: 0.05em;
       text-transform: uppercase;
       color: var(--muted);
     }
     .sim-time #simTimeLabel {
-      min-width: 34px;
+      min-width: 38px;
       text-align: center;
-      font-size: 0.95rem;
+      font-size: 1.05rem;
       font-weight: 800;
       color: var(--accent);
       font-variant-numeric: tabular-nums;
@@ -162,7 +162,7 @@
       min-width: 1.1em;
       padding: 0 2px;
       text-align: center;
-      font-size: 0.95rem;
+      font-size: 1.05rem;
       font-weight: 800;
       color: #f87171;
       font-variant-numeric: tabular-nums;
@@ -176,25 +176,27 @@
       border: 1px solid var(--line);
       background: var(--panel-2);
       color: var(--text);
-      border-radius: 5px;
-      padding: 3px 8px;
-      font-size: 0.75rem;
+      border-radius: 6px;
+      padding: 6px 11px;
+      font-size: 0.85rem;
       font-weight: 700;
       cursor: pointer;
-      line-height: 1.2;
+      line-height: 1.25;
     }
     .sim-time button:hover { border-color: var(--accent); color: #fff; }
     .sim-time button:disabled { opacity: 0.4; cursor: default; }
-    .sim-time button.is-on {
+    .sim-time #simPlayToggle.is-start {
       background: #14532d;
       border-color: #4ade80;
       color: #bbf7d0;
     }
-    .sim-time #simStop.is-on {
+    .sim-time #simPlayToggle.is-start:hover { border-color: #86efac; color: #fff; }
+    .sim-time #simPlayToggle.is-stop {
       background: #7f1d1d;
       border-color: #f87171;
       color: #fecaca;
     }
+    .sim-time #simPlayToggle.is-stop:hover { border-color: #fca5a5; color: #fff; }
     .hint {
       font-size: 0.75rem;
       color: var(--muted);
@@ -767,8 +769,7 @@
         <button type="button" id="btnModeManual" aria-pressed="false">Manuale</button>
       </div>
       <div class="sim-time" title="1 secondo reale = 1 minuto di impianto">
-        <button type="button" id="simStart" aria-label="Avvia simulazione">Start</button>
-        <button type="button" id="simStop" aria-label="Ferma simulazione">Stop</button>
+        <button type="button" id="simPlayToggle" class="is-start" aria-label="Avvia simulazione" aria-pressed="false">Start</button>
         <span class="sim-label">Time</span>
         <button type="button" id="simMinus5" aria-label="Indietro 1 minuto">−1′</button>
         <span id="simTimeLabel">0′</span>
@@ -2888,18 +2889,21 @@
       if (plus) plus.disabled = __simBusy || __simPlaying;
       const reset = el("simReset");
       if (reset) reset.disabled = !!__simBusy;
-      const startBtn = el("simStart");
-      const stopBtn = el("simStop");
-      if (startBtn) {
-        startBtn.classList.toggle("is-on", !!__simPlaying);
-        startBtn.disabled = !!__simBusy;
-        startBtn.setAttribute("aria-pressed", __simPlaying ? "true" : "false");
+      const playBtn = el("simPlayToggle");
+      if (playBtn) {
+        playBtn.disabled = !!__simBusy;
+        playBtn.classList.toggle("is-start", !__simPlaying);
+        playBtn.classList.toggle("is-stop", !!__simPlaying);
+        playBtn.textContent = __simPlaying ? "Stop" : "Start";
+        playBtn.setAttribute("aria-label", __simPlaying ? "Ferma simulazione" : "Avvia simulazione");
+        playBtn.setAttribute("aria-pressed", __simPlaying ? "true" : "false");
       }
-      if (stopBtn) {
-        stopBtn.classList.toggle("is-on", !__simPlaying);
-        stopBtn.disabled = !!__simBusy || !__simPlaying;
-        stopBtn.setAttribute("aria-pressed", !__simPlaying ? "true" : "false");
-      }
+    }
+
+    function simTogglePlay() {
+      if (__simBusy) return;
+      if (__simPlaying) simStop();
+      else simStart();
     }
 
     /** Avvia conteggio automatico: 1 secondo reale = 1 minuto sim. */
@@ -5198,9 +5202,8 @@
       applyBalance("livello");
     });
 
-    // TIME Start / Stop / −1′ / +1′ / Reset  (Start: 1 s reale = 1′ sim)
-    el("simStart")?.addEventListener("click", (e) => { e.preventDefault(); simStart(); });
-    el("simStop")?.addEventListener("click", (e) => { e.preventDefault(); simStop(); });
+    // TIME Start/Stop (unico toggle) / −1′ / +1′ / Reset  (Start: 1 s reale = 1′ sim)
+    el("simPlayToggle")?.addEventListener("click", (e) => { e.preventDefault(); simTogglePlay(); });
     el("simPlus5")?.addEventListener("click", (e) => { e.preventDefault(); simPlus5(); });
     el("simMinus5")?.addEventListener("click", (e) => { e.preventDefault(); simMinus5(); });
     el("simReset")?.addEventListener("click", (e) => {
@@ -5645,7 +5648,7 @@
       }
     } catch (_) { /* ok */ }
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt11", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt12", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
