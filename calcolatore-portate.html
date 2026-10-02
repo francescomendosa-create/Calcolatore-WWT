@@ -236,24 +236,6 @@
       color: var(--muted);
       pointer-events: none;
     }
-    .flow-edit { cursor: text; }
-    .svg-inline-input {
-      position: absolute;
-      z-index: 20;
-      display: none;
-      width: 72px;
-      padding: 4px 6px;
-      border-radius: 6px;
-      border: 2px solid var(--accent);
-      background: #0b1220;
-      color: #fff;
-      font-size: 14px;
-      font-weight: 700;
-      font-variant-numeric: tabular-nums;
-      text-align: center;
-      box-shadow: 0 4px 16px rgba(0,0,0,.4);
-    }
-    .svg-inline-input.show { display: block; }
     .proc-label {
       display: flex;
       align-items: center;
@@ -1125,8 +1107,24 @@
 
         <text x="18" y="600" fill="#64748b" font-size="11">… → 11040 A–D → Osmosi A/B/C</text>
       </svg>
-      <div class="click-hint">Click sul numero = modifica diretta · click su serbatoio/pompa = popup</div>
-      <input type="number" class="svg-inline-input" id="svgInlineInput" step="0.1" inputmode="decimal" />
+      <div class="click-hint">Click sul numero = regola portata · click su serbatoio/pompa = popup</div>
+    </div>
+  </div>
+
+  <!-- Popup centrale modifica portata (tablet / PC) -->
+  <div class="flow-edit-back" id="popFlowEdit" role="dialog" aria-modal="true" aria-labelledby="flowEditTitle">
+    <div class="flow-edit-panel">
+      <h3 id="flowEditTitle">Portata</h3>
+      <p class="flow-edit-unit" id="flowEditUnit">m³/h</p>
+      <div class="flow-edit-spin">
+        <button type="button" id="flowEditUp" aria-label="Aumenta">▲</button>
+        <input type="number" id="svgInlineInput" step="0.1" inputmode="decimal" />
+        <button type="button" id="flowEditDown" aria-label="Diminuisci">▼</button>
+      </div>
+      <div class="flow-edit-actions">
+        <button type="button" class="flow-cancel" id="flowEditCancel">Annulla</button>
+        <button type="button" class="flow-ok" id="flowEditOk">OK</button>
+      </div>
     </div>
   </div>
 
