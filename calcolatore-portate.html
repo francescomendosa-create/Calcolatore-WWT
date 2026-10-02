@@ -12,9 +12,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Process Managed" />
-  <link rel="manifest" href="manifest.json?v=wwt16" />
-  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt16" />
-  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt16" />
+  <link rel="manifest" href="manifest.json?v=wwt17" />
+  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt17" />
+  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt17" />
   <style>
     :root {
       --bg: #0b1220;
@@ -2849,21 +2849,29 @@
     function paintPumpColors(run14) {
       const run11011 = p11011Allowed() && num("qPump") > 0.5;
       const run11036 = !!__run11036 && num("qMandata") > 0.5;
-      let run11014 = true;
-      if (run14 && typeof run14.running === "boolean") run11014 = run14.running;
+      let allow11014 = true;
+      if (run14 && typeof run14.running === "boolean") allow11014 = run14.running;
       else {
         const livH = numOrNull("livelloAttualeH");
         const h = livH !== null ? livH : 90;
-        run11014 = assess11014RunState(h, num("livelloAttuale")).running;
+        allow11014 = assess11014RunState(h, num("livelloAttuale")).running;
       }
+      // Verde solo se consenso E portata > 0; ferme → niente portata → rosse
+      const qRecNow = Math.max(0, num("qRecycle"));
+      const run11014 = !!allow11014 && qRecNow > 0.5;
       paintOnePump("svgPump11011", "svgPump11011Arrow", "svgPump11011Label", run11011);
       paintOnePump("svgPump11036", "svgPump11036Arrow", "svgPump11036Label", run11036);
       paintOnePump("svgPump11014", "svgPump11014Arrow", "svgPump11014Label", run11014);
       const recGroup = document.querySelector('[data-field="qRecycle"] rect.badge');
       if (recGroup) recGroup.setAttribute("stroke", run11014 ? "#4ade80" : "#f87171");
+      const svgQRec = el("svgQRec");
+      if (svgQRec && (!allow11014 || qRecNow < 0.05)) {
+        // allinea badge se ferme (evita verde/0)
+        if (!allow11014) svgQRec.textContent = "0.0";
+      }
 
-      // P11019 A/B/C: rosse se blocco basso livello; verdi se abilitate (anche a 0 se appena ripartite)
-      const run11019 = p11019Allowed();
+      // P11019 A/B/C: verdi solo se abilitate E portata > 0
+      const run11019 = p11019Allowed() && num("qP11019") > 0.5;
       ["A", "B", "C"].forEach((L) => {
         paintOnePump("svgPump11019" + L, "svgPump11019" + L + "Arrow", null, run11019);
       });
@@ -2871,6 +2879,14 @@
       if (lab19) lab19.setAttribute("fill", run11019 ? "#86efac" : "#fda4af");
       const badge19 = el("svgQP11019Badge");
       if (badge19) badge19.setAttribute("stroke", run11019 ? "#4ade80" : "#f87171");
+    }
+
+    /** Riciclo effettivo 11014: ferme → 0; in marcia (Auto) → almeno Q_RECYCLE_MIN. */
+    function qRecycleEffective(running14, qWanted) {
+      if (!running14) return 0;
+      const w = Math.max(0, Number(qWanted) || 0);
+      if (isAutoMode()) return round1(Math.max(Q_RECYCLE_MIN, w));
+      return round1(w);
     }
 
     function rateA10620PctPerMin(qIn, qPump, qRecycle) {
@@ -3051,7 +3067,8 @@
       const qRecycleWanted = isAutoMode()
         ? Math.max(0, round1(qPump - qInSet))
         : Math.max(0, numOrNull("qRecycle") ?? round1(qPump - qInSet));
-      const qRecycleDisp = run14.running ? qRecycleWanted : 0;
+      // Consenso 11014 → portata; ferme → 0
+      const qRecycleDisp = qRecycleEffective(run14.running, qRecycleWanted);
       const qRecycleForH = qRecycleDisp;
       const de = dutyEffective();
       // Uscita permeato membrane (istantanea: pause ciclo = meno portata in ingresso al TK)
@@ -4371,17 +4388,23 @@
         const qRecycleWanted = Math.max(0, round1(qPumpEff2 - qInSet));
         let qRecycle = qRecycleWanted;
         if (auto) {
-          qRecycle = run14Bal.running ? qRecycleWanted : 0;
+          // Consenso → portata (≥ min); ferme → 0
+          qRecycle = qRecycleEffective(run14Bal.running, qRecycleWanted);
           setVal("qRecycle", qRecycle, { force: true });
         } else {
           const qRecKeep = numOrNull("qRecycle");
           qRecycle = qRecKeep === null ? qRecycleWanted : Math.max(0, qRecKeep);
-          // In manuale il campo resta il setpoint; verso A10620 conta solo se 11014 in marcia
           if (!isEditing("qRecycle") && qRecKeep === null) {
             setVal("qRecycle", qRecycleWanted, { force: true });
           }
-          if (!run14Bal.running) qRecycle = 0;
+          // Ferme → portata 0 (il setpoint manuale resta nel campo solo se in marcia)
+          if (!run14Bal.running) {
+            qRecycle = 0;
+            if (!isEditing("qRecycle")) setVal("qRecycle", 0, { force: true });
+          }
         }
+        const svgQRecBal = el("svgQRec");
+        if (svgQRecBal) svgQRecBal.textContent = round1(qRecycle).toFixed(1);
         setVal("qInView", qInSet);
         setVal("qPumpView", qMandata);
         setVal("qArrivoView", qPumpEff2);
@@ -5804,7 +5827,7 @@
       }
     } catch (_) { /* ok */ }
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt16", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt17", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
