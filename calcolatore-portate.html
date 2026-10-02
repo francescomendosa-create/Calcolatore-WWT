@@ -2069,9 +2069,7 @@
       }
       if (id === "qP11019") {
         let s = Math.max(0, Number(__flowSetpoint.qP11019) || 0);
-        if (s < 0.05) {
-          try { s = qP11019Setpoint(); } catch (_) { s = Math.max(0, num("qIn")); }
-        }
+        if (s < 0.05) s = Math.max(0, num("qIn"));
         return round1(s);
       }
       return Math.max(0, round1(num(id)));
