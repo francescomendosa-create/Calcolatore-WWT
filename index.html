@@ -12,9 +12,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Process Managed" />
-  <link rel="manifest" href="manifest.json?v=wwt14" />
-  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt14" />
-  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt14" />
+  <link rel="manifest" href="manifest.json?v=wwt15" />
+  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt15" />
+  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt15" />
   <style>
     :root {
       --bg: #0b1220;
@@ -973,22 +973,22 @@
           <path class="pipe pipe-main" d="M880 375 V455" />
           <g transform="translate(880,375)">
             <rect x="7" y="-6" width="12" height="11" rx="1.5" fill="#334155" stroke="#94a3b8" stroke-width="1.1" />
-            <circle r="10" fill="#14532d" stroke="#4ade80" stroke-width="1.6" />
-            <path d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#bbf7d0" />
+            <circle id="svgPump11019A" r="10" fill="#14532d" stroke="#4ade80" stroke-width="1.6" />
+            <path id="svgPump11019AArrow" d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#bbf7d0" />
           </g>
           <g transform="translate(880,415)">
             <rect x="7" y="-6" width="12" height="11" rx="1.5" fill="#334155" stroke="#94a3b8" stroke-width="1.1" />
-            <circle r="10" fill="#14532d" stroke="#4ade80" stroke-width="1.6" />
-            <path d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#bbf7d0" />
+            <circle id="svgPump11019B" r="10" fill="#14532d" stroke="#4ade80" stroke-width="1.6" />
+            <path id="svgPump11019BArrow" d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#bbf7d0" />
           </g>
           <g transform="translate(880,455)">
             <rect x="7" y="-6" width="12" height="11" rx="1.5" fill="#334155" stroke="#94a3b8" stroke-width="1.1" />
-            <circle r="10" fill="#14532d" stroke="#4ade80" stroke-width="1.6" />
-            <path d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#bbf7d0" />
+            <circle id="svgPump11019C" r="10" fill="#14532d" stroke="#4ade80" stroke-width="1.6" />
+            <path id="svgPump11019CArrow" d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#bbf7d0" />
           </g>
-          <text x="910" y="485" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700">P11019 A/B/C</text>
+          <text id="svgPump11019Label" x="910" y="485" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700">P11019 A/B/C</text>
           <g class="flow-edit" data-field="qP11019" data-source="p11019">
-            <rect class="badge" x="873" y="492" width="74" height="32" rx="5" stroke="#4ade80" />
+            <rect class="badge" id="svgQP11019Badge" x="873" y="492" width="74" height="32" rx="5" stroke="#4ade80" />
             <text class="badge-val" x="897" y="513" text-anchor="middle" id="svgQP11019">0.0</text>
             <text class="badge-unit" x="927" y="513" text-anchor="middle">m³/h</text>
           </g>
@@ -1419,7 +1419,7 @@
             </div>
             <p class="mini">MP 11036 A/B riempiono le membrane fino a stop (92%), poi si fermano. Ripartono solo quando il livello MBR scende a start (85%). Servono anche A10611 OK (start/stop svuotamento proprio serbatoio).</p>
             <h4 style="margin-top:12px">Gestione — TK 11007 permeato</h4>
-            <p class="mini">Serbatoio permeato sotto le membrane. Stop riempimento ferma tutte le membrane; a start riempimento ripartono (se anche MBR livello OK).</p>
+            <p class="mini">Serbatoio permeato sotto le membrane. Stop riempimento ferma le membrane; start/stop svuotamento comando le pompe P11019 A/B/C (aspirazione).</p>
             <div class="row">
               <label><strong>Start riempimento TK 11007 % → membrane PARTONO</strong>
                 <input type="number" id="startRiempTk11007" min="0" max="100" step="0.1" value="90" inputmode="decimal" />
@@ -1428,7 +1428,15 @@
                 <input type="number" id="stopRiempTk11007" min="0" max="100" step="0.1" value="97" inputmode="decimal" />
               </label>
             </div>
-            <p class="mini">A ≥ stop (97%) membrane FERME. A ≤ start (90%) ripartono. Livello iniziale tipico 91%.</p>
+            <div class="row">
+              <label><strong>Start svuotamento TK 11007 % → P11019 PARTONO</strong>
+                <input type="number" id="startSvuotTk11007" min="0" max="100" step="0.1" value="60" inputmode="decimal" />
+              </label>
+              <label><strong>Stop svuotamento TK 11007 % → P11019 FERMANO (basso)</strong>
+                <input type="number" id="stopSvuotTk11007" min="0" max="100" step="0.1" value="30" inputmode="decimal" />
+              </label>
+            </div>
+            <p class="mini">Riempimento: ≥97% membrane FERME, ≤90% ripartono. Svuotamento/aspirazione: ≤30% P11019 FERME, ≥60% ripartono. Livello iniziale tipico 91%.</p>
             <h4 style="margin-top:12px">Gestione — TK 11021 permeato UF</h4>
             <p class="mini">Serbatoio permeato ultrafiltrazione (momentaneo). Start/stop riempimento sul livello UF.</p>
             <div class="row">
@@ -1782,7 +1790,15 @@
             <input type="number" id="viewStopRiempTk11007" readonly placeholder="—" inputmode="decimal" />
           </label>
         </div>
-        <p class="mini" id="permeatoPumpHint">A ≥ stop le membrane si fermano; a ≤ start ripartono (se anche livello MBR OK).</p>
+        <div class="row">
+          <label><strong>Start svuotamento (P11019 ripartono) %</strong>
+            <input type="number" id="viewStartSvuotTk11007" readonly placeholder="—" inputmode="decimal" />
+          </label>
+          <label><strong>Stop svuotamento (P11019 fermano) %</strong>
+            <input type="number" id="viewStopSvuotTk11007" readonly placeholder="—" inputmode="decimal" />
+          </label>
+        </div>
+        <p class="mini" id="permeatoPumpHint">Riempimento → membrane · svuotamento → P11019 A/B/C.</p>
       </div>
       <div class="actions"><button type="button" data-close>Applica</button></div>
     </div>
@@ -1935,6 +1951,7 @@
     let __blockP11011By11 = false; // isteresi alto A10611 (96/90) → ferma P11011
     let __runMbrByLevel = true;  // isteresi membrane su livello MBR (start 85 / stop 77)
     let __allowMbrByPermeate = true; // isteresi TK 11007 (start riemp 90 / stop riemp 97)
+    let __runP11019By07 = true;      // isteresi P11019 su TK 11007 (start svuot 60 / stop svuot 30)
     let __allowUfByTk11021 = true;   // isteresi TK 11021 (start riemp 80 / stop riemp 97)
     let __mbrCycleMin = 0;       // orologio ciclo lavoro/pausa (si congela se livello ferma tutte)
     let __startupPumpHold = false; // dopo Reset: pompe ON finché non parti con +1′
@@ -2521,6 +2538,26 @@
       return { startR, stopR };
     }
 
+    /** Isteresi TK 11007 svuotamento → P11019 A/B/C:
+     *  ≤ stop svuotamento (30%) → pompe FERME (basso livello aspirazione).
+     *  ≥ start svuotamento (60%) → pompe ripartono. */
+    function updateTk11007PumpInterlocks(livP) {
+      const start = numOrNull("startSvuotTk11007");
+      const stop = numOrNull("stopSvuotTk11007");
+      const startS = start !== null ? start : 60;
+      const stopS = stop !== null ? stop : 30;
+      const liv = Number(livP);
+      if (Number.isFinite(liv)) {
+        if (liv <= stopS + 0.05) __runP11019By07 = false;
+        else if (liv >= startS - 0.05) __runP11019By07 = true;
+      }
+      return { startS, stopS };
+    }
+
+    function p11019Allowed() {
+      return !!__runP11019By07;
+    }
+
     /** Stima %/min TK 11007: IN = permeato membrane (istantaneo), OUT = P11019 (domanda valle). */
     function estimateTk11007RatePctPerMin(qPerm, qP11019) {
       const qIn = Math.max(0, Number(qPerm) || 0);
@@ -2814,6 +2851,16 @@
       paintOnePump("svgPump11014", "svgPump11014Arrow", "svgPump11014Label", run11014);
       const recGroup = document.querySelector('[data-field="qRecycle"] rect.badge');
       if (recGroup) recGroup.setAttribute("stroke", run11014 ? "#4ade80" : "#f87171");
+
+      // P11019 A/B/C: marcia se livello TK 11007 consente aspirazione
+      const run11019 = p11019Allowed() && num("qP11019") > 0.5;
+      ["A", "B", "C"].forEach((L) => {
+        paintOnePump("svgPump11019" + L, "svgPump11019" + L + "Arrow", null, run11019);
+      });
+      const lab19 = el("svgPump11019Label");
+      if (lab19) lab19.setAttribute("fill", run11019 ? "#86efac" : "#fda4af");
+      const badge19 = el("svgQP11019Badge");
+      if (badge19) badge19.setAttribute("stroke", run11019 ? "#4ade80" : "#f87171");
     }
 
     function rateA10620PctPerMin(qIn, qPump, qRecycle) {
@@ -2850,6 +2897,7 @@
         blockP11011: __blockP11011By11,
         runMbrByLevel: __runMbrByLevel,
         allowMbrByPermeate: __allowMbrByPermeate,
+        runP11019By07: __runP11019By07,
         allowUfByTk11021: __allowUfByTk11021,
         mbrCycleMin: __mbrCycleMin,
         startupPumpHold: __startupPumpHold,
@@ -2878,6 +2926,7 @@
       __blockP11011By11 = __simSnap.blockP11011;
       __runMbrByLevel = __simSnap.runMbrByLevel !== false;
       __allowMbrByPermeate = __simSnap.allowMbrByPermeate !== false;
+      __runP11019By07 = __simSnap.runP11019By07 !== false;
       __allowUfByTk11021 = __simSnap.allowUfByTk11021 !== false;
       __mbrCycleMin = Math.max(0, Number(__simSnap.mbrCycleMin) || 0);
       __startupPumpHold = __simSnap.startupPumpHold !== false;
@@ -3003,6 +3052,8 @@
         qP19 = permeateDemandOut();
         if (!membranesProcessAllowed()) qP19 = Math.max(qP19, linePermeateCapacity());
       }
+      // Blocco basso livello TK 11007 → P11019 FERME (niente prelievo)
+      if (!p11019Allowed()) qP19 = 0;
       const qUf = Math.max(0, num("qUfTotale"));
       // OUT osmosi da TK 11021: in Auto ≈ ingresso (non uguale all’UF istantaneo)
       let qOsmOut = Math.max(0, num("qOsmosiDemi") || (num("qOsmosiA") + num("qOsmosiB") + num("qOsmosiC")));
@@ -3077,6 +3128,12 @@
       if (membranesProcessAllowed() && qPerm > 0.5 && nP >= stopPV - 0.05) {
         nP = round2(stopPV);
       }
+      // Non scendere sotto stop svuotamento TK 11007 se P11019 stanno aspirando
+      const stopSvuotP = numOrNull("stopSvuotTk11007");
+      const stopSvuotPV = stopSvuotP !== null ? stopSvuotP : 30;
+      if (p11019Allowed() && qP19 > 0.5 && livP > stopSvuotPV + 0.05 && nP < stopSvuotPV) {
+        nP = round2(stopSvuotPV);
+      }
 
       // Clamp allo stop riempimento TK 11021
       const stopU = numOrNull("stopRiempTk11021");
@@ -3098,6 +3155,7 @@
       updateMbrLevelInterlocks(nMbr);
       updateMbrFillFor11036(nMbr);
       updateTk11007PermeateInterlocks(nP);
+      updateTk11007PumpInterlocks(nP);
       updateTk11021Interlocks(nU);
       applyBalance("sim");
       paintChimico(__chimicoAllowFill && num("qIn") > 0.05);
@@ -3118,6 +3176,7 @@
       setChimicoAllowFill(true, { silent: true });
       __runMbrByLevel = true;
       __allowMbrByPermeate = true;
+      __runP11019By07 = true;
       __allowUfByTk11021 = true;
       __mbrCycleMin = 0;
       __run11014 = true; // all’avvio 11014 abilitate (A11004 a 90% ≥ start 80%)
@@ -3134,6 +3193,7 @@
       updateMbrLevelInterlocks(L);
       updateMbrFillFor11036(L);
       updateTk11007PermeateInterlocks(91);
+      updateTk11007PumpInterlocks(91);
       updateTk11021Interlocks(91);
       __startupPumpHold = true;
       __runP11011By20 = true;
@@ -3141,6 +3201,7 @@
       __allow11036ByMbr = true;
       __runMbrByLevel = true;
       __allowMbrByPermeate = true;
+      __runP11019By07 = true;
       __allowUfByTk11021 = true;
       syncRun11036();
       if (L >= (numOrNull("startSvuotA10611") ?? 88) - 0.05) __run11036Tank = true;
@@ -3252,6 +3313,7 @@
         updateMbrLevelInterlocks(numOrNull("livelloAttualeMbr") ?? 90);
         updateMbrFillFor11036(numOrNull("livelloAttualeMbr") ?? 90);
         updateTk11007PermeateInterlocks(numOrNull("livelloAttualeTk11007") ?? 91);
+        updateTk11007PumpInterlocks(numOrNull("livelloAttualeTk11007") ?? 91);
         updateTk11021Interlocks(numOrNull("livelloAttualeTk11021") ?? 91);
         ensurePumpsFlowing();
         applyBalance("sim");
@@ -3314,6 +3376,7 @@
       resetQInWobble();
       __runMbrByLevel = true;
       __allowMbrByPermeate = true;
+      __runP11019By07 = true;
       __allowUfByTk11021 = true;
       __run11036Tank = true;
       __allow11036ByMbr = true;
@@ -3430,6 +3493,9 @@
       if (numOrNull("stopSvuotA11004") === null) setIf("stopSvuotA11004", 77);
       if (numOrNull("startRicicloA10620") === null) setIf("startRicicloA10620", 94);
       if (numOrNull("stopRicicloA10620") === null) setIf("stopRicicloA10620", 96);
+      // TK 11007: start/stop svuotamento → P11019
+      if (numOrNull("startSvuotTk11007") === null) setIf("startSvuotTk11007", 60);
+      if (numOrNull("stopSvuotTk11007") === null) setIf("stopSvuotTk11007", 30);
     }
 
     function paintRange(prefix, r) {
@@ -3682,9 +3748,12 @@
       let livPUi = numOrNull("livelloAttualeTk11007");
       if (livPUi === null) livPUi = 91;
       updateTk11007PermeateInterlocks(livPUi);
-      const qP19Ui = isAutoMode()
-        ? (membranesProcessAllowed() ? permeateDemandOut() : Math.max(permeateDemandOut(), linePermeateCapacity()))
-        : Math.max(0, num("qP11019"));
+      updateTk11007PumpInterlocks(livPUi);
+      const qP19Ui = !p11019Allowed()
+        ? 0
+        : (isAutoMode()
+          ? (membranesProcessAllowed() ? permeateDemandOut() : Math.max(permeateDemandOut(), linePermeateCapacity()))
+          : Math.max(0, num("qP11019")));
       const qPermUi = (__simBusy || __simMin > 0)
         ? sumMemsRunning(__mbrCycleMin)
         : Math.max(0, num("qMemMedia") || sumMemsAllOn() * duty().d);
@@ -3694,10 +3763,16 @@
       if (permHint) {
         const startR = numOrNull("startRiempTk11007") ?? 90;
         const stopR = numOrNull("stopRiempTk11007") ?? 97;
-        permHint.textContent = __allowMbrByPermeate
-          ? `TK 11007 OK · membrane abilitate (stop a ≥${fmtPct(stopR)})`
-          : `TK 11007 PIENO ≥${fmtPct(stopR)} · membrane FERME · ripartono a ≤${fmtPct(startR)}`;
-        permHint.style.color = __allowMbrByPermeate ? "var(--ok)" : "var(--danger)";
+        const startS = numOrNull("startSvuotTk11007") ?? 60;
+        const stopS = numOrNull("stopSvuotTk11007") ?? 30;
+        const memTxt = __allowMbrByPermeate
+          ? `membrane OK (stop riemp. ≥${fmtPct(stopR)})`
+          : `membrane FERME ≥${fmtPct(stopR)} (ripartono ≤${fmtPct(startR)})`;
+        const pumpTxt = __runP11019By07
+          ? `P11019 ON (stop aspiraz. ≤${fmtPct(stopS)})`
+          : `P11019 FERME ≤${fmtPct(stopS)} (ripartono ≥${fmtPct(startS)})`;
+        permHint.textContent = `TK 11007 · ${memTxt} · ${pumpTxt}`;
+        permHint.style.color = (__allowMbrByPermeate && __runP11019By07) ? "var(--ok)" : "var(--danger)";
       }
 
       // TK 11021 permeato UF — IN UF (membrane/P11019) vs OUT osmosi (≈ ingresso)
@@ -3710,8 +3785,8 @@
           : permeateDemandOut())
         : Math.max(0, num("qOsmosiDemi") || (num("qOsmosiA") + num("qOsmosiB") + num("qOsmosiC")));
       const qUfUi = (__simBusy || __simMin > 0)
-        ? ((__allowUfByTk11021 && membranesProcessAllowed()) ? sumMemsRunning(__mbrCycleMin) : 0)
-        : (__allowUfByTk11021 ? Math.max(0, num("qUfTotale")) : 0);
+        ? ((__allowUfByTk11021 && membranesProcessAllowed() && p11019Allowed()) ? sumMemsRunning(__mbrCycleMin) : 0)
+        : ((__allowUfByTk11021 && p11019Allowed()) ? Math.max(0, num("qUfTotale")) : 0);
       const rateUUi = estimateTk11021RatePctPerMin(qUfUi, qOsmUi);
       paintTk11021UI(livUUi, rateUUi, !__allowUfByTk11021);
       const ufHint = el("tk11021Hint");
@@ -3920,6 +3995,8 @@
           qP19 = Math.max(qP19, linePermeateCapacity());
         }
       }
+      // Basso livello aspirazione: P11019 FERME
+      if (!p11019Allowed()) qP19 = 0;
 
       setVal("qP11019", qP19, { force: !isEditing("qP11019") });
       const svgP = el("svgQP11019");
@@ -3929,8 +4006,8 @@
       const srcUf = source === "uf-totale" || source === "uf-linea" || source === "ultra";
       let qUfSet = 0;
       if (!isEditingUf() && !srcUf) {
-        if (!__allowUfByTk11021) {
-          qUfSet = 0; // serbatoio pieno: niente riempimento
+        if (!__allowUfByTk11021 || !p11019Allowed()) {
+          qUfSet = 0; // serbatoio pieno o P11019 ferme: niente riempimento UF
         } else if (simulating) {
           // In TIME: UF segue permeato membrane istantaneo (sale/scende come 11007)
           qUfSet = membranesProcessAllowed()
@@ -4038,6 +4115,7 @@
         updateMbrLevelInterlocks(livMbrNow);
         updateMbrFillFor11036(livMbrNow);
         updateTk11007PermeateInterlocks(numOrNull("livelloAttualeTk11007") ?? 91);
+        updateTk11007PumpInterlocks(numOrNull("livelloAttualeTk11007") ?? 91);
         updateTk11021Interlocks(numOrNull("livelloAttualeTk11021") ?? 91);
         const pumpOn = p11011Allowed();
         const qInSet = qIn;
@@ -4627,6 +4705,8 @@
         ["viewStopRiempTk11007", "stopRiempTk11007"],
         ["viewStartRiempTk11007b", "startRiempTk11007"],
         ["viewStopRiempTk11007b", "stopRiempTk11007"],
+        ["viewStartSvuotTk11007", "startSvuotTk11007"],
+        ["viewStopSvuotTk11007", "stopSvuotTk11007"],
         ["viewStartRiempTk11021", "startRiempTk11021"],
         ["viewStopRiempTk11021", "stopRiempTk11021"],
         ["viewStartRiempTk11021b", "startRiempTk11021"],
@@ -5325,7 +5405,7 @@
       applyBalance("livello");
     });
 
-    ["startRiempA10620", "stopRiempA10620", "startSvuotA10620", "stopSvuotA10620", "startRiempA10611", "stopRiempA10611", "startSvuotA10611", "stopSvuotA10611", "stopAltoA10611", "ripartenzaP11011A10611", "startSvuotA11004", "stopSvuotA11004", "startSvuotMbr", "stopSvuotMbr", "startRiempMbr", "stopRiempMbr", "startRiempTk11007", "stopRiempTk11007", "startRiempTk11021", "stopRiempTk11021", "startRicicloA10620", "stopRicicloA10620"].forEach((id) => {
+    ["startRiempA10620", "stopRiempA10620", "startSvuotA10620", "stopSvuotA10620", "startRiempA10611", "stopRiempA10611", "startSvuotA10611", "stopSvuotA10611", "stopAltoA10611", "ripartenzaP11011A10611", "startSvuotA11004", "stopSvuotA11004", "startSvuotMbr", "stopSvuotMbr", "startRiempMbr", "stopRiempMbr", "startRiempTk11007", "stopRiempTk11007", "startSvuotTk11007", "stopSvuotTk11007", "startRiempTk11021", "stopRiempTk11021", "startRicicloA10620", "stopRicicloA10620"].forEach((id) => {
       const node = el(id);
       if (!node) return;
       node.addEventListener("input", () => {
@@ -5379,7 +5459,8 @@
       "startRiempA10620", "stopRiempA10620", "startSvuotA10620", "stopSvuotA10620",
       "startRiempA10611", "stopRiempA10611", "startSvuotA10611", "stopSvuotA10611",
       "stopAltoA10611", "ripartenzaP11011A10611",
-      "startSvuotA11004", "stopSvuotA11004", "startSvuotMbr", "stopSvuotMbr", "startRiempMbr", "stopRiempMbr", "startRiempTk11007", "stopRiempTk11007", "startRiempTk11021", "stopRiempTk11021", "startRicicloA10620", "stopRicicloA10620",
+      "startSvuotA11004", "stopSvuotA11004", "startSvuotMbr", "stopSvuotMbr",
+      "startRiempMbr", "stopRiempMbr", "startRiempTk11007", "stopRiempTk11007", "startSvuotTk11007", "stopSvuotTk11007", "startRiempTk11021", "stopRiempTk11021", "startRicicloA10620", "stopRicicloA10620",
       "regA10611QinRef", "regA10611Hz11011", "regA10611Hz11036", "regA10611Min",
       "regA10611OnFrom", "regA10611OnTo", "regA10611OffFrom", "regA10611OffTo",
       "regRicHMin", "regRicHStopLiv", "regRicHOnFrom", "regRicHOnTo", "regRicHOffFrom", "regRicHOffTo",
@@ -5711,7 +5792,7 @@
       }
     } catch (_) { /* ok */ }
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt14", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt15", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
