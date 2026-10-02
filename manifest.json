@@ -1,8 +1,8 @@
 {
-  "id": "calcolatore-wwt-pwa-v1",
-  "name": "Calcolatore WWT",
-  "short_name": "WWT Sim",
-  "description": "Simulatore portate linea depurazione MBR — app separata da ServiceHub",
+  "id": "process-managed-pwa-v1",
+  "name": "Process Managed",
+  "short_name": "Process Managed",
+  "description": "Process Managed — simulatore portate linea depurazione MBR",
   "start_url": "/Calcolatore-WWT/index.html?standalone=1",
   "scope": "/Calcolatore-WWT/",
   "display": "standalone",
