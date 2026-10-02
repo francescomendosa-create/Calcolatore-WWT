@@ -1940,6 +1940,22 @@
     let lock = false;
     let lastQPump = 334;
     let lastQMandata = 334;
+    /** Portate “vive” pompe: salgono/scendono a rampa verso il comando (non a scatto). */
+    const FLOW_IDS = ["qPump", "qMandata", "qRecycle", "qP11019"];
+    const FLOW_SVG = { qPump: "svgQPump", qMandata: "svgQMand", qRecycle: "svgQRec", qP11019: "svgQP11019" };
+    const __flowLive = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 0 };
+    const __flowDesire = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 0 };
+    /** Setpoint comando (popup modifica): resta anche a pompe ferme / portata viva = 0. */
+    const __flowSetpoint = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 0 };
+    /** Rampa portata viva: ~mezzo secondo, conteggio visibile 0→target / target→0. */
+    const FLOW_RAMP_MS = 500;
+    let __flowStepBase = null;
+    let __flowStepDepth = 0;
+    let __flowAnimRaf = null;
+    let __flowAnimStart = 0;
+    let __flowAnimating = false;
+    const __flowAnimFrom = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 0 };
+    const __flowAnimTo = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 0 };
     let inlineCtx = null;
     let __run11036 = true;       // effettivo: A10611 OK ∧ MBR riempimento OK
     let __run11036Tank = true;   // isteresi 11036 su A10611 (80/88)
@@ -1978,6 +1994,191 @@
       ["F"], // singola
     ];
     let __flowMode = "auto"; // "auto" = bilancia portate · "manual" = portate libere
+
+    function isFlowRamping() {
+      return !!(__simBusy || __simPlaying || __simMin > 0 || __flowAnimating);
+    }
+
+    function beginFlowStep() {
+      if (__flowStepDepth === 0) {
+        __flowStepBase = {
+          qPump: __flowLive.qPump,
+          qMandata: __flowLive.qMandata,
+          qRecycle: __flowLive.qRecycle,
+          qP11019: __flowLive.qP11019,
+        };
+      }
+      __flowStepDepth++;
+    }
+
+    function endFlowStep() {
+      __flowStepDepth = Math.max(0, __flowStepDepth - 1);
+      if (__flowStepDepth === 0) {
+        __flowStepBase = null;
+        kickFlowTween();
+      }
+    }
+
+    function flowsNeedRamp() {
+      for (let i = 0; i < FLOW_IDS.length; i++) {
+        const id = FLOW_IDS[i];
+        const d = __flowDesire[id];
+        if (d == null) continue;
+        const live = __flowLive[id] != null ? __flowLive[id] : 0;
+        if (Math.abs(d - live) >= 0.15) return true;
+      }
+      return false;
+    }
+
+    /** Memorizza setpoint comando. NON accetta 0 (pompe ferme ≠ setpoint azzerato). */
+    function rememberFlowSetpoint(id, v, { allowZero = false } = {}) {
+      const s = Math.max(0, round1(Number(v) || 0));
+      if (s < 0.05 && !allowZero) return __flowSetpoint[id];
+      __flowSetpoint[id] = s;
+      if (id === "qPump") lastQPump = s;
+      if (id === "qMandata") lastQMandata = s;
+      return s;
+    }
+
+    /**
+     * Setpoint da mostrare/editare nel popup.
+     * Mai la portata viva a 0 per blocco pompe: usa memoria comando / floor processo.
+     */
+    function flowSetpointOf(id) {
+      if (id === "qPump") {
+        let s = Math.max(0, Number(__flowSetpoint.qPump) || 0, Number(lastQPump) || 0);
+        if (s < 0.05) {
+          try { s = clampPump(pumpFloorForIngresso(Math.max(0, num("qIn")))); }
+          catch (_) { s = 0; }
+        }
+        return round1(s);
+      }
+      if (id === "qMandata") {
+        let s = Math.max(0, Number(__flowSetpoint.qMandata) || 0, Number(lastQMandata) || 0);
+        if (s < 0.05) s = flowSetpointOf("qPump");
+        return round1(s);
+      }
+      if (id === "qRecycle") {
+        let s = Math.max(0, Number(__flowSetpoint.qRecycle) || 0);
+        if (s < 0.05) {
+          const qp = flowSetpointOf("qPump");
+          const qIn = Math.max(0, num("qIn"));
+          s = Math.max(0, round1(qp - qIn));
+        }
+        return round1(s);
+      }
+      if (id === "qP11019") {
+        let s = Math.max(0, Number(__flowSetpoint.qP11019) || 0);
+        if (s < 0.05) {
+          try { s = qP11019Setpoint(); } catch (_) { s = Math.max(0, num("qIn")); }
+        }
+        return round1(s);
+      }
+      return Math.max(0, round1(num(id)));
+    }
+
+    /** Aggiorna campo + occhio SVG con la portata viva (senza toccare il setpoint popup). */
+    function paintFlowLive(id, v) {
+      const next = Math.max(0, round1(Number(v) || 0));
+      __flowLive[id] = next;
+      if (!isEditing(id)) {
+        setVal(id, next, { force: true });
+        const sid = FLOW_SVG[id];
+        const node = sid ? el(sid) : null;
+        if (node) node.textContent = next.toFixed(1);
+      }
+      return next;
+    }
+
+    function cancelFlowTween() {
+      if (__flowAnimRaf != null) {
+        cancelAnimationFrame(__flowAnimRaf);
+        __flowAnimRaf = null;
+      }
+      __flowAnimating = false;
+    }
+
+    /** Tween lineare ~500 ms: si vede il conteggio in salita e in discesa. */
+    function tickFlowTween(ts) {
+      const t = Math.min(1, (ts - __flowAnimStart) / FLOW_RAMP_MS);
+      for (let i = 0; i < FLOW_IDS.length; i++) {
+        const id = FLOW_IDS[i];
+        const from = Number(__flowAnimFrom[id]) || 0;
+        const to = Number(__flowAnimTo[id]) || 0;
+        paintFlowLive(id, from + (to - from) * t);
+      }
+      if (t < 1) {
+        __flowAnimRaf = requestAnimationFrame(tickFlowTween);
+        return;
+      }
+      __flowAnimRaf = null;
+      __flowAnimating = false;
+      for (let i = 0; i < FLOW_IDS.length; i++) {
+        const id = FLOW_IDS[i];
+        paintFlowLive(id, __flowDesire[id] != null ? __flowDesire[id] : __flowAnimTo[id]);
+      }
+      try { paintPumpColors(); } catch (_) { /* ignore */ }
+    }
+
+    function kickFlowTween() {
+      if (__flowStepDepth > 0) return; // aspetta fine blocco bilanciamento
+      if (!flowsNeedRamp()) return;
+      const now = performance.now();
+      for (let i = 0; i < FLOW_IDS.length; i++) {
+        const id = FLOW_IDS[i];
+        __flowAnimFrom[id] = __flowLive[id] != null ? __flowLive[id] : 0;
+        __flowAnimTo[id] = __flowDesire[id] != null ? __flowDesire[id] : __flowAnimFrom[id];
+      }
+      __flowAnimStart = now;
+      if (!__flowAnimating) {
+        __flowAnimating = true;
+        __flowAnimRaf = requestAnimationFrame(tickFlowTween);
+      }
+      // se già in corso: ritarget da valore attuale, stesso clock ripartito
+    }
+
+    /**
+     * Comanda la portata VIVA verso target con scorrimento ~0,5 s (salvo instant).
+     * Setpoint popup: si aggiorna se target > 0 oppure con `setpoint:`.
+     */
+    function commitFlow(id, target, { force = true, instant = false, svgId = null, setpoint = undefined } = {}) {
+      const tgt = Math.max(0, round1(Number(target) || 0));
+      if (setpoint !== undefined && setpoint !== null) {
+        rememberFlowSetpoint(id, setpoint);
+      } else if (tgt > 0.05) {
+        rememberFlowSetpoint(id, tgt);
+      }
+      __flowDesire[id] = tgt;
+      if (instant) {
+        paintFlowLive(id, tgt);
+        if (svgId) {
+          const node = el(svgId);
+          if (node && !isEditing(id)) node.textContent = tgt.toFixed(1);
+        }
+        return tgt;
+      }
+      // Non saltare al target: avvia/aggiorna tween 500 ms
+      if (__flowStepDepth > 0) {
+        // Durante bilanciamento: solo desire; kick a endFlowStep
+        return __flowLive[id] != null ? __flowLive[id] : 0;
+      }
+      kickFlowTween();
+      return __flowLive[id] != null ? __flowLive[id] : 0;
+    }
+
+    function snapFlowLiveFromFields() {
+      cancelFlowTween();
+      for (let i = 0; i < FLOW_IDS.length; i++) {
+        const id = FLOW_IDS[i];
+        const v = Math.max(0, num(id));
+        __flowLive[id] = v;
+        __flowDesire[id] = v;
+        __flowAnimFrom[id] = v;
+        __flowAnimTo[id] = v;
+        if (v > 0.05) rememberFlowSetpoint(id, v);
+      }
+      __flowStepBase = null;
+    }
 
     function isAutoMode() {
       return __flowMode !== "manual";
@@ -2558,15 +2759,20 @@
       return !!__runP11019By07;
     }
 
+    /** Setpoint P11019 (domanda valle) — anche a pompe ferme per basso livello. */
+    function qP11019Setpoint() {
+      if (!isAutoMode()) return flowSetpointOf("qP11019");
+      let q = permeateDemandOut();
+      if (!membranesProcessAllowed()) q = Math.max(q, linePermeateCapacity());
+      return round1(q);
+    }
+
     /** Portata effettiva P11019: 0 se blocco basso TK 11007, altrimenti domanda valle. */
     function qP11019Effective() {
       updateTk11007PumpInterlocks(numOrNull("livelloAttualeTk11007") ?? 91);
       if (!p11019Allowed()) return 0;
       if (!isAutoMode()) return Math.max(0, num("qP11019"));
-      let q = permeateDemandOut();
-      // Solo se pompe abilitate: a membrane ferme continua a svuotare il TK (verso start)
-      if (!membranesProcessAllowed()) q = Math.max(q, linePermeateCapacity());
-      return round1(q);
+      return qP11019Setpoint();
     }
 
     /** Stima %/min TK 11007: IN = permeato membrane (istantaneo), OUT = P11019 effettiva. */
@@ -3017,6 +3223,8 @@
 
     /** Un passo di dtMin minuti: bilancia → tassi da REGOLAZIONI → aggiorna livelli → interblocchi */
     function simulateOneStep(dtMin) {
+      beginFlowStep();
+      try {
       // Orologio ciclo membrane: avanza SOLO se il livello consente la marcia.
       // Se blocco livello (≤ stop), si congela e alla ripartenza riprende da qui.
       if (membranesProcessAllowed()) __mbrCycleMin += dtMin;
@@ -3032,17 +3240,17 @@
         const boostZone = liv20now >= ((startSvuot !== null ? startSvuot : 92) - 1);
         if (!boostZone) {
           const qTrack = clampPump(floor);
-          setVal("qPump", qTrack, { force: true });
           lastQPump = qTrack;
+          commitFlow("qPump", qTrack);
           syncFreqFromPump(qTrack);
           if (el("equiparaMandata")?.checked && __run11036) {
-            setVal("qMandata", qTrack, { force: true });
             lastQMandata = qTrack;
+            commitFlow("qMandata", qTrack);
           }
-        } else if (num("qPump") < floor - 0.05) {
+        } else if ((__flowDesire.qPump != null ? __flowDesire.qPump : num("qPump")) < floor - 0.05) {
           const qTrack = clampPump(floor);
-          setVal("qPump", qTrack, { force: true });
           lastQPump = qTrack;
+          commitFlow("qPump", qTrack);
           syncFreqFromPump(qTrack);
         }
       }
@@ -3050,6 +3258,7 @@
       const qInSet = num("qIn");
       const qIn = qInEffective(qInSet);
       // Marcia/arresto SEMPRE da livelli (auto e manuale). In manuale il setpoint digitato resta nel campo.
+      // Portate VIVE (rampa) per i bilanci di livello — non il target a scatto.
       const qPump = p11011Allowed() ? Math.max(0, num("qPump")) : 0;
       const qMandata = __run11036 ? Math.max(0, num("qMandata")) : 0;
       const liv20 = num("livelloAttuale");
@@ -3075,12 +3284,12 @@
       const qPerm = round1(de.qPermInstant != null ? de.qPermInstant : sumMemsRunning(__mbrCycleMin));
       // P11019 effettiva: 0 se blocco basso aspirazione (pompe ferme → niente svuotamento)
       updateTk11007PumpInterlocks(livP);
-      const qP19 = qP11019Effective();
+      const qP19Set = qP11019Setpoint();
+      const qP19Tgt = qP11019Effective();
       if (isAutoMode() || !p11019Allowed()) {
-        setVal("qP11019", qP19, { force: true });
-        const svgP19 = el("svgQP11019");
-        if (svgP19) svgP19.textContent = qP19.toFixed(1);
+        commitFlow("qP11019", qP19Tgt, { setpoint: qP19Set });
       }
+      const qP19 = Math.max(0, num("qP11019")); // viva (rampa) per bilanci TK
       const qUf = Math.max(0, num("qUfTotale"));
       // OUT osmosi da TK 11021: in Auto ≈ ingresso (non uguale all’UF istantaneo)
       let qOsmOut = Math.max(0, num("qOsmosiDemi") || (num("qOsmosiA") + num("qOsmosiB") + num("qOsmosiC")));
@@ -3188,16 +3397,17 @@
       updateMbrFillFor11036(nMbr);
       updateTk11007PermeateInterlocks(nP);
       updateTk11007PumpInterlocks(nP);
-      // Appena scattato lo stop aspirazione: azzera subito P11019 (niente svuotamento residuo)
+      // Appena scattato lo stop aspirazione: azzera VIVA P11019 (setpoint resta)
       if (!p11019Allowed()) {
-        setVal("qP11019", 0, { force: true });
-        const svgP0 = el("svgQP11019");
-        if (svgP0) svgP0.textContent = "0.0";
+        commitFlow("qP11019", 0, { setpoint: qP11019Setpoint() });
       }
       updateTk11021Interlocks(nU);
       applyBalance("sim");
       paintChimico(__chimicoAllowFill && num("qIn") > 0.05);
       paintMembraneCycleUI(__mbrCycleMin);
+      } finally {
+        endFlowStep();
+      }
     }
 
     function forcePlantRunningBaseline() {
@@ -3303,14 +3513,22 @@
       updateA10620PumpInterlocks(num("livelloAttuale"));
       updateA10611PumpInterlocks(num("livelloAttualeA10611"));
 
+      // Durante un passo TIME già aperto: solo target (flush nel passo).
+      // Se __simBusy ma passo non ancora iniziato: solo desire — simulateOneStep fa la rampa.
+      const nested = __flowStepDepth > 0;
+      const deferToStep = __simBusy && !nested;
+      if (!nested && !deferToStep) beginFlowStep();
+      try {
       const q = clampPump(pumpFloorForIngresso(num("qIn")));
       if (p11011Allowed()) {
-        setVal("qPump", q, { force: true });
-        lastQPump = q;
+        rememberFlowSetpoint("qPump", q);
+        if (deferToStep) __flowDesire.qPump = q;
+        else commitFlow("qPump", q);
         if (!isEditing("freqHz")) syncFreqFromPump(q);
       } else {
-        setVal("qPump", 0, { force: true });
-        lastQPump = 0;
+        // Pompe ferme: viva → 0, setpoint resta (popup)
+        if (deferToStep) __flowDesire.qPump = 0;
+        else commitFlow("qPump", 0);
         if (!isEditing("freqHz")) {
           const hzNode = el("freqHz");
           if (hzNode) hzNode.value = "0";
@@ -3324,13 +3542,17 @@
       }
       if (__run11036) {
         const qM = p11011Allowed() ? Math.max(q, getPumpMin()) : clampPump(Math.max(getPumpMin(), q));
-        setVal("qMandata", round1(qM), { force: true });
-        lastQMandata = round1(qM);
+        rememberFlowSetpoint("qMandata", round1(qM));
+        if (deferToStep) __flowDesire.qMandata = round1(qM);
+        else commitFlow("qMandata", round1(qM));
       } else {
-        setVal("qMandata", 0, { force: true });
-        lastQMandata = 0;
+        if (deferToStep) __flowDesire.qMandata = 0;
+        else commitFlow("qMandata", 0);
       }
       return q;
+      } finally {
+        if (!nested && !deferToStep) endFlowStep();
+      }
     }
 
     function runSimTo(targetMin) {
@@ -3439,6 +3661,7 @@
       forcePlantRunningBaseline();
       paintResetLevelsUI(L);
       captureSimSnap();
+      snapFlowLiveFromFields();
       // All’avvio: chimico VERDE con la portata impostata (qIn resta nel campo)
       setChimicoAllowFill(true, { silent: true });
       resetChimicoBlockCount();
@@ -4014,22 +4237,19 @@
 
     function syncDownstreamPermeate(qPerm, source) {
       if (!isAutoMode()) {
-        // Anche in manuale: se blocco basso, forza P11019 a 0
+        // Anche in manuale: se blocco basso, viva P11019 → 0 (setpoint popup resta)
         if (!p11019Allowed()) {
-          setVal("qP11019", 0, { force: true });
-          const svgP0 = el("svgQP11019");
-          if (svgP0) svgP0.textContent = "0.0";
+          commitFlow("qP11019", 0, { setpoint: flowSetpointOf("qP11019") });
         }
         return;
       }
       const simulating = __simBusy || __simMin > 0;
       updateTk11007PumpInterlocks(numOrNull("livelloAttualeTk11007") ?? 91);
       // OUT da TK 11007 = P11019 effettiva (0 se pompe ferme per basso livello)
+      const qP19Set = qP11019Setpoint();
       const qP19 = qP11019Effective();
 
-      setVal("qP11019", qP19, { force: !isEditing("qP11019") });
-      const svgP = el("svgQP11019");
-      if (svgP) svgP.textContent = qP19.toFixed(1);
+      if (!isEditing("qP11019")) commitFlow("qP11019", qP19, { setpoint: qP19Set });
 
       // TK 11021: IN = UF, OUT = osmosi ≈ ingresso (non forzare IN=OUT in TIME)
       const srcUf = source === "uf-totale" || source === "uf-linea" || source === "ultra";
@@ -4066,6 +4286,8 @@
     function applyBalance(source) {
       if (lock) return;
       lock = true;
+      // Sempre un solo kick tween a fine bilancio (conteggio 0,5 s su tutte le portate)
+      beginFlowStep();
       try {
         // Hz → portata: Manuale e Automatico, quando tocchi Hz (o in Auto mentre digiti)
         if (source === "freq" || (isAutoMode() && isEditing("freqHz"))) {
@@ -4077,13 +4299,11 @@
               ? clampPump(qFromFreqCurve(hz))
               : round1(Math.max(0, qFromFreqCurve(hz)));
             if (!isEditing("qPump")) {
-              setVal("qPump", qFromHz, { force: true });
               lastQPump = qFromHz;
+              commitFlow("qPump", qFromHz);
             }
             const svgHz = el("svgFreqHz");
             if (svgHz) svgHz.textContent = String(hz);
-            const svgQ = el("svgQPump");
-            if (svgQ && !isEditing("qPump")) svgQ.textContent = round1(qFromHz).toFixed(1);
           }
         }
 
@@ -4158,7 +4378,7 @@
             const pMin = getPumpMin();
             if (qPump < pMin) {
               qPump = pMin;
-              setVal("qPump", qPump, { force: true });
+              commitFlow("qPump", qPump);
             }
           }
 
@@ -4167,12 +4387,12 @@
             || source === "totale" || source === "membrana" || source === "sim";
           if (pumpOn && ingressoDriven && !isEditing("qPump") && !isEditing("freqHz")) {
             qPump = clampPump(pumpFloorForIngresso(qInSet));
-            setVal("qPump", qPump, { force: true });
             lastQPump = qPump;
+            commitFlow("qPump", qPump);
             syncFreqFromPump(qPump);
             if (el("equiparaMandata")?.checked && __run11036) {
-              setVal("qMandata", qPump, { force: true });
               lastQMandata = qPump;
+              commitFlow("qMandata", qPump);
             }
           }
 
@@ -4180,16 +4400,15 @@
           const pumpFloor = pumpFloorForIngresso(qInSet);
           if (pumpOn && !isEditing("qPump") && qPump < pumpFloor && source !== "freq") {
             qPump = clampPump(pumpFloor);
-            setVal("qPump", qPump, { force: true });
             lastQPump = qPump;
+            commitFlow("qPump", qPump);
             if (!isEditing("freqHz")) syncFreqFromPump(qPump);
           }
 
-          // P11011 FERME: stop svuotamento A10620 (≤88%) oppure blocco alto A10611 (≥96%)
+          // P11011 FERME: viva → 0; setpoint resta per il popup
           if (!pumpOn && !isEditing("qPump")) {
             qPump = 0;
-            setVal("qPump", 0, { force: true });
-            lastQPump = 0;
+            commitFlow("qPump", 0);
             if (!isEditing("freqHz")) {
               const hzNode = el("freqHz");
               if (hzNode) hzNode.value = "0";
@@ -4200,19 +4419,27 @@
         }
 
         if (!isEditing("qPump") && Number.isFinite(qPump)) {
-          // Manuale: lastQPump = setpoint (anche a pompa ferma). Automatico: 0 se OFF.
-          lastQPump = auto
-            ? (pumpOn ? clampPump(qPump) : 0)
-            : Math.max(0, qPump);
+          // Solo valori > 0: a pompe ferme la viva è 0 ma il setpoint NON si cancella
+          if (qPump > 0.05) {
+            if (auto) {
+              if (pumpOn) rememberFlowSetpoint("qPump", clampPump(qPump));
+            } else {
+              rememberFlowSetpoint("qPump", Math.max(0, qPump));
+            }
+          }
         }
 
-        // Setpoint digitato (Manuale lo conserva sempre nel campo)
+        // Setpoint comando (popup): anche a pompe ferme. Effettiva viva = 0 se OFF.
         const qPumpSet = Math.max(0,
           (isEditing("qPump") && qPumpRaw === null)
             ? lastQPump
-            : (isEditing("qPump") ? qPump : (numOrNull("qPump") ?? lastQPump))
+            : (isEditing("qPump")
+              ? qPump
+              : (auto
+                ? clampPump(Math.max(lastQPump, __flowSetpoint.qPump ?? 0))
+                : (numOrNull("qPump") ?? lastQPump)))
         );
-        // Effettiva: 0 se interblocco ferma P11011 (livelli) — sia Auto sia Manuale
+        // Target effettivo (comando). La portata VIVA resta in campo/SVG via commitFlow.
         const qPumpEff = !pumpOn
           ? 0
           : (auto ? (isEditing("qPump") ? Math.max(qPump, 0) : clampPump(qPumpSet)) : qPumpSet);
@@ -4222,9 +4449,12 @@
         let qMandata;
         if (auto && el("equiparaMandata")?.checked && __run11036) {
           qMandataSet = round1(Math.max(qPumpEff, getPumpMin()));
-          qMandata = qMandataSet;
-          if (!isEditing("qMandata")) setVal("qMandata", qMandataSet, { force: true });
+          if (!isEditing("qMandata")) {
+            lastQMandata = qMandataSet;
+            commitFlow("qMandata", qMandataSet);
+          }
           lastQMandata = qMandataSet;
+          qMandata = Math.max(0, num("qMandata")); // viva (rampa)
         } else {
           const qMandRaw = numOrNull("qMandata");
           if (source === "mandata" && qMandRaw === null) return;
@@ -4233,15 +4463,16 @@
             if (auto && qMandataSet < 0.5 && qPumpEff > 0.5) qMandataSet = round1(qPumpEff);
             // Manuale: non azzerare il campo se 11036 è ferma — conserva il setpoint
             if (auto && !__run11036) {
-              setVal("qMandata", 0, { force: true });
-              qMandataSet = 0;
-              lastQMandata = 0;
+              // Viva → 0; setpoint mandata resta (equipara / last)
+              commitFlow("qMandata", 0, {
+                setpoint: Math.max(qMandataSet, flowSetpointOf("qMandata"), qPumpSet),
+              });
             } else {
-              setVal("qMandata", round1(qMandataSet));
-              lastQMandata = round1(qMandataSet);
+              rememberFlowSetpoint("qMandata", round1(qMandataSet));
+              commitFlow("qMandata", lastQMandata);
             }
           }
-          qMandata = (auto && !__run11036) ? 0 : (__run11036 ? round1(qMandataSet) : 0);
+          qMandata = (auto && !__run11036) ? 0 : (__run11036 ? Math.max(0, num("qMandata")) : 0);
         }
         // Effettiva mandata: 0 se processo ferma 11036
         if (!__run11036) qMandata = 0;
@@ -4279,8 +4510,8 @@
         if (auto && pumpOn && !stillFillingToStop && (atHigh || atBlock) && !isEditing("qPump") && source !== "freq") {
           const qNeed = Math.min(getPumpMax(), Math.max(qPumpEff, round1(qInEff + scaricoExtra + 20)));
           if (qNeed > qPumpEff + 0.05) {
-            setVal("qPump", qNeed, { force: true });
             lastQPump = qNeed;
+            commitFlow("qPump", qNeed);
           }
         }
 
@@ -4321,30 +4552,31 @@
           }
         }
 
-        // Effettiva dopo boost (solo auto può aver cambiato qPump)
+        // Effettiva dopo boost (solo auto può aver cambiato qPump) — valore VIVO in rampa
         let qPumpEff2 = !pumpOn
           ? 0
           : (auto
-            ? (!isEditing("qPump") ? clampPump(num("qPump")) : qPumpEff)
+            ? (!isEditing("qPump") ? Math.max(0, num("qPump")) : qPumpEff)
             : Math.max(0, numOrNull("qPump") ?? lastQPump));
-        // Automatico: azzera campo se OFF. Manuale: NON toccare il setpoint digitato.
+        // Automatico: azzera solo la VIVA se OFF. Setpoint (popup) resta.
         if (auto && !pumpOn) {
-          if (!isEditing("qPump")) setVal("qPump", 0, { force: true });
-          lastQPump = 0;
+          if (!isEditing("qPump")) commitFlow("qPump", 0);
+          qPumpEff2 = Math.max(0, num("qPump"));
         }
         if (auto && !__run11036) {
           qMandata = 0;
-          if (!isEditing("qMandata")) setVal("qMandata", 0, { force: true });
-          lastQMandata = 0;
+          if (!isEditing("qMandata")) commitFlow("qMandata", 0);
         } else if (auto && el("equiparaMandata")?.checked) {
-          qMandata = round1(Math.max(qPumpEff2, getPumpMin()));
-          if (!isEditing("qMandata")) setVal("qMandata", qMandata, { force: true });
-          lastQMandata = qMandata;
+          const qMandTgt = round1(Math.max(qPumpSet, getPumpMin()));
+          if (!isEditing("qMandata")) {
+            commitFlow("qMandata", __run11036 ? qMandTgt : 0, { setpoint: qMandTgt });
+          }
+          qMandata = Math.max(0, num("qMandata"));
         } else if (!auto) {
           // Setpoint resta; effettiva già 0 se !__run11036
-          const keepM = Math.max(0, numOrNull("qMandata") ?? lastQMandata);
-          lastQMandata = keepM;
-          qMandata = __run11036 ? keepM : 0;
+          const keepM = Math.max(0, flowSetpointOf("qMandata"));
+          rememberFlowSetpoint("qMandata", keepM);
+          qMandata = __run11036 ? Math.max(0, num("qMandata")) : 0;
         }
 
         // Portata → Hz: Automatico sempre; Manuale solo se hai cambiato la portata (non i Hz)
@@ -4385,26 +4617,27 @@
           livHBal !== null ? livHBal : 90,
           livAtt
         );
-        const qRecycleWanted = Math.max(0, round1(qPumpEff2 - qInSet));
+        // Riciclo: setpoint = P11011_set − ingresso; viva = 0 se 11014 ferma
+        const qPumpForRec = auto ? Math.max(0, qPumpSet) : qPumpEff2;
+        const qRecycleWanted = Math.max(0, round1(qPumpForRec - qInSet));
         let qRecycle = qRecycleWanted;
         if (auto) {
-          // Consenso → portata (≥ min); ferme → 0
-          qRecycle = qRecycleEffective(run14Bal.running, qRecycleWanted);
-          setVal("qRecycle", qRecycle, { force: true });
+          const qRecTgt = qRecycleEffective(run14Bal.running, qRecycleWanted);
+          commitFlow("qRecycle", qRecTgt, { setpoint: qRecycleWanted });
+          qRecycle = Math.max(0, num("qRecycle"));
         } else {
           const qRecKeep = numOrNull("qRecycle");
-          qRecycle = qRecKeep === null ? qRecycleWanted : Math.max(0, qRecKeep);
+          qRecycle = qRecKeep === null ? flowSetpointOf("qRecycle") : Math.max(0, qRecKeep);
           if (!isEditing("qRecycle") && qRecKeep === null) {
-            setVal("qRecycle", qRecycleWanted, { force: true });
+            commitFlow("qRecycle", run14Bal.running ? qRecycle : 0, { setpoint: qRecycle });
           }
-          // Ferme → portata 0 (il setpoint manuale resta nel campo solo se in marcia)
           if (!run14Bal.running) {
             qRecycle = 0;
-            if (!isEditing("qRecycle")) setVal("qRecycle", 0, { force: true });
+            if (!isEditing("qRecycle")) {
+              commitFlow("qRecycle", 0, { setpoint: flowSetpointOf("qRecycle") });
+            }
           }
         }
-        const svgQRecBal = el("svgQRec");
-        if (svgQRecBal) svgQRecBal.textContent = round1(qRecycle).toFixed(1);
         setVal("qInView", qInSet);
         setVal("qPumpView", qMandata);
         setVal("qArrivoView", qPumpEff2);
@@ -4460,16 +4693,20 @@
         const svgQIn = el("svgQIn");
         // Chimico: sullo schizzo la portata EFFETTIVA (0 se stop riempimento)
         if (svgQIn) svgQIn.textContent = round1(qInEff).toFixed(1);
+        // Occhio pompe: portata VIVA (in tween 0,5 s) — non sovrascrivere col target a scatto
         const svgQPump = el("svgQPump");
-        // Manuale: mostra il SETPOINT digitato (resta anche a pompa ferma). Auto: effettiva.
-        if (svgQPump) svgQPump.textContent = round1(auto ? qPumpEff2 : qPumpSet).toFixed(1);
+        if (svgQPump && !isEditing("qPump")) {
+          svgQPump.textContent = round1(auto ? __flowLive.qPump : qPumpSet).toFixed(1);
+        }
         const svgQMand = el("svgQMand");
-        if (svgQMand) {
-          const showMand = auto ? qMandata : Math.max(0, numOrNull("qMandata") ?? lastQMandata);
+        if (svgQMand && !isEditing("qMandata")) {
+          const showMand = auto ? __flowLive.qMandata : Math.max(0, flowSetpointOf("qMandata"));
           svgQMand.textContent = round1(showMand).toFixed(1);
         }
         const svgQRec = el("svgQRec");
-        if (svgQRec) svgQRec.textContent = qRecycle.toFixed(1);
+        if (svgQRec && !isEditing("qRecycle")) {
+          svgQRec.textContent = round1(auto ? __flowLive.qRecycle : qRecycle).toFixed(1);
+        }
         const svgQMem = el("svgQMem");
         if (svgQMem) svgQMem.textContent = totOn.toFixed(1);
         const svgAvg = el("svgQAvg");
@@ -4565,6 +4802,7 @@
           bar.textContent = `t=${__simMin}′ · ${outTxt} · ` + bar.textContent;
         }
       } finally {
+        endFlowStep();
         lock = false;
       }
     }
@@ -5002,7 +5240,8 @@
 
       if (field === "qRecycle") {
         if (!isAutoMode()) {
-          // Manuale: portata riciclo libera
+          // Manuale: portata riciclo libera (setpoint)
+          rememberFlowSetpoint("qRecycle", Math.max(0, v));
           setVal("qRecycle", Math.max(0, v), { force: true });
           const svgQRec = el("svgQRec");
           if (svgQRec) svgQRec.textContent = round1(Math.max(0, v)).toFixed(1);
@@ -5013,15 +5252,10 @@
         const qInNow = Math.max(0, num("qIn"));
         const qRecNeed = Math.max(Q_RECYCLE_MIN, Math.max(0, v));
         const qPumpNeed = clampPump(Math.max(getPumpMin(), qInNow + qRecNeed));
-        setVal("qPump", qPumpNeed, { force: true });
-        lastQPump = qPumpNeed;
-        if (el("equiparaMandata")?.checked) {
-          setVal("qMandata", qPumpNeed, { force: true });
-          lastQMandata = qPumpNeed;
-        }
-        setVal("qRecycle", Math.max(0, round1(qPumpNeed - qInNow)), { force: true });
-        const svgQRec = el("svgQRec");
-        if (svgQRec) svgQRec.textContent = round1(Math.max(0, qPumpNeed - qInNow)).toFixed(1);
+        const qRecSet = Math.max(0, round1(qPumpNeed - qInNow));
+        rememberFlowSetpoint("qPump", qPumpNeed);
+        rememberFlowSetpoint("qRecycle", qRecSet);
+        if (el("equiparaMandata")?.checked) rememberFlowSetpoint("qMandata", qPumpNeed);
         syncFreqFromPump(qPumpNeed);
         applyBalance("pompa");
         return;
@@ -5045,8 +5279,8 @@
       }
       if (field === "qPump") {
         // live: in Manuale non clampare; in Automatico applyBalance gestisce
+        rememberFlowSetpoint("qPump", Math.max(0, v));
         el("qPump").value = String(Math.max(0, v));
-        lastQPump = Math.max(0, v);
         applyBalance("pompa");
         return;
       }
@@ -5059,15 +5293,19 @@
         return;
       }
       if (field === "qP11019") {
-        setVal("qP11019", v, { force: true });
-        const svgP = el("svgQP11019");
-        if (svgP) svgP.textContent = round1(v).toFixed(1);
+        rememberFlowSetpoint("qP11019", Math.max(0, v));
+        commitFlow("qP11019", p11019Allowed() ? Math.max(0, v) : 0, {
+          instant: true,
+          setpoint: Math.max(0, v),
+        });
         return;
       }
       if (field === "qMandata") {
         el("equiparaMandata").checked = false;
         el("qMandata").disabled = false;
+        rememberFlowSetpoint("qMandata", Math.max(0, v));
       }
+      if (FLOW_IDS.includes(field)) rememberFlowSetpoint(field, Math.max(0, v));
       setVal(field, v, { force: true });
       applyBalance(source);
     }
@@ -5091,7 +5329,8 @@
       }
       if (field === "qRecycle") {
         if (!isAutoMode()) {
-          // Manuale: portata riciclo libera
+          // Manuale: portata riciclo libera (setpoint)
+          rememberFlowSetpoint("qRecycle", Math.max(0, v));
           setVal("qRecycle", Math.max(0, v), { force: true });
           const svgQRec = el("svgQRec");
           if (svgQRec) svgQRec.textContent = round1(Math.max(0, v)).toFixed(1);
@@ -5102,15 +5341,10 @@
         const qInNow = Math.max(0, num("qIn"));
         const qRecNeed = Math.max(Q_RECYCLE_MIN, Math.max(0, v));
         const qPumpNeed = clampPump(Math.max(getPumpMin(), qInNow + qRecNeed));
-        setVal("qPump", qPumpNeed, { force: true });
-        lastQPump = qPumpNeed;
-        if (el("equiparaMandata")?.checked) {
-          setVal("qMandata", qPumpNeed, { force: true });
-          lastQMandata = qPumpNeed;
-        }
-        setVal("qRecycle", Math.max(0, round1(qPumpNeed - qInNow)), { force: true });
-        const svgQRec = el("svgQRec");
-        if (svgQRec) svgQRec.textContent = round1(Math.max(0, qPumpNeed - qInNow)).toFixed(1);
+        const qRecSet = Math.max(0, round1(qPumpNeed - qInNow));
+        rememberFlowSetpoint("qPump", qPumpNeed);
+        rememberFlowSetpoint("qRecycle", qRecSet);
+        if (el("equiparaMandata")?.checked) rememberFlowSetpoint("qMandata", qPumpNeed);
         syncFreqFromPump(qPumpNeed);
         applyBalance("pompa");
         return;
@@ -5134,8 +5368,8 @@
       }
       if (field === "qPump") {
         // Manuale: conferma esatta, senza minimo 80 / curva Hz
+        rememberFlowSetpoint("qPump", round1(Math.max(0, v)));
         setVal("qPump", Math.max(0, v), { force: true });
-        lastQPump = round1(Math.max(0, v));
         if (isAutoMode()) commitPump();
         else applyBalance("pompa");
         return;
@@ -5147,15 +5381,19 @@
         return;
       }
       if (field === "qP11019") {
-        setVal("qP11019", v, { force: true });
-        const svgP = el("svgQP11019");
-        if (svgP) svgP.textContent = round1(v).toFixed(1);
+        rememberFlowSetpoint("qP11019", Math.max(0, v));
+        commitFlow("qP11019", p11019Allowed() ? Math.max(0, v) : 0, {
+          instant: true,
+          setpoint: Math.max(0, v),
+        });
         return;
       }
       if (field === "qMandata") {
         el("equiparaMandata").checked = false;
         el("qMandata").disabled = false;
+        rememberFlowSetpoint("qMandata", Math.max(0, v));
       }
+      if (FLOW_IDS.includes(field)) rememberFlowSetpoint(field, Math.max(0, v));
       setVal(field, v, { force: true });
       applyBalance(source);
     }
@@ -5164,7 +5402,8 @@
       const field = flowGroup.dataset.field;
       const source = flowGroup.dataset.source;
       inlineCtx = { field, source };
-      let val = num(field);
+      // Pompe: nel popup sempre il SETPOINT (non la viva a 0 se ferme)
+      let val = FLOW_IDS.includes(field) ? flowSetpointOf(field) : num(field);
       if (field === "livelloAttuale") val = num("livelloAttuale");
       const step = flowEditStep(field);
       inlineInp.step = String(step);
@@ -5615,12 +5854,20 @@
         updateA10620RiempInterlocks(num("livelloAttuale"));
         updateA10620PumpInterlocks(num("livelloAttuale"));
         updateA10611PumpInterlocks(num("livelloAttualeA10611"));
-        lastQPump = p11011Allowed() ? clampPump(num("qPump") || lastQPump) : 0;
-        lastQMandata = __run11036 ? Math.max(0, num("qMandata") || lastQMandata) : 0;
+        {
+          const qp = clampPump(Math.max(0, num("qPump") || lastQPump || __flowSetpoint.qPump || 0));
+          const qm = Math.max(0, num("qMandata") || lastQMandata || __flowSetpoint.qMandata || 0);
+          if (qp > 0.05) rememberFlowSetpoint("qPump", qp);
+          if (qm > 0.05) rememberFlowSetpoint("qMandata", qm);
+        }
         syncUf("uf-linea");
         syncOsmosiSvg();
         applyBalance("ingresso");
         refreshProcViews();
+        snapFlowLiveFromFields();
+        // Se pompe ferme, ripristina i setpoint “ricordo” (la viva può essere 0)
+        if (lastQPump > 0.05) __flowSetpoint.qPump = lastQPump;
+        if (lastQMandata > 0.05) __flowSetpoint.qMandata = lastQMandata;
       } finally {
         __applyingRemote = false;
       }
