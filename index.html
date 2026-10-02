@@ -12,9 +12,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Process Managed" />
-  <link rel="manifest" href="manifest.json?v=wwt7" />
-  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt7" />
-  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt7" />
+  <link rel="manifest" href="manifest.json?v=wwt8" />
+  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt8" />
+  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt8" />
   <style>
     :root {
       --bg: #0b1220;
@@ -41,6 +41,18 @@
       color: var(--text);
       line-height: 1.28;
       padding: 8px 2px;
+    }
+    /* Popup aperto: schema/pagina congelati, scorre solo l’overlay */
+    html.modal-open,
+    html.modal-open body {
+      overflow: hidden;
+      overscroll-behavior: none;
+    }
+    body.modal-open {
+      position: fixed;
+      left: 0;
+      right: 0;
+      width: 100%;
     }
     header {
       display: flex;
@@ -496,17 +508,22 @@
     .settings-block .row { margin-bottom: 2px; }
     .modal.wide-settings { width: min(520px, 100%); }
 
-    /* Popup */
+    /* Popup: overlay scorrevole; pagina sotto bloccata (html.modal-open) */
     .modal-back {
       position: fixed;
       inset: 0;
       background: rgba(2, 8, 20, 0.72);
       display: none;
-      align-items: center;
+      align-items: flex-start;
       justify-content: center;
       z-index: 50;
-      padding: 12px;
+      padding: max(12px, env(safe-area-inset-top, 0px)) 12px max(28px, env(safe-area-inset-bottom, 0px));
       pointer-events: none; /* mai bloccare lo schema se chiuso */
+      overflow-x: hidden;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      touch-action: pan-y;
     }
     .modal-back.show {
       display: flex;
@@ -514,21 +531,21 @@
     }
     .modal {
       width: min(420px, 100%);
-      max-height: calc(100vh - 24px);
-      overflow-x: hidden;
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
+      max-height: none;
+      overflow: visible;
       background: var(--panel);
       border: 1px solid var(--line);
       border-radius: 12px;
       padding: 14px;
       box-shadow: 0 16px 40px rgba(0,0,0,.45);
+      flex-shrink: 0;
+      margin: 0 auto 8px;
     }
     .modal.wide { width: min(560px, 100%); }
     .modal.wide-settings {
       width: min(520px, 100%);
-      max-height: calc(100vh - 24px);
-      overflow-y: auto;
+      max-height: none;
+      overflow: visible;
     }
     .modal h3 {
       margin: 0 0 10px;
@@ -694,13 +711,13 @@
 
     /* Desktop / landscape: stessa forma del verticale, un filo più alta e comoda */
     html.layout-landscape .modal-back {
-      align-items: center;
-      padding: 12px 16px;
+      align-items: flex-start;
+      padding: max(12px, env(safe-area-inset-top, 0px)) 16px max(28px, env(safe-area-inset-bottom, 0px));
     }
     html.layout-landscape .modal {
       width: min(440px, 92vw);
-      max-height: calc(100vh - 24px);
-      overflow: auto;
+      max-height: none;
+      overflow: visible;
       padding: 16px 15px;
       border-radius: 12px;
     }
@@ -1941,10 +1958,7 @@
     let __qInLive = null;
     let __resetGuardUntil = 0; // dopo Reset, ignora sync remoto che ripristina livelli vecchi
     const SIM_RESET_LIV = 90; // livelli stabili al Reset
-    const SIM_STEP_MIN = 1;   // passo TIME manuale +1′ / −1′ (minuti)
-    /** Start fluido: 10 sotto-passi al secondo → ancora 1′ di impianto per 1 s reale */
-    const SIM_PLAY_DT_MIN = 0.1;
-    const SIM_PLAY_MS = 100;
+    const SIM_STEP_MIN = 1;   // passo TIME (minuti) — Start: 1 s reale = 1′
     const RATE_PCT_CLAMP = 2.5; // tetto %/min: REGOLAZIONI estreme non devono far saltare i livelli
     const round2 = (v) => Math.round(Number(v) * 100) / 100;
     const MBR_MEM_IDS = ["A", "B", "C", "D", "E", "F", "G"]; // H fuori uso
@@ -2874,8 +2888,7 @@
 
     function updateSimTimeUI() {
       const label = el("simTimeLabel");
-      // Minuti interi in etichetta (sotto-passi Start restano interni)
-      if (label) label.textContent = Math.floor(__simMin) + "′";
+      if (label) label.textContent = __simMin + "′";
       const minus = el("simMinus5");
       if (minus) minus.disabled = __simMin <= 0 || __simBusy || __simPlaying;
       const plus = el("simPlus5");
@@ -2896,45 +2909,18 @@
       }
     }
 
-    /** Avvia conteggio automatico: 1 s reale = 1′ sim, in sotto-passi fluidi. */
+    /** Avvia conteggio automatico: 1 secondo reale = 1 minuto sim. */
     function simStart() {
       if (__simBusy || __simPlaying) return;
       __simPlaying = true;
+      advanceQInWobble(1);
       try { applyBalance("sim"); } catch (_) { /* ignore */ }
       updateSimTimeUI();
       if (__simPlayTimer) clearInterval(__simPlayTimer);
       __simPlayTimer = setInterval(() => {
         if (!__simPlaying || __simBusy) return;
-        simPlayTick();
-      }, SIM_PLAY_MS);
-    }
-
-    /** Un sotto-passo Start (SIM_PLAY_DT_MIN). +1′/−1′ restano su simPlus5/simMinus5. */
-    function simPlayTick() {
-      if (__simBusy) return;
-      __simBusy = true;
-      try {
-        if (__simMin === 0 && !__simSnap) {
-          forcePlantRunningBaseline();
-          paintResetLevelsUI(SIM_RESET_LIV);
-          if (isAutoMode()) ensurePumpsFlowing();
-          applyBalance("sim");
-          forcePlantRunningBaseline();
-          paintResetLevelsUI(SIM_RESET_LIV);
-          captureSimSnap();
-        } else if (__simMin === 0) {
-          if (isAutoMode()) ensurePumpsFlowing();
-        }
-        if (isAutoMode() && (__startupPumpHold || p11011Allowed())) ensurePumpsFlowing();
-        __simMin = round2(__simMin + SIM_PLAY_DT_MIN);
-        simulateOneStep(SIM_PLAY_DT_MIN);
-      } finally {
-        __simBusy = false;
-        updateSimTimeUI();
-        paintPumpColors();
-        paintA10608Passante();
-        paintMembraneCycleUI(__mbrCycleMin);
-      }
+        simPlus5();
+      }, 1000);
     }
 
     /** Ferma il conteggio automatico (il tempo resta dove è). */
@@ -4403,7 +4389,7 @@
             : (offN > 0
               ? `TOT ON ${totOn.toFixed(1)}/${maxM.toFixed(1)} (−${offN} memb.)`
               : `TOT ON ${totOn.toFixed(1)} (tutte ON)`);
-          bar.textContent = `t=${Math.floor(__simMin)}′ · ${outTxt} · ` + bar.textContent;
+          bar.textContent = `t=${__simMin}′ · ${outTxt} · ` + bar.textContent;
         }
       } finally {
         lock = false;
@@ -4636,9 +4622,46 @@
       return { running, reason, loH, hiH, ricOkLow, ricBlock, lowStop, blockAlto20 };
     }
 
+    let __scrollLockY = 0;
+    let __scrollLocked = false;
+
+    function anyOverlayOpen() {
+      const flowBack = el("popFlowEdit");
+      if (flowBack && flowBack.classList.contains("show")) return true;
+      return Object.values(popups).some((p) => p && p.classList.contains("show"));
+    }
+
+    function lockPageScroll() {
+      if (__scrollLocked) return;
+      __scrollLocked = true;
+      __scrollLockY = window.scrollY || window.pageYOffset || 0;
+      document.documentElement.classList.add("modal-open");
+      document.body.classList.add("modal-open");
+      document.body.style.top = `-${__scrollLockY}px`;
+    }
+
+    function unlockPageScroll() {
+      if (!__scrollLocked) return;
+      if (anyOverlayOpen()) return;
+      __scrollLocked = false;
+      document.documentElement.classList.remove("modal-open");
+      document.body.classList.remove("modal-open");
+      document.body.style.top = "";
+      window.scrollTo(0, __scrollLockY);
+    }
+
+    function syncScrollLock() {
+      if (anyOverlayOpen()) lockPageScroll();
+      else unlockPageScroll();
+    }
+
     function openPopup(name) {
       Object.values(popups).forEach((p) => { if (p) p.classList.remove("show"); });
-      if (popups[name]) popups[name].classList.add("show");
+      if (popups[name]) {
+        popups[name].classList.add("show");
+        try { popups[name].scrollTop = 0; } catch (_) { /* ignore */ }
+      }
+      syncScrollLock();
       if (name === "pompe" || name === "mandata" || name === "processo" || name === "riciclo" || name === "membrane" || name === "permeato" || name === "tk11021" || name === "ultra") refreshProcViews();
       if (name === "osmosi") syncOsmosiSvg();
       if (name === "regolazioni") {
@@ -4654,6 +4677,7 @@
       }
       Object.values(popups).forEach((p) => { if (p) p.classList.remove("show"); });
       try { hideInline(); } catch (_) { /* ok */ }
+      syncScrollLock();
     }
 
     document.querySelectorAll(".node[data-popup]").forEach((node) => {
@@ -4734,6 +4758,7 @@
       if (flowEditBack) flowEditBack.classList.remove("show");
       inlineCtx = null;
       try { if (inlineInp) inlineInp.blur(); } catch (_) { /* ignore */ }
+      syncScrollLock();
     }
 
     function nudgeFlowEdit(dir) {
@@ -4993,6 +5018,7 @@
           inlineInp.select();
         }, 30);
       }
+      syncScrollLock();
     }
 
     document.querySelectorAll(".flow-edit").forEach((g) => {
@@ -5100,6 +5126,19 @@
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") closePopups();
     });
+    // iOS: evita che lo scroll del popup trascini lo schema sotto
+    document.addEventListener("touchmove", (e) => {
+      if (!__scrollLocked) return;
+      const t = e.target;
+      if (!t || !t.closest) {
+        e.preventDefault();
+        return;
+      }
+      if (t.closest(".modal-back.show") || t.closest(".flow-edit-back.show") || t.closest(".modal") || t.closest(".flow-edit-panel")) {
+        return;
+      }
+      e.preventDefault();
+    }, { passive: false, capture: true });
 
     // Digitatura libera: bilancia solo se c'è un numero; clamp al blur
     el("qPump").addEventListener("input", () => {
@@ -5613,7 +5652,7 @@
       }
     } catch (_) { /* ok */ }
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt7", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt8", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
