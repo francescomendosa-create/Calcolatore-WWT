@@ -12,9 +12,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Process Managed" />
-  <link rel="manifest" href="manifest.json?v=wwt13" />
-  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt13" />
-  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt13" />
+  <link rel="manifest" href="manifest.json?v=wwt14" />
+  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt14" />
+  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt14" />
   <style>
     :root {
       --bg: #0b1220;
@@ -1830,7 +1830,7 @@
         <label><strong>Livello TK 11021 %</strong>
           <input type="number" id="livelloAttualeTk11021" min="0" max="100" step="0.1" value="91.0" inputmode="decimal" />
         </label>
-        <p class="mini">All’avvio / Reset: <strong>91%</strong>. Sale con UF, scende verso osmosi/11040.</p>
+        <p class="mini">All’avvio / Reset: <strong>91%</strong>. Sale se UF &gt; osmosi (≈ ingresso); scende se UF ferma/blocco o osmosi preleva di più.</p>
       </div>
       <div class="settings-block show">
         <h4>Gestione (da PROCESSO)</h4>
@@ -2577,7 +2577,7 @@
       return { startR, stopR };
     }
 
-    /** Stima %/min TK 11021: IN = UF (se abilitato), OUT = demi osmosi. */
+    /** Stima %/min TK 11021: IN = UF (se abilitato), OUT = demi osmosi (≈ ingresso). */
     function estimateTk11021RatePctPerMin(qUf, qOsmOut) {
       const qIn = __allowUfByTk11021 ? Math.max(0, Number(qUf) || 0) : 0;
       const qOut = Math.max(0, Number(qOsmOut) || 0);
@@ -3004,7 +3004,21 @@
         if (!membranesProcessAllowed()) qP19 = Math.max(qP19, linePermeateCapacity());
       }
       const qUf = Math.max(0, num("qUfTotale"));
-      const qOsmOut = Math.max(0, num("qOsmosiDemi") || (num("qOsmosiA") + num("qOsmosiB") + num("qOsmosiC")));
+      // OUT osmosi da TK 11021: in Auto ≈ ingresso (non uguale all’UF istantaneo)
+      let qOsmOut = Math.max(0, num("qOsmosiDemi") || (num("qOsmosiA") + num("qOsmosiB") + num("qOsmosiC")));
+      if (isAutoMode()) {
+        qOsmOut = permeateDemandOut();
+        if (!__allowUfByTk11021 || !membranesProcessAllowed()) {
+          qOsmOut = Math.max(qOsmOut, linePermeateCapacity());
+        }
+      }
+      // IN UF verso TK 11021 (già su qUfTotale dopo applyBalance; in sim = membrane istantanee)
+      let qUfIn = qUf;
+      if (isAutoMode() && (__simBusy || __simMin > 0)) {
+        qUfIn = (__allowUfByTk11021 && membranesProcessAllowed())
+          ? round1(sumMemsRunning(__mbrCycleMin))
+          : 0;
+      }
 
       const stopRiemp = numOrNull("stopRiempA10620");
       const stopRv = stopRiemp !== null ? stopRiemp : 95;
@@ -3015,7 +3029,7 @@
       const rH = estimateRicHRatePctPerMin(qMandata, qRecycleForH);
       const rMbr = estimateMbrRatePctPerMin(qMandata, qPerm);
       const rP = estimateTk11007RatePctPerMin(qPerm, qP19);
-      const rU = estimateTk11021RatePctPerMin(qUf, qOsmOut);
+      const rU = estimateTk11021RatePctPerMin(qUfIn, qOsmOut);
 
       let n20 = round2(Math.max(0, Math.min(100, liv20 + r20 * dtMin)));
       let n11 = round2(Math.max(0, Math.min(100, liv11 + r11 * dtMin)));
@@ -3686,12 +3700,18 @@
         permHint.style.color = __allowMbrByPermeate ? "var(--ok)" : "var(--danger)";
       }
 
-      // TK 11021 permeato UF
+      // TK 11021 permeato UF — IN UF (membrane/P11019) vs OUT osmosi (≈ ingresso)
       let livUUi = numOrNull("livelloAttualeTk11021");
       if (livUUi === null) livUUi = 91;
       updateTk11021Interlocks(livUUi);
-      const qUfUi = Math.max(0, num("qUfTotale"));
-      const qOsmUi = Math.max(0, num("qOsmosiDemi") || (num("qOsmosiA") + num("qOsmosiB") + num("qOsmosiC")));
+      const qOsmUi = isAutoMode()
+        ? ((!__allowUfByTk11021 || !membranesProcessAllowed())
+          ? Math.max(permeateDemandOut(), linePermeateCapacity())
+          : permeateDemandOut())
+        : Math.max(0, num("qOsmosiDemi") || (num("qOsmosiA") + num("qOsmosiB") + num("qOsmosiC")));
+      const qUfUi = (__simBusy || __simMin > 0)
+        ? ((__allowUfByTk11021 && membranesProcessAllowed()) ? sumMemsRunning(__mbrCycleMin) : 0)
+        : (__allowUfByTk11021 ? Math.max(0, num("qUfTotale")) : 0);
       const rateUUi = estimateTk11021RatePctPerMin(qUfUi, qOsmUi);
       paintTk11021UI(livUUi, rateUUi, !__allowUfByTk11021);
       const ufHint = el("tk11021Hint");
@@ -3886,30 +3906,39 @@
     function syncDownstreamPermeate(qPerm, source) {
       if (!isAutoMode()) return;
       const simulating = __simBusy || __simMin > 0;
-      let q;
+      const qDemand = permeateDemandOut();
+      let qP19;
       if (simulating) {
-        // Domanda valle = ingresso (setpoint); membrane possono dare di più/meno → Δ livello
-        q = permeateDemandOut();
-        // Blocco processo: membrane non mandano più IN, valle continua a prelevare
+        // OUT da TK 11007 = domanda ingresso (membrane possono dare di più/meno → Δ 11007)
+        qP19 = qDemand;
         if (!membranesProcessAllowed()) {
-          q = Math.max(q, linePermeateCapacity());
+          qP19 = Math.max(qP19, linePermeateCapacity());
         }
       } else {
-        // Fuori TIME: allinea valle al permeato medio (già ≈ ingresso)
-        q = round1(Math.max(0, qPerm));
+        qP19 = round1(Math.max(0, qPerm));
         if (!membranesProcessAllowed()) {
-          q = Math.max(q, linePermeateCapacity());
+          qP19 = Math.max(qP19, linePermeateCapacity());
         }
       }
 
-      setVal("qP11019", q, { force: !isEditing("qP11019") });
+      setVal("qP11019", qP19, { force: !isEditing("qP11019") });
       const svgP = el("svgQP11019");
-      if (svgP) svgP.textContent = q.toFixed(1);
+      if (svgP) svgP.textContent = qP19.toFixed(1);
 
+      // TK 11021: IN = UF, OUT = osmosi ≈ ingresso (non forzare IN=OUT in TIME)
       const srcUf = source === "uf-totale" || source === "uf-linea" || source === "ultra";
+      let qUfSet = 0;
       if (!isEditingUf() && !srcUf) {
-        // TK 11021 in stop riempimento → UF non riempie più; osmosi continua sotto
-        const qUfSet = __allowUfByTk11021 ? q : 0;
+        if (!__allowUfByTk11021) {
+          qUfSet = 0; // serbatoio pieno: niente riempimento
+        } else if (simulating) {
+          // In TIME: UF segue permeato membrane istantaneo (sale/scende come 11007)
+          qUfSet = membranesProcessAllowed()
+            ? round1(sumMemsRunning(__mbrCycleMin))
+            : 0;
+        } else {
+          qUfSet = qP19;
+        }
         setVal("qUfTotale", qUfSet, { force: true });
         setUfEqual(qUfSet);
         syncUf("uf-totale");
@@ -3917,7 +3946,12 @@
 
       const srcOsm = source === "osmosi";
       if (!isEditingOsmosi() && !srcOsm) {
-        const each = OSM_IDS.length ? round1(q / OSM_IDS.length) : 0;
+        // OUT osmosi = domanda ingresso; continua anche se UF/membrane bloccate (svuota 11021)
+        let qOsm = qDemand;
+        if (!__allowUfByTk11021 || !membranesProcessAllowed()) {
+          qOsm = Math.max(qOsm, linePermeateCapacity());
+        }
+        const each = OSM_IDS.length ? round1(qOsm / OSM_IDS.length) : 0;
         OSM_IDS.forEach((id) => setVal(id, each, { force: true }));
         syncOsmosiSvg();
       }
@@ -5677,7 +5711,7 @@
       }
     } catch (_) { /* ok */ }
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt13", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt14", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
