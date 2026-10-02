@@ -12,9 +12,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Process Managed" />
-  <link rel="manifest" href="manifest.json?v=wwt12" />
-  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt12" />
-  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt12" />
+  <link rel="manifest" href="manifest.json?v=wwt13" />
+  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt13" />
+  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt13" />
   <style>
     :root {
       --bg: #0b1220;
@@ -1770,7 +1770,7 @@
         <label><strong>Livello TK 11007 %</strong>
           <input type="number" id="livelloAttualeTk11007" min="0" max="100" step="0.1" value="91.0" inputmode="decimal" />
         </label>
-        <p class="mini">All’avvio / Reset: <strong>91%</strong>. Il livello sale con il permeato membrane e scende con P11019.</p>
+        <p class="mini">All’avvio / Reset: <strong>91%</strong>. Sale se permeato membrane &gt; P11019 (≈ ingresso); scende se membrane in pausa/blocco o P11019 preleva di più.</p>
       </div>
       <div class="settings-block show">
         <h4>Gestione (da PROCESSO)</h4>
@@ -2521,7 +2521,7 @@
       return { startR, stopR };
     }
 
-    /** Stima %/min TK 11007: IN = permeato membrane, OUT = P11019. */
+    /** Stima %/min TK 11007: IN = permeato membrane (istantaneo), OUT = P11019 (domanda valle). */
     function estimateTk11007RatePctPerMin(qPerm, qP11019) {
       const qIn = Math.max(0, Number(qPerm) || 0);
       const qOut = Math.max(0, Number(qP11019) || 0);
@@ -2531,6 +2531,14 @@
       let r = k * (qIn - qOut);
       if (!Number.isFinite(r)) return 0;
       return Math.max(-RATE_PCT_CLAMP, Math.min(RATE_PCT_CLAMP, r));
+    }
+
+    /** Domanda valle permeato ≈ setpoint ingresso (catena P11019 / UF / osmosi). */
+    function permeateDemandOut() {
+      const qSet = Math.max(0, num("qIn"));
+      if (qSet > 0.05) return round1(qSet);
+      // senza setpoint: usa capacità media di linea (duty)
+      return linePermeateCapacity();
     }
 
     function paintTk11007UI(livP, rateP, blocked) {
@@ -2987,9 +2995,14 @@
       const qRecycleDisp = run14.running ? qRecycleWanted : 0;
       const qRecycleForH = qRecycleDisp;
       const de = dutyEffective();
-      // Uscita permeato = somma membrane in marcia (pause ciclo o blocco livello = 0)
+      // Uscita permeato membrane (istantanea: pause ciclo = meno portata in ingresso al TK)
       const qPerm = round1(de.qPermInstant != null ? de.qPermInstant : sumMemsRunning(__mbrCycleMin));
-      const qP19 = Math.max(0, num("qP11019"));
+      // Domanda valle (P11019): in Auto segue ingresso — NON l’istantaneo membrane
+      let qP19 = Math.max(0, num("qP11019"));
+      if (isAutoMode()) {
+        qP19 = permeateDemandOut();
+        if (!membranesProcessAllowed()) qP19 = Math.max(qP19, linePermeateCapacity());
+      }
       const qUf = Math.max(0, num("qUfTotale"));
       const qOsmOut = Math.max(0, num("qOsmosiDemi") || (num("qOsmosiA") + num("qOsmosiB") + num("qOsmosiC")));
 
@@ -3651,12 +3664,17 @@
       paintMembraneCycleUI(__mbrCycleMin);
       getMbrLivCalib();
 
-      // TK 11007 permeato — start/stop riempimento (ferma/riparte membrane)
+      // TK 11007 permeato — IN membrane istantanee vs OUT P11019 (≈ ingresso)
       let livPUi = numOrNull("livelloAttualeTk11007");
       if (livPUi === null) livPUi = 91;
       updateTk11007PermeateInterlocks(livPUi);
-      const qP19Ui = Math.max(0, num("qP11019"));
-      const ratePUi = estimateTk11007RatePctPerMin(totAvg, qP19Ui);
+      const qP19Ui = isAutoMode()
+        ? (membranesProcessAllowed() ? permeateDemandOut() : Math.max(permeateDemandOut(), linePermeateCapacity()))
+        : Math.max(0, num("qP11019"));
+      const qPermUi = (__simBusy || __simMin > 0)
+        ? sumMemsRunning(__mbrCycleMin)
+        : Math.max(0, num("qMemMedia") || sumMemsAllOn() * duty().d);
+      const ratePUi = estimateTk11007RatePctPerMin(qPermUi, qP19Ui);
       paintTk11007UI(livPUi, ratePUi, !__allowMbrByPermeate);
       const permHint = el("permeatoPumpHint");
       if (permHint) {
@@ -3854,7 +3872,9 @@
         || (inlineCtx && String(inlineCtx.field || "").startsWith("qOsmosi"));
     }
 
-    /** Catena permeato: P11019 ≈ UF ≈ Demi osmosi ≈ ingresso (no accumulo / no blocco). Solo Automatico. */
+    /** Catena permeato: P11019 / UF / osmosi ≈ domanda ingresso.
+     *  In TIME: NON allineare P11019 all’istantaneo membrane — altrimenti TK 11007
+     *  resta piatto (IN=OUT). IN membrane vs OUT ingresso → livello sale/scende. */
     /** Portata di linea permeato (tutte ON × duty medio) — usata per scarico valle a membrane ferme. */
     function linePermeateCapacity() {
       const base = duty();
@@ -3865,12 +3885,21 @@
 
     function syncDownstreamPermeate(qPerm, source) {
       if (!isAutoMode()) return;
-      // Uscita membrane istantanea (può essere 0 in pausa ciclo o blocco processo).
-      let q = round1(Math.max(0, qPerm));
-      // Blocco processo (es. TK 11007 ≥ stop 97%): membrane non mandano più IN al serbatoio,
-      // ma P11019 / UF / osmosi restano al regime di linea così il livello SCENDE e riparte a start.
-      if (!membranesProcessAllowed()) {
-        q = Math.max(q, linePermeateCapacity());
+      const simulating = __simBusy || __simMin > 0;
+      let q;
+      if (simulating) {
+        // Domanda valle = ingresso (setpoint); membrane possono dare di più/meno → Δ livello
+        q = permeateDemandOut();
+        // Blocco processo: membrane non mandano più IN, valle continua a prelevare
+        if (!membranesProcessAllowed()) {
+          q = Math.max(q, linePermeateCapacity());
+        }
+      } else {
+        // Fuori TIME: allinea valle al permeato medio (già ≈ ingresso)
+        q = round1(Math.max(0, qPerm));
+        if (!membranesProcessAllowed()) {
+          q = Math.max(q, linePermeateCapacity());
+        }
       }
 
       setVal("qP11019", q, { force: !isEditing("qP11019") });
@@ -5648,7 +5677,7 @@
       }
     } catch (_) { /* ok */ }
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt12", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt13", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
