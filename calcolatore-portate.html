@@ -1447,6 +1447,33 @@
               </label>
             </div>
             <p class="mini">A ≥ stop (97%) riempimento UF bloccato. A ≤ start (80%) riparte. Livello iniziale 91%.</p>
+            <h4 style="margin-top:12px">Gestione serbatoio TK-11021 · linee osmosi 1 passo</h4>
+            <p class="mini">Svuotamento verso osmosi con P-11040 A/D · B/D · C/D. Ogni linea ha start/stop propri (modificabili).</p>
+            <div class="row">
+              <label><strong>Start svuotamento · Osmosi A (P-11040A/D) %</strong>
+                <input type="number" id="startSvuotOsmA" min="0" max="100" step="0.1" value="60" inputmode="decimal" />
+              </label>
+              <label><strong>Stop svuotamento · Osmosi A (P-11040A/D) %</strong>
+                <input type="number" id="stopSvuotOsmA" min="0" max="100" step="0.1" value="15" inputmode="decimal" />
+              </label>
+            </div>
+            <div class="row">
+              <label><strong>Start svuotamento · Osmosi B (P-11040B/D) %</strong>
+                <input type="number" id="startSvuotOsmB" min="0" max="100" step="0.1" value="60" inputmode="decimal" />
+              </label>
+              <label><strong>Stop svuotamento · Osmosi B (P-11040B/D) %</strong>
+                <input type="number" id="stopSvuotOsmB" min="0" max="100" step="0.1" value="20" inputmode="decimal" />
+              </label>
+            </div>
+            <div class="row">
+              <label><strong>Start svuotamento · Osmosi C (P-11040C/D) %</strong>
+                <input type="number" id="startSvuotOsmC" min="0" max="100" step="0.1" value="85" inputmode="decimal" />
+              </label>
+              <label><strong>Stop svuotamento · Osmosi C (P-11040C/D) %</strong>
+                <input type="number" id="stopSvuotOsmC" min="0" max="100" step="0.1" value="60" inputmode="decimal" />
+              </label>
+            </div>
+            <p class="mini">A ≥ start la linea parte; a ≤ stop si ferma (isteresi). Valori iniziali da HMI: A 60/15 · B 60/20 · C 85/60.</p>
           </div>
           <div class="actions"><button type="button" data-close>Applica</button></div>
         </div>
@@ -1858,6 +1885,32 @@
           </label>
         </div>
         <p class="mini" id="tk11021Hint">A ≥ stop (97%) riempimento bloccato; a ≤ start (80%) riparte.</p>
+        <h4 style="margin-top:12px">Linee osmosi 1 passo (P-11040) — da PROCESSO</h4>
+        <div class="row">
+          <label><strong>Start svuot. Osmosi A %</strong>
+            <input type="number" id="viewStartSvuotOsmA" readonly placeholder="—" inputmode="decimal" />
+          </label>
+          <label><strong>Stop svuot. Osmosi A %</strong>
+            <input type="number" id="viewStopSvuotOsmA" readonly placeholder="—" inputmode="decimal" />
+          </label>
+        </div>
+        <div class="row">
+          <label><strong>Start svuot. Osmosi B %</strong>
+            <input type="number" id="viewStartSvuotOsmB" readonly placeholder="—" inputmode="decimal" />
+          </label>
+          <label><strong>Stop svuot. Osmosi B %</strong>
+            <input type="number" id="viewStopSvuotOsmB" readonly placeholder="—" inputmode="decimal" />
+          </label>
+        </div>
+        <div class="row">
+          <label><strong>Start svuot. Osmosi C %</strong>
+            <input type="number" id="viewStartSvuotOsmC" readonly placeholder="—" inputmode="decimal" />
+          </label>
+          <label><strong>Stop svuot. Osmosi C %</strong>
+            <input type="number" id="viewStopSvuotOsmC" readonly placeholder="—" inputmode="decimal" />
+          </label>
+        </div>
+        <p class="mini" id="tk11021OsmHint">Marcia/arresto linee A–C sul livello TK 11021.</p>
       </div>
       <div class="actions"><button type="button" data-close>Applica</button></div>
     </div>
@@ -1883,6 +1936,34 @@
         </label>
       </div>
       <p class="mini">Demi = somma ingressi. Concentrato fisso 15 m³/h per ogni osmosi in servizio (IN &gt; 0). Totale = Demi + Concentrato.</p>
+      <div class="settings-block show">
+        <h4>Svuotamento TK-11021 · P-11040 (da PROCESSO)</h4>
+        <p class="mini" id="osmosiRunHint">Ogni linea parte/ferma sul livello serbatoio (start/stop modificabili in PROCESSO).</p>
+        <div class="row">
+          <label><strong>Start A %</strong>
+            <input type="number" id="viewStartSvuotOsmA2" readonly placeholder="—" />
+          </label>
+          <label><strong>Stop A %</strong>
+            <input type="number" id="viewStopSvuotOsmA2" readonly placeholder="—" />
+          </label>
+        </div>
+        <div class="row">
+          <label><strong>Start B %</strong>
+            <input type="number" id="viewStartSvuotOsmB2" readonly placeholder="—" />
+          </label>
+          <label><strong>Stop B %</strong>
+            <input type="number" id="viewStopSvuotOsmB2" readonly placeholder="—" />
+          </label>
+        </div>
+        <div class="row">
+          <label><strong>Start C %</strong>
+            <input type="number" id="viewStartSvuotOsmC2" readonly placeholder="—" />
+          </label>
+          <label><strong>Stop C %</strong>
+            <input type="number" id="viewStopSvuotOsmC2" readonly placeholder="—" />
+          </label>
+        </div>
+      </div>
       <div class="settings-block show">
         <h4>Osmosi A</h4>
         <div class="row">
@@ -1968,6 +2049,10 @@
     let __allowMbrByPermeate = true; // isteresi TK 11007 (start riemp 90 / stop riemp 97)
     let __runP11019By07 = true;      // isteresi P11019 su TK 11007 (start svuot 60 / stop svuot 30)
     let __allowUfByTk11021 = true;   // isteresi TK 11021 (start riemp 80 / stop riemp 97)
+    /** Isteresi svuotamento TK-11021 → linee osmosi 1 passo (P-11040 A/B/C) */
+    let __runOsmA = true;
+    let __runOsmB = true;
+    let __runOsmC = true;
     let __mbrCycleMin = 0;       // orologio ciclo lavoro/pausa (si congela se livello ferma tutte)
     let __startupPumpHold = false; // dopo Reset: pompe ON finché non parti con +1′
     let __simMin = 0;
@@ -2863,7 +2948,100 @@
         if (liv >= stopR - 0.05) __allowUfByTk11021 = false;
         else if (liv <= startR + 0.05) __allowUfByTk11021 = true;
       }
+      updateOsmosiTk11021Interlocks(livU);
       return { startR, stopR };
+    }
+
+    /**
+     * Isteresi TK-11021 lato linee osmosi 1 passo (P-11040 A/D · B/D · C/D):
+     *  ≥ start svuotamento → linea ON; ≤ stop svuotamento → linea OFF.
+     *  Default HMI: A 60/15 · B 60/20 · C 85/60.
+     */
+    function updateOsmosiTk11021Interlocks(livU) {
+      const liv = Number(livU);
+      const defs = [
+        { runKey: "A", startId: "startSvuotOsmA", stopId: "stopSvuotOsmA", startDef: 60, stopDef: 15 },
+        { runKey: "B", startId: "startSvuotOsmB", stopId: "stopSvuotOsmB", startDef: 60, stopDef: 20 },
+        { runKey: "C", startId: "startSvuotOsmC", stopId: "stopSvuotOsmC", startDef: 85, stopDef: 60 },
+      ];
+      const out = {};
+      defs.forEach((d) => {
+        const startS = numOrNull(d.startId);
+        const stopS = numOrNull(d.stopId);
+        const startV = startS !== null ? startS : d.startDef;
+        const stopV = stopS !== null ? stopS : d.stopDef;
+        let flag = d.runKey === "A" ? __runOsmA : (d.runKey === "B" ? __runOsmB : __runOsmC);
+        if (Number.isFinite(liv)) {
+          if (liv <= stopV + 0.05) flag = false;
+          else if (liv >= startV - 0.05) flag = true;
+        }
+        if (d.runKey === "A") __runOsmA = flag;
+        else if (d.runKey === "B") __runOsmB = flag;
+        else __runOsmC = flag;
+        out[d.runKey] = { running: flag, startS: startV, stopS: stopV };
+      });
+      return out;
+    }
+
+    function osmLineRunning(letter) {
+      if (letter === "A") return !!__runOsmA;
+      if (letter === "B") return !!__runOsmB;
+      if (letter === "C") return !!__runOsmC;
+      return false;
+    }
+
+    function osmRunningCount() {
+      return (__runOsmA ? 1 : 0) + (__runOsmB ? 1 : 0) + (__runOsmC ? 1 : 0);
+    }
+
+    /** Portate osmosi in Auto: domanda ripartita solo sulle linee in marcia. */
+    function applyOsmosiAutoFlows(qDemandTotal) {
+      const qDemand = Math.max(0, round1(Number(qDemandTotal) || 0));
+      const nRun = osmRunningCount();
+      const each = nRun > 0 ? round1(qDemand / nRun) : 0;
+      const ids = ["qOsmosiA", "qOsmosiB", "qOsmosiC"];
+      const letters = ["A", "B", "C"];
+      letters.forEach((L, i) => {
+        const q = osmLineRunning(L) ? each : 0;
+        if (!isEditing(ids[i])) setVal(ids[i], q, { force: true });
+      });
+      syncOsmosiSvg();
+      paintOsmosiRunUI();
+      return { each, nRun, qDemand };
+    }
+
+    function paintOsmosiRunUI() {
+      ["A", "B", "C"].forEach((L) => {
+        const run = osmLineRunning(L);
+        const node = document.querySelector(`g.node[aria-label="Osmosi ${L}"]`);
+        if (node) {
+          const outer = node.querySelector("rect");
+          const inner = node.querySelectorAll("rect")[1];
+          const lab = node.querySelector("text");
+          if (outer) outer.setAttribute("stroke", run ? "#4ade80" : "#f87171");
+          if (inner) {
+            inner.setAttribute("fill", run ? "#22c55e" : "#7f1d1d");
+            inner.setAttribute("opacity", run ? "0.55" : "0.7");
+          }
+          if (lab) lab.setAttribute("fill", run ? "#86efac" : "#fda4af");
+        }
+        const svgQ = el({ A: "svgQOsmA", B: "svgQOsmB", C: "svgQOsmC" }[L]);
+        if (svgQ) {
+          const badge = svgQ.closest("g")?.querySelector("rect.badge");
+          if (badge) badge.setAttribute("stroke", run ? "#4ade80" : "#f87171");
+        }
+      });
+      const liv = numOrNull("livelloAttualeTk11021") ?? 91;
+      const parts = ["A", "B", "C"].map((L) => `${L} ${osmLineRunning(L) ? "ON" : "OFF"}`);
+      const txt = `TK 11021 ${round1(liv).toFixed(1)}% · linee ${parts.join(" · ")}`;
+      const col = osmRunningCount() > 0 ? "var(--ok)" : "var(--warn)";
+      ["tk11021OsmHint", "osmosiRunHint"].forEach((id) => {
+        const hint = el(id);
+        if (hint) {
+          hint.textContent = txt;
+          hint.style.color = col;
+        }
+      });
     }
 
     /** Stima %/min TK 11021: IN = UF (se abilitato), OUT = demi osmosi (≈ ingresso). */
@@ -3167,6 +3345,9 @@
         allowMbrByPermeate: __allowMbrByPermeate,
         runP11019By07: __runP11019By07,
         allowUfByTk11021: __allowUfByTk11021,
+        runOsmA: __runOsmA,
+        runOsmB: __runOsmB,
+        runOsmC: __runOsmC,
         mbrCycleMin: __mbrCycleMin,
         startupPumpHold: __startupPumpHold,
       };
@@ -3196,6 +3377,9 @@
       __allowMbrByPermeate = __simSnap.allowMbrByPermeate !== false;
       __runP11019By07 = __simSnap.runP11019By07 !== false;
       __allowUfByTk11021 = __simSnap.allowUfByTk11021 !== false;
+      __runOsmA = __simSnap.runOsmA !== false;
+      __runOsmB = __simSnap.runOsmB !== false;
+      __runOsmC = __simSnap.runOsmC !== false;
       __mbrCycleMin = Math.max(0, Number(__simSnap.mbrCycleMin) || 0);
       __startupPumpHold = __simSnap.startupPumpHold !== false;
       // Riallinea isteresi 11014 ai livelli ripristinati
@@ -3327,13 +3511,27 @@
       }
       const qP19 = Math.max(0, num("qP11019")); // viva (rampa) per bilanci TK
       const qUf = Math.max(0, num("qUfTotale"));
-      // OUT osmosi da TK 11021: in Auto ≈ ingresso (non uguale all’UF istantaneo)
+      // OUT osmosi da TK 11021: solo linee in marcia (isteresi P-11040 sul livello)
       let qOsmOut = Math.max(0, num("qOsmosiDemi") || (num("qOsmosiA") + num("qOsmosiB") + num("qOsmosiC")));
       if (isAutoMode()) {
-        qOsmOut = permeateDemandOut();
+        updateOsmosiTk11021Interlocks(livU);
+        let qDemand = permeateDemandOut();
         if (!__allowUfByTk11021 || !membranesProcessAllowed()) {
-          qOsmOut = Math.max(qOsmOut, linePermeateCapacity());
+          qDemand = Math.max(qDemand, linePermeateCapacity());
         }
+        const applied = applyOsmosiAutoFlows(qDemand);
+        qOsmOut = round1(applied.each * applied.nRun);
+      } else {
+        updateOsmosiTk11021Interlocks(livU);
+        qOsmOut = 0;
+        ["A", "B", "C"].forEach((L, i) => {
+          const id = ["qOsmosiA", "qOsmosiB", "qOsmosiC"][i];
+          if (osmLineRunning(L)) qOsmOut += Math.max(0, num(id));
+          else if (!isEditing(id)) setVal(id, 0, { force: true });
+        });
+        qOsmOut = round1(qOsmOut);
+        syncOsmosiSvg();
+        paintOsmosiRunUI();
       }
       // IN UF verso TK 11021: solo se P11019 in marcia
       let qUfIn = qUf;
@@ -3462,6 +3660,9 @@
       __allowMbrByPermeate = true;
       __runP11019By07 = true;
       __allowUfByTk11021 = true;
+      __runOsmA = true;
+      __runOsmB = true;
+      __runOsmC = true;
       __mbrCycleMin = 0;
       __run11014 = true; // all’avvio 11014 abilitate (A11004 a 90% ≥ start 80%)
       ensureA10611ProcessDefaults();
@@ -3487,6 +3688,9 @@
       __allowMbrByPermeate = true;
       __runP11019By07 = true;
       __allowUfByTk11021 = true;
+      __runOsmA = true;
+      __runOsmB = true;
+      __runOsmC = true;
       syncRun11036();
       if (L >= (numOrNull("startSvuotA10611") ?? 88) - 0.05) __run11036Tank = true;
       syncRun11036();
@@ -3674,6 +3878,9 @@
       __allowMbrByPermeate = true;
       __runP11019By07 = true;
       __allowUfByTk11021 = true;
+      __runOsmA = true;
+      __runOsmB = true;
+      __runOsmC = true;
       __run11036Tank = true;
       __allow11036ByMbr = true;
       __run11036 = true;
@@ -4082,6 +4289,7 @@
         : ((__allowUfByTk11021 && p11019Allowed()) ? Math.max(0, num("qUfTotale")) : 0);
       const rateUUi = estimateTk11021RatePctPerMin(qUfUi, qOsmUi);
       paintTk11021UI(livUUi, rateUUi, !__allowUfByTk11021);
+      paintOsmosiRunUI();
       const ufHint = el("tk11021Hint");
       if (ufHint) {
         const startU = numOrNull("startRiempTk11021") ?? 80;
@@ -4308,14 +4516,24 @@
       const srcOsm = source === "osmosi";
       if (!isEditingOsmosi() && !srcOsm) {
         const qDemand = permeateDemandOut();
-        // OUT osmosi = domanda ingresso; continua anche se UF/membrane bloccate (svuota 11021)
+        // OUT osmosi = domanda ingresso; solo linee abilitate da livello TK-11021
         let qOsm = qDemand;
         if (!__allowUfByTk11021 || !membranesProcessAllowed() || !p11019Allowed()) {
           qOsm = Math.max(qOsm, linePermeateCapacity());
         }
-        const each = OSM_IDS.length ? round1(qOsm / OSM_IDS.length) : 0;
-        OSM_IDS.forEach((id) => setVal(id, each, { force: true }));
-        syncOsmosiSvg();
+        if (isAutoMode()) {
+          applyOsmosiAutoFlows(qOsm);
+        } else {
+          // Manuale: azzera solo le linee ferme per livello (setpoint resta nel campo se in edit)
+          ["A", "B", "C"].forEach((L, i) => {
+            const id = ["qOsmosiA", "qOsmosiB", "qOsmosiC"][i];
+            if (!osmLineRunning(L) && !isEditing(id)) setVal(id, 0, { force: true });
+          });
+          syncOsmosiSvg();
+          paintOsmosiRunUI();
+        }
+      } else {
+        paintOsmosiRunUI();
       }
     }
 
@@ -5046,6 +5264,18 @@
         ["viewStopRiempTk11021", "stopRiempTk11021"],
         ["viewStartRiempTk11021b", "startRiempTk11021"],
         ["viewStopRiempTk11021b", "stopRiempTk11021"],
+        ["viewStartSvuotOsmA", "startSvuotOsmA"],
+        ["viewStopSvuotOsmA", "stopSvuotOsmA"],
+        ["viewStartSvuotOsmB", "startSvuotOsmB"],
+        ["viewStopSvuotOsmB", "stopSvuotOsmB"],
+        ["viewStartSvuotOsmC", "startSvuotOsmC"],
+        ["viewStopSvuotOsmC", "stopSvuotOsmC"],
+        ["viewStartSvuotOsmA2", "startSvuotOsmA"],
+        ["viewStopSvuotOsmA2", "stopSvuotOsmA"],
+        ["viewStartSvuotOsmB2", "startSvuotOsmB"],
+        ["viewStopSvuotOsmB2", "stopSvuotOsmB"],
+        ["viewStartSvuotOsmC2", "startSvuotOsmC"],
+        ["viewStopSvuotOsmC2", "stopSvuotOsmC"],
         ["viewStartRicicloA10620", "startRicicloA10620"],
         ["viewStopRicicloA10620", "stopRicicloA10620"],
       ];
@@ -5772,7 +6002,7 @@
       applyBalance("livello");
     });
 
-    ["startRiempA10620", "stopRiempA10620", "startSvuotA10620", "stopSvuotA10620", "startRiempA10611", "stopRiempA10611", "startSvuotA10611", "stopSvuotA10611", "stopAltoA10611", "ripartenzaP11011A10611", "startSvuotA11004", "stopSvuotA11004", "startSvuotMbr", "stopSvuotMbr", "startRiempMbr", "stopRiempMbr", "startRiempTk11007", "stopRiempTk11007", "startSvuotTk11007", "stopSvuotTk11007", "startRiempTk11021", "stopRiempTk11021", "startRicicloA10620", "stopRicicloA10620"].forEach((id) => {
+    ["startRiempA10620", "stopRiempA10620", "startSvuotA10620", "stopSvuotA10620", "startRiempA10611", "stopRiempA10611", "startSvuotA10611", "stopSvuotA10611", "stopAltoA10611", "ripartenzaP11011A10611", "startSvuotA11004", "stopSvuotA11004", "startSvuotMbr", "stopSvuotMbr", "startRiempMbr", "stopRiempMbr", "startRiempTk11007", "stopRiempTk11007", "startSvuotTk11007", "stopSvuotTk11007", "startRiempTk11021", "stopRiempTk11021", "startSvuotOsmA", "stopSvuotOsmA", "startSvuotOsmB", "stopSvuotOsmB", "startSvuotOsmC", "stopSvuotOsmC", "startRicicloA10620", "stopRicicloA10620"].forEach((id) => {
       const node = el(id);
       if (!node) return;
       node.addEventListener("input", () => {
@@ -5827,7 +6057,7 @@
       "startRiempA10611", "stopRiempA10611", "startSvuotA10611", "stopSvuotA10611",
       "stopAltoA10611", "ripartenzaP11011A10611",
       "startSvuotA11004", "stopSvuotA11004", "startSvuotMbr", "stopSvuotMbr",
-      "startRiempMbr", "stopRiempMbr", "startRiempTk11007", "stopRiempTk11007", "startSvuotTk11007", "stopSvuotTk11007", "startRiempTk11021", "stopRiempTk11021", "startRicicloA10620", "stopRicicloA10620",
+      "startRiempMbr", "stopRiempMbr", "startRiempTk11007", "stopRiempTk11007", "startSvuotTk11007", "stopSvuotTk11007", "startRiempTk11021", "stopRiempTk11021", "startSvuotOsmA", "stopSvuotOsmA", "startSvuotOsmB", "stopSvuotOsmB", "startSvuotOsmC", "stopSvuotOsmC", "startRicicloA10620", "stopRicicloA10620",
       "regA10611QinRef", "regA10611Hz11011", "regA10611Hz11036", "regA10611Min",
       "regA10611OnFrom", "regA10611OnTo", "regA10611OffFrom", "regA10611OffTo",
       "regRicHMin", "regRicHStopLiv", "regRicHOnFrom", "regRicHOnTo", "regRicHOffFrom", "regRicHOffTo",
