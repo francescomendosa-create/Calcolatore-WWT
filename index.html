@@ -2519,10 +2519,15 @@
       if (hzRaw === null) return;
       const hz = clampFreq(hzRaw);
       if (!isEditing("freqHz") && hz !== hzRaw) el("freqHz").value = String(hz);
-      const q = clampPump(qFromFreqCurve(hz));
+      // Manuale: curva libera (≥0). Automatico: clamp min/max processo.
+      const q = isAutoMode()
+        ? clampPump(qFromFreqCurve(hz))
+        : round1(Math.max(0, qFromFreqCurve(hz)));
       if (!isEditing("qPump")) {
-        setVal("qPump", q, { force: true });
+        rememberFlowSetpoint("qPump", q);
         lastQPump = q;
+        if (p11011Allowed()) commitFlow("qPump", q, { setpoint: q });
+        else commitFlow("qPump", 0, { setpoint: q > 0.05 ? q : undefined });
       }
       const svg = el("svgFreqHz");
       if (svg && !isEditing("freqHz")) svg.textContent = String(hz);
@@ -4320,8 +4325,9 @@
       // Sempre un solo kick tween a fine bilancio (conteggio 0,5 s su tutte le portate)
       beginFlowStep();
       try {
-        // Hz → portata: Manuale e Automatico, quando tocchi Hz (o in Auto mentre digiti)
-        if (source === "freq" || (isAutoMode() && isEditing("freqHz"))) {
+        // Hz → portata (curva REGOLAZIONI): Automatico e Manuale
+        let qFromFreqThisPass = null;
+        if (source === "freq" || isEditing("freqHz")) {
           const hzRaw = numOrNull("freqHz");
           if (hzRaw !== null) {
             const hz = clampFreq(hzRaw);
@@ -4329,9 +4335,12 @@
             const qFromHz = isAutoMode()
               ? clampPump(qFromFreqCurve(hz))
               : round1(Math.max(0, qFromFreqCurve(hz)));
+            qFromFreqThisPass = qFromHz;
             if (!isEditing("qPump")) {
               lastQPump = qFromHz;
-              commitFlow("qPump", qFromHz);
+              rememberFlowSetpoint("qPump", qFromHz);
+              // Viva = curva se pompe ON; setpoint sempre aggiornato dalla frequenza
+              commitFlow("qPump", p11011Allowed() ? qFromHz : 0, { setpoint: qFromHz });
             }
             const svgHz = el("svgFreqHz");
             if (svgHz) svgHz.textContent = String(hz);
@@ -4450,11 +4459,11 @@
         }
 
         if (!isEditing("qPump") && Number.isFinite(qPump)) {
-          // Solo valori > 0: a pompe ferme la viva è 0 ma il setpoint NON si cancella
-          if (qPump > 0.05) {
+          // Non sovrascrivere il setpoint appena impostato da frequenza con la viva vecchia
+          if (source !== "freq" && qFromFreqThisPass == null && qPump > 0.05) {
             if (auto) {
               if (pumpOn) rememberFlowSetpoint("qPump", clampPump(qPump));
-            } else {
+            } else if (source === "pompa") {
               rememberFlowSetpoint("qPump", Math.max(0, qPump));
             }
           }
@@ -4462,16 +4471,18 @@
 
         // Setpoint comando (popup / ripartenza): MAI usare la viva a 0 come setpoint
         const qPumpSet = Math.max(0,
-          (isEditing("qPump") && qPumpRaw === null)
-            ? lastQPump
-            : (isEditing("qPump")
-              ? qPump
-              : (auto
-                ? clampPump(Math.max(lastQPump, __flowSetpoint.qPump ?? 0))
-                : flowSetpointOf("qPump")))
+          qFromFreqThisPass != null
+            ? qFromFreqThisPass
+            : ((isEditing("qPump") && qPumpRaw === null)
+              ? lastQPump
+              : (isEditing("qPump")
+                ? qPump
+                : (auto
+                  ? clampPump(Math.max(lastQPump, __flowSetpoint.qPump ?? 0))
+                  : flowSetpointOf("qPump"))))
         );
-        // Manuale: a pompe ON la viva torna al setpoint (non resta a 0 dopo uno stop)
-        if (!auto && !isEditing("qPump")) {
+        // Manuale: a pompe ON la viva = setpoint (da Hz o digitato). Non ricalcolare se arriva da freq (già fatto).
+        if (!auto && !isEditing("qPump") && source !== "freq" && qFromFreqThisPass == null) {
           if (pumpOn) commitFlow("qPump", qPumpSet, { setpoint: qPumpSet });
           else commitFlow("qPump", 0);
         }
@@ -4630,8 +4641,8 @@
           qMandata = __run11036 ? Math.max(0, num("qMandata")) : 0;
         }
 
-        // Portata → Hz: Automatico sempre; Manuale solo se hai cambiato la portata (non i Hz)
-        if (source !== "freq" && !isEditing("freqHz")) {
+        // Portata → Hz (curva): Auto sempre; Manuale se cambi portata (non se stai editando Hz)
+        if (source !== "freq" && !isEditing("freqHz") && qFromFreqThisPass == null) {
           if (pumpOn && qPumpEff2 > 0.05) {
             if (auto || source === "pompa") syncFreqFromPump(qPumpEff2);
           } else if (!pumpOn) {
@@ -4639,8 +4650,10 @@
               const hzNode = el("freqHz");
               if (hzNode) hzNode.value = "0";
             }
+            // Manuale: Hz a 0 solo visualmente sull’occhio se vuoi? Meglio tenere Hz di setpoint.
+            // Solo Auto azzera Hz a pompe ferme.
             const svgHz0 = el("svgFreqHz");
-            if (svgHz0) svgHz0.textContent = "0";
+            if (svgHz0 && auto) svgHz0.textContent = "0";
           }
         }
 
@@ -5330,6 +5343,8 @@
         // live: in Manuale non clampare; in Automatico applyBalance gestisce
         rememberFlowSetpoint("qPump", Math.max(0, v));
         el("qPump").value = String(Math.max(0, v));
+        lastQPump = Math.max(0, v);
+        if (!isEditing("freqHz")) syncFreqFromPump(Math.max(0, v));
         applyBalance("pompa");
         return;
       }
@@ -5338,6 +5353,12 @@
         el("freqHz").value = String(hz);
         const svgHz = el("svgFreqHz");
         if (svgHz) svgHz.textContent = String(hz);
+        // Aggiorna subito portata dalla curva (anche in Manuale)
+        const qFromHz = isAutoMode()
+          ? clampPump(qFromFreqCurve(hz))
+          : round1(Math.max(0, qFromFreqCurve(hz)));
+        rememberFlowSetpoint("qPump", qFromHz);
+        lastQPump = qFromHz;
         applyBalance("freq");
         return;
       }
@@ -5416,9 +5437,11 @@
         return;
       }
       if (field === "qPump") {
-        // Manuale: conferma esatta, senza minimo 80 / curva Hz
+        // Manuale: conferma esatta; Automatico: commitPump. Sempre collega Hz ↔ portata.
         rememberFlowSetpoint("qPump", round1(Math.max(0, v)));
+        lastQPump = round1(Math.max(0, v));
         setVal("qPump", Math.max(0, v), { force: true });
+        syncFreqFromPump(Math.max(0, v));
         if (isAutoMode()) commitPump();
         else applyBalance("pompa");
         return;
@@ -5426,6 +5449,13 @@
       if (field === "freqHz") {
         const hz = clampFreq(v);
         el("freqHz").value = String(hz);
+        const svgHz = el("svgFreqHz");
+        if (svgHz) svgHz.textContent = String(hz);
+        const qFromHz = isAutoMode()
+          ? clampPump(qFromFreqCurve(hz))
+          : round1(Math.max(0, qFromFreqCurve(hz)));
+        rememberFlowSetpoint("qPump", qFromHz);
+        lastQPump = qFromHz;
         applyBalance("freq");
         return;
       }
