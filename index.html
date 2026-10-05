@@ -1101,35 +1101,35 @@
           <text x="468" y="455" text-anchor="middle" fill="#f87171" font-size="8" font-weight="700" id="svgRangeHi11021">97</text>
         </g>
 
-        <!-- 4 pompe 11040 A–D: linea in arrivo al centro tra B e C, poi prosegue -->
+        <!-- 4 pompe 11040 A–D: A/B/C con relativa osmosi; D sempre ferma (momentaneo) -->
         <g aria-label="Pompe 11040 A B C D">
           <path class="pipe pipe-main" d="M420 415 H360" />
           <path class="pipe pipe-main" d="M360 351 V479" />
           <g transform="translate(360,351)">
             <rect x="7" y="-6" width="12" height="11" rx="1.5" fill="#334155" stroke="#94a3b8" stroke-width="1.1" />
-            <circle r="10" fill="#14532d" stroke="#4ade80" stroke-width="1.6" />
-            <path d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#bbf7d0" />
-            <text x="-22" y="4" text-anchor="middle" fill="#86efac" font-size="9" font-weight="700">A</text>
+            <circle id="svgPump11040A" r="10" fill="#14532d" stroke="#4ade80" stroke-width="1.6" />
+            <path id="svgPump11040AArrow" d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#bbf7d0" />
+            <text id="svgPump11040ALabel" x="-22" y="4" text-anchor="middle" fill="#86efac" font-size="9" font-weight="700">A</text>
           </g>
           <g transform="translate(360,394)">
             <rect x="7" y="-6" width="12" height="11" rx="1.5" fill="#334155" stroke="#94a3b8" stroke-width="1.1" />
-            <circle r="10" fill="#14532d" stroke="#4ade80" stroke-width="1.6" />
-            <path d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#bbf7d0" />
-            <text x="-22" y="4" text-anchor="middle" fill="#86efac" font-size="9" font-weight="700">B</text>
+            <circle id="svgPump11040B" r="10" fill="#14532d" stroke="#4ade80" stroke-width="1.6" />
+            <path id="svgPump11040BArrow" d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#bbf7d0" />
+            <text id="svgPump11040BLabel" x="-22" y="4" text-anchor="middle" fill="#86efac" font-size="9" font-weight="700">B</text>
           </g>
           <g transform="translate(360,436)">
             <rect x="7" y="-6" width="12" height="11" rx="1.5" fill="#334155" stroke="#94a3b8" stroke-width="1.1" />
-            <circle r="10" fill="#14532d" stroke="#4ade80" stroke-width="1.6" />
-            <path d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#bbf7d0" />
-            <text x="-22" y="4" text-anchor="middle" fill="#86efac" font-size="9" font-weight="700">C</text>
+            <circle id="svgPump11040C" r="10" fill="#14532d" stroke="#4ade80" stroke-width="1.6" />
+            <path id="svgPump11040CArrow" d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#bbf7d0" />
+            <text id="svgPump11040CLabel" x="-22" y="4" text-anchor="middle" fill="#86efac" font-size="9" font-weight="700">C</text>
           </g>
           <g transform="translate(360,479)">
             <rect x="7" y="-6" width="12" height="11" rx="1.5" fill="#334155" stroke="#94a3b8" stroke-width="1.1" />
-            <circle r="10" fill="#14532d" stroke="#4ade80" stroke-width="1.6" />
-            <path d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#bbf7d0" />
-            <text x="-22" y="4" text-anchor="middle" fill="#86efac" font-size="9" font-weight="700">D</text>
+            <circle id="svgPump11040D" r="10" fill="#7f1d1d" stroke="#f87171" stroke-width="1.6" />
+            <path id="svgPump11040DArrow" d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#fecaca" />
+            <text id="svgPump11040DLabel" x="-22" y="4" text-anchor="middle" fill="#fda4af" font-size="9" font-weight="700">D</text>
           </g>
-          <text x="360" y="508" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700">11040 A–D</text>
+          <text id="svgPump11040Label" x="360" y="508" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700">P11040 A–D</text>
           <!-- prosegue vicino alle osmosi -->
           <path class="pipe pipe-main" d="M350 415 H310" />
         </g>
@@ -3011,17 +3011,23 @@
     }
 
     function paintOsmosiRunUI() {
+      updateOsmosiTk11021Interlocks(numOrNull("livelloAttualeTk11021") ?? 91);
       ["A", "B", "C"].forEach((L) => {
         const run = osmLineRunning(L);
+        // Blocco osmosi: verde in marcia, rosso ferma
         const node = document.querySelector(`g.node[aria-label="Osmosi ${L}"]`);
         if (node) {
-          const outer = node.querySelector("rect");
-          const inner = node.querySelectorAll("rect")[1];
+          const rects = node.querySelectorAll("rect");
+          const outer = rects[0];
+          const inner = rects[1];
           const lab = node.querySelector("text");
-          if (outer) outer.setAttribute("stroke", run ? "#4ade80" : "#f87171");
+          if (outer) {
+            outer.setAttribute("stroke", run ? "#4ade80" : "#f87171");
+            outer.setAttribute("fill", run ? "#14532d" : "#7f1d1d");
+          }
           if (inner) {
-            inner.setAttribute("fill", run ? "#22c55e" : "#7f1d1d");
-            inner.setAttribute("opacity", run ? "0.55" : "0.7");
+            inner.setAttribute("fill", run ? "#22c55e" : "#991b1b");
+            inner.setAttribute("opacity", run ? "0.65" : "0.75");
           }
           if (lab) lab.setAttribute("fill", run ? "#86efac" : "#fda4af");
         }
@@ -3030,10 +3036,19 @@
           const badge = svgQ.closest("g")?.querySelector("rect.badge");
           if (badge) badge.setAttribute("stroke", run ? "#4ade80" : "#f87171");
         }
+        // Pompa P-11040 relativa: stessa marcia dell’osmosi
+        paintOnePump("svgPump11040" + L, "svgPump11040" + L + "Arrow", "svgPump11040" + L + "Label", run);
       });
+      // P-11040 D: sempre ferma (fuori servizio momentaneo)
+      paintOnePump("svgPump11040D", "svgPump11040DArrow", "svgPump11040DLabel", false);
+      const labGroup = el("svgPump11040Label");
+      if (labGroup) {
+        const any = osmRunningCount() > 0;
+        labGroup.setAttribute("fill", any ? "#86efac" : "#fda4af");
+      }
       const liv = numOrNull("livelloAttualeTk11021") ?? 91;
       const parts = ["A", "B", "C"].map((L) => `${L} ${osmLineRunning(L) ? "ON" : "OFF"}`);
-      const txt = `TK 11021 ${round1(liv).toFixed(1)}% · linee ${parts.join(" · ")}`;
+      const txt = `TK 11021 ${round1(liv).toFixed(1)}% · P11040/Osmosi ${parts.join(" · ")} · D OFF`;
       const col = osmRunningCount() > 0 ? "var(--ok)" : "var(--warn)";
       ["tk11021OsmHint", "osmosiRunHint"].forEach((id) => {
         const hint = el(id);
@@ -3299,6 +3314,8 @@
       if (lab19) lab19.setAttribute("fill", run11019 ? "#86efac" : "#fda4af");
       const badge19 = el("svgQP11019Badge");
       if (badge19) badge19.setAttribute("stroke", run11019 ? "#4ade80" : "#f87171");
+      // P-11040 A/B/C = relativa osmosi; D sempre ferma
+      try { paintOsmosiRunUI(); } catch (_) { /* ignore */ }
     }
 
     /** Riciclo effettivo 11014: ferme → 0; in marcia (Auto) → almeno Q_RECYCLE_MIN. */
