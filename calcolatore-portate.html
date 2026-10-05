@@ -12,9 +12,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Process Managed" />
-  <link rel="manifest" href="manifest.json?v=wwt17" />
-  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt17" />
-  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt17" />
+  <link rel="manifest" href="manifest.json?v=wwt27" />
+  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt27" />
+  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt27" />
   <style>
     :root {
       --bg: #0b1220;
@@ -1448,32 +1448,31 @@
             </div>
             <p class="mini">A ≥ stop (97%) riempimento UF bloccato. A ≤ start (80%) riparte. Livello iniziale 91%.</p>
             <h4 style="margin-top:12px">Gestione serbatoio TK-11021 · linee osmosi 1 passo</h4>
-            <p class="mini">Svuotamento verso osmosi con P-11040 A/D · B/D · C/D. Ogni linea ha start/stop propri (modificabili).</p>
+            <p class="mini">Setpoints start/stop svuotamento P-11040 A/B/C: modificabili cliccando il serbatoio <strong>TK-11021</strong> sullo schema (o sotto). Default HMI: A 60/15 · B 60/20 · C 85/60.</p>
             <div class="row">
-              <label><strong>Start svuotamento · Osmosi A (P-11040A/D) %</strong>
-                <input type="number" id="startSvuotOsmA" min="0" max="100" step="0.1" value="60" inputmode="decimal" />
+              <label><strong>Start svuot. Osmosi A % (vista)</strong>
+                <input type="number" id="viewStartSvuotOsmA" readonly placeholder="—" />
               </label>
-              <label><strong>Stop svuotamento · Osmosi A (P-11040A/D) %</strong>
-                <input type="number" id="stopSvuotOsmA" min="0" max="100" step="0.1" value="15" inputmode="decimal" />
+              <label><strong>Stop svuot. Osmosi A % (vista)</strong>
+                <input type="number" id="viewStopSvuotOsmA" readonly placeholder="—" />
               </label>
             </div>
             <div class="row">
-              <label><strong>Start svuotamento · Osmosi B (P-11040B/D) %</strong>
-                <input type="number" id="startSvuotOsmB" min="0" max="100" step="0.1" value="60" inputmode="decimal" />
+              <label><strong>Start svuot. Osmosi B % (vista)</strong>
+                <input type="number" id="viewStartSvuotOsmB" readonly placeholder="—" />
               </label>
-              <label><strong>Stop svuotamento · Osmosi B (P-11040B/D) %</strong>
-                <input type="number" id="stopSvuotOsmB" min="0" max="100" step="0.1" value="20" inputmode="decimal" />
+              <label><strong>Stop svuot. Osmosi B % (vista)</strong>
+                <input type="number" id="viewStopSvuotOsmB" readonly placeholder="—" />
               </label>
             </div>
             <div class="row">
-              <label><strong>Start svuotamento · Osmosi C (P-11040C/D) %</strong>
-                <input type="number" id="startSvuotOsmC" min="0" max="100" step="0.1" value="85" inputmode="decimal" />
+              <label><strong>Start svuot. Osmosi C % (vista)</strong>
+                <input type="number" id="viewStartSvuotOsmC" readonly placeholder="—" />
               </label>
-              <label><strong>Stop svuotamento · Osmosi C (P-11040C/D) %</strong>
-                <input type="number" id="stopSvuotOsmC" min="0" max="100" step="0.1" value="60" inputmode="decimal" />
+              <label><strong>Stop svuot. Osmosi C % (vista)</strong>
+                <input type="number" id="viewStopSvuotOsmC" readonly placeholder="—" />
               </label>
             </div>
-            <p class="mini">A ≥ start la linea parte; a ≤ stop si ferma (isteresi). Valori iniziali da HMI: A 60/15 · B 60/20 · C 85/60.</p>
           </div>
           <div class="actions"><button type="button" data-close>Applica</button></div>
         </div>
@@ -1885,32 +1884,33 @@
           </label>
         </div>
         <p class="mini" id="tk11021Hint">A ≥ stop (97%) riempimento bloccato; a ≤ start (80%) riparte.</p>
-        <h4 style="margin-top:12px">Linee osmosi 1 passo (P-11040) — da PROCESSO</h4>
+        <h4 style="margin-top:12px">Gestione serbatoio TK-11021 · linee osmosi 1 passo (P-11040)</h4>
+        <p class="mini">Start/stop svuotamento per ogni linea. A ≥ start → pompa+osmosi ON; a ≤ stop → OFF. D sempre ferma.</p>
         <div class="row">
-          <label><strong>Start svuot. Osmosi A %</strong>
-            <input type="number" id="viewStartSvuotOsmA" readonly placeholder="—" inputmode="decimal" />
+          <label><strong>Start svuotamento Osmosi A (P-11040A) %</strong>
+            <input type="number" id="startSvuotOsmA" min="0" max="100" step="0.1" value="60" inputmode="decimal" />
           </label>
-          <label><strong>Stop svuot. Osmosi A %</strong>
-            <input type="number" id="viewStopSvuotOsmA" readonly placeholder="—" inputmode="decimal" />
+          <label><strong>Stop svuotamento Osmosi A (P-11040A) %</strong>
+            <input type="number" id="stopSvuotOsmA" min="0" max="100" step="0.1" value="15" inputmode="decimal" />
           </label>
         </div>
         <div class="row">
-          <label><strong>Start svuot. Osmosi B %</strong>
-            <input type="number" id="viewStartSvuotOsmB" readonly placeholder="—" inputmode="decimal" />
+          <label><strong>Start svuotamento Osmosi B (P-11040B) %</strong>
+            <input type="number" id="startSvuotOsmB" min="0" max="100" step="0.1" value="60" inputmode="decimal" />
           </label>
-          <label><strong>Stop svuot. Osmosi B %</strong>
-            <input type="number" id="viewStopSvuotOsmB" readonly placeholder="—" inputmode="decimal" />
+          <label><strong>Stop svuotamento Osmosi B (P-11040B) %</strong>
+            <input type="number" id="stopSvuotOsmB" min="0" max="100" step="0.1" value="20" inputmode="decimal" />
           </label>
         </div>
         <div class="row">
-          <label><strong>Start svuot. Osmosi C %</strong>
-            <input type="number" id="viewStartSvuotOsmC" readonly placeholder="—" inputmode="decimal" />
+          <label><strong>Start svuotamento Osmosi C (P-11040C) %</strong>
+            <input type="number" id="startSvuotOsmC" min="0" max="100" step="0.1" value="85" inputmode="decimal" />
           </label>
-          <label><strong>Stop svuot. Osmosi C %</strong>
-            <input type="number" id="viewStopSvuotOsmC" readonly placeholder="—" inputmode="decimal" />
+          <label><strong>Stop svuotamento Osmosi C (P-11040C) %</strong>
+            <input type="number" id="stopSvuotOsmC" min="0" max="100" step="0.1" value="60" inputmode="decimal" />
           </label>
         </div>
-        <p class="mini" id="tk11021OsmHint">Marcia/arresto linee A–C sul livello TK 11021.</p>
+        <p class="mini" id="tk11021OsmHint">Marcia/arresto linee A–C sul livello TK 11021 · P11040 D sempre OFF.</p>
       </div>
       <div class="actions"><button type="button" data-close>Applica</button></div>
     </div>
@@ -4497,15 +4497,24 @@
     }
 
     function syncDownstreamPermeate(qPerm, source) {
+      // Aggiorna sempre isteresi osmosi / colori, anche in Manuale
+      updateTk11007PumpInterlocks(numOrNull("livelloAttualeTk11007") ?? 91);
+      updateTk11021Interlocks(numOrNull("livelloAttualeTk11021") ?? 91);
+
       if (!isAutoMode()) {
-        // Anche in manuale: se blocco basso, viva P11019 → 0 (setpoint popup resta)
+        // Manuale: blocco basso P11019 → viva 0; osmosi ferme per livello → portata 0
         if (!p11019Allowed()) {
           commitFlow("qP11019", 0, { setpoint: flowSetpointOf("qP11019") });
         }
+        ["A", "B", "C"].forEach((L, i) => {
+          const id = ["qOsmosiA", "qOsmosiB", "qOsmosiC"][i];
+          if (!osmLineRunning(L) && !isEditing(id)) setVal(id, 0, { force: true });
+        });
+        syncOsmosiSvg();
+        paintOsmosiRunUI();
         return;
       }
       const simulating = __simBusy || __simMin > 0;
-      updateTk11007PumpInterlocks(numOrNull("livelloAttualeTk11007") ?? 91);
       // OUT da TK 11007 = P11019 effettiva (0 se pompe ferme per basso livello)
       const qP19Set = qP11019Setpoint();
       const qP19 = qP11019Effective();
@@ -4538,17 +4547,7 @@
         if (!__allowUfByTk11021 || !membranesProcessAllowed() || !p11019Allowed()) {
           qOsm = Math.max(qOsm, linePermeateCapacity());
         }
-        if (isAutoMode()) {
-          applyOsmosiAutoFlows(qOsm);
-        } else {
-          // Manuale: azzera solo le linee ferme per livello (setpoint resta nel campo se in edit)
-          ["A", "B", "C"].forEach((L, i) => {
-            const id = ["qOsmosiA", "qOsmosiB", "qOsmosiC"][i];
-            if (!osmLineRunning(L) && !isEditing(id)) setVal(id, 0, { force: true });
-          });
-          syncOsmosiSvg();
-          paintOsmosiRunUI();
-        }
+        applyOsmosiAutoFlows(qOsm);
       } else {
         paintOsmosiRunUI();
       }
@@ -6414,7 +6413,7 @@
       }
     } catch (_) { /* ok */ }
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt17", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt27", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
