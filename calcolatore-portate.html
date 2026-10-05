@@ -12,9 +12,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Process Managed" />
-  <link rel="manifest" href="manifest.json?v=wwt27" />
-  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt27" />
-  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt27" />
+  <link rel="manifest" href="manifest.json?v=wwt28" />
+  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt28" />
+  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt28" />
   <style>
     :root {
       --bg: #0b1220;
@@ -855,12 +855,12 @@
           </g>
         </g>
 
-        <!-- A10608 alto — solo passaggio, nessun livello di processo -->
+        <!-- TK-10608 alto — passante (geometria in REGOLAZIONI) -->
         <g>
           <ellipse class="tank-body" cx="475" cy="48" rx="44" ry="22" fill="#14532d" stroke="#86efac" stroke-width="1.5" id="svgTank08" />
           <ellipse cx="475" cy="48" rx="36" ry="14" fill="#22c55e" opacity="0.55" id="svgTank08in" />
-          <text x="475" y="30" text-anchor="middle" fill="#bbf7d0" font-size="11" font-weight="700">A10608</text>
-          <text x="475" y="53" text-anchor="middle" fill="#86efac" font-size="8" font-weight="600" id="svgLiv08">passante</text>
+          <text x="475" y="30" text-anchor="middle" fill="#bbf7d0" font-size="11" font-weight="700">TK-10608</text>
+          <text x="475" y="53" text-anchor="middle" fill="#86efac" font-size="8" font-weight="600" id="svgLiv08">400 m³</text>
         </g>
 
         <!-- A10611/7 + MP 11036 A/B mandata -->
@@ -1489,6 +1489,58 @@
         <small>cuore del sistema</small>
       </button>
 
+      <!-- 0. Geometrie reali serbatoi / vasche -->
+      <div class="settings-block show" id="regGeomTanks">
+        <h4>0 · Geometrie serbatoi e vasche (reali)</h4>
+        <p class="mini">Volumi utili usati per i tassi di riempimento/svuotamento (%/min = ΔQ ÷ V × 100 ÷ 60). Modificabili; default da dati impianto.</p>
+
+        <h4 style="margin-top:10px">A10620 — vasca esistente</h4>
+        <p class="mini">Rettangolare: base 20×9 m · altezza 3 m · volume utile 450 m³.</p>
+        <div class="row" style="grid-template-columns:1fr 1fr 1fr">
+          <label><strong>Lunghezza L (m)</strong>
+            <input type="number" id="regA10620L" min="0.1" max="200" step="0.1" value="20" inputmode="decimal" />
+          </label>
+          <label><strong>Larghezza W (m)</strong>
+            <input type="number" id="regA10620W" min="0.1" max="200" step="0.1" value="9" inputmode="decimal" />
+          </label>
+          <label><strong>Altezza H (m)</strong>
+            <input type="number" id="regA10620H" min="0.1" max="50" step="0.1" value="3" inputmode="decimal" />
+          </label>
+        </div>
+        <div class="row">
+          <label><strong>Volume utile A10620 (m³)</strong>
+            <input type="number" id="regA10620Vutile" min="1" max="20000" step="1" value="450" inputmode="decimal" />
+          </label>
+          <label><strong>V geometrico (calcolato)</strong>
+            <input type="number" id="viewA10620Vgeom" readonly tabindex="-1" placeholder="—" />
+          </label>
+        </div>
+        <p class="mini" id="regA10620GeomHint">A10620: V utile 450 m³ → ~0,37 %/min per ogni 100 m³/h di netto.</p>
+
+        <h4 style="margin-top:14px">TK-10608 — serbatoio (ex A10608)</h4>
+        <p class="mini">Cilindrico: Ø 8 m · H tot. 10 m · H utile 8 m · volume ~400 m³. Sullo schema resta passante (nessun livello di processo per ora).</p>
+        <div class="row" style="grid-template-columns:1fr 1fr 1fr">
+          <label><strong>Diametro Ø (m)</strong>
+            <input type="number" id="regTk10608D" min="0.1" max="50" step="0.1" value="8" inputmode="decimal" />
+          </label>
+          <label><strong>Altezza totale (m)</strong>
+            <input type="number" id="regTk10608Htot" min="0.1" max="50" step="0.1" value="10" inputmode="decimal" />
+          </label>
+          <label><strong>Altezza utile (m)</strong>
+            <input type="number" id="regTk10608Hutile" min="0.1" max="50" step="0.1" value="8" inputmode="decimal" />
+          </label>
+        </div>
+        <div class="row">
+          <label><strong>Volume utile TK-10608 (m³)</strong>
+            <input type="number" id="regTk10608Vutile" min="1" max="20000" step="1" value="400" inputmode="decimal" />
+          </label>
+          <label><strong>V da geometria (π·r²·Hutile)</strong>
+            <input type="number" id="viewTk10608Vgeom" readonly tabindex="-1" placeholder="—" />
+          </label>
+        </div>
+        <p class="mini" id="regTk10608GeomHint">TK-10608: V utile 400 m³ (passante).</p>
+      </div>
+
       <!-- 1. Frequenze pompe A10620 -->
       <div class="settings-block show" id="regFreq11011">
         <h4>1 · Frequenze P11011 A/B (A10620)</h4>
@@ -1656,7 +1708,7 @@
       </div>
       <div class="settings-block show">
         <h4>Pompa MP 11036 A/B</h4>
-        <p class="mini">Scarica verso le membrane ciò che arriva da P11011 A/B (via A10608).</p>
+        <p class="mini">Scarica verso le membrane ciò che arriva da P11011 A/B (via TK-10608).</p>
         <label class="check">
           <input type="checkbox" id="equiparaMandata" checked />
           Equipara a P11011 A/B (consigliato)
@@ -2067,7 +2119,8 @@
     let __resetGuardUntil = 0; // dopo Reset, ignora sync remoto che ripristina livelli vecchi
     const SIM_RESET_LIV = 90; // livelli stabili al Reset
     const SIM_STEP_MIN = 1;   // passo TIME (minuti) — Start: 1 s reale = 1′
-    const RATE_PCT_CLAMP = 2.5; // tetto %/min: REGOLAZIONI estreme non devono far saltare i livelli
+    const RATE_PCT_CLAMP = 2.5; // tetto %/min prove empiriche (calibrazioni vecchie)
+    const RATE_PCT_CLAMP_VOL = 12; // tetto %/min da volume reale (A10620 ecc.)
     const round2 = (v) => Math.round(Number(v) * 100) / 100;
     const MBR_MEM_IDS = ["A", "B", "C", "D", "E", "F", "G"]; // H fuori uso
     // Pause a coppie sfalsate: ciascuna fa 7′+1′, ma non tutte insieme
@@ -2621,6 +2674,57 @@
     function fmtPct(v) {
       if (v === null || !Number.isFinite(v)) return "—";
       return round1(v).toFixed(1) + "%";
+    }
+
+    /** Geometrie reali da REGOLAZIONI → tassi riempimento/svuotamento */
+    function getA10620Geom() {
+      const L = Math.max(0.1, num("regA10620L") || 20);
+      const W = Math.max(0.1, num("regA10620W") || 9);
+      const H = Math.max(0.1, num("regA10620H") || 3);
+      const Vgeom = L * W * H;
+      let V = numOrNull("regA10620Vutile");
+      if (V === null || V < 1) V = 450;
+      return { L, W, H, Vgeom, V: Math.max(1, V) };
+    }
+
+    function getTk10608Geom() {
+      const D = Math.max(0.1, num("regTk10608D") || 8);
+      const Htot = Math.max(0.1, num("regTk10608Htot") || 10);
+      const Hutile = Math.max(0.1, num("regTk10608Hutile") || 8);
+      const r = D / 2;
+      const Vgeom = Math.PI * r * r * Hutile;
+      let V = numOrNull("regTk10608Vutile");
+      if (V === null || V < 1) V = 400;
+      return { D, Htot, Hutile, Vgeom, V: Math.max(1, V) };
+    }
+
+    /** Δ%/min da bilancio portata netto (m³/h) e volume utile (m³). */
+    function ratePctPerMinFromVolume(qNetM3h, vUtileM3) {
+      const V = Math.max(1, Number(vUtileM3) || 1);
+      const q = Number(qNetM3h) || 0;
+      let r = (q / V) * (100 / 60);
+      if (!Number.isFinite(r)) return 0;
+      return Math.max(-RATE_PCT_CLAMP_VOL, Math.min(RATE_PCT_CLAMP_VOL, r));
+    }
+
+    function refreshTankGeomHints() {
+      const g20 = getA10620Geom();
+      const g08 = getTk10608Geom();
+      const vGeom20 = el("viewA10620Vgeom");
+      if (vGeom20) vGeom20.value = String(round1(g20.Vgeom));
+      const vGeom08 = el("viewTk10608Vgeom");
+      if (vGeom08) vGeom08.value = String(round1(g08.Vgeom));
+      const hint20 = el("regA10620GeomHint");
+      if (hint20) {
+        const pctPer100 = ratePctPerMinFromVolume(100, g20.V);
+        hint20.textContent = `A10620: ${g20.L}×${g20.W}×${g20.H} m → V geom. ${round1(g20.Vgeom)} m³ · V utile ${round1(g20.V)} m³ → ${pctPer100.toFixed(2)} %/min ogni 100 m³/h di netto (IN−OUT).`;
+      }
+      const hint08 = el("regTk10608GeomHint");
+      if (hint08) {
+        hint08.textContent = `TK-10608: Ø${g08.D} m · H tot ${g08.Htot} m · H utile ${g08.Hutile} m → V geom. ${round1(g08.Vgeom)} m³ · V utile ${round1(g08.V)} m³ (passante sullo schema).`;
+      }
+      paintTk10608Passante();
+      return { g20, g08 };
     }
 
     /** Calibrazione A10611 da REGOLAZIONI (prove marche/fermo) */
@@ -3327,13 +3431,10 @@
     }
 
     function rateA10620PctPerMin(qIn, qPump, qRecycle) {
-      const cal = getA10611Calib();
       const net = (qIn + qRecycle) - qPump;
-      // Se netto ≈ 0 (equipara), livello stabile; se P11011 ferma, sale con ingresso+riciclo
-      let r = (Number.isFinite(cal.k) && Math.abs(cal.k) > 1e-9) ? cal.k * net : net * 0.025;
-      // Protezione: calibrazioni REGOLAZIONI troppo spinte non devono far scattare subito il blocco
-      if (!Number.isFinite(r)) return 0;
-      return Math.max(-RATE_PCT_CLAMP, Math.min(RATE_PCT_CLAMP, r));
+      // Volume utile reale A10620 (REGOLAZIONI §0) — non più k empirico A10611
+      const { V } = getA10620Geom();
+      return ratePctPerMinFromVolume(net, V);
     }
 
     function captureSimSnap() {
@@ -3713,7 +3814,7 @@
       syncRun11036();
     }
 
-    function paintA10608Passante() {
+    function paintTk10608Passante() {
       const tank08 = el("svgTank08");
       const tank08in = el("svgTank08in");
       const liv08 = el("svgLiv08");
@@ -3723,10 +3824,13 @@
       }
       if (tank08in) tank08in.setAttribute("fill", "#22c55e");
       if (liv08) {
-        liv08.textContent = "passante";
+        const V = getTk10608Geom().V;
+        liv08.textContent = `${Math.round(V)} m³`;
         liv08.setAttribute("fill", "#86efac");
       }
     }
+    /** @deprecated alias */
+    function paintA10608Passante() { paintTk10608Passante(); }
 
     /** Aggiorna subito i % e il liquido sullo schizzo a L% (Reset) */
     function paintResetLevelsUI(L) {
@@ -4164,7 +4268,7 @@
       paintRange("20", r20);
       paintRange("11", r11);
 
-      // Liquido dinamico nei serbatoi (altezza = livello %) — A10608 escluso (solo passante)
+      // Liquido dinamico nei serbatoi (altezza = livello %) — TK-10608 escluso (solo passante)
       const rate20 = rateA10620PctPerMin(qIn, qPump, qRecycle);
       const rate11Show = rate11;
       setTankLiquid("svgTank20liq", 285, 100, 50, 26, liv20, r20.atBlock);
@@ -5386,8 +5490,10 @@
       if (name === "pompe" || name === "mandata" || name === "processo" || name === "riciclo" || name === "membrane" || name === "permeato" || name === "tk11021" || name === "ultra") refreshProcViews();
       if (name === "osmosi") syncOsmosiSvg();
       if (name === "regolazioni") {
+        refreshTankGeomHints();
         getA10611Calib();
         getRicicloHCalib();
+        getMbrLivCalib();
       }
     }
     function closePopups() {
@@ -5983,6 +6089,8 @@
     paintRecycleEditableUI();
 
     [
+      "regA10620L", "regA10620W", "regA10620H", "regA10620Vutile",
+      "regTk10608D", "regTk10608Htot", "regTk10608Hutile", "regTk10608Vutile",
       "regA10611QinRef", "regA10611Hz11011", "regA10611Hz11036", "regA10611Min",
       "regA10611OnFrom", "regA10611OnTo", "regA10611OffFrom", "regA10611OffTo",
       "regRicHMin", "regRicHStopLiv", "regRicHOnFrom", "regRicHOnTo", "regRicHOffFrom", "regRicHOffTo",
@@ -5991,6 +6099,7 @@
       const node = el(id);
       if (!node) return;
       node.addEventListener("input", () => {
+        refreshTankGeomHints();
         getA10611Calib();
         getRicicloHCalib();
         getMbrLivCalib();
@@ -6048,7 +6157,8 @@
       });
       syncOsmosiSvg();
       applyBalance("ingresso");
-      paintA10608Passante();
+      refreshTankGeomHints();
+      paintTk10608Passante();
     } catch (e) {
       console.warn("[calcolatore] init balance", e);
     }
@@ -6074,6 +6184,8 @@
       "stopAltoA10611", "ripartenzaP11011A10611",
       "startSvuotA11004", "stopSvuotA11004", "startSvuotMbr", "stopSvuotMbr",
       "startRiempMbr", "stopRiempMbr", "startRiempTk11007", "stopRiempTk11007", "startSvuotTk11007", "stopSvuotTk11007", "startRiempTk11021", "stopRiempTk11021", "startSvuotOsmA", "stopSvuotOsmA", "startSvuotOsmB", "stopSvuotOsmB", "startSvuotOsmC", "stopSvuotOsmC", "startRicicloA10620", "stopRicicloA10620",
+      "regA10620L", "regA10620W", "regA10620H", "regA10620Vutile",
+      "regTk10608D", "regTk10608Htot", "regTk10608Hutile", "regTk10608Vutile",
       "regA10611QinRef", "regA10611Hz11011", "regA10611Hz11036", "regA10611Min",
       "regA10611OnFrom", "regA10611OnTo", "regA10611OffFrom", "regA10611OffTo",
       "regRicHMin", "regRicHStopLiv", "regRicHOnFrom", "regRicHOnTo", "regRicHOffFrom", "regRicHOffTo",
@@ -6413,7 +6525,7 @@
       }
     } catch (_) { /* ok */ }
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt27", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt28", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
