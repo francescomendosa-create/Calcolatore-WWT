@@ -1,0 +1,222 @@
+/** Diagnosi operativa del blocco: cosa è male, cosa regolare, alternativa ingresso. */
+    function buildChimicoBlockReport(ev) {
+      if (!ev) return { chain: [], meta: "", verdict: "", action: "", alt: "", eq: "" };
+      const chain = [];
+      if (ev.blockP11011) {
+        chain.push(
+          `Alto livello <strong>A10611</strong> (${fmtBlockPct(ev.liv11)} ≥ stop alto ${fmtBlockPct(ev.hiBlock)}) → <strong>P11011 bloccate</strong>.`
+        );
+        chain.push(
+          `Con le P11011 ferme, <strong>A10620</strong> continua a ricevere ingresso ${fmtQ(ev.qInLive)} m³/h`
+          + (ev.qRecLive > 0.05 ? ` + riciclo ${fmtQ(ev.qRecLive)} m³/h` : "")
+          + ` senza scarico utile.`
+        );
+      } else if (!ev.pumpOn) {
+        if (!ev.runP11011By20) {
+          chain.push(
+            `P11011 non in marcia: A10620 era sotto lo start svuotamento (serve ≥ ${fmtBlockPct(ev.startSvuot)}; stop ${fmtBlockPct(ev.stopSvuot)}).`
+          );
+        } else {
+          chain.push(`P11011 non erogavano portata (impianto/pompe non in scarico).`);
+        }
+        chain.push(
+          `L’ingresso ${fmtQ(ev.qInLive)} m³/h` + (ev.qRecLive > 0.05 ? ` + riciclo ${fmtQ(ev.qRecLive)} m³/h` : "")
+          + ` ha riempito A10620 senza uno scarico adeguato.`
+        );
+      } else {
+        chain.push(
+          `Verso A10620 entrava <strong>${fmtQ(ev.qInTo20)} m³/h</strong> (ingresso ${fmtQ(ev.qInLive)}`
+          + (ev.qRecLive > 0.05 ? ` + riciclo ${fmtQ(ev.qRecLive)}` : "") + `).`
+        );
+        chain.push(
+          `Le P11011 scaricavano solo <strong>${fmtQ(ev.qOut)} m³/h</strong> (set ${fmtQ(ev.qPumpSp)}) — deficit ≈ <strong>${fmtQ(ev.deficit)} m³/h</strong>.`
+        );
+      }
+      chain.push(
+        `Alto livello finale <strong>A10620</strong> ${fmtBlockPct(ev.liv20 != null ? ev.liv20 : ev.liv)} ≥ stop riempimento ${fmtBlockPct(ev.stop)} → <strong>blocco chimico</strong> (ingresso interrotto).`
+      );
+
+      let qMax = 334;
+      try { qMax = getPumpMax(); } catch (_) { /* ok */ }
+      const qPumpTarget = round1(Math.max(ev.qEq20 || 0, ev.qEqPlant || 0));
+      let hzBit = "";
+      try {
+        const step = pumpStepForNeed(qPumpTarget);
+        if (step && Number.isFinite(step.hz)) {
+          hzBit = ` · ${step.hz} Hz → ${fmtQ(step.q)} m³/h`;
+        }
+      } catch (_) { /* ok */ }
+
+      /** Ingresso max sostenibile lasciando P11011 al set attuale (riciclo min 100). */
+      function qInCapAtPump(qPump) {
+        const qp = Math.max(0, Number(qPump) || 0);
+        return round1(Math.max(0, qp - Q_RECYCLE_MIN));
+      }
+      /** Ingresso max con scarico effettivo al blocco. */
+      function qInCapAtOut(qOut, qRec) {
+        return round1(Math.max(0, (Number(qOut) || 0) - (Number(qRec) || 0)));
+      }
+
+      let verdict = "";
+      let action = "";
+      let alt = "";
+
+      if (ev.blockP11011) {
+        verdict = `Male: <strong>P11011 ferme</strong> per alto A10611 (${fmtBlockPct(ev.liv11)}). `
+          + `L’ingresso chimico a <strong>${fmtQ(ev.qInSp)} m³/h</strong> ha riempito A10620 senza scarico.`;
+        action = `Per tenere in marcia: scarica <strong>A10611</strong> sotto <strong class="fix-val">${fmtBlockPct(ev.hiRestart)}</strong> `
+          + `(ripartenza P11011), poi tieni <strong>P11011 ≥ <span class="fix-val">${fmtQ(qPumpTarget)} m³/h</span></strong>${hzBit}.`;
+        alt = `Se non puoi scaricare A10611 / far ripartire le P11011: abbassa il chimico-fisico a <strong class="fix-val">0 m³/h</strong> `
+          + `finché A10611 scende — altrimenti il blocco su A10620 si ripete.`;
+      } else if (!ev.pumpOn) {
+        verdict = `Male: <strong>P11011 non scaricavano</strong> (OFF) mentre il chimico-fisico era a <strong>${fmtQ(ev.qInSp)} m³/h</strong>.`;
+        action = `Per tenere in marcia: metti in marcia le <strong>P11011 a ≥ <span class="fix-val">${fmtQ(qPumpTarget)} m³/h</span></strong>${hzBit} `
+          + `(A10620 ≥ start svuotamento ${fmtBlockPct(ev.startSvuot)}, A10611 sotto stop alto).`;
+        const qSafe = qInCapAtOut(ev.qOut, ev.qRecLive);
+        alt = `Se non puoi farle partire: abbassa il chimico-fisico a ≤ <strong class="fix-val">${fmtQ(qSafe)} m³/h</strong> `
+          + `(con lo scarico attuale ${fmtQ(ev.qOut)} m³/h).`;
+      } else if (ev.deficit > 0.5) {
+        if (qPumpTarget > qMax + 0.05) {
+          const qInMaxPlant = qInCapAtPump(qMax);
+          verdict = `Male: <strong>ingresso chimico troppo alto</strong> (`
+            + `<strong>${fmtQ(ev.qInSp)} m³/h</strong>) — le P11011 al massimo fanno ${fmtQ(qMax)} m³/h (50 Hz), `
+            + `servirebbero ≥ ${fmtQ(qPumpTarget)} m³/h.`;
+          action = `Non si può alzare abbastanza le P11011 (max <strong>${fmtQ(qMax)} m³/h</strong>).`;
+          alt = `Abbassa il chimico-fisico a ≤ <strong class="fix-val">${fmtQ(qInMaxPlant)} m³/h</strong> `
+            + `per non andare in blocco (P11011 a ${fmtQ(qMax)} con riciclo min ${Q_RECYCLE_MIN}).`;
+        } else {
+          verdict = `Male: portata <strong>P11011 troppo bassa</strong> — messa a <strong>${fmtQ(ev.qPumpSp)} m³/h</strong>, `
+            + `con ingresso ${fmtQ(ev.qInSp)} m³/h serviva ≥ <strong>${fmtQ(qPumpTarget)} m³/h</strong> `
+            + `(deficit ${fmtQ(ev.deficit)} m³/h).`;
+          action = `Regola <strong>P11011 a <span class="fix-val">${fmtQ(qPumpTarget)} m³/h</span></strong>${hzBit} `
+            + `per mantenere in marcia l’impianto con questo chimico-fisico.`;
+          const qSafe = Math.min(qInCapAtPump(ev.qPumpSp), qInCapAtOut(ev.qOut, ev.qRecLive));
+          alt = `Se non puoi aumentare le P11011: abbassa il chimico-fisico a ≤ <strong class="fix-val">${fmtQ(qSafe)} m³/h</strong> `
+            + `(lasciando P11011 a ${fmtQ(ev.qPumpSp)} m³/h).`;
+        }
+      } else {
+        verdict = `Male: A10620 ha toccato lo stop anche con portate quasi in pareggio `
+          + `(ingresso ${fmtQ(ev.qInSp)} · P11011 ${fmtQ(ev.qPumpSp)}).`;
+        action = `Per stabilità tieni <strong>P11011 ≥ <span class="fix-val">${fmtQ(qPumpTarget)} m³/h</span></strong>${hzBit} `
+          + `con questo ingresso.`;
+        const qSafe = qInCapAtPump(Math.min(ev.qPumpSp, ev.qOut));
+        alt = `Se non alzi le P11011: abbassa il chimico-fisico a ≤ <strong class="fix-val">${fmtQ(qSafe)} m³/h</strong>.`;
+      }
+
+      const meta = `<div><strong>Al blocco</strong> · ${ev.tMin}′ di sim</div>
+        <div>Ingresso (TOT OUT): set <strong>${fmtQ(ev.qInSp)}</strong> · viva <strong>${fmtQ(ev.qInLive)} m³/h</strong></div>
+        <div>Riciclo 11014: set <strong>${fmtQ(ev.qRecSp)}</strong> · viva <strong>${fmtQ(ev.qRecLive)} m³/h</strong></div>
+        <div>P11011: set <strong>${fmtQ(ev.qPumpSp)}</strong> · scarico effettivo <strong>${fmtQ(ev.qOut)} m³/h</strong>${ev.pumpOn ? "" : " (OFF)"}</div>
+        <div>Ripresa chimico: A10620 ≤ <strong>${fmtBlockPct(ev.start)}</strong></div>`;
+
+      const eq = `<strong>In sintesi</strong><br>${verdict}<br><br>${action}`
+        + (alt ? `<br><br>${alt}` : "");
+      return { chain, meta, verdict, action, alt, eq };
+    }
+
+    function paintBlocchiExplain() {
+      const body = el("blocchiBody");
+      if (!body) return;
+      const last = __chimicoBlockLog.length ? __chimicoBlockLog[__chimicoBlockLog.length - 1] : null;
+      const blockedNow = !__chimicoAllowFill;
+      const livNow = numOrNull("livelloAttuale");
+      const startNow = numOrNull("startRiempA10620");
+      const startV = startNow !== null ? startNow : 92;
+
+      let html = "";
+      if (last) {
+        const rep = buildChimicoBlockReport(last);
+        html += `<div class="block-verdict">${rep.verdict}</div>`;
+        html += `<div class="block-action"><strong>Cosa regolare</strong><br>${rep.action}</div>`;
+        if (rep.alt) {
+          html += `<div class="block-alt"><strong>Se non puoi alzare quella portata</strong><br>${rep.alt}</div>`;
+        }
+        html += `<div class="block-meta">${rep.meta}</div>`;
+        html += `<p class="mini" style="margin-top:10px"><strong>Catena</strong></p><ul class="block-chain">`;
+        rep.chain.forEach((step) => { html += `<li>${step}</li>`; });
+        html += `</ul>`;
+        if (blockedNow) {
+          html += `<p class="mini" style="margin-top:10px">Ora è ancora in blocco (A10620 ${livNow !== null ? fmtBlockPct(livNow) : "—"}). `
+            + `Il chimico riparte da solo quando il livello scende a ≤ ${fmtBlockPct(startV)}.</p>`;
+        }
+      } else if (__chimicoBlockCount === 0) {
+        const qInSp = Math.max(0, num("qIn"));
+        let qNeed = qInSp;
+        try { qNeed = round1(pumpFloorForIngresso(qInSp)); } catch (_) { /* ok */ }
+        let hzBit = "";
+        try {
+          const step = pumpStepForNeed(qNeed);
+          if (step && Number.isFinite(step.hz)) hzBit = ` (${step.hz} Hz)`;
+        } catch (_) { /* ok */ }
+        const qSafe = round1(Math.max(0, qNeed - Q_RECYCLE_MIN));
+        html += `<div class="block-action">Nessun blocco dal Reset.<br>`
+          + `Con ingresso <strong>${fmtQ(qInSp)} m³/h</strong>, tieni <strong>P11011 ≥ <span class="fix-val">${fmtQ(qNeed)} m³/h</span></strong>${hzBit} `
+          + `per non andare in blocco.</div>`;
+        html += `<div class="block-alt">Se non puoi alzare le P11011: chimico-fisico ≤ <strong class="fix-val">${fmtQ(qSafe)} m³/h</strong> `
+          + `(con riciclo min ${Q_RECYCLE_MIN}).</div>`;
+      } else {
+        html += `<p>Ci sono ${__chimicoBlockCount} blocco/i contati, ma senza snapshot della catena (evento precedente).</p>`;
+      }
+
+      if (__chimicoBlockLog.length > 1) {
+        const prev = __chimicoBlockLog.slice(0, -1).slice(-3).reverse();
+        html += `<p class="mini" style="margin-top:12px">Precedenti: `
+          + prev.map((e) => `${e.tMin}′ · IN ${fmtQ(e.qInLive)} / P11011 ${fmtQ(e.qOut)}`).join(" · ")
+          + `</p>`;
+      }
+
+      body.innerHTML = html;
+    }
+
+    function openBlocchiPopup() {
+      paintBlocchiExplain();
+      openPopup("blocchi");
+    }
+
+    /** Avanza oscillazione lenta intorno al setpoint digitato (tipicamente ±1…2 m³/h, max ±2.5). */
+    function advanceQInWobble(dtMin) {
+      const set = Math.max(0, num("qIn"));
+      if (set < 0.05) {
+        __qInLive = 0;
+        return;
+      }
+      if (!(__simPlaying || __simBusy)) {
+        __qInLive = set;
+        return;
+      }
+      const dt = Math.max(0.05, Number(dtMin) || 1);
+      __qInWobblePhase += dt * (0.38 + Math.random() * 0.4);
+      __qInWobbleBias += (Math.random() - 0.5) * 0.6 * dt;
+      __qInWobbleBias = Math.max(-1.35, Math.min(1.35, __qInWobbleBias));
+      const osc = Math.sin(__qInWobblePhase) * 1.1
+        + Math.sin(__qInWobblePhase * 0.41 + 1.3) * 0.5;
+      let live = set + osc + __qInWobbleBias;
+      live = Math.max(set - 2.5, Math.min(set + 2.5, live));
+      __qInLive = round1(Math.max(0, live));
+    }
+
+    function resetQInWobble() {
+      __qInWobblePhase = Math.random() * Math.PI * 2;
+      __qInWobbleBias = 0;
+      __qInLive = null;
+    }
+    const isEditing = (id) => {
+      const node = el(id);
+      if (node && document.activeElement === node) return true;
+      if (inlineCtx && inlineCtx.field === id) return true;
+      return false;
+    };
+
+    function getRegFreqMap() {
+      const map = { ...DEFAULT_REG_FREQ };
+      document.querySelectorAll(".reg-q").forEach((inp) => {
+        const hz = String(inp.dataset.hz || "");
+        const raw = String(inp.value ?? "").trim().replace(",", ".");
+        if (!hz || raw === "" || raw === "-" || raw === ".") return;
+        const v = parseFloat(raw);
+        if (Number.isFinite(v) && v >= 0) map[hz] = v;
+      });
+      return map;
+    }
+
+    
