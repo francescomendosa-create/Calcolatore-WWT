@@ -5017,7 +5017,7 @@
       return !!__simPlaying;
     }
 
-    const PUMP_REV_MS = 3200;
+    const PUMP_REV_MS = 1100;
     const PUMP_REST_EPS = 1.2;
     let __pumpSpinRaf = 0;
     const __pumpSpin = Object.create(null);
@@ -10032,7 +10032,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt93", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt94", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
