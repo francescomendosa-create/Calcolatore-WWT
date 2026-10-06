@@ -2988,12 +2988,15 @@
       qUfTotale: 0, qUfA: 0, qUfB: 0, qUfC: 0, qUfD: 0,
       qOsmosiA: 0, qOsmosiB: 0, qOsmosiC: 0,
     };
-    /** Rampa portata viva: ~mezzo secondo, conteggio visibile 0→target / target→0. */
-    const FLOW_RAMP_MS = 500;
+    /** Rampa portata viva: lenta e visibile (non a scatto al massimo). */
+    const FLOW_RAMP_MS = 3200;
+    const FLOW_RAMP_MS_MIN = 1800;
+    const FLOW_RAMP_MS_MAX = 4800;
     let __flowStepBase = null;
     let __flowStepDepth = 0;
     let __flowAnimRaf = null;
     let __flowAnimStart = 0;
+    let __flowAnimDurMs = FLOW_RAMP_MS;
     let __flowAnimating = false;
     const __flowAnimFrom = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 140 };
     const __flowAnimTo = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 140 };
@@ -3217,15 +3220,18 @@
       __flowAnimating = false;
     }
 
-    /** Tween lineare ~500 ms: si vede il conteggio in salita e in discesa. */
+    /** Tween lento con ease-in-out: si vede salire/scendere i m³/h e le pompe accelerano. */
     function tickFlowTween(ts) {
-      const t = Math.min(1, (ts - __flowAnimStart) / FLOW_RAMP_MS);
+      const dur = Math.max(FLOW_RAMP_MS_MIN, Number(__flowAnimDurMs) || FLOW_RAMP_MS);
+      const t = Math.min(1, (ts - __flowAnimStart) / dur);
+      const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
       for (let i = 0; i < FLOW_IDS.length; i++) {
         const id = FLOW_IDS[i];
         const from = Number(__flowAnimFrom[id]) || 0;
         const to = Number(__flowAnimTo[id]) || 0;
-        paintFlowLive(id, from + (to - from) * t);
+        paintFlowLive(id, from + (to - from) * e);
       }
+      try { paintPumpColors(); } catch (_) { /* ignore */ }
       if (t < 1) {
         __flowAnimRaf = requestAnimationFrame(tickFlowTween);
         return;
@@ -3240,20 +3246,52 @@
     }
 
     function kickFlowTween() {
-      if (__flowStepDepth > 0) return; // aspetta fine blocco bilanciamento
+      if (__flowStepDepth > 0) return;
       if (!flowsNeedRamp()) return;
       const now = performance.now();
+      let maxDelta = 0;
       for (let i = 0; i < FLOW_IDS.length; i++) {
         const id = FLOW_IDS[i];
         __flowAnimFrom[id] = __flowLive[id] != null ? __flowLive[id] : 0;
         __flowAnimTo[id] = __flowDesire[id] != null ? __flowDesire[id] : __flowAnimFrom[id];
+        maxDelta = Math.max(maxDelta, Math.abs(__flowAnimTo[id] - __flowAnimFrom[id]));
       }
+      __flowAnimDurMs = Math.max(FLOW_RAMP_MS_MIN, Math.min(FLOW_RAMP_MS_MAX, 1600 + maxDelta * 7));
       __flowAnimStart = now;
       if (!__flowAnimating) {
         __flowAnimating = true;
         __flowAnimRaf = requestAnimationFrame(tickFlowTween);
       }
-      // se già in corso: ritarget da valore attuale, stesso clock ripartito
+    }
+
+    /** All'avvio impianto: portate vive da 0, poi salgono lentamente al set. */
+    function softStartPlantFlows() {
+      cancelFlowTween();
+      FLOW_IDS.forEach((id) => {
+        __flowLive[id] = 0;
+        __flowAnimFrom[id] = 0;
+        if (!isEditing(id)) {
+          setVal(id, 0, { force: true });
+          const sid = FLOW_SVG[id];
+          const node = sid ? el(sid) : null;
+          if (node) node.textContent = "0.0";
+        }
+      });
+      __qMemPermLive = 0;
+      try { paintMemPermLive(0); } catch (_) { /* ignore */ }
+      UF_LINES.forEach((L) => {
+        __ufMeas[L] = 0;
+        __ufValvePct[L] = 0;
+      });
+      OSM_LINES.forEach((L) => {
+        __osmMeas[L] = 0;
+        __osmValvePct[L] = 0;
+      });
+      try { paintUfValveUI(); } catch (_) { /* ignore */ }
+      try { paintOsmValveUI(); } catch (_) { /* ignore */ }
+      try { paintUfSvgLive(); } catch (_) { /* ignore */ }
+      try { syncOsmosiSvg(); } catch (_) { /* ignore */ }
+      try { paintPumpColors(); } catch (_) { /* ignore */ }
     }
 
     function paintMemPermLive(v) {
@@ -3294,7 +3332,7 @@
     }
 
     /**
-     * Comanda la portata VIVA verso target con scorrimento ~0,5 s (salvo instant).
+     * Comanda la portata VIVA verso target con scorrimento lento (salvo instant).
      * Setpoint popup: si aggiorna se target > 0 oppure con `setpoint:`.
      */
     function commitFlow(id, target, { force = true, instant = false, svgId = null, setpoint = undefined } = {}) {
@@ -3314,7 +3352,7 @@
         }
         return tgt;
       }
-      // Non saltare al target: avvia/aggiorna tween 500 ms
+      // Non saltare al target: avvia/aggiorna tween lento
       if (__flowStepDepth > 0) {
         // Durante bilanciamento: solo desire; kick a endFlowStep
         return __flowLive[id] != null ? __flowLive[id] : 0;
@@ -5320,6 +5358,7 @@
       if (__simBusy || __simPlaying) return;
       __simPlaying = true;
       try { keepScreenAwake(); } catch (_) { /* ok */ }
+      softStartPlantFlows();
       advanceQInWobble(1);
       tickUfRegulation(1);
       tickOsmRegulation(1);
@@ -10058,7 +10097,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt95", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt96", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
