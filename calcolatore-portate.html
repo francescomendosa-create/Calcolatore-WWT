@@ -2216,22 +2216,22 @@
         <!-- tronco -->
         <path d="M64 78 H160" stroke="#38bdf8" stroke-width="3" fill="none" stroke-linecap="round" />
         <circle cx="160" cy="78" r="4" fill="#38bdf8" />
+        <!-- verso IAS — click → tastiera (area senza overlap con Impianto) -->
+        <path d="M160 78 V34 H220" stroke="#fbbf24" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+        <path d="M220 34 L208 28 M220 34 L208 40" stroke="#fbbf24" stroke-width="2" fill="none" />
+        <g class="p11019-edit" data-field="qP11019Ias" role="button" tabindex="0" aria-label="Modifica portata IAS">
+          <rect x="224" y="10" width="72" height="48" rx="6" fill="#422006" stroke="#fbbf24" stroke-width="1.5" />
+          <text x="260" y="28" text-anchor="middle" fill="#fde68a" font-size="10" font-weight="800">IAS</text>
+          <text id="svgPopP11019Ias" x="260" y="46" text-anchor="middle" fill="#fef3c7" font-size="12" font-weight="700">0.0</text>
+        </g>
         <!-- verso impianto / carboni — click → tastiera -->
         <path d="M160 78 H280" stroke="#38bdf8" stroke-width="3" fill="none" stroke-linecap="round" />
         <path d="M280 78 L268 72 M280 78 L268 84" stroke="#38bdf8" stroke-width="2" fill="none" />
         <g class="p11019-edit" data-field="qP11019Impianto" role="button" tabindex="0" aria-label="Modifica portata Impianto">
-          <rect x="286" y="40" width="100" height="58" rx="6" fill="#0c4a6e" stroke="#7dd3fc" stroke-width="1.5" />
-          <text x="336" y="56" text-anchor="middle" fill="#7dd3fc" font-size="12" font-weight="800" id="svgPopP11019Imp">0.0</text>
-          <text x="336" y="72" text-anchor="middle" fill="#bae6fd" font-size="9" font-weight="700">IMPIANTO</text>
-          <text x="336" y="86" text-anchor="middle" fill="#e0f2fe" font-size="8">Carboni → UF</text>
-        </g>
-        <!-- verso IAS — click → tastiera -->
-        <path d="M160 78 V28 H240" stroke="#fbbf24" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" />
-        <path d="M240 28 L228 22 M240 28 L228 34" stroke="#fbbf24" stroke-width="2" fill="none" />
-        <g class="p11019-edit" data-field="qP11019Ias" role="button" tabindex="0" aria-label="Modifica portata IAS">
-          <rect x="246" y="4" width="70" height="48" rx="6" fill="#422006" stroke="#fbbf24" stroke-width="1.5" />
-          <text x="281" y="22" text-anchor="middle" fill="#fde68a" font-size="10" font-weight="800">IAS</text>
-          <text id="svgPopP11019Ias" x="281" y="40" text-anchor="middle" fill="#fef3c7" font-size="12" font-weight="700">0.0</text>
+          <rect x="286" y="52" width="100" height="52" rx="6" fill="#0c4a6e" stroke="#7dd3fc" stroke-width="1.5" />
+          <text id="svgPopP11019Imp" x="336" y="72" text-anchor="middle" fill="#7dd3fc" font-size="13" font-weight="800">0.0</text>
+          <text x="336" y="88" text-anchor="middle" fill="#bae6fd" font-size="9" font-weight="700">IMPIANTO</text>
+          <text x="336" y="98" text-anchor="middle" fill="#e0f2fe" font-size="8">Carboni → UF</text>
         </g>
       </svg>
 
@@ -6594,14 +6594,28 @@
       applyBalance(source);
     }
 
+    /** Valore già in schermo (campo/SVG) per aprire il tastierino senza ripartire da 0. */
+    function readP11019SplitEditVal(field) {
+      const id = String(field || "");
+      const svgId = id === "qP11019Ias" ? "svgPopP11019Ias" : "svgPopP11019Imp";
+      const fromInp = numOrNull(id);
+      const svgRaw = String(el(svgId)?.textContent || "").trim().replace(",", ".");
+      const fromSvg = parseFloat(svgRaw);
+      const computed = id === "qP11019Ias" ? qP11019IasSetpoint() : qP11019ImpiantoSetpoint();
+      // Priorità: ciò che l’utente vede (campo → SVG → calcolo)
+      if (fromInp != null && Number.isFinite(fromInp) && fromInp >= 0) return round1(fromInp);
+      if (Number.isFinite(fromSvg) && fromSvg >= 0) return round1(fromSvg);
+      return round1(Math.max(0, computed));
+    }
+
     function startFieldInlineEdit(field, source) {
       const fake = { dataset: { field: String(field || ""), source: String(source || "p11019") } };
       startInlineEdit(fake);
     }
 
     function startInlineEdit(flowGroup) {
-      const field = flowGroup.dataset.field;
-      const source = flowGroup.dataset.source;
+      const field = flowGroup.dataset?.field || flowGroup.getAttribute?.("data-field") || "";
+      const source = flowGroup.dataset?.source || flowGroup.getAttribute?.("data-source") || "";
       inlineCtx = { field, source };
       // Pompe: nel popup SEMPRE il SETPOINT (mai la viva a 0 se la pompa è ferma)
       let val;
@@ -6613,40 +6627,53 @@
           catch (_) { val = Math.max(0, lastQPump); }
           if (val > 0.05) rememberFlowSetpoint("qPump", val);
         }
-      } else if (field === "qP11019Ias") {
-        val = qP11019IasSetpoint();
-      } else if (field === "qP11019Impianto") {
-        val = qP11019ImpiantoSetpoint();
+      } else if (field === "qP11019Ias" || field === "qP11019Impianto") {
+        // Mostra la portata già presente (es. Impianto 80 → tastierino apre su 80)
+        paintP11019SplitUI();
+        val = readP11019SplitEditVal(field);
       } else {
         val = num(field);
       }
       if (field === "livelloAttuale") val = num("livelloAttuale");
+      if (!Number.isFinite(val)) val = 0;
+      val = Math.max(0, round1(val));
       const step = flowEditStep(field);
-      inlineInp.step = String(step);
-      if (step >= 1) {
-        inlineInp.value = String(Math.round(val));
-      } else {
-        inlineInp.value = String(round1(val));
+      if (inlineInp) {
+        inlineInp.step = String(step);
+        inlineInp.value = step >= 1 ? String(Math.round(val)) : String(val);
       }
       if (flowEditTitle) {
         const base = FLOW_EDIT_LABELS[field] || "Portata";
-        flowEditTitle.textContent = FLOW_IDS.includes(field) ? (base + " · setpoint") : base;
+        flowEditTitle.textContent = (field === "qP11019Ias" || field === "qP11019Impianto" || FLOW_IDS.includes(field))
+          ? (base + " · attuale " + (step >= 1 ? Math.round(val) : val))
+          : base;
       }
       if (flowEditUnit) flowEditUnit.textContent = field === "freqHz" ? "Hz" : "m³/h";
       __flowNumpadFresh = true;
       if (isTouchUi()) {
         // Mobile: popup già pronto con numpad, niente tastiera di sistema
-        inlineInp.setAttribute("readonly", "readonly");
-        inlineInp.setAttribute("inputmode", "none");
-        inlineInp.blur();
+        if (inlineInp) {
+          inlineInp.setAttribute("readonly", "readonly");
+          inlineInp.setAttribute("inputmode", "none");
+          // riscrivi dopo show: evita che resti 0 da sessione precedente
+          inlineInp.value = step >= 1 ? String(Math.round(val)) : String(val);
+          inlineInp.blur();
+        }
         if (flowEditBack) flowEditBack.classList.add("show");
         showFlowNumpad();
+        if (inlineInp) inlineInp.value = step >= 1 ? String(Math.round(val)) : String(val);
       } else {
         hideFlowNumpad();
-        inlineInp.removeAttribute("readonly");
-        inlineInp.setAttribute("inputmode", step >= 1 ? "numeric" : "decimal");
+        if (inlineInp) {
+          inlineInp.removeAttribute("readonly");
+          inlineInp.setAttribute("inputmode", step >= 1 ? "numeric" : "decimal");
+          inlineInp.value = step >= 1 ? String(Math.round(val)) : String(val);
+        }
         if (flowEditBack) flowEditBack.classList.add("show");
         setTimeout(() => {
+          if (!inlineInp) return;
+          // di nuovo il valore attuale (focus/select non deve azzerare)
+          inlineInp.value = step >= 1 ? String(Math.round(val)) : String(val);
           inlineInp.focus();
           inlineInp.select();
         }, 30);
@@ -7380,7 +7407,7 @@
       }
     } catch (_) { /* ok */ }
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt38", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt39", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
