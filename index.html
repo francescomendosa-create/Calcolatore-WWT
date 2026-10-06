@@ -256,13 +256,13 @@
     .flow-water { pointer-events: none; }
     .flow-water .flow-line {
       fill: none;
-      stroke: #2563eb;
-      stroke-width: 1.7;
-      stroke-dasharray: 5 9;
+      stroke: #7dd3fc;
+      stroke-width: 2.1;
+      stroke-dasharray: 6 8;
       stroke-linecap: round;
       opacity: 0;
     }
-    .flow-water.is-flowing .flow-line { opacity: 0.95; stroke: #3b82f6; }
+    .flow-water.is-flowing .flow-line { opacity: 1; stroke: #38bdf8; }
     .flow-water.flow-rtl.is-flowing .flow-line {
       animation: flow-rtl 1.7s linear infinite;
     }
@@ -271,7 +271,7 @@
     }
     .flow-water.flow-down.is-flowing .flow-line {
       animation: flow-down 1.7s linear infinite;
-      stroke: #60a5fa;
+      stroke: #bae6fd;
     }
     @keyframes flow-rtl { to { stroke-dashoffset: 28; } }
     @keyframes flow-up { to { stroke-dashoffset: -28; } }
@@ -4091,10 +4091,17 @@
       stop: { fill: "#334155", stroke: "#94a3b8", inner: "#64748b", arrow: "#cbd5e1", lab: "#94a3b8" },
       off: { fill: "#7f1d1d", stroke: "#f87171", inner: "#991b1b", arrow: "#fecaca", lab: "#fda4af" },
     };
+    const WATER_COL = { run: "#0369a1", wash: "#0284c7", stop: "#1e3a5f", off: "#7f1d1d" };
     function deviceCol(disabled, running) {
       if (disabled) return DEV_COL.off;
       if (running) return DEV_COL.run;
       return DEV_COL.stop;
+    }
+    function waterInner(disabled, flowing, wash) {
+      if (disabled) return WATER_COL.off;
+      if (wash) return WATER_COL.wash;
+      if (flowing) return WATER_COL.run;
+      return WATER_COL.stop;
     }
 
     function setWaterFlow(root, on, dir) {
@@ -4117,8 +4124,8 @@
         outer.setAttribute("fill", c.fill);
       }
       if (inner) {
-        inner.setAttribute("fill", c.inner);
-        inner.setAttribute("opacity", run && !disabled ? "0.65" : "0.55");
+        inner.setAttribute("fill", waterInner(disabled, run && !disabled, false));
+        inner.setAttribute("opacity", run && !disabled ? "0.92" : "0.7");
       }
       if (lab) lab.setAttribute("fill", c.lab);
       setWaterFlow(root, !!(run && !disabled), "rtl");
@@ -6404,8 +6411,8 @@
             b.setAttribute("fill", c.fill);
           }
           if (f) {
-            f.setAttribute("fill", c.inner);
-            f.setAttribute("opacity", off || !runUf ? "0.55" : "0.65");
+            f.setAttribute("fill", waterInner(off, runUf, wash));
+            f.setAttribute("opacity", off || (!runUf && !wash) ? "0.7" : "0.92");
           }
           if (t) t.setAttribute("fill", c.lab);
         };
@@ -8181,7 +8188,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt53", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt54", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
