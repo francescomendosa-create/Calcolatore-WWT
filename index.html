@@ -12,9 +12,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Process Managed" />
-  <link rel="manifest" href="manifest.json?v=wwt33" />
-  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt33" />
-  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt33" />
+  <link rel="manifest" href="manifest.json?v=wwt34" />
+  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt34" />
+  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt34" />
   <style>
     :root {
       --bg: #0b1220;
@@ -2204,6 +2204,11 @@
     const __flowDesire = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 0 };
     /** Setpoint comando (popup modifica): resta anche a pompe ferme / portata viva = 0. */
     const __flowSetpoint = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 0 };
+    /** Setpoint UF / osmosi (popup): restano anche a linee ferme / portata viva = 0. */
+    const __procSetpoint = {
+      qUfTotale: 0, qUfA: 0, qUfB: 0, qUfC: 0, qUfD: 0,
+      qOsmosiA: 0, qOsmosiB: 0, qOsmosiC: 0,
+    };
     /** Rampa portata viva: ~mezzo secondo, conteggio visibile 0→target / target→0. */
     const FLOW_RAMP_MS = 500;
     let __flowStepBase = null;
@@ -2300,6 +2305,36 @@
       if (id === "qPump") lastQPump = s;
       if (id === "qMandata") lastQMandata = s;
       return s;
+    }
+
+    /** Setpoint UF/osmosi: stop linea ≠ azzera il valore nel popup. */
+    function rememberProcSetpoint(id, v, { allowZero = false } = {}) {
+      if (!Object.prototype.hasOwnProperty.call(__procSetpoint, id)) return 0;
+      const s = Math.max(0, round1(Number(v) || 0));
+      if (s < 0.05 && !allowZero) return __procSetpoint[id];
+      __procSetpoint[id] = s;
+      return s;
+    }
+
+    function procSetpointOf(id) {
+      let s = Math.max(0, Number(__procSetpoint[id]) || 0);
+      if (s < 0.05) s = Math.max(0, num(id));
+      return round1(s);
+    }
+
+    function paintProcSetpointField(id) {
+      if (isEditing(id)) return;
+      const sp = procSetpointOf(id);
+      if (sp > 0.05) setVal(id, sp, { force: true });
+    }
+
+    function osmQinSetpoint(letter) {
+      return procSetpointOf("qOsmosi" + letter);
+    }
+
+    function osmQinEffective(letter) {
+      if (!osmLineRunning(letter)) return 0;
+      return osmQinSetpoint(letter);
     }
 
     /**
@@ -3365,25 +3400,27 @@
 
     /** Portate osmosi in Auto: domanda ripartita solo sulle linee in marcia. */
     function applyOsmosiAutoFlows(qDemandTotal) {
-      if (deviceIsManual("osmosi")) {
-        // Manuale locale: non riscrivere le portate; azzera solo linee ferme per livello
-        ["A", "B", "C"].forEach((L, i) => {
-          const id = ["qOsmosiA", "qOsmosiB", "qOsmosiC"][i];
-          if (!osmLineRunning(L) && !isEditing(id)) setVal(id, 0, { force: true });
-        });
-        syncOsmosiSvg();
-        paintOsmosiRunUI();
-        const qDemand = Math.max(0, round1(Number(qDemandTotal) || 0));
-        return { each: 0, nRun: osmRunningCount(), qDemand, manual: true };
-      }
       const qDemand = Math.max(0, round1(Number(qDemandTotal) || 0));
       const nRun = osmRunningCount();
       const each = nRun > 0 ? round1(qDemand / nRun) : 0;
       const ids = ["qOsmosiA", "qOsmosiB", "qOsmosiC"];
       const letters = ["A", "B", "C"];
+      if (deviceIsManual("osmosi")) {
+        // Manuale locale: tiene i setpoint nel popup; viva=0 sulle linee ferme
+        letters.forEach((L, i) => paintProcSetpointField(ids[i]));
+        syncOsmosiSvg();
+        paintOsmosiRunUI();
+        return { each: 0, nRun, qDemand, manual: true };
+      }
       letters.forEach((L, i) => {
-        const q = osmLineRunning(L) ? each : 0;
-        if (!isEditing(ids[i])) setVal(ids[i], q, { force: true });
+        const id = ids[i];
+        if (osmLineRunning(L)) {
+          rememberProcSetpoint(id, each);
+          if (!isEditing(id)) setVal(id, each, { force: true });
+        } else {
+          // Linea ferma: popup resta al setpoint, non a zero
+          paintProcSetpointField(id);
+        }
       });
       syncOsmosiSvg();
       paintOsmosiRunUI();
@@ -3902,35 +3939,38 @@
       const qP19 = Math.max(0, num("qP11019")); // viva (rampa) per bilanci TK
       const qUf = Math.max(0, num("qUfTotale"));
       // OUT osmosi da TK 11021: solo linee in marcia (isteresi P-11040 sul livello)
-      let qOsmOut = Math.max(0, num("qOsmosiDemi") || (num("qOsmosiA") + num("qOsmosiB") + num("qOsmosiC")));
       updateOsmosiTk11021Interlocks(livU);
+      let qOsmOut = 0;
       if (deviceAutoControlled("osmosi")) {
         let qDemand = permeateDemandOut();
         if (!__allowUfByTk11021 || !membranesProcessAllowed()) {
           qDemand = Math.max(qDemand, linePermeateCapacity());
         }
-        const applied = applyOsmosiAutoFlows(qDemand);
-        qOsmOut = round1(applied.each * applied.nRun);
+        applyOsmosiAutoFlows(qDemand);
+        qOsmOut = round1(osmQinEffective("A") + osmQinEffective("B") + osmQinEffective("C"));
       } else {
-        // Osmosi manuale locale (o impianto manuale): tiene le portate impostate
-        qOsmOut = 0;
+        // Osmosi manuale / impianto manuale: setpoint in popup, OUT = solo linee in marcia
         ["A", "B", "C"].forEach((L, i) => {
           const id = ["qOsmosiA", "qOsmosiB", "qOsmosiC"][i];
-          if (osmLineRunning(L)) qOsmOut += Math.max(0, num(id));
-          else if (!isEditing(id)) setVal(id, 0, { force: true });
+          const sp = Math.max(0, num(id));
+          if (sp > 0.05) rememberProcSetpoint(id, sp);
+          paintProcSetpointField(id);
+          qOsmOut += osmQinEffective(L);
         });
         qOsmOut = round1(qOsmOut);
         syncOsmosiSvg();
         paintOsmosiRunUI();
       }
-      // IN UF: in auto-dispositivo segue P11019; in manuale locale tiene il totale UF impostato
+      // IN UF effettivo (bilancio): 0 se P11019 ferme; popup tiene il setpoint
       let qUfIn = qUf;
       if (!p11019Allowed()) {
         qUfIn = 0;
+        paintUfPopupSetpoints();
+        paintUfSvgLive(0);
       } else if (deviceAutoControlled("ultra")) {
         qUfIn = __allowUfByTk11021 ? Math.max(0, qP19) : 0;
       } else if (deviceIsManual("ultra")) {
-        qUfIn = __allowUfByTk11021 ? Math.max(0, num("qUfTotale")) : 0;
+        qUfIn = __allowUfByTk11021 ? Math.max(0, procSetpointOf("qUfTotale") || num("qUfTotale")) : 0;
       }
 
       const stopRiemp = numOrNull("stopRiempA10620");
@@ -4880,11 +4920,8 @@
       updateTk11021Interlocks(numOrNull("livelloAttualeTk11021") ?? 91);
 
       if (!isAutoMode()) {
-        // Manuale: P11019 già gestita da applyP11019RunFromLevel; osmosi ferme per livello → 0
-        ["A", "B", "C"].forEach((L, i) => {
-          const id = ["qOsmosiA", "qOsmosiB", "qOsmosiC"][i];
-          if (!osmLineRunning(L) && !isEditing(id)) setVal(id, 0, { force: true });
-        });
+        // Manuale: tiene setpoint osmosi nel popup; schema/SVG a 0 se linea ferma
+        ["A", "B", "C"].forEach((L, i) => paintProcSetpointField(["qOsmosiA", "qOsmosiB", "qOsmosiC"][i]));
         syncOsmosiSvg();
         paintOsmosiRunUI();
         return;
@@ -4895,15 +4932,19 @@
       const srcUf = source === "uf-totale" || source === "uf-linea" || source === "ultra";
       let qUfSet = 0;
       if (!isEditingUf() && !srcUf && deviceAutoControlled("ultra")) {
-        // UF a valle di P11019 (solo se UF non è in manuale locale)
+        // UF a valle di P11019: viva può essere 0, setpoint popup resta
         if (!__allowUfByTk11021 || !p11019Allowed() || qP19 < 0.05) {
           qUfSet = 0;
+          paintUfPopupSetpoints();
+          paintUfSvgLive(0);
         } else {
           qUfSet = round1(qP19);
+          rememberProcSetpoint("qUfTotale", qUfSet);
+          setVal("qUfTotale", qUfSet, { force: true });
+          setUfEqual(qUfSet);
+          UF_LINES.forEach((L) => rememberProcSetpoint("qUf" + L, round1(qUfSet / UF_LINES.length)));
+          syncUf("uf-totale");
         }
-        setVal("qUfTotale", qUfSet, { force: true });
-        setUfEqual(qUfSet);
-        syncUf("uf-totale");
       }
 
       const srcOsm = source === "osmosi";
@@ -5520,10 +5561,48 @@
       }));
     }
     function setUfEqual(totale) {
-      const each = UF_LINES.length ? totale / UF_LINES.length : 0;
+      const tot = Math.max(0, round1(Number(totale) || 0));
+      const each = UF_LINES.length ? round1(tot / UF_LINES.length) : 0;
+      if (tot > 0.05) {
+        rememberProcSetpoint("qUfTotale", tot);
+        UF_LINES.forEach((L) => rememberProcSetpoint("qUf" + L, each));
+      }
+      // Non azzerare i campi popup se tot=0 (stop): resta il setpoint
+      if (tot < 0.05) {
+        paintUfPopupSetpoints();
+        return;
+      }
       document.querySelectorAll(".uf-q").forEach((inp) => {
         if (document.activeElement === inp) return;
-        inp.value = round1(each);
+        inp.value = String(each);
+      });
+      if (!isEditing("qUfTotale")) setVal("qUfTotale", tot, { force: true });
+    }
+
+    function paintUfPopupSetpoints() {
+      const totSp = procSetpointOf("qUfTotale");
+      if (totSp > 0.05 && !isEditing("qUfTotale")) setVal("qUfTotale", totSp, { force: true });
+      UF_LINES.forEach((L) => {
+        const id = "qUf" + L;
+        let sp = procSetpointOf(id);
+        if (sp < 0.05 && totSp > 0.05) sp = round1(totSp / UF_LINES.length);
+        if (sp > 0.05) {
+          rememberProcSetpoint(id, sp);
+          const node = el(id);
+          if (node && document.activeElement !== node) node.value = String(sp);
+        }
+      });
+    }
+
+    /** Schema UF: mostra portata viva (0 se ferme); popup resta sul setpoint. */
+    function paintUfSvgLive(qLiveTot) {
+      const tot = Math.max(0, round1(Number(qLiveTot) || 0));
+      const svg = el("svgQUf");
+      if (svg) svg.textContent = tot.toFixed(1);
+      const each = UF_LINES.length ? round1(tot / UF_LINES.length) : 0;
+      UF_LINES.forEach((L) => {
+        const node = el("svgQUf" + L);
+        if (node) node.textContent = each.toFixed(1);
       });
     }
     function sumUfs() {
@@ -5533,30 +5612,41 @@
       const totRaw = numOrNull("qUfTotale");
       if (source === "uf-totale" && totRaw === null) return;
       if (source === "uf-totale") {
-        setUfEqual(totRaw);
+        if ((totRaw || 0) > 0.05) setUfEqual(totRaw);
+        else paintUfPopupSetpoints();
       } else if (source === "uf-linea") {
-        setVal("qUfTotale", sumUfs(), { force: !isEditing("qUfTotale") });
+        const totLines = round1(sumUfs());
+        if (totLines > 0.05) {
+          rememberProcSetpoint("qUfTotale", totLines);
+          UF_LINES.forEach((L) => {
+            const node = el("qUf" + L);
+            if (node) rememberProcSetpoint("qUf" + L, Math.max(0, parseFloat(node.value) || 0));
+          });
+          setVal("qUfTotale", totLines, { force: !isEditing("qUfTotale") });
+        } else {
+          paintUfPopupSetpoints();
+        }
       }
-      const tot = round1(sumUfs());
-      if (!isEditing("qUfTotale")) setVal("qUfTotale", tot);
-      const svg = el("svgQUf");
-      if (svg) svg.textContent = tot.toFixed(1);
-      UF_LINES.forEach((m) => {
-        const inp = el("qUf" + m);
-        const node = el("svgQUf" + m);
-        if (node && inp) node.textContent = round1(parseFloat(inp.value) || 0).toFixed(1);
-      });
+      // Popup = setpoint; schema = viva (0 se P11019/UF bloccate)
+      paintUfPopupSetpoints();
+      const totSp = procSetpointOf("qUfTotale");
+      const liveOk = p11019Allowed() && __allowUfByTk11021;
+      const totLive = liveOk ? totSp : 0;
+      paintUfSvgLive(deviceIsManual("ultra") ? totSp : totLive);
       // UF in manuale locale: allinea valle solo se osmosi non è manuale
       if ((source === "uf-linea" || source === "uf-totale") && deviceIsManual("ultra")) {
-        const q = round1(sumUfs());
-        if (p11019Allowed() && !isEditing("qP11019")) {
+        const q = totSp;
+        if (p11019Allowed() && !isEditing("qP11019") && q > 0.05) {
           rememberFlowSetpoint("qP11019", q);
           commitFlow("qP11019", q, { setpoint: q });
         }
-        if (!deviceIsManual("osmosi") && !isEditingOsmosi()) {
+        if (!deviceIsManual("osmosi") && !isEditingOsmosi() && q > 0.05) {
           const ids = ["qOsmosiA", "qOsmosiB", "qOsmosiC"];
           const each = ids.length ? round1(q / ids.length) : 0;
-          ids.forEach((id) => setVal(id, each, { force: true }));
+          ids.forEach((id) => {
+            rememberProcSetpoint(id, each);
+            setVal(id, each, { force: true });
+          });
           if (typeof syncOsmosiSvg === "function") syncOsmosiSvg();
         }
       }
@@ -5592,26 +5682,40 @@
       return qin > 0 ? OSM_CONC_FISSO : 0;
     }
     function syncOsmosiSvg() {
-      let totDemi = 0;
-      let totConc = 0;
+      let totDemiSp = 0;   // somma setpoint (popup)
+      let totDemiLive = 0; // somma effettiva (schema / bilancio)
+      let totConcSp = 0;
+      let totConcLive = 0;
+      const letters = ["A", "B", "C"];
       OSM_IDS.forEach((id, i) => {
-        const q = Math.max(0, num(id));
-        const conc = osmConcFor(q);
-        totDemi += q;
-        totConc += conc;
+        const L = letters[i];
+        // Campo popup = setpoint (se l’utente non sta editando)
+        const qSp = Math.max(0, num(id));
+        if (qSp > 0.05) rememberProcSetpoint(id, qSp);
+        const sp = procSetpointOf(id);
+        paintProcSetpointField(id);
+        const qLive = osmQinEffective(L);
+        const concSp = osmConcFor(sp);
+        const concLive = osmConcFor(qLive);
+        totDemiSp += sp;
+        totDemiLive += qLive;
+        totConcSp += concSp;
+        totConcLive += concLive;
         const svg = el(["svgQOsmA", "svgQOsmB", "svgQOsmC"][i]);
-        if (svg) svg.textContent = round1(q).toFixed(1);
+        if (svg) svg.textContent = round1(qLive).toFixed(1);
         const concNode = el(OSM_CONC_IDS[i]);
-        if (concNode && !isEditing(OSM_CONC_IDS[i])) concNode.value = String(round1(conc));
+        // Concentrato in popup riflette il setpoint di linea (anche se ferma con IN>0 in memoria)
+        if (concNode && !isEditing(OSM_CONC_IDS[i])) concNode.value = String(round1(concSp));
       });
-      totDemi = round1(totDemi);
-      totConc = round1(totConc);
-      const totale = round1(totDemi + totConc);
+      totDemiSp = round1(totDemiSp);
+      totConcSp = round1(totConcSp);
+      const totaleSp = round1(totDemiSp + totConcSp);
       const totSvg = el("svgQOsmTotale");
-      if (totSvg) totSvg.textContent = totale.toFixed(1);
-      if (!isEditing("qOsmosiTotale")) setVal("qOsmosiTotale", totale, { force: true });
-      if (!isEditing("qOsmosiDemi")) setVal("qOsmosiDemi", totDemi, { force: true });
-      if (!isEditing("qOsmosiTotConc")) setVal("qOsmosiTotConc", totConc, { force: true });
+      if (totSvg) totSvg.textContent = round1(totDemiLive + totConcLive).toFixed(1);
+      // Popup: sempre i setpoint, mai azzerati perché le linee sono ferme
+      if (!isEditing("qOsmosiTotale")) setVal("qOsmosiTotale", totaleSp, { force: true });
+      if (!isEditing("qOsmosiDemi")) setVal("qOsmosiDemi", totDemiSp, { force: true });
+      if (!isEditing("qOsmosiTotConc")) setVal("qOsmosiTotConc", totConcSp, { force: true });
     }
 
     /* Popup open/close */
@@ -5761,7 +5865,14 @@
       }
       syncScrollLock();
       if (name === "pompe" || name === "mandata" || name === "processo" || name === "riciclo" || name === "membrane" || name === "permeato" || name === "tk11021" || name === "ultra") refreshProcViews();
-      if (name === "osmosi") syncOsmosiSvg();
+      if (name === "ultra") {
+        paintUfPopupSetpoints();
+        syncUf("uf-totale");
+      }
+      if (name === "osmosi") {
+        ["A", "B", "C"].forEach((L) => paintProcSetpointField("qOsmosi" + L));
+        syncOsmosiSvg();
+      }
       if (name === "regolazioni") {
         refreshTankGeomHints();
         getA10611Calib();
@@ -6832,7 +6943,7 @@
       }
     } catch (_) { /* ok */ }
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt33", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt34", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
