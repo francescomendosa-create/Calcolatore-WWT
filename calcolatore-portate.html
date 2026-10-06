@@ -5062,24 +5062,22 @@
       return !!__simPlaying;
     }
 
-    const PUMP_REV_MS = 1100;       // default
-    const PUMP_REV_MS_MIN = 420;    // portata alta → giro più veloce
-    const PUMP_REV_MS_MAX = 1750;   // portata bassa → giro più lento
-    const PUMP_Q_REF = 380;         // m³/h di riferimento (≈ velocità “piena”)
+    const PUMP_REV_MS = 900;        // default
+    const PUMP_REV_MS_MIN = 200;    // tetto velocità (portata molto alta)
+    const PUMP_REV_MS_MAX = 1600;   // portata bassa → giro più lento
+    const PUMP_Q_SCALE = 260;       // scala: più alzi Q, più accelera (senza saturare presto)
     const PUMP_REST_EPS = 1.2;
     let __pumpSpinRaf = 0;
     const __pumpSpin = Object.create(null);
     function pumpReduceMotion() {
       try { return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); } catch (_) { return false; }
     }
-    /** ms/giro in funzione della portata viva: più Q → più veloce. */
+    /** ms/giro dalla portata viva: più Q → più veloce, anche oltre i set attuali. */
     function pumpRevMsForQ(q) {
       const qq = Math.max(0, Number(q) || 0);
       if (qq < 0.5) return PUMP_REV_MS_MAX;
-      const t = Math.min(1, qq / PUMP_Q_REF);
-      // ease: anche un po’ di portata già accelera
-      const e = Math.sqrt(t);
-      return Math.round(PUMP_REV_MS_MAX - e * (PUMP_REV_MS_MAX - PUMP_REV_MS_MIN));
+      const rev = PUMP_REV_MS_MIN + (PUMP_REV_MS_MAX - PUMP_REV_MS_MIN) / (1 + qq / PUMP_Q_SCALE);
+      return Math.round(Math.max(PUMP_REV_MS_MIN, rev));
     }
     function pumpSpinSt(id) {
       if (!__pumpSpin[id]) __pumpSpin[id] = { ang: 0, last: 0, coast: false, want: false, disabled: false, arrowId: "", labelId: "", revMs: PUMP_REV_MS };
@@ -10097,7 +10095,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt97", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt98", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
