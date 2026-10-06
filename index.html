@@ -132,34 +132,34 @@
       color: #bbf7d0;
     }
     .sim-wash {
-      flex: 1 1 180px;
-      min-width: 140px;
-      max-width: 420px;
+      flex: 1 1 160px;
+      min-width: 0;
+      max-width: 520px;
       margin: 0 4px;
-      padding: 4px 8px;
-      border: 1px solid #164e63;
+      padding: 5px 10px;
+      border: 1px solid #38bdf8;
       border-radius: 8px;
-      background: #082f49;
-      color: #e0f2fe;
-      font-size: 0.68rem;
+      background: #0c4a6e;
+      color: #f0f9ff;
+      font-size: 0.72rem;
       font-weight: 650;
-      line-height: 1.25;
+      line-height: 1.3;
       letter-spacing: 0.01em;
-      font-variant-numeric: tabular-nums;
-      white-space: pre-line;
+      white-space: nowrap;
       overflow: hidden;
-      max-height: 3.4em;
+      text-overflow: ellipsis;
     }
     .sim-wash.is-idle {
-      color: #94a3b8;
-      border-color: var(--line);
-      background: #0b1220;
-      font-weight: 600;
+      visibility: hidden;
+      border-color: transparent;
+      background: transparent;
+      padding-left: 0;
+      padding-right: 0;
+      min-width: 0;
+      flex: 0 1 0;
     }
     .sim-wash.is-active {
-      border-color: #38bdf8;
-      color: #f0f9ff;
-      background: #0c4a6e;
+      visibility: visible;
     }
     .sim-time {
       display: flex;
@@ -1239,7 +1239,7 @@
         <button type="button" id="btnModeAuto" class="is-on" aria-pressed="true">Automatico</button>
         <button type="button" id="btnModeManual" aria-pressed="false">Manuale</button>
       </div>
-      <div class="sim-wash is-idle" id="simWashBanner" aria-live="polite" title="Lavaggi UF in corso / prossimi (BW e CEB)">UF · in attesa Start</div>
+      <div class="sim-wash is-idle" id="simWashBanner" aria-live="polite" title="Lavaggio ultrafiltrazione in corso"></div>
       <div class="sim-time" title="1 secondo reale = 1 minuto di impianto">
         <button type="button" id="simPlayToggle" class="is-start" aria-label="Avvia simulazione" aria-pressed="false">Start</button>
         <span class="sim-label">Time</span>
@@ -8343,92 +8343,51 @@
       if (kind === "acido") return "CEB acido";
       return "CEB";
     }
-    function fmtRemainMinShort(minV) {
-      const m = Number(minV);
-      if (!Number.isFinite(m)) return "—";
-      if (m <= 0) return "ora";
-      if (m >= 60) {
-        const h = Math.floor(m / 60);
-        const mm = Math.round(m - h * 60);
-        return mm > 0 ? `${h}h ${mm}′` : `${h}h`;
-      }
-      if (m >= 1) return `${Math.round(m)}′`;
-      return fmtRemainSec(m * 60);
+    /** Dicitura lunga del tipo lavaggio (niente BW / abbreviazioni). */
+    function ufWashKindLong(kind) {
+      if (kind === "bw") return "Lavaggio backwash";
+      if (kind === "cev") return "Lavaggio CEB ipoclorito";
+      if (kind === "ceb") return "Lavaggio CEB soda";
+      if (kind === "acido") return "Lavaggio CEB acido";
+      const meta = ufChemKindMeta(kind);
+      if (meta && meta.title) return String(meta.title).replace(/\s+in corso$/i, "");
+      return "Lavaggio CEB";
     }
 
     function paintUfHeadWash() {
       ensureUfChem();
       const go = plantIsStarted();
-      const inletOk = ufInletAvailable();
-      const active = [];
-      let nextBw = null;
-      let nextCeb = null;
-
+      const parts = [];
       UF_LINES.forEach((L) => {
         if (!ufLineEnabled(L)) return;
-        const stc = ufSched(L);
         const kindNow = ufWashKind(L);
-        if (kindNow) {
-          const coda = !go || !inletOk;
-          if (kindNow === "bw") {
-            const left = Math.max(0, Math.ceil(ufLavaggioSec(L) - (stc.wash.elapsedSec || 0)));
-            active.push(`UF-${L} BW ${coda ? "coda " : ""}${fmtRemainSec(left)}`);
-          } else {
-            const phs = ufChemPhaseAt(stc.wash.elapsedSec);
-            const sec = phs ? fmtRemainSec(phs.remainSec) : "0 s";
-            active.push(`UF-${L} ${ufChemKindShort(kindNow)} · ${phs ? phs.short : "fase"} ${coda ? "coda " : ""}${sec}`);
-          }
-          return;
+        if (!kindNow) return;
+        // Solo lavaggi realmente in corso (non countdown / “in servizio”)
+        if (!go) return;
+        const stc = ufSched(L);
+        let label = `Ultrafiltrazione ${L}: ${ufWashKindLong(kindNow)}`;
+        if (kindNow !== "bw") {
+          const phs = ufChemPhaseAt(stc.wash.elapsedSec);
+          if (phs && phs.label) label += ` — ${phs.label}`;
         }
-        const rBw = Number(stc.remain.bw);
-        if (Number.isFinite(rBw)) {
-          if (rBw <= 1e-9) active.push(`UF-${L} BW in coda`);
-          else if (!nextBw || rBw < nextBw.remain - 1e-9) nextBw = { L, remain: rBw };
-        }
-        UF_CHEM_KINDS.forEach((k) => {
-          const r = Number(stc.remain[k.id]);
-          if (!Number.isFinite(r)) return;
-          if (r <= 1e-9) active.push(`UF-${L} ${ufChemKindShort(k.id)} in coda`);
-          else if (!nextCeb || r < nextCeb.remain - 1e-9) nextCeb = { L, remain: r, kind: k.id };
-        });
+        if (!ufInletAvailable()) label += " (in attesa acqua)";
+        parts.push(label);
       });
 
-      const prox = [];
-      if (!active.length) {
-        if (nextBw) prox.push(`prox BW UF-${nextBw.L} ${fmtRemainMinShort(nextBw.remain)}`);
-        if (nextCeb) prox.push(`prox ${ufChemKindShort(nextCeb.kind)} UF-${nextCeb.L} ${fmtRemainMinShort(nextCeb.remain)}`);
-      } else if (nextCeb && nextCeb.remain > 0.05) {
-        prox.push(`poi ${ufChemKindShort(nextCeb.kind)} UF-${nextCeb.L} ${fmtRemainMinShort(nextCeb.remain)}`);
-      }
-
-      let text;
-      let idle = false;
-      if (!go) {
-        text = prox.length
-          ? `UF Stop · ${prox.join(" · ")}`
-          : "UF · Start per avviare i timer lavaggio (BW / CEB)";
-        idle = true;
-      } else if (active.length) {
-        text = active.join("\n") + (prox.length ? "\n" + prox.join(" · ") : "");
-        idle = false;
-      } else if (prox.length) {
-        text = "UF in servizio · " + prox.join(" · ");
-        idle = true;
-      } else {
-        text = "UF · nessun lavaggio in programma";
-        idle = true;
-      }
+      const text = parts.join(" · ");
+      const idle = !parts.length;
 
       const pop = el("ufHeadWash");
       if (pop) {
-        pop.textContent = text;
+        pop.textContent = idle ? "Nessun lavaggio" : text;
         pop.classList.toggle("is-idle", idle);
       }
       const ban = el("simWashBanner");
       if (ban) {
         ban.textContent = text;
         ban.classList.toggle("is-idle", idle);
-        ban.classList.toggle("is-active", !idle && !!active.length);
+        ban.classList.toggle("is-active", !idle);
+        ban.title = idle ? "Nessun lavaggio ultrafiltrazione in corso" : text;
       }
     }
 
@@ -10513,7 +10472,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt103", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt104", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
