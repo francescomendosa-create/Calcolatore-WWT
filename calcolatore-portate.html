@@ -211,8 +211,33 @@
     #popBlocchi .block-explain p { margin: 0 0 10px; line-height: 1.45; }
     #popBlocchi .block-explain strong { color: #fecaca; }
     #popBlocchi .block-explain .ok-line strong { color: #86efac; }
+    #popBlocchi .block-chain {
+      margin: 0 0 12px;
+      padding: 0;
+      list-style: none;
+      border-left: 2px solid #f87171;
+    }
+    #popBlocchi .block-chain li {
+      position: relative;
+      margin: 0 0 8px;
+      padding: 0 0 0 14px;
+      font-size: 0.88rem;
+      color: #e2e8f0;
+      line-height: 1.4;
+    }
+    #popBlocchi .block-chain li::before {
+      content: "";
+      position: absolute;
+      left: -5px;
+      top: 0.45em;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #f87171;
+    }
+    #popBlocchi .block-chain li:last-child { margin-bottom: 0; }
     #popBlocchi .block-meta {
-      margin: 12px 0 0;
+      margin: 10px 0 0;
       padding: 10px 12px;
       border-radius: 8px;
       background: #0f172a;
@@ -221,8 +246,18 @@
       color: #cbd5e1;
       line-height: 1.45;
     }
-    #popBlocchi .block-meta div { margin: 0 0 4px; }
+    #popBlocchi .block-meta div { margin: 0 0 6px; }
     #popBlocchi .block-meta div:last-child { margin: 0; }
+    #popBlocchi .block-eq {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: #14532d33;
+      border: 1px solid #4ade80;
+      color: #bbf7d0;
+      font-size: 0.85rem;
+      line-height: 1.45;
+    }
     .sim-time button {
       appearance: none;
       border: 1px solid var(--line);
@@ -3719,34 +3754,58 @@
       return Number.isFinite(v) ? v : null;
     };
 
-    /** Snapshot al momento del blocco: livelli, soglie e portate coinvolte. */
+    /** Snapshot al momento del blocco: catena livelli + portate (per diagnosi equilibrio). */
     function captureChimicoBlockEvent() {
       const stopR = numOrNull("stopRiempA10620");
       const startR = numOrNull("startRiempA10620");
       const stop = stopR !== null ? stopR : 95;
       const start = startR !== null ? startR : 92;
-      const liv = numOrNull("livelloAttuale");
-      const livV = liv !== null ? liv : 0;
+      const startSvuot = numOrNull("startSvuotA10620");
+      const stopSvuot = numOrNull("stopSvuotA10620");
+      const hiBlock = numOrNull("stopAltoA10611");
+      const hiRestart = numOrNull("ripartenzaP11011A10611");
+      const liv20 = numOrNull("livelloAttuale");
+      const liv11 = numOrNull("livelloAttualeA10611");
       const qInSp = Math.max(0, num("qIn"));
       const qInLive = (__qInLive != null && Number.isFinite(__qInLive))
         ? Math.max(0, Number(__qInLive))
         : qInSp;
-      const pumpOn = !!(typeof p11011Allowed === "function" && p11011Allowed() && (plantIsStarted() || __simBusy || __simMin > 0));
-      const qPumpSp = Math.max(0, num("qPump"));
+      const qRecSp = Math.max(0, flowSetpointOf("qRecycle"));
+      const qRecLive = Math.max(0, Number(__flowLive.qRecycle) || 0);
+      const pumpAllowed = !!(typeof p11011Allowed === "function" && p11011Allowed());
+      const plantGo = !!(plantIsStarted() || __simBusy || __simMin > 0);
+      const pumpOn = !!(pumpAllowed && plantGo);
+      const qPumpSp = Math.max(0, flowSetpointOf("qPump"));
       const qPumpLive = Math.max(0, Number(__flowLive.qPump) || qPumpSp);
       const qOut = pumpOn ? qPumpLive : 0;
-      const delta = round1(qInLive - qOut);
+      const qInTo20 = round1(qInLive + qRecLive);
+      const qEq20 = round1(qInTo20); // P11011 per livello A10620 stabile
+      let qEqPlant = qEq20;
+      try { qEqPlant = round1(Math.max(qEq20, pumpFloorForIngresso(qInSp))); } catch (_) { /* ok */ }
+      const deficit = round1(Math.max(0, qEq20 - qOut));
       return {
         tMin: Number(__simMin) || 0,
-        liv: round2(livV),
+        liv20: round2(liv20 !== null ? liv20 : 0),
+        liv11: round2(liv11 !== null ? liv11 : 0),
         stop,
         start,
+        startSvuot: startSvuot !== null ? startSvuot : 92,
+        stopSvuot: stopSvuot !== null ? stopSvuot : 88,
+        hiBlock: hiBlock !== null ? hiBlock : 96,
+        hiRestart: hiRestart !== null ? hiRestart : 90,
         qInSp: round1(qInSp),
         qInLive: round1(qInLive),
-        qPump: round1(qPumpLive),
+        qRecSp: round1(qRecSp),
+        qRecLive: round1(qRecLive),
+        qPumpSp: round1(qPumpSp),
+        qPumpLive: round1(qPumpLive),
         qOut: round1(qOut),
+        qInTo20,
+        qEq20,
+        qEqPlant,
+        deficit,
         pumpOn,
-        delta,
+        runP11011By20: !!__runP11011By20,
         blockP11011: !!__blockP11011By11,
       };
     }
@@ -3771,8 +3830,8 @@
       node.setAttribute("data-count", String(__chimicoBlockCount));
       const n = __chimicoBlockCount;
       node.title = n === 0
-        ? "Nessun blocco — clic per capire quando scatta"
-        : (n === 1 ? "1 blocco — clic per la spiegazione" : `${n} blocchi — clic per la spiegazione`);
+        ? "Nessun blocco — clic per la catena di causa"
+        : (n === 1 ? "1 blocco — clic per la catena" : `${n} blocchi — clic per la catena`);
     }
 
     function resetChimicoBlockCount() {
@@ -3786,64 +3845,112 @@
       return Number.isFinite(n) ? n.toFixed(1).replace(/\.0$/, "") + "%" : "—";
     }
 
+    function fmtQ(v) {
+      const n = Number(v);
+      return Number.isFinite(n) ? n.toFixed(1) : "—";
+    }
+
+    /** Testo catena + portate equilibrio dall’evento di blocco. */
+    function buildChimicoBlockReport(ev) {
+      if (!ev) return { chain: [], meta: "", eq: "" };
+      const chain = [];
+      if (ev.blockP11011) {
+        chain.push(
+          `Alto livello <strong>A10611</strong> (${fmtBlockPct(ev.liv11)} ≥ stop alto ${fmtBlockPct(ev.hiBlock)}) → <strong>P11011 bloccate</strong>.`
+        );
+        chain.push(
+          `Con le P11011 ferme, <strong>A10620</strong> continua a ricevere ingresso ${fmtQ(ev.qInLive)} m³/h`
+          + (ev.qRecLive > 0.05 ? ` + riciclo ${fmtQ(ev.qRecLive)} m³/h` : "")
+          + ` senza scarico utile.`
+        );
+      } else if (!ev.pumpOn) {
+        if (!ev.runP11011By20) {
+          chain.push(
+            `P11011 non in marcia: A10620 era sotto lo start svuotamento (serve ≥ ${fmtBlockPct(ev.startSvuot)}; stop ${fmtBlockPct(ev.stopSvuot)}).`
+          );
+        } else {
+          chain.push(`P11011 non erogavano portata (impianto/pompe non in scarico).`);
+        }
+        chain.push(
+          `L’ingresso ${fmtQ(ev.qInLive)} m³/h` + (ev.qRecLive > 0.05 ? ` + riciclo ${fmtQ(ev.qRecLive)} m³/h` : "")
+          + ` ha riempito A10620 senza uno scarico adeguato.`
+        );
+      } else {
+        chain.push(
+          `Verso A10620 entrava <strong>${fmtQ(ev.qInTo20)} m³/h</strong> (ingresso ${fmtQ(ev.qInLive)}`
+          + (ev.qRecLive > 0.05 ? ` + riciclo ${fmtQ(ev.qRecLive)}` : "") + `).`
+        );
+        chain.push(
+          `Le P11011 scaricavano solo <strong>${fmtQ(ev.qOut)} m³/h</strong> (set ${fmtQ(ev.qPumpSp)}) — deficit ≈ <strong>${fmtQ(ev.deficit)} m³/h</strong>.`
+        );
+      }
+      chain.push(
+        `Alto livello finale <strong>A10620</strong> ${fmtBlockPct(ev.liv20 != null ? ev.liv20 : ev.liv)} ≥ stop riempimento ${fmtBlockPct(ev.stop)} → <strong>blocco chimico</strong> (ingresso interrotto).`
+      );
+
+      let wrong = "";
+      if (ev.blockP11011) {
+        wrong = `Male dimensionata la linea a valle di A10611 (o troppo ingresso a monte): A10611 è salita a ${fmtBlockPct(ev.liv11)}. `
+          + `Per non ripetere: scaricare A10611 (MP 11036) e/o non superare lo stop alto; le P11011 ripartono a ≤ ${fmtBlockPct(ev.hiRestart)}.`;
+      } else if (!ev.pumpOn) {
+        wrong = `Male impostata la sequenza livelli: ingresso attivo mentre P11011 non potevano scaricare. `
+          + `In equilibrio, con ingresso ${fmtQ(ev.qInSp)} m³/h, P11011 dovrebbero stare ≥ <strong>${fmtQ(ev.qEqPlant)} m³/h</strong> e in marcia.`;
+      } else if (ev.deficit > 0.5) {
+        wrong = `Portata messa: ingresso <strong>${fmtQ(ev.qInSp)} m³/h</strong>, P11011 <strong>${fmtQ(ev.qPumpSp)} m³/h</strong>. `
+          + `Per tenere A10620 in equilibrio serviva P11011 ≥ <strong>${fmtQ(ev.qEq20)} m³/h</strong> `
+          + `(ingresso + riciclo), tipicamente ≥ <strong>${fmtQ(ev.qEqPlant)} m³/h</strong> (ingresso + riciclo fanghi). `
+          + `Oppure abbassare l’ingresso a ≤ <strong>${fmtQ(Math.max(0, ev.qOut - ev.qRecLive))} m³/h</strong> a pari scarico.`;
+      } else {
+        wrong = `Le portate erano quasi in pareggio, ma A10620 ha comunque toccato lo stop. `
+          + `Per stabilità: P11011 ≥ <strong>${fmtQ(ev.qEqPlant)} m³/h</strong> con ingresso ${fmtQ(ev.qInSp)} m³/h.`;
+      }
+
+      const meta = `<div><strong>Al blocco</strong> · ${ev.tMin}′ di sim</div>
+        <div>Ingresso (TOT OUT): set <strong>${fmtQ(ev.qInSp)}</strong> · viva <strong>${fmtQ(ev.qInLive)} m³/h</strong></div>
+        <div>Riciclo 11014: set <strong>${fmtQ(ev.qRecSp)}</strong> · viva <strong>${fmtQ(ev.qRecLive)} m³/h</strong></div>
+        <div>P11011: set <strong>${fmtQ(ev.qPumpSp)}</strong> · scarico effettivo <strong>${fmtQ(ev.qOut)} m³/h</strong>${ev.pumpOn ? "" : " (OFF)"}</div>
+        <div>Ripresa chimico: A10620 ≤ <strong>${fmtBlockPct(ev.start)}</strong></div>`;
+
+      const eq = `<strong>Equilibrio / cosa correggere</strong><br>${wrong}`;
+      return { chain, meta, eq };
+    }
+
     function paintBlocchiExplain() {
       const body = el("blocchiBody");
       if (!body) return;
-      const stopR = numOrNull("stopRiempA10620");
-      const startR = numOrNull("startRiempA10620");
-      const stopNow = stopR !== null ? stopR : 95;
-      const startNow = startR !== null ? startR : 92;
-      const livNow = numOrNull("livelloAttuale");
-      const blockedNow = !__chimicoAllowFill;
       const last = __chimicoBlockLog.length ? __chimicoBlockLog[__chimicoBlockLog.length - 1] : null;
+      const blockedNow = !__chimicoAllowFill;
+      const livNow = numOrNull("livelloAttuale");
+      const startNow = numOrNull("startRiempA10620");
+      const startV = startNow !== null ? startNow : 92;
 
       let html = "";
-      html += `<p><strong>Cosa significa il numero</strong><br>
-        Conta quante volte il <strong>chimico-fisico</strong> si è fermato dal Reset perché A10620 ha raggiunto lo
-        <strong>stop riempimento</strong> (ora ${fmtBlockPct(stopNow)}).</p>`;
-
-      if (blockedNow) {
-        html += `<p><strong>Stato attuale: in blocco</strong><br>
-          Livello A10620 ${livNow !== null ? fmtBlockPct(livNow) : "—"}.
-          L’ingresso (TOT OUT) è interrotto finché il livello non scende a ≤ <strong>${fmtBlockPct(startNow)}</strong>
-          (start riempimento).</p>`;
-      } else {
-        html += `<p class="ok-line"><strong>Stato attuale: chimico ON</strong><br>
-          Livello A10620 ${livNow !== null ? fmtBlockPct(livNow) : "—"}.
-          Può mandare finché non raggiunge di nuovo lo stop riempimento ${fmtBlockPct(stopNow)}.</p>`;
-      }
-
       if (last) {
-        const causePump = last.blockP11011
-          ? "P11011 erano già ferme per blocco alto A10611, quindi A10620 non si svuotava."
-          : (!last.pumpOn
-            ? "P11011 non erano in marcia (livello basso / start svuotamento non raggiunto), quindi A10620 si è riempita solo con l’ingresso."
-            : (last.delta > 0.5
-              ? `La portata in ingresso (${last.qInLive.toFixed(1)} m³/h) era maggiore dello scarico P11011 (${last.qOut.toFixed(1)} m³/h): sbilancio circa +${last.delta.toFixed(1)} m³/h.`
-              : `Anche con scarico simile all’ingresso, il livello ha comunque toccato lo stop riempimento ${fmtBlockPct(last.stop)}.`));
-        html += `<div class="block-meta">
-          <div><strong>Ultimo blocco</strong> · tempo sim ${last.tMin}′</div>
-          <div>Livello A10620: <strong>${fmtBlockPct(last.liv)}</strong> ≥ stop riempimento <strong>${fmtBlockPct(last.stop)}</strong></div>
-          <div>Portata che riempie (ingresso / TOT OUT): set <strong>${last.qInSp.toFixed(1)}</strong> · viva <strong>${last.qInLive.toFixed(1)} m³/h</strong></div>
-          <div>Scarico P11011 al momento: <strong>${last.qOut.toFixed(1)} m³/h</strong>${last.pumpOn ? "" : " (pompe OFF)"}</div>
-          <div style="margin-top:8px">${causePump}</div>
-          <div style="margin-top:8px"><strong>Cosa ripristinare</strong>: far scendere A10620 a ≤ <strong>${fmtBlockPct(last.start)}</strong>
-            (aumentando lo scarico P11011 e/o riducendo l’ingresso). Al ripristino il chimico riparte da solo.</div>
-        </div>`;
+        const rep = buildChimicoBlockReport(last);
+        html += `<p><strong>Catena del blocco</strong></p><ul class="block-chain">`;
+        rep.chain.forEach((step) => { html += `<li>${step}</li>`; });
+        html += `</ul>`;
+        html += `<div class="block-meta">${rep.meta}</div>`;
+        html += `<div class="block-eq">${rep.eq}</div>`;
+        if (blockedNow) {
+          html += `<p class="mini" style="margin-top:10px">Ora è ancora in blocco (A10620 ${livNow !== null ? fmtBlockPct(livNow) : "—"}). `
+            + `Il chimico riparte da solo quando il livello scende a ≤ ${fmtBlockPct(startV)}.</p>`;
+        }
       } else if (__chimicoBlockCount === 0) {
-        html += `<div class="block-meta">
-          <div>Ancora nessun blocco dal Reset.</div>
-          <div style="margin-top:6px">Scatta quando ingresso &gt; capacità di svuotamento e A10620 arriva a ${fmtBlockPct(stopNow)}.
-            Per evitare: tenere P11011 in grado di scaricare almeno quanto TOT OUT, oppure abbassare l’ingresso.</div>
-        </div>`;
+        const qInSp = Math.max(0, num("qIn"));
+        let qNeed = qInSp;
+        try { qNeed = round1(pumpFloorForIngresso(qInSp)); } catch (_) { /* ok */ }
+        html += `<p>Nessun blocco dal Reset.</p>
+          <div class="block-eq">Per non andare in blocco su A10620: con ingresso <strong>${fmtQ(qInSp)} m³/h</strong>,
+          tieni P11011 ≥ <strong>${fmtQ(qNeed)} m³/h</strong> in marcia (equilibrio ingresso + riciclo fanghi).</div>`;
       } else {
-        html += `<div class="block-meta"><div>${__chimicoBlockCount} blocco/i contati, ma senza dettaglio memorizzato (evento prima dell’aggiornamento).</div></div>`;
+        html += `<p>Ci sono ${__chimicoBlockCount} blocco/i contati, ma senza snapshot della catena (evento precedente).</p>`;
       }
 
       if (__chimicoBlockLog.length > 1) {
-        const prev = __chimicoBlockLog.slice(0, -1).slice(-4).reverse();
+        const prev = __chimicoBlockLog.slice(0, -1).slice(-3).reverse();
         html += `<p class="mini" style="margin-top:12px">Precedenti: `
-          + prev.map((e) => `${e.tMin}′ @ ${fmtBlockPct(e.liv)} · IN ${e.qInLive.toFixed(1)} / OUT ${e.qOut.toFixed(1)}`).join(" · ")
+          + prev.map((e) => `${e.tMin}′ · IN ${fmtQ(e.qInLive)} / P11011 ${fmtQ(e.qOut)}`).join(" · ")
           + `</p>`;
       }
 
@@ -10406,7 +10513,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt102", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt103", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
