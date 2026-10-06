@@ -236,6 +236,22 @@
     .sketch svg [id$="liq"] {
       transition: y 0.1s linear, height 0.1s linear, fill 0.18s ease, opacity 0.18s ease;
     }
+    .pump-rotor {
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+    .pump-rotor.is-spinning {
+      animation: pump-spin 3.2s linear infinite;
+    }
+    .pump-ring {
+      pointer-events: none;
+    }
+    @keyframes pump-spin {
+      to { transform: rotate(360deg); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .pump-rotor.is-spinning { animation: none; }
+    }
     .node {
       cursor: pointer;
       transition: filter 0.12s;
@@ -970,8 +986,11 @@
           <text x="285" y="78" text-anchor="middle" fill="#bbf7d0" font-size="11" font-weight="700">A10620</text>
           <text x="285" y="104" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700" id="svgLiv">63.8%</text>
           <!-- pompa a destra verso 10608 -->
-          <circle id="svgPump11011" cx="355" cy="100" r="15" fill="#14532d" stroke="#4ade80" stroke-width="2" />
-          <path id="svgPump11011Arrow" d="M348,92 L366,100 L348,108 Z" fill="#bbf7d0" />
+          <g class="pump-rotor">
+            <circle id="svgPump11011" cx="355" cy="100" r="15" fill="#14532d" stroke="#4ade80" stroke-width="2" />
+            <circle class="pump-ring" cx="355" cy="100" r="9.5" fill="none" stroke="#86efac" stroke-width="1.6" stroke-dasharray="7 11" stroke-linecap="round" />
+            <path id="svgPump11011Arrow" d="M348,92 L366,100 L348,108 Z" fill="#bbf7d0" />
+          </g>
           <text id="svgPump11011Label" x="355" y="128" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700">P11011 A/B</text>
           <g class="flow-edit" data-field="qPump" data-source="pompa">
             <rect class="badge" x="318" y="138" width="74" height="32" rx="5" stroke="#4ade80" />
@@ -1003,8 +1022,11 @@
           <rect id="svgTank11liq" x="582" y="75" width="96" height="50" fill="#22c55e" clip-path="url(#clipTank11)" opacity="0.9" />
           <text x="630" y="78" text-anchor="middle" fill="#bbf7d0" font-size="11" font-weight="700">A10611/7</text>
           <text x="630" y="104" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700" id="svgLivA10611">55.0%</text>
-          <circle id="svgPump11036" cx="700" cy="100" r="15" fill="#14532d" stroke="#4ade80" stroke-width="2" />
-          <path id="svgPump11036Arrow" d="M693,92 L711,100 L693,108 Z" fill="#bbf7d0" />
+          <g class="pump-rotor">
+            <circle id="svgPump11036" cx="700" cy="100" r="15" fill="#14532d" stroke="#4ade80" stroke-width="2" />
+            <circle class="pump-ring" cx="700" cy="100" r="9.5" fill="none" stroke="#86efac" stroke-width="1.6" stroke-dasharray="7 11" stroke-linecap="round" />
+            <path id="svgPump11036Arrow" d="M693,92 L711,100 L693,108 Z" fill="#bbf7d0" />
+          </g>
           <text id="svgPump11036Label" x="700" y="128" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700">MP 11036 A/B</text>
           <g class="flow-edit" data-field="qMandata" data-source="mandata">
             <rect class="badge" x="663" y="138" width="74" height="32" rx="5" stroke="#4ade80" />
@@ -1075,8 +1097,11 @@
 
         <!-- 11014 A/B -->
         <g class="node" tabindex="0" data-popup="riciclo" role="button" aria-label="11014 A/B riciclo fanghi da A11004">
-          <circle id="svgPump11014" cx="949" cy="218" r="14" fill="#14532d" stroke="#4ade80" stroke-width="2" />
-          <path id="svgPump11014Arrow" d="M956,211 L940,218 L956,225 Z" fill="#bbf7d0" />
+          <g class="pump-rotor">
+            <circle id="svgPump11014" cx="949" cy="218" r="14" fill="#14532d" stroke="#4ade80" stroke-width="2" />
+            <circle class="pump-ring" cx="949" cy="218" r="8.5" fill="none" stroke="#86efac" stroke-width="1.5" stroke-dasharray="6 10" stroke-linecap="round" />
+            <path id="svgPump11014Arrow" d="M956,211 L940,218 L956,225 Z" fill="#bbf7d0" />
+          </g>
           <text id="svgPump11014Label" x="949" y="242" text-anchor="middle" fill="#86efac" font-size="9" font-weight="700">11014 A/B</text>
           <g class="flow-edit" data-field="qRecycle" data-source="riciclo-inline">
             <rect class="badge" x="912" y="248" width="74" height="30" rx="5" stroke="#fb7185" />
@@ -1104,18 +1129,27 @@
           <path class="pipe pipe-main" d="M880 375 V455" pointer-events="none" />
           <g transform="translate(880,375)" pointer-events="none">
             <rect x="7" y="-6" width="12" height="11" rx="1.5" fill="#334155" stroke="#94a3b8" stroke-width="1.1" />
-            <circle id="svgPump11019A" r="10" fill="#14532d" stroke="#4ade80" stroke-width="1.6" />
-            <path id="svgPump11019AArrow" d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#bbf7d0" />
+            <g class="pump-rotor">
+              <circle id="svgPump11019A" r="10" fill="#14532d" stroke="#4ade80" stroke-width="1.6" />
+              <circle class="pump-ring" r="6.2" fill="none" stroke="#86efac" stroke-width="1.3" stroke-dasharray="5 8" stroke-linecap="round" />
+              <path id="svgPump11019AArrow" d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#bbf7d0" />
+            </g>
           </g>
           <g transform="translate(880,415)" pointer-events="none">
             <rect x="7" y="-6" width="12" height="11" rx="1.5" fill="#334155" stroke="#94a3b8" stroke-width="1.1" />
-            <circle id="svgPump11019B" r="10" fill="#14532d" stroke="#4ade80" stroke-width="1.6" />
-            <path id="svgPump11019BArrow" d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#bbf7d0" />
+            <g class="pump-rotor">
+              <circle id="svgPump11019B" r="10" fill="#14532d" stroke="#4ade80" stroke-width="1.6" />
+              <circle class="pump-ring" r="6.2" fill="none" stroke="#86efac" stroke-width="1.3" stroke-dasharray="5 8" stroke-linecap="round" />
+              <path id="svgPump11019BArrow" d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#bbf7d0" />
+            </g>
           </g>
           <g transform="translate(880,455)" pointer-events="none">
             <rect x="7" y="-6" width="12" height="11" rx="1.5" fill="#334155" stroke="#94a3b8" stroke-width="1.1" />
-            <circle id="svgPump11019C" r="10" fill="#14532d" stroke="#4ade80" stroke-width="1.6" />
-            <path id="svgPump11019CArrow" d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#bbf7d0" />
+            <g class="pump-rotor">
+              <circle id="svgPump11019C" r="10" fill="#14532d" stroke="#4ade80" stroke-width="1.6" />
+              <circle class="pump-ring" r="6.2" fill="none" stroke="#86efac" stroke-width="1.3" stroke-dasharray="5 8" stroke-linecap="round" />
+              <path id="svgPump11019CArrow" d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#bbf7d0" />
+            </g>
           </g>
           <text id="svgPump11019Label" x="910" y="485" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700" pointer-events="none">P11019 A/B/C</text>
           <g pointer-events="none">
@@ -1244,26 +1278,38 @@
           <path class="pipe pipe-main" d="M360 351 V479" />
           <g transform="translate(360,351)">
             <rect x="7" y="-6" width="12" height="11" rx="1.5" fill="#334155" stroke="#94a3b8" stroke-width="1.1" />
-            <circle id="svgPump11040A" r="10" fill="#14532d" stroke="#4ade80" stroke-width="1.6" />
-            <path id="svgPump11040AArrow" d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#bbf7d0" />
+            <g class="pump-rotor">
+              <circle id="svgPump11040A" r="10" fill="#14532d" stroke="#4ade80" stroke-width="1.6" />
+              <circle class="pump-ring" r="6.2" fill="none" stroke="#86efac" stroke-width="1.3" stroke-dasharray="5 8" stroke-linecap="round" />
+              <path id="svgPump11040AArrow" d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#bbf7d0" />
+            </g>
             <text id="svgPump11040ALabel" x="-22" y="4" text-anchor="middle" fill="#86efac" font-size="9" font-weight="700">A</text>
           </g>
           <g transform="translate(360,394)">
             <rect x="7" y="-6" width="12" height="11" rx="1.5" fill="#334155" stroke="#94a3b8" stroke-width="1.1" />
-            <circle id="svgPump11040B" r="10" fill="#14532d" stroke="#4ade80" stroke-width="1.6" />
-            <path id="svgPump11040BArrow" d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#bbf7d0" />
+            <g class="pump-rotor">
+              <circle id="svgPump11040B" r="10" fill="#14532d" stroke="#4ade80" stroke-width="1.6" />
+              <circle class="pump-ring" r="6.2" fill="none" stroke="#86efac" stroke-width="1.3" stroke-dasharray="5 8" stroke-linecap="round" />
+              <path id="svgPump11040BArrow" d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#bbf7d0" />
+            </g>
             <text id="svgPump11040BLabel" x="-22" y="4" text-anchor="middle" fill="#86efac" font-size="9" font-weight="700">B</text>
           </g>
           <g transform="translate(360,436)">
             <rect x="7" y="-6" width="12" height="11" rx="1.5" fill="#334155" stroke="#94a3b8" stroke-width="1.1" />
-            <circle id="svgPump11040C" r="10" fill="#14532d" stroke="#4ade80" stroke-width="1.6" />
-            <path id="svgPump11040CArrow" d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#bbf7d0" />
+            <g class="pump-rotor">
+              <circle id="svgPump11040C" r="10" fill="#14532d" stroke="#4ade80" stroke-width="1.6" />
+              <circle class="pump-ring" r="6.2" fill="none" stroke="#86efac" stroke-width="1.3" stroke-dasharray="5 8" stroke-linecap="round" />
+              <path id="svgPump11040CArrow" d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#bbf7d0" />
+            </g>
             <text id="svgPump11040CLabel" x="-22" y="4" text-anchor="middle" fill="#86efac" font-size="9" font-weight="700">C</text>
           </g>
           <g transform="translate(360,479)">
             <rect x="7" y="-6" width="12" height="11" rx="1.5" fill="#334155" stroke="#94a3b8" stroke-width="1.1" />
-            <circle id="svgPump11040D" r="10" fill="#334155" stroke="#94a3b8" stroke-width="1.6" />
-            <path id="svgPump11040DArrow" d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#cbd5e1" />
+            <g class="pump-rotor">
+              <circle id="svgPump11040D" r="10" fill="#334155" stroke="#94a3b8" stroke-width="1.6" />
+              <circle class="pump-ring" r="6.2" fill="none" stroke="#94a3b8" stroke-width="1.3" stroke-dasharray="5 8" stroke-linecap="round" />
+              <path id="svgPump11040DArrow" d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#cbd5e1" />
+            </g>
             <text id="svgPump11040DLabel" x="-22" y="4" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="700">D</text>
           </g>
           <text id="svgPump11040Label" x="360" y="508" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700">P11040 A–D</text>
@@ -4226,6 +4272,15 @@
       if (body) { body.setAttribute("fill", c.fill); body.setAttribute("stroke", c.stroke); }
       if (arrow) arrow.setAttribute("fill", c.arrow);
       if (label) label.setAttribute("fill", c.lab);
+      const rotor = body && body.closest && body.closest(".pump-rotor");
+      if (rotor) {
+        rotor.classList.toggle("is-spinning", !!running && !disabled);
+        const ring = rotor.querySelector(".pump-ring");
+        if (ring) {
+          ring.setAttribute("stroke", running && !disabled ? c.lab : c.stroke);
+          ring.setAttribute("opacity", running && !disabled ? "0.95" : "0.45");
+        }
+      }
     }
 
     function paintPumpColors(run14) {
@@ -7996,7 +8051,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt48", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt49", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
