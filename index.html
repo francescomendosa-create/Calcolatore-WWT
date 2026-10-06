@@ -3716,20 +3716,20 @@
     }
 
     function paintMemPermLive(v) {
-      __qMemPermLive = round1(Math.max(0, Number(v) || 0));
+      __qMemPermLive = roundMem(v);
       const svg = el("svgQMem");
-      if (svg) svg.textContent = __qMemPermLive.toFixed(1);
+      if (svg) svg.textContent = String(__qMemPermLive);
     }
 
     /** Scende/sale velocemente il totale membrane sullo schema (pause ciclo). */
     function kickMemPermTween(target) {
-      const tgt = round1(Math.max(0, Number(target) || 0));
+      const tgt = roundMem(target);
       __qMemPermDesire = tgt;
       if (__qMemPermLive == null) {
         paintMemPermLive(tgt);
         return;
       }
-      if (Math.abs(__qMemPermLive - tgt) < 0.08) {
+      if (Math.abs(__qMemPermLive - tgt) < 0.5) {
         paintMemPermLive(tgt);
         return;
       }
@@ -4071,6 +4071,8 @@
 
     const el = (id) => document.getElementById(id);
     const round1 = (v) => Math.round(v * 10) / 10;
+    /** Portate membrane: solo interi (passo 1 m³/h). */
+    const roundMem = (v) => Math.max(0, Math.round(Number(v) || 0));
     const num = (id) => {
       const node = el(id);
       if (!node) return 0;
@@ -8291,21 +8293,20 @@
     }
 
     function setMemEqual(totale) {
-      const tot = Math.max(0, round1(Number(totale) || 0));
+      const tot = roundMem(totale);
       const inputs = Array.from(document.querySelectorAll(".mem-q"));
       const enabledInps = inputs.filter((inp) => {
         const L = String(inp.dataset.mem || "").toUpperCase();
         return memLineEnabled(L);
       });
       const n = enabledInps.length || 1;
-      const each = n ? round1(tot / n) : 0;
-      let assigned = 0;
+      const base = n ? Math.floor(tot / n) : 0;
+      let rem = n ? tot - base * n : 0;
       enabledInps.forEach((inp, i) => {
         if (document.activeElement === inp) return;
-        let q = each;
-        if (i === enabledInps.length - 1) q = round1(Math.max(0, tot - assigned));
+        let q = base;
+        if (rem > 0) { q += 1; rem -= 1; }
         inp.value = String(q);
-        assigned = round1(assigned + q);
       });
       inputs.forEach((inp) => {
         const L = String(inp.dataset.mem || "").toUpperCase();
@@ -8969,7 +8970,7 @@
       wrap.innerHTML = "";
       const enabled = memIdsEnabled();
       const n = enabled.length || MBR_ALL_IDS.length;
-      const startEach = round1(num("qMemTotale") / n);
+      const startEach = roundMem(num("qMemTotale") / n);
       MBR_ALL_IDS.forEach((m) => {
         const lab = document.createElement("label");
         lab.innerHTML = `<strong>MBR ${m}</strong>`;
@@ -8977,11 +8978,17 @@
         inp.type = "number";
         inp.min = "0";
         inp.max = "80";
-        inp.step = "0.1";
-        inp.value = memLineEnabled(m) ? startEach : "0";
+        inp.step = "1";
+        inp.inputMode = "numeric";
+        inp.value = memLineEnabled(m) ? String(startEach) : "0";
         inp.className = "mem-q";
         inp.dataset.mem = m;
         inp.addEventListener("input", () => applyBalance("membrana"));
+        inp.addEventListener("blur", () => {
+          if (document.activeElement === inp) return;
+          inp.value = String(roundMem(inp.value));
+          applyBalance("membrana");
+        });
         lab.appendChild(inp);
         wrap.appendChild(lab);
       });
@@ -10604,7 +10611,8 @@
         || f === "qP11019" || f === "qP11019Ias" || f === "qP11019Impianto"
         || f === "qUfTotale" || f.startsWith("qUf")
         || f === "qOsmosiA" || f === "qOsmosiB" || f === "qOsmosiC"
-        || f.startsWith("qOsmosi")) return 1;
+        || f.startsWith("qOsmosi")
+        || f === "qMemTotale") return 1;
       return 0.1;
     }
 
