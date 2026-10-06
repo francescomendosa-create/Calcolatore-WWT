@@ -8760,20 +8760,31 @@
     });
 
     // Tap su schizzo IAS / Impianto → numpad (resta aperto; valore = quello in scheda)
+    let __p11019EditOpenAt = 0;
     document.querySelectorAll(".p11019-edit[data-field]").forEach((g) => {
       const open = (e) => {
         e.preventDefault();
         e.stopPropagation();
         if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
+        if (Date.now() - __p11019EditOpenAt < 400) return;
+        __p11019EditOpenAt = Date.now();
         const field = g.getAttribute("data-field");
         if (!field) return;
         sanitizeP11019SplitMem();
         paintP11019SplitUI();
-        __flowEditGuardUntil = Date.now() + 450;
+        __flowEditGuardUntil = Date.now() + 500;
         startFieldInlineEdit(field, "p11019");
       };
       g.addEventListener("pointerup", open);
-      g.addEventListener("click", open);
+      g.addEventListener("click", (e) => {
+        // Evita doppio open: su touch basta pointerup
+        if (isTouchUi()) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        open(e);
+      });
       g.addEventListener("keydown", (e) => {
         if (e.key === "Enter" || e.key === " ") open(e);
       });
@@ -8786,9 +8797,11 @@
         if (!isTouchUi()) return;
         e.preventDefault();
         e.stopPropagation();
+        if (Date.now() - __p11019EditOpenAt < 400) return;
+        __p11019EditOpenAt = Date.now();
         sanitizeP11019SplitMem();
         paintP11019SplitUI();
-        __flowEditGuardUntil = Date.now() + 450;
+        __flowEditGuardUntil = Date.now() + 500;
         startFieldInlineEdit(id, "p11019");
       };
       node.addEventListener("focus", (e) => {
@@ -8801,7 +8814,12 @@
         try { node.select(); } catch (_) { /* ignore */ }
       });
       node.addEventListener("pointerup", openField, { passive: false });
-      node.addEventListener("click", openField);
+      node.addEventListener("click", (e) => {
+        if (isTouchUi()) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      });
     });
 
     el("qIn").addEventListener("input", () => {
@@ -9523,7 +9541,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt75", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt76", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});

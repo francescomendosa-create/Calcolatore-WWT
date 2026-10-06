@@ -4060,18 +4060,34 @@
       return s;
     }
 
-    /** Set IAS (clamp ≤ set pompe solo se c’è un set pompe). Mai azzerare a pompe ferme. */
-    function qP11019IasSetpoint() {
+    /** Pulisce IAS/Impianto spurii (es. 1981 da concatenazione numpad). */
+    function sanitizeP11019SplitMem() {
       const pump = qP11019SplitPumpMem();
-      let ias = Math.max(0, Number(__flowSetpoint.qP11019Ias) || 0);
-      if (ias < 0.05) ias = Math.max(0, num("qP11019Ias") || 0);
-      ias = Math.round(ias);
-      if (ias > 500) {
-        ias = 0;
-        __flowSetpoint.qP11019Ias = 0;
+      let ias = Math.max(0, Math.round(Number(__flowSetpoint.qP11019Ias) || 0));
+      const rawIas = Math.max(0, Math.round(num("qP11019Ias") || 0));
+      if (rawIas > 500) ias = 0;
+      else if (ias < 0.05 && rawIas > 0.05 && rawIas <= 500) ias = rawIas;
+      if (ias > 500 || (pump > 0.05 && ias > pump + 0.05)) ias = pump > 0.05 ? Math.min(ias, pump) : 0;
+      if (ias > 500) ias = 0;
+      __flowSetpoint.qP11019Ias = ias;
+      const iasNode = el("qP11019Ias");
+      if (iasNode && !isEditing("qP11019Ias")) {
+        iasNode.value = ias > 0.05 ? String(ias) : "";
       }
-      if (pump > 0.05 && ias > pump) ias = pump;
-      return ias;
+      let imp = Math.max(0, Math.round(Number(__flowSetpoint.qP11019Impianto) || 0));
+      if (imp > 500) imp = 0;
+      if (pump > 0.05) imp = Math.max(0, pump - ias);
+      __flowSetpoint.qP11019Impianto = imp;
+      const impNode = el("qP11019Impianto");
+      if (impNode && !isEditing("qP11019Impianto")) {
+        impNode.value = imp > 0.05 ? String(imp) : "";
+      }
+      return { pump, ias, imp };
+    }
+
+    /** Set IAS (clamp ≤ set pompe solo se c’è un set pompe). */
+    function qP11019IasSetpoint() {
+      return sanitizeP11019SplitMem().ias;
     }
 
     /** Impianto da setpoint UI (set pompe − IAS). Indipendente dalla marcia. */
@@ -4137,22 +4153,14 @@
     }
 
     function paintP11019SplitUI() {
-      const pumpSp = qP11019SplitPumpMem();
-      const iasSp = qP11019IasSetpoint();
-      const impSp = qP11019ImpiantoSetpoint();
+      const cleaned = sanitizeP11019SplitMem();
+      const pumpSp = cleaned.pump;
+      const iasSp = cleaned.ias;
+      const impSp = cleaned.imp;
       const pumpL = qP11019PumpLive();
       const iasL = qP11019IasLive();
       const impL = qP11019ImpiantoLive();
       const fmtSet = (n) => (Number(n) > 0.05 ? String(Math.round(n)) : "—");
-
-      if (!isEditing("qP11019Ias")) {
-        const iasNode = el("qP11019Ias");
-        if (iasNode && iasSp > 0.05) iasNode.value = String(iasSp);
-      }
-      if (!isEditing("qP11019Impianto")) {
-        const impNode = el("qP11019Impianto");
-        if (impNode && impSp > 0.05) impNode.value = String(impSp);
-      }
 
       const popPump = el("svgPopP11019Pump");
       if (popPump) popPump.textContent = fmtSet(pumpSp);
@@ -7853,6 +7861,7 @@
       }
       if (name === "p11019") {
         if (!isEditing("qP11019")) setVal("qP11019", flowSetpointOf("qP11019"), { force: true });
+        sanitizeP11019SplitMem();
         paintP11019SplitUI();
       }
       if (name === "carbone") {
@@ -8026,6 +8035,7 @@
     const flowEditUnit = el("flowEditUnit");
     const flowNumpad = el("flowNumpad");
     let __flowNumpadFresh = false; // prossimo tasto numpad sostituisce il valore
+    let __flowEditGuardUntil = 0; // evita chiusura fantasma al rilascio dito su tablet
     // inlineCtx dichiarato in alto (condiviso con isEditing / applyBalance)
 
     const FLOW_EDIT_LABELS = {
@@ -8355,8 +8365,17 @@
       const raw = String(inlineInp.value ?? "").trim().replace(",", ".");
       const v = parseFloat(raw);
       inlineCtx = null;
+      resetFlowEditPanelPos();
       if (flowEditBack) flowEditBack.classList.remove("show");
-      if (!Number.isFinite(v)) {
+      if (!Number.isFinite(v) || raw === "") {
+        if (field === "qP11019Ias") {
+          applyP11019SplitFrom("ias", 0);
+          return;
+        }
+        if (field === "qP11019Impianto") {
+          applyP11019SplitFrom("impianto", 0);
+          return;
+        }
         if (field === "qUfTotale") { syncUf("uf-totale"); return; }
         if (field === "qUfA" || field === "qUfB" || field === "qUfC" || field === "qUfD") { syncUf("uf-linea"); return; }
         if (field === "qOsmosiA" || field === "qOsmosiB" || field === "qOsmosiC") { syncOsmosiSvg(); return; }
@@ -8449,22 +8468,17 @@
       applyBalance(source);
     }
 
-    /** Setpoint memorizzato IAS/Impianto. Mai la viva a pompe ferme. */
+    /** Valore da mostrare nel numpad = quello della scheda (anche 0). */
     function readP11019SplitEditVal(field) {
+      sanitizeP11019SplitMem();
       const id = String(field || "");
-      if (id === "qP11019Ias") {
-        const ias = qP11019IasSetpoint();
-        if (ias > 500) return null;
-        return ias > 0.05 ? ias : null;
-      }
-      const imp = qP11019ImpiantoSetpoint();
-      if (imp > 500) return null;
-      return imp > 0.05 ? imp : null;
+      if (id === "qP11019Ias") return Math.max(0, qP11019IasSetpoint());
+      return Math.max(0, qP11019ImpiantoSetpoint());
     }
 
     function formatFlowEditSeed(val, step) {
-      if (!(Number(val) > 0.05)) return "";
-      const n = round1(Number(val));
+      if (!Number.isFinite(Number(val))) return "";
+      const n = Math.max(0, round1(Number(val)));
       return step >= 1 ? String(Math.round(n)) : String(n);
     }
 
@@ -8520,13 +8534,14 @@
       }
       if (field === "livelloAttuale") val = num("livelloAttuale");
       const splitEdit = field === "qP11019Ias" || field === "qP11019Impianto";
-      const hasMem = Number.isFinite(val) && Number(val) > 0.05;
-      if (hasMem) val = Math.max(0, round1(val));
+      if (Number.isFinite(val)) val = Math.max(0, round1(val));
       const step = flowEditStep(field);
-      const seed = splitEdit ? formatFlowEditSeed(val, step)
+      const seed = splitEdit
+        ? formatFlowEditSeed(Number.isFinite(val) ? val : 0, step)
         : (step >= 1 ? String(Math.round(Number.isFinite(val) ? val : 0)) : String(Number.isFinite(val) ? round1(val) : 0));
       inlineCtx = { field, source };
       __inlineSuppressLive = true;
+      __flowEditGuardUntil = Date.now() + 450;
       const releaseLive = () => { __inlineSuppressLive = false; };
       if (inlineInp) {
         inlineInp.step = String(step);
@@ -8604,11 +8619,18 @@
       try { applyBalance("livello"); } catch (_) { /* ignore */ }
     });
     flowEditBack?.addEventListener("click", (e) => {
-      if (e.target === flowEditBack) {
-        hideInline();
-        try { applyBalance("livello"); } catch (_) { /* ignore */ }
-      }
+      if (e.target !== flowEditBack) return;
+      if (Date.now() < __flowEditGuardUntil) return;
+      hideInline();
+      try { applyBalance("livello"); } catch (_) { /* ignore */ }
     });
+    flowEditBack?.addEventListener("pointerup", (e) => {
+      if (e.target !== flowEditBack) return;
+      if (Date.now() < __flowEditGuardUntil) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }, true);
 
     // Click sul numero: su mobile apre il numpad (non la tastiera di sistema)
     inlineInp.addEventListener("pointerdown", (e) => {
@@ -8737,15 +8759,32 @@
       applyP11019SplitFrom("impianto", num("qP11019Impianto"));
     });
 
-    // Click su schizzo IAS / Impianto → tastierino (come le altre portate)
+    // Tap su schizzo IAS / Impianto → numpad (resta aperto; valore = quello in scheda)
+    let __p11019EditOpenAt = 0;
     document.querySelectorAll(".p11019-edit[data-field]").forEach((g) => {
       const open = (e) => {
         e.preventDefault();
         e.stopPropagation();
+        if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
+        if (Date.now() - __p11019EditOpenAt < 400) return;
+        __p11019EditOpenAt = Date.now();
         const field = g.getAttribute("data-field");
-        if (field) startFieldInlineEdit(field, "p11019");
+        if (!field) return;
+        sanitizeP11019SplitMem();
+        paintP11019SplitUI();
+        __flowEditGuardUntil = Date.now() + 500;
+        startFieldInlineEdit(field, "p11019");
       };
-      g.addEventListener("click", open);
+      g.addEventListener("pointerup", open);
+      g.addEventListener("click", (e) => {
+        // Evita doppio open: su touch basta pointerup
+        if (isTouchUi()) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        open(e);
+      });
       g.addEventListener("keydown", (e) => {
         if (e.key === "Enter" || e.key === " ") open(e);
       });
@@ -8754,14 +8793,33 @@
     ["qP11019Ias", "qP11019Impianto"].forEach((id) => {
       const node = el(id);
       if (!node) return;
-      node.addEventListener("focus", () => {
-        try { node.select(); } catch (_) { /* ignore */ }
-      });
-      node.addEventListener("pointerdown", (e) => {
+      const openField = (e) => {
         if (!isTouchUi()) return;
         e.preventDefault();
+        e.stopPropagation();
+        if (Date.now() - __p11019EditOpenAt < 400) return;
+        __p11019EditOpenAt = Date.now();
+        sanitizeP11019SplitMem();
+        paintP11019SplitUI();
+        __flowEditGuardUntil = Date.now() + 500;
         startFieldInlineEdit(id, "p11019");
-      }, { passive: false });
+      };
+      node.addEventListener("focus", (e) => {
+        if (isTouchUi()) {
+          e.preventDefault();
+          try { node.blur(); } catch (_) { /* ignore */ }
+          openField(e);
+          return;
+        }
+        try { node.select(); } catch (_) { /* ignore */ }
+      });
+      node.addEventListener("pointerup", openField, { passive: false });
+      node.addEventListener("click", (e) => {
+        if (isTouchUi()) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      });
     });
 
     el("qIn").addEventListener("input", () => {
@@ -9201,12 +9259,12 @@
           if (qm > 0.05) rememberFlowSetpoint("qMandata", qm);
           const qp19 = Math.max(0, num("qP11019") || __flowSetpoint.qP11019 || 0);
           if (qp19 > 0.05 && qp19 <= 500) rememberFlowSetpoint("qP11019", qp19);
-          let ias = Math.max(0, num("qP11019Ias") || 0);
+          let ias = Math.max(0, num("qP11019Ias") || Number(data.qP11019Ias) || 0);
           if (ias > 500) ias = 0;
-          if (ias > 0.05) rememberFlowSetpoint("qP11019Ias", ias);
-          else rememberFlowSetpoint("qP11019Ias", 0, { allowZero: true });
-          const imp = round1(Math.max(0, qp19 - ias));
-          if (imp > 0.05) rememberFlowSetpoint("qP11019Impianto", imp);
+          rememberFlowSetpoint("qP11019Ias", ias, { allowZero: true });
+          const imp = round1(Math.max(0, (qp19 > 0.05 ? qp19 : 0) - ias));
+          rememberFlowSetpoint("qP11019Impianto", imp, { allowZero: true });
+          sanitizeP11019SplitMem();
         }
         if (data.carbWash && typeof data.carbWash === "object") {
           __carbWash = JSON.parse(JSON.stringify(data.carbWash));
@@ -9483,7 +9541,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt75", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt76", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
