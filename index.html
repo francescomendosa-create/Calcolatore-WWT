@@ -3032,7 +3032,9 @@
     let __carbWash = null;       // filtri carbone A/B: remain + phase ctrl/lav
     const UF_VALVE_Q100 = 60;    // m³/h a valvola 100% (apertura di progetto per linea)
     const __ufValvePct = { A: 0, B: 0, C: 0, D: 0 };
-    const __ufMeas = { A: 0, B: 0, C: 0, D: 0 }; // portata misurata (non il setpoint)
+    const __ufMeas = { A: 0, B: 0, C: 0, D: 0 }; // portata misurata (display lineare)
+    const __ufValveTarget = { A: 0, B: 0, C: 0, D: 0 };
+    const __ufMeasTarget = { A: 0, B: 0, C: 0, D: 0 };
     const __ufWobble = {
       A: { phase: Math.random() * Math.PI * 2, bias: 0 },
       B: { phase: Math.random() * Math.PI * 2, bias: 0 },
@@ -3043,6 +3045,12 @@
     const OSM_VALVE_Q100 = 80;   // m³/h a valvola 100% per linea osmosi
     const __osmValvePct = { A: 0, B: 0, C: 0 };
     const __osmMeas = { A: 0, B: 0, C: 0 };
+    const __osmValveTarget = { A: 0, B: 0, C: 0 };
+    const __osmMeasTarget = { A: 0, B: 0, C: 0 };
+    const VALVE_SMOOTH_PCT_S = 70;   // %/s lineare valvola
+    const MEAS_SMOOTH_Q_S = 55;      // m³/h al secondo lineare portata
+    let __valveSmoothRaf = 0;
+    let __valveSmoothLast = 0;
     const __osmWobble = {
       A: { phase: Math.random() * Math.PI * 2, bias: 0 },
       B: { phase: Math.random() * Math.PI * 2, bias: 0 },
@@ -3282,10 +3290,14 @@
       UF_LINES.forEach((L) => {
         __ufMeas[L] = 0;
         __ufValvePct[L] = 0;
+        __ufMeasTarget[L] = 0;
+        __ufValveTarget[L] = 0;
       });
       OSM_LINES.forEach((L) => {
         __osmMeas[L] = 0;
         __osmValvePct[L] = 0;
+        __osmMeasTarget[L] = 0;
+        __osmValveTarget[L] = 0;
       });
       try { paintUfValveUI(); } catch (_) { /* ignore */ }
       try { paintOsmValveUI(); } catch (_) { /* ignore */ }
@@ -5062,25 +5074,28 @@
       return !!__simPlaying;
     }
 
-    const PUMP_REV_MS = 900;        // default
-    const PUMP_REV_MS_MIN = 200;    // tetto velocità (portata molto alta)
-    const PUMP_REV_MS_MAX = 1600;   // portata bassa → giro più lento
-    const PUMP_Q_SCALE = 260;       // scala: più alzi Q, più accelera (senza saturare presto)
+    const PUMP_REV_MS = 700;        // default
+    const PUMP_REV_MS_MIN = 90;     // massima frequenza/portata → giro molto più rapido
+    const PUMP_REV_MS_MAX = 1750;   // portata bassa → giro lento (leggibile)
+    const PUMP_Q_REF = 500;         // ≈ Q piena scala (~50 Hz) → raggiunge il tetto velocità
     const PUMP_REST_EPS = 1.2;
+    const PUMP_COAST_TAU = 780;     // ms: costante di decelerazione in arresto (visibile)
+    const PUMP_COAST_STOP = 0.11;   // deg/ms sotto cui si ferma (~3.3 s/giro)
     let __pumpSpinRaf = 0;
     const __pumpSpin = Object.create(null);
     function pumpReduceMotion() {
       try { return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); } catch (_) { return false; }
     }
-    /** ms/giro dalla portata viva: più Q → più veloce, anche oltre i set attuali. */
+    /** ms/giro da portata/frequenza: accelera fino al massimo senza saturare a metà scala. */
     function pumpRevMsForQ(q) {
       const qq = Math.max(0, Number(q) || 0);
       if (qq < 0.5) return PUMP_REV_MS_MAX;
-      const rev = PUMP_REV_MS_MIN + (PUMP_REV_MS_MAX - PUMP_REV_MS_MIN) / (1 + qq / PUMP_Q_SCALE);
-      return Math.round(Math.max(PUMP_REV_MS_MIN, rev));
+      const t = Math.min(1, qq / PUMP_Q_REF);
+      const e = Math.pow(t, 0.85); // continua a guadagnare giri man mano che sale Q/Hz
+      return Math.round(PUMP_REV_MS_MAX - e * (PUMP_REV_MS_MAX - PUMP_REV_MS_MIN));
     }
     function pumpSpinSt(id) {
-      if (!__pumpSpin[id]) __pumpSpin[id] = { ang: 0, last: 0, coast: false, want: false, disabled: false, arrowId: "", labelId: "", revMs: PUMP_REV_MS };
+      if (!__pumpSpin[id]) __pumpSpin[id] = { ang: 0, last: 0, coast: false, want: false, disabled: false, arrowId: "", labelId: "", revMs: PUMP_REV_MS, omega: 0 };
       return __pumpSpin[id];
     }
     function applyPumpRotorAng(rotor, ang) {
@@ -5123,17 +5138,22 @@
           if (!st.last) st.last = ts;
           const dt = Math.min(80, Math.max(0, ts - st.last));
           st.last = ts;
-          st.ang = (st.ang + (360 * dt) / revMs) % 360;
+          st.omega = 360 / revMs;
+          st.ang = (st.ang + st.omega * dt) % 360;
           applyPumpRotorAng(rotor, st.ang);
           need = true;
         } else if (st.coast) {
           if (!st.last) st.last = ts;
           const dt = Math.min(80, Math.max(0, ts - st.last));
           st.last = ts;
-          st.ang += (360 * dt) / Math.max(revMs, PUMP_REV_MS);
-          if (st.ang >= 360 - PUMP_REST_EPS) {
+          if (!(st.omega > 0)) st.omega = 360 / Math.max(revMs, PUMP_REV_MS);
+          // Rallentamento progressivo visibile (non un solo scatto a fine giro).
+          st.omega *= Math.exp(-dt / PUMP_COAST_TAU);
+          st.ang = (st.ang + st.omega * dt) % 360;
+          if (st.omega < PUMP_COAST_STOP) {
             st.ang = 0;
             st.coast = false;
+            st.omega = 0;
             st.last = 0;
             applyPumpRotorAng(rotor, 0);
             paintPumpShell(id, st.arrowId, st.labelId, false, st.disabled);
@@ -5143,6 +5163,7 @@
           }
         } else {
           st.ang = 0;
+          st.omega = 0;
           st.last = 0;
           applyPumpRotorAng(rotor, 0);
         }
@@ -5154,12 +5175,15 @@
       st.arrowId = arrowId || "";
       st.labelId = labelId || "";
       st.disabled = !!disabled;
-      st.revMs = pumpRevMsForQ(qFlow);
+      const prevWant = !!st.want;
+      const prevRev = Math.max(PUMP_REV_MS_MIN, Number(st.revMs) || PUMP_REV_MS);
       const want = !!(running && !disabled);
+      if (want) st.revMs = pumpRevMsForQ(qFlow);
       st.want = want;
       if (pumpReduceMotion()) {
         st.ang = 0;
         st.coast = false;
+        st.omega = 0;
         st.last = 0;
         const rotor = paintPumpShell(bodyId, arrowId, labelId, want, !!disabled);
         applyPumpRotorAng(rotor, 0);
@@ -5167,11 +5191,18 @@
       }
       if (want) {
         st.coast = false;
-      } else if ((st.ang % 360) > PUMP_REST_EPS) {
+        st.omega = 360 / Math.max(PUMP_REV_MS_MIN, Number(st.revMs) || PUMP_REV_MS);
+      } else if (prevWant && ((st.ang % 360) > PUMP_REST_EPS || (st.omega || 0) > PUMP_COAST_STOP)) {
+        // Entra in coast con la velocità attuale (prima che Q vada a 0).
         st.coast = true;
+        st.omega = 360 / prevRev;
+        st.revMs = prevRev;
+      } else if (st.coast) {
+        /* lascia decelerare */
       } else {
         st.ang = 0;
         st.coast = false;
+        st.omega = 0;
         st.last = 0;
       }
       const visRun = want || st.coast;
@@ -7630,89 +7661,145 @@
      * - valvola apre/chiude per portare la misura al setpoint
      * - vicino al set: micro-oscillazioni ±~1 e lievi correzioni valvola
      */
+
+    function approachLinear(cur, target, ratePerSec, dtSec) {
+      const c0 = Number(cur) || 0;
+      const t0 = Number(target) || 0;
+      const d = t0 - c0;
+      if (Math.abs(d) < 1e-4) return t0;
+      const step = Math.max(0, Number(ratePerSec) || 0) * Math.max(0, dtSec);
+      if (step <= 0) return c0;
+      if (Math.abs(d) <= step) return t0;
+      return c0 + Math.sign(d) * step;
+    }
+
+    function kickValveSmoothLoop() {
+      if (__valveSmoothRaf) return;
+      __valveSmoothLast = 0;
+      __valveSmoothRaf = requestAnimationFrame(tickValveSmooth);
+    }
+
+    function tickValveSmooth(ts) {
+      if (!__valveSmoothLast) __valveSmoothLast = ts;
+      const dtSec = Math.min(0.05, Math.max(0, (ts - __valveSmoothLast) / 1000));
+      __valveSmoothLast = ts;
+      let need = false;
+
+      UF_LINES.forEach((L) => {
+        const v0 = Number(__ufValvePct[L]) || 0;
+        const m0 = Number(__ufMeas[L]) || 0;
+        const v1 = approachLinear(v0, __ufValveTarget[L], VALVE_SMOOTH_PCT_S, dtSec);
+        const m1 = approachLinear(m0, __ufMeasTarget[L], MEAS_SMOOTH_Q_S, dtSec);
+        __ufValvePct[L] = v1;
+        __ufMeas[L] = m1;
+        if (Math.abs(v1 - (Number(__ufValveTarget[L]) || 0)) > 0.08) need = true;
+        if (Math.abs(m1 - (Number(__ufMeasTarget[L]) || 0)) > 0.05) need = true;
+        const node = el("svgQUf" + L);
+        if (node) node.textContent = round1(m1).toFixed(1);
+      });
+      const svgUfTot = el("svgQUf");
+      if (svgUfTot) {
+        const tot = round1(UF_LINES.reduce((s, L) => s + (Number(__ufMeas[L]) || 0), 0));
+        svgUfTot.textContent = tot.toFixed(1);
+      }
+
+      let osmTotLive = 0;
+      OSM_LINES.forEach((L) => {
+        const v0 = Number(__osmValvePct[L]) || 0;
+        const m0 = Number(__osmMeas[L]) || 0;
+        const v1 = approachLinear(v0, __osmValveTarget[L], VALVE_SMOOTH_PCT_S, dtSec);
+        const m1 = approachLinear(m0, __osmMeasTarget[L], MEAS_SMOOTH_Q_S, dtSec);
+        __osmValvePct[L] = v1;
+        __osmMeas[L] = m1;
+        if (Math.abs(v1 - (Number(__osmValveTarget[L]) || 0)) > 0.08) need = true;
+        if (Math.abs(m1 - (Number(__osmMeasTarget[L]) || 0)) > 0.05) need = true;
+        const qLive = (plantIsStarted() && osmLineRunning(L)) ? Math.max(0, m1) : 0;
+        osmTotLive += qLive + (qLive > 0.05 ? 15 : 0);
+        const node = el({ A: "svgQOsmA", B: "svgQOsmB", C: "svgQOsmC" }[L]);
+        if (node) node.textContent = round1(qLive).toFixed(1);
+      });
+      const svgOsmTot = el("svgQOsmTotale");
+      if (svgOsmTot) svgOsmTot.textContent = round1(osmTotLive).toFixed(1);
+
+      try { paintUfValveUI(); } catch (_) { /* ignore */ }
+      try { paintOsmValveUI(); } catch (_) { /* ignore */ }
+
+      if (need || plantIsStarted()) {
+        __valveSmoothRaf = requestAnimationFrame(tickValveSmooth);
+      } else {
+        __valveSmoothRaf = 0;
+        __valveSmoothLast = 0;
+      }
+    }
+
     function tickUfRegulation(dtMin) {
       const total = Math.max(0.05, Number(dtMin) || 1);
       const n = Math.max(1, Math.min(10, Math.round(total)));
       const dt = total / n;
       for (let i = 0; i < n; i++) tickUfRegulationOnce(dt);
-      paintUfValveUI();
+      kickValveSmoothLoop();
     }
 
     function tickUfRegulationOnce(dt) {
-      const aV = 1 - Math.exp(-dt / 2.2);   // valvola più lenta
-      const aQ = 1 - Math.exp(-dt / 1.1);   // portata un po’ più reattiva
       UF_LINES.forEach((L) => {
         const enabled = ufLineEnabled(L);
         const washing = ufLineInWash(L);
-        const sp = Math.max(0, procSetpointOf("qUf" + L));
+        const sp = Math.max(0, procSetpointOf('qUf' + L));
         const run = plantIsStarted() && enabled && !washing && sp > 0.05
           && p11019Allowed() && __allowUfByTk11021;
-
-        let valve = Number(__ufValvePct[L]) || 0;
-        let meas = Number(__ufMeas[L]) || 0;
         const w = __ufWobble[L];
+        const measNow = Number(__ufMeas[L]) || 0;
 
         if (!run) {
-          valve = Math.max(0, valve + (0 - valve) * Math.min(1, aV * 1.6));
-          meas = Math.max(0, meas + (0 - meas) * Math.min(1, aQ * 1.6));
-          __ufValvePct[L] = round1(valve);
-          __ufMeas[L] = round1(meas);
+          __ufValveTarget[L] = 0;
+          __ufMeasTarget[L] = 0;
           return;
         }
 
         const share = ufLineShare(L);
-        // In marcia: valvola MAI a 0. Se manca acqua → 100% (cerca portata); altrimenti regola sul set.
         const starved = share + 0.35 < sp || share < 0.05;
-
         let valveTarget;
         if (starved) {
           valveTarget = 100;
         } else {
           const ff = (sp / UF_VALVE_Q100) * 100;
-          const err = sp - meas;
+          const err = sp - measNow;
           valveTarget = ff + err * 14;
-          if (meas + 0.4 < sp) valveTarget = Math.max(valveTarget, ff + 8);
+          if (measNow + 0.4 < sp) valveTarget = Math.max(valveTarget, ff + 8);
           valveTarget = Math.max(10, Math.min(100, valveTarget));
         }
 
-        valve = valve + (valveTarget - valve) * aV;
-
-        const qHyd = Math.min(share, UF_VALVE_Q100 * (Math.max(0, valve) / 100));
-
-        const regulating = !starved && qHyd > 0.05 && Math.abs(meas - sp) < 3.5;
+        // Target portata dal target valvola (non dalla % ancora in rampa), così la Q sale subito in lineare.
+        const qHyd = Math.min(share, UF_VALVE_Q100 * (Math.max(0, valveTarget) / 100));
         let qAim = qHyd;
+        const regulating = !starved && qHyd > 0.05 && Math.abs(measNow - sp) < 3.5;
         if (regulating) {
-          w.phase += dt * (0.42 + Math.random() * 0.35);
-          w.bias += (Math.random() - 0.5) * 0.55 * dt;
-          w.bias = Math.max(-1.2, Math.min(1.2, w.bias));
-          const osc = Math.sin(w.phase) * 0.85
-            + Math.sin(w.phase * 0.37 + 0.9) * 0.4;
-          if (Math.random() < 0.08 * dt) w.bias *= 0.35;
-          const wob = osc + w.bias;
-          qAim = Math.max(0, Math.min(share, sp + wob));
-          qAim = Math.min(qAim, qHyd + 0.8);
-          qAim = Math.max(qAim, Math.min(qHyd, sp) - 0.8);
+          w.phase += dt * (0.35 + Math.random() * 0.2);
+          w.bias += (Math.random() - 0.5) * 0.25 * dt;
+          w.bias = Math.max(-0.9, Math.min(0.9, w.bias));
+          const osc = Math.sin(w.phase) * 0.55 + Math.sin(w.phase * 0.37 + 0.9) * 0.25;
+          if (Math.random() < 0.05 * dt) w.bias *= 0.5;
+          qAim = Math.max(0, Math.min(share, sp + osc + w.bias));
+          qAim = Math.min(qAim, qHyd + 0.5);
+          qAim = Math.max(qAim, Math.min(qHyd, sp) - 0.5);
         }
 
-        meas = meas + (qAim - meas) * aQ;
-        meas = Math.max(0, Math.min(Math.max(share, 0), meas));
-
-        __ufValvePct[L] = round1(Math.max(0, Math.min(100, valve)));
-        __ufMeas[L] = round1(meas);
+        __ufValveTarget[L] = Math.max(0, Math.min(100, valveTarget));
+        __ufMeasTarget[L] = Math.max(0, Math.min(Math.max(share, 0), qAim));
       });
     }
 
     function paintUfValveUI() {
-      const trackInnerW = 56; // track 58 − 1px per lato
+      const trackInnerW = 56;
       UF_LINES.forEach((L) => {
         const pct = Math.max(0, Math.min(100, Number(__ufValvePct[L]) || 0));
-        const fill = el("svgUfValve" + L);
-        const lab = el("svgUfValvePct" + L);
+        const fill = el('svgUfValve' + L);
+        const lab = el('svgUfValvePct' + L);
         if (fill) {
-          fill.setAttribute("width", String(Math.max(0, trackInnerW * (pct / 100))));
-          fill.classList.toggle("is-full", pct >= 99.5);
+          fill.setAttribute('width', String(Math.max(0, trackInnerW * (pct / 100))));
+          fill.classList.toggle('is-full', pct >= 99.5);
         }
-        if (lab) lab.textContent = Math.round(pct) + "%";
+        if (lab) lab.textContent = Math.round(pct) + '%';
       });
     }
 
@@ -7761,75 +7848,59 @@
       return round1(inlet * (spMap[L] / sumSp));
     }
 
-    /** Regolazione osmosi: come UF — misura segue valvola, set resta, oscillazione ±~1. */
+    /** Regolazione osmosi: target + interpolazione lineare (niente scatti). */
     function tickOsmRegulation(dtMin) {
       const total = Math.max(0.05, Number(dtMin) || 1);
       const n = Math.max(1, Math.min(10, Math.round(total)));
       const dt = total / n;
       for (let i = 0; i < n; i++) tickOsmRegulationOnce(dt);
-      paintOsmValveUI();
+      kickValveSmoothLoop();
     }
 
     function tickOsmRegulationOnce(dt) {
-      const aV = 1 - Math.exp(-dt / 2.2);
-      const aQ = 1 - Math.exp(-dt / 1.1);
       OSM_LINES.forEach((L) => {
         const enabled = osmLineEnabled(L);
         const running = osmLineRunning(L);
         const sp = Math.max(0, procSetpointOf("qOsmosi" + L));
         const run = plantIsStarted() && enabled && running && sp > 0.05;
-
-        let valve = Number(__osmValvePct[L]) || 0;
-        let meas = Number(__osmMeas[L]) || 0;
         const w = __osmWobble[L];
+        const measNow = Number(__osmMeas[L]) || 0;
 
         if (!run) {
-          valve = Math.max(0, valve + (0 - valve) * Math.min(1, aV * 1.6));
-          meas = Math.max(0, meas + (0 - meas) * Math.min(1, aQ * 1.6));
-          __osmValvePct[L] = round1(valve);
-          __osmMeas[L] = round1(meas);
+          __osmValveTarget[L] = 0;
+          __osmMeasTarget[L] = 0;
           return;
         }
 
         const share = osmLineShare(L);
-        // Pompa in marcia ⇒ valvola aperta. Manca acqua → 100%; c’è acqua → regola sul set.
-        // Mai valvola a 0 con pompa ON (prima: share≈0 chiudeva la valvola → assurdo).
         const starved = share + 0.35 < sp || share < 0.05;
-
         let valveTarget;
         if (starved) {
           valveTarget = 100;
         } else {
           const ff = (sp / OSM_VALVE_Q100) * 100;
-          const err = sp - meas;
+          const err = sp - measNow;
           valveTarget = ff + err * 14;
-          if (meas + 0.4 < sp) valveTarget = Math.max(valveTarget, ff + 8);
+          if (measNow + 0.4 < sp) valveTarget = Math.max(valveTarget, ff + 8);
           valveTarget = Math.max(10, Math.min(100, valveTarget));
         }
 
-        valve = valve + (valveTarget - valve) * aV;
-        const qHyd = Math.min(share, OSM_VALVE_Q100 * (Math.max(0, valve) / 100));
-
-        const regulating = !starved && qHyd > 0.05 && Math.abs(meas - sp) < 3.5;
+        const qHyd = Math.min(share, OSM_VALVE_Q100 * (Math.max(0, valveTarget) / 100));
         let qAim = qHyd;
+        const regulating = !starved && qHyd > 0.05 && Math.abs(measNow - sp) < 3.5;
         if (regulating) {
-          w.phase += dt * (0.42 + Math.random() * 0.35);
-          w.bias += (Math.random() - 0.5) * 0.55 * dt;
-          w.bias = Math.max(-1.2, Math.min(1.2, w.bias));
-          const osc = Math.sin(w.phase) * 0.85
-            + Math.sin(w.phase * 0.37 + 0.9) * 0.4;
-          if (Math.random() < 0.08 * dt) w.bias *= 0.35;
-          const wob = osc + w.bias;
-          qAim = Math.max(0, Math.min(share, sp + wob));
-          qAim = Math.min(qAim, qHyd + 0.8);
-          qAim = Math.max(qAim, Math.min(qHyd, sp) - 0.8);
+          w.phase += dt * (0.35 + Math.random() * 0.2);
+          w.bias += (Math.random() - 0.5) * 0.25 * dt;
+          w.bias = Math.max(-0.9, Math.min(0.9, w.bias));
+          const osc = Math.sin(w.phase) * 0.55 + Math.sin(w.phase * 0.37 + 0.9) * 0.25;
+          if (Math.random() < 0.05 * dt) w.bias *= 0.5;
+          qAim = Math.max(0, Math.min(share, sp + osc + w.bias));
+          qAim = Math.min(qAim, qHyd + 0.5);
+          qAim = Math.max(qAim, Math.min(qHyd, sp) - 0.5);
         }
 
-        meas = meas + (qAim - meas) * aQ;
-        meas = Math.max(0, Math.min(Math.max(share, 0), meas));
-
-        __osmValvePct[L] = round1(Math.max(0, Math.min(100, valve)));
-        __osmMeas[L] = round1(meas);
+        __osmValveTarget[L] = Math.max(0, Math.min(100, valveTarget));
+        __osmMeasTarget[L] = Math.max(0, Math.min(Math.max(share, 0), qAim));
       });
     }
 
@@ -10095,7 +10166,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt98", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt100", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
