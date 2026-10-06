@@ -263,6 +263,8 @@
       border: 1px solid var(--line);
       border-radius: 8px;
     }
+    .p11019-split .p11019-edit { cursor: pointer; }
+    .p11019-split .p11019-edit:hover rect { filter: brightness(1.15); }
     .tank-body { stroke: #64748b; stroke-width: 1.5; }
     .proc-label {
       display: flex;
@@ -2202,10 +2204,10 @@
       <label><strong>Set portata pompe P11019 (m³/h)</strong>
         <input type="number" id="qP11019" min="0" max="500" step="0.1" value="0" inputmode="decimal" />
       </label>
-      <p class="mini">Il set pompa resta invariato. La portata si riparte sotto tra Impianto (carboni → UF) e IAS.</p>
+      <p class="mini">Il set pompa resta invariato. Puoi variare <strong>IAS</strong> o <strong>Impianto</strong>: l’altro si ricalcola come differenza (pompe = Impianto + IAS).</p>
 
       <svg class="p11019-split" viewBox="0 0 400 150" aria-label="Schizzo split Impianto / IAS">
-        <text x="200" y="16" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="700">P11019 → destinazioni</text>
+        <text x="200" y="16" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="700">P11019 → destinazioni · tocca per modificare</text>
         <!-- pompa -->
         <circle cx="48" cy="78" r="16" fill="#14532d" stroke="#4ade80" stroke-width="2" />
         <path d="M54,70 L38,78 L54,86 Z" fill="#bbf7d0" />
@@ -2214,19 +2216,23 @@
         <!-- tronco -->
         <path d="M64 78 H160" stroke="#38bdf8" stroke-width="3" fill="none" stroke-linecap="round" />
         <circle cx="160" cy="78" r="4" fill="#38bdf8" />
-        <!-- verso impianto / carboni -->
+        <!-- verso impianto / carboni — click → tastiera -->
         <path d="M160 78 H280" stroke="#38bdf8" stroke-width="3" fill="none" stroke-linecap="round" />
         <path d="M280 78 L268 72 M280 78 L268 84" stroke="#38bdf8" stroke-width="2" fill="none" />
-        <rect x="286" y="58" width="100" height="40" rx="6" fill="#0c4a6e" stroke="#7dd3fc" />
-        <text x="336" y="74" text-anchor="middle" fill="#bae6fd" font-size="9" font-weight="700">IMPIANTO</text>
-        <text x="336" y="88" text-anchor="middle" fill="#e0f2fe" font-size="9">Carboni → UF</text>
-        <text id="svgPopP11019Imp" x="336" y="48" text-anchor="middle" fill="#7dd3fc" font-size="12" font-weight="800">0.0</text>
-        <!-- verso IAS -->
+        <g class="p11019-edit" data-field="qP11019Impianto" role="button" tabindex="0" aria-label="Modifica portata Impianto">
+          <rect x="286" y="40" width="100" height="58" rx="6" fill="#0c4a6e" stroke="#7dd3fc" stroke-width="1.5" />
+          <text x="336" y="56" text-anchor="middle" fill="#7dd3fc" font-size="12" font-weight="800" id="svgPopP11019Imp">0.0</text>
+          <text x="336" y="72" text-anchor="middle" fill="#bae6fd" font-size="9" font-weight="700">IMPIANTO</text>
+          <text x="336" y="86" text-anchor="middle" fill="#e0f2fe" font-size="8">Carboni → UF</text>
+        </g>
+        <!-- verso IAS — click → tastiera -->
         <path d="M160 78 V28 H240" stroke="#fbbf24" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" />
         <path d="M240 28 L228 22 M240 28 L228 34" stroke="#fbbf24" stroke-width="2" fill="none" />
-        <rect x="246" y="10" width="70" height="36" rx="6" fill="#422006" stroke="#fbbf24" />
-        <text x="281" y="26" text-anchor="middle" fill="#fde68a" font-size="10" font-weight="800">IAS</text>
-        <text id="svgPopP11019Ias" x="281" y="40" text-anchor="middle" fill="#fef3c7" font-size="11" font-weight="700">0.0</text>
+        <g class="p11019-edit" data-field="qP11019Ias" role="button" tabindex="0" aria-label="Modifica portata IAS">
+          <rect x="246" y="4" width="70" height="48" rx="6" fill="#422006" stroke="#fbbf24" stroke-width="1.5" />
+          <text x="281" y="22" text-anchor="middle" fill="#fde68a" font-size="10" font-weight="800">IAS</text>
+          <text id="svgPopP11019Ias" x="281" y="40" text-anchor="middle" fill="#fef3c7" font-size="12" font-weight="700">0.0</text>
+        </g>
       </svg>
 
       <div class="row">
@@ -2234,10 +2240,10 @@
           <input type="number" id="qP11019Ias" min="0" max="500" step="0.1" value="0" inputmode="decimal" />
         </label>
         <label><strong>Verso Impianto / carboni (m³/h)</strong>
-          <input type="number" id="qP11019Impianto" min="0" max="500" step="0.1" value="0" readonly />
+          <input type="number" id="qP11019Impianto" min="0" max="500" step="0.1" value="0" inputmode="decimal" />
         </label>
       </div>
-      <p class="mini" id="p11019SplitHint">Normale: IAS = 0 → tutta la portata va in Impianto. Aumentando IAS si sottrae dall’Impianto; il set pompe non cambia. In overview vedi solo il residuo Impianto.</p>
+      <p class="mini" id="p11019SplitHint">Tocca IAS o Impianto (schizzo o campi): la differenza chiude sul ramo opposto. Set pompe invariato. Overview = solo Impianto.</p>
       <div class="settings-block show">
         <h4>TK 11007 — consenso (da PROCESSO)</h4>
         <div class="row">
@@ -3333,8 +3339,28 @@
 
     /** Impianto da setpoint (per auto UF / domanda valle). */
     function qP11019ImpiantoSetpoint() {
-      if (!p11019Allowed()) return 0;
       return round1(Math.max(0, qP11019Setpoint() - qP11019IasSetpoint()));
+    }
+
+    /**
+     * Split bidirezionale: set pompe fisso.
+     * which = "ias" → Impianto = pompe − IAS
+     * which = "impianto" → IAS = pompe − Impianto
+     */
+    function applyP11019SplitFrom(which, raw) {
+      const pump = Math.max(0, qP11019Setpoint());
+      let v = Math.max(0, round1(Number(raw) || 0));
+      if (v > pump + 0.05) v = pump;
+      if (which === "impianto") {
+        setVal("qP11019Impianto", v, { force: true });
+        setVal("qP11019Ias", round1(pump - v), { force: !isEditing("qP11019Ias") });
+      } else {
+        setVal("qP11019Ias", v, { force: true });
+        setVal("qP11019Impianto", round1(pump - v), { force: !isEditing("qP11019Impianto") });
+      }
+      paintP11019SplitUI();
+      try { syncDownstreamPermeate(null, "p11019"); } catch (_) { /* ignore */ }
+      try { schedulePersist(); } catch (_) { /* ignore */ }
     }
 
     function paintP11019SplitUI() {
@@ -3351,8 +3377,12 @@
           iasNode.value = String(iasSp);
         }
       }
-      const impNode = el("qP11019Impianto");
-      if (impNode) impNode.value = String(impSp);
+      if (!isEditing("qP11019Impianto")) {
+        const impNode = el("qP11019Impianto");
+        if (impNode && Math.abs((parseFloat(impNode.value) || 0) - impSp) > 0.05) {
+          impNode.value = String(impSp);
+        }
+      }
 
       const popPump = el("svgPopP11019Pump");
       if (popPump) popPump.textContent = pumpL.toFixed(1);
@@ -3368,7 +3398,7 @@
       if (hint) {
         hint.textContent = p11019Allowed()
           ? `Pompe ${pumpL.toFixed(1)} = Impianto ${impL.toFixed(1)} + IAS ${iasL.toFixed(1)} m³/h · overview = solo Impianto`
-          : `P11019 FERME (TK 11007) · set pompe ${pumpSp.toFixed(1)} · IAS ${iasSp.toFixed(1)} · Impianto residuo ${impSp.toFixed(1)}`;
+          : `P11019 FERME (TK 11007) · set pompe ${pumpSp.toFixed(1)} · IAS ${iasSp.toFixed(1)} · Impianto ${impSp.toFixed(1)}`;
         hint.style.color = p11019Allowed() ? "var(--ok)" : "var(--danger)";
       }
     }
@@ -6212,6 +6242,7 @@
       qRecycle: "Riciclo 11014 A/B",
       qP11019: "P11019 set pompe",
       qP11019Ias: "P11019 verso IAS",
+      qP11019Impianto: "P11019 verso Impianto",
       qUfTotale: "Totale UF",
       qUfA: "UF linea A",
       qUfB: "UF linea B",
@@ -6395,6 +6426,15 @@
           instant: true,
           setpoint: Math.max(0, v),
         });
+        applyP11019SplitFrom("ias", Math.min(qP11019IasSetpoint(), Math.max(0, v)));
+        return;
+      }
+      if (field === "qP11019Ias") {
+        applyP11019SplitFrom("ias", v);
+        return;
+      }
+      if (field === "qP11019Impianto") {
+        applyP11019SplitFrom("impianto", v);
         return;
       }
       if (field === "qMandata") {
@@ -6492,6 +6532,15 @@
           instant: true,
           setpoint: Math.max(0, v),
         });
+        applyP11019SplitFrom("ias", Math.min(qP11019IasSetpoint(), Math.max(0, v)));
+        return;
+      }
+      if (field === "qP11019Ias") {
+        applyP11019SplitFrom("ias", v);
+        return;
+      }
+      if (field === "qP11019Impianto") {
+        applyP11019SplitFrom("impianto", v);
         return;
       }
       if (field === "qMandata") {
@@ -6502,6 +6551,11 @@
       if (FLOW_IDS.includes(field)) rememberFlowSetpoint(field, Math.max(0, v));
       setVal(field, v, { force: true });
       applyBalance(source);
+    }
+
+    function startFieldInlineEdit(field, source) {
+      const fake = { dataset: { field: String(field || ""), source: String(source || "p11019") } };
+      startInlineEdit(fake);
     }
 
     function startInlineEdit(flowGroup) {
@@ -6518,6 +6572,10 @@
           catch (_) { val = Math.max(0, lastQPump); }
           if (val > 0.05) rememberFlowSetpoint("qPump", val);
         }
+      } else if (field === "qP11019Ias") {
+        val = qP11019IasSetpoint();
+      } else if (field === "qP11019Impianto") {
+        val = qP11019ImpiantoSetpoint();
       } else {
         val = num(field);
       }
@@ -6696,15 +6754,35 @@
     });
     el("qP11019Ias")?.addEventListener("input", () => {
       if (numOrNull("qP11019Ias") === null) return;
-      const pump = qP11019Setpoint();
-      let ias = Math.max(0, num("qP11019Ias"));
-      if (ias > pump + 0.05) {
-        ias = pump;
-        setVal("qP11019Ias", ias, { force: true });
-      }
-      paintP11019SplitUI();
-      try { syncDownstreamPermeate(null, "p11019"); } catch (_) { /* ignore */ }
-      schedulePersist();
+      applyP11019SplitFrom("ias", num("qP11019Ias"));
+    });
+    el("qP11019Impianto")?.addEventListener("input", () => {
+      if (numOrNull("qP11019Impianto") === null) return;
+      applyP11019SplitFrom("impianto", num("qP11019Impianto"));
+    });
+
+    // Click su schizzo IAS / Impianto → tastierino (come le altre portate)
+    document.querySelectorAll(".p11019-edit[data-field]").forEach((g) => {
+      const open = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const field = g.getAttribute("data-field");
+        if (field) startFieldInlineEdit(field, "p11019");
+      };
+      g.addEventListener("click", open);
+      g.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") open(e);
+      });
+    });
+    // Su tablet: anche i campi numerici aprono il tastierino in-app
+    ["qP11019Ias", "qP11019Impianto"].forEach((id) => {
+      const node = el(id);
+      if (!node) return;
+      node.addEventListener("pointerdown", (e) => {
+        if (!isTouchUi()) return;
+        e.preventDefault();
+        startFieldInlineEdit(id, "p11019");
+      }, { passive: false });
     });
 
     el("qIn").addEventListener("input", () => {
@@ -7261,7 +7339,7 @@
       }
     } catch (_) { /* ok */ }
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt36", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt37", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
