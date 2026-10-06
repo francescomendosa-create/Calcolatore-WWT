@@ -1668,6 +1668,30 @@
           </label>
         </div>
         <p class="mini" id="regTk10608GeomHint">TK-10608: V utile 400 m³ (passante).</p>
+
+        <h4 style="margin-top:14px">TK-11007 — permeato</h4>
+        <p class="mini">Volume utile <strong>30 m³</strong>. Il livello in processo usa questo V: %/min = (IN membrane − OUT P11019) ÷ V × 100 ÷ 60. La prova §5 stima un V di confronto; in simulazione vale il volume qui.</p>
+        <div class="row">
+          <label><strong>Volume utile TK-11007 (m³)</strong>
+            <input type="number" id="regTk11007Vutile" min="0.5" max="5000" step="0.1" value="30" inputmode="decimal" />
+          </label>
+          <label><strong>%/min ogni 100 m³/h netto</strong>
+            <input type="number" id="viewTk11007Rate100" readonly tabindex="-1" placeholder="—" />
+          </label>
+        </div>
+        <p class="mini" id="regTk11007GeomHint">TK-11007: V utile 30 m³.</p>
+
+        <h4 style="margin-top:14px">TK-11021 — permeato UF</h4>
+        <p class="mini">Volume utile <strong>30 m³</strong>. In processo: %/min = (IN UF − OUT osmosi) ÷ V × 100 ÷ 60, come gli altri serbatoi di REGOLAZIONI.</p>
+        <div class="row">
+          <label><strong>Volume utile TK-11021 (m³)</strong>
+            <input type="number" id="regTk11021Vutile" min="0.5" max="5000" step="0.1" value="30" inputmode="decimal" />
+          </label>
+          <label><strong>%/min ogni 100 m³/h netto</strong>
+            <input type="number" id="viewTk11021Rate100" readonly tabindex="-1" placeholder="—" />
+          </label>
+        </div>
+        <p class="mini" id="regTk11021GeomHint">TK-11021: V utile 30 m³.</p>
       </div>
 
       <!-- 1. Frequenze pompe A10620 -->
@@ -1791,7 +1815,7 @@
       <!-- 5. Calibrazione TK-11007 permeato (prova reale) -->
       <div class="settings-block show" id="regTk11007Calib">
         <h4>5 · TK-11007 permeato — prova riempimento / svuotamento</h4>
-        <p class="mini">Portate di prova e livelli osservati. L’ingresso membrane è quello a <strong>tutte ON</strong>; il simulatore applica il ciclo lavoro/pausa (default 7′+1′ → duty 7/8) per il netto medio. Il volume utile deriva dalla salita e scala i tassi a ogni altra portata.</p>
+        <p class="mini">Portate di prova e livelli osservati. L’ingresso membrane è quello a <strong>tutte ON</strong>; il simulatore applica il ciclo lavoro/pausa (default 7′+1′ → duty 7/8) per il netto medio. Il <strong>volume utile di processo</strong> è quello di §0 (default 30 m³); qui sotto resta il V stimato dalla salita, per confronto.</p>
         <div class="row">
           <label><strong>IN membrane tutte ON (m³/h)</strong>
             <input type="number" id="regTk11007QinRef" min="0" max="500" step="0.1" value="184" inputmode="decimal" />
@@ -1831,11 +1855,11 @@
           <label><strong></strong><span class="mini" style="display:block;margin-top:6px">Oltre al ciclo 7′ lavoro + 1′ pausa: minuti in cui <em>tutte</em> le membrane erano ferme insieme.</span></label>
         </div>
         <div class="row">
-          <label><strong>Volume utile TK-11007 (m³)</strong>
-            <input type="number" id="regTk11007Vutile" min="0.5" max="5000" step="0.1" value="15.4" inputmode="decimal" />
-          </label>
           <label><strong>V stimato da salita (m³)</strong>
             <input type="number" id="viewTk11007VfromUp" readonly tabindex="-1" placeholder="—" />
+          </label>
+          <label><strong>V processo in uso (da §0)</strong>
+            <input type="number" id="viewTk11007VinUse" readonly tabindex="-1" placeholder="—" />
           </label>
         </div>
         <p class="mini" id="regTk11007CalibHint">Calcolo da prova: tassi e volume utile.</p>
@@ -2056,7 +2080,7 @@
         <label><strong>Livello TK 11007 %</strong>
           <input type="number" id="livelloAttualeTk11007" min="0" max="100" step="0.1" value="91.0" inputmode="decimal" />
         </label>
-        <p class="mini">All’avvio / Reset: <strong>91%</strong>. Sale se permeato membrane &gt; P11019 (≈ ingresso); scende se membrane in pausa/blocco o P11019 preleva di più.</p>
+        <p class="mini">All’avvio / Reset: <strong>91%</strong>. Sale se permeato membrane &gt; P11019; scende se membrane in pausa/blocco o P11019 preleva di più. Volume utile da REGOLAZIONI: <strong>30 m³</strong> (modificabile).</p>
       </div>
       <div class="settings-block show">
         <h4>Gestione (da PROCESSO)</h4>
@@ -2135,7 +2159,7 @@
         <label><strong>Livello TK 11021 %</strong>
           <input type="number" id="livelloAttualeTk11021" min="0" max="100" step="0.1" value="91.0" inputmode="decimal" />
         </label>
-        <p class="mini">All’avvio / Reset: <strong>91%</strong>. Sale se UF &gt; osmosi (≈ ingresso); scende se UF ferma/blocco o osmosi preleva di più.</p>
+        <p class="mini">All’avvio / Reset: <strong>91%</strong>. Sale se UF &gt; osmosi; scende se UF ferma/blocco o osmosi preleva di più. Volume utile da REGOLAZIONI: <strong>30 m³</strong> (modificabile).</p>
       </div>
       <div class="settings-block show">
         <h4>Gestione (da PROCESSO)</h4>
@@ -3167,9 +3191,23 @@
       return Math.max(-RATE_PCT_CLAMP_VOL, Math.min(RATE_PCT_CLAMP_VOL, r));
     }
 
+    function getTk11007Geom() {
+      let V = numOrNull("regTk11007Vutile");
+      if (V === null || V < 0.5) V = 30;
+      return { V: Math.max(0.5, V) };
+    }
+
+    function getTk11021Geom() {
+      let V = numOrNull("regTk11021Vutile");
+      if (V === null || V < 0.5) V = 30;
+      return { V: Math.max(0.5, V) };
+    }
+
     function refreshTankGeomHints() {
       const g20 = getA10620Geom();
       const g08 = getTk10608Geom();
+      const g07 = getTk11007Geom();
+      const g21 = getTk11021Geom();
       const vGeom20 = el("viewA10620Vgeom");
       if (vGeom20) vGeom20.value = String(round1(g20.Vgeom));
       const vGeom08 = el("viewTk10608Vgeom");
@@ -3183,8 +3221,23 @@
       if (hint08) {
         hint08.textContent = `TK-10608: Ø${g08.D} m · H tot ${g08.Htot} m · H utile ${g08.Hutile} m → V geom. ${round1(g08.Vgeom)} m³ · V utile ${round1(g08.V)} m³ (passante sullo schema).`;
       }
+      const r07 = ratePctPerMinFromVolume(100, g07.V);
+      const r21 = ratePctPerMinFromVolume(100, g21.V);
+      const viewR07 = el("viewTk11007Rate100");
+      if (viewR07) viewR07.value = String(round1(r07));
+      const viewR21 = el("viewTk11021Rate100");
+      if (viewR21) viewR21.value = String(round1(r21));
+      const hint07 = el("regTk11007GeomHint");
+      if (hint07) {
+        hint07.textContent = `TK-11007: V utile ${round1(g07.V)} m³ → ${r07.toFixed(2)} %/min ogni 100 m³/h di netto (IN membrane − OUT P11019). Attivo in processo.`;
+      }
+      const hint21 = el("regTk11021GeomHint");
+      if (hint21) {
+        hint21.textContent = `TK-11021: V utile ${round1(g21.V)} m³ → ${r21.toFixed(2)} %/min ogni 100 m³/h di netto (IN UF − OUT osmosi). Attivo in processo.`;
+      }
       paintTk10608Passante();
-      return { g20, g08 };
+      try { getTk11007Calib(); } catch (_) { /* ok */ }
+      return { g20, g08, g07, g21 };
     }
 
     /** Calibrazione A10611 da REGOLAZIONI (prove marche/fermo) */
@@ -3585,9 +3638,9 @@
       if (Math.abs(rateUp) > 1e-6 && Math.abs(netUp) > 0.05) {
         VfromUp = Math.abs(netUp * 100 / (rateUp * 60));
       }
-      let V = numOrNull("regTk11007Vutile");
-      if (V === null || V < 0.5) V = VfromUp != null ? VfromUp : 15.4;
-      V = Math.max(0.5, V);
+      let V = getTk11007Geom().V;
+      const vUse = el("viewTk11007VinUse");
+      if (vUse) vUse.value = String(round1(V));
 
       // Discesa: per dnStopAll minuti IN=0; nel resto duty normale 7′+1′
       const dnRunMin = Math.max(0, dnMin - dnStopAll);
@@ -3624,12 +3677,12 @@
       };
     }
 
-    /** Stima %/min TK 11007: volume utile da prova §5 · IN permeato − OUT P11019. */
+    /** Stima %/min TK 11007: volume utile REGOLAZIONI §0 · IN permeato − OUT P11019. */
     function estimateTk11007RatePctPerMin(qPerm, qP11019) {
-      const cal = getTk11007Calib();
+      const V = getTk11007Geom().V;
       const qIn = Math.max(0, Number(qPerm) || 0);
       const qOut = Math.max(0, Number(qP11019) || 0);
-      return ratePctPerMinFromVolume(qIn - qOut, cal.V);
+      return ratePctPerMinFromVolume(qIn - qOut, V);
     }
 
     /** Domanda valle permeato ≈ setpoint ingresso (catena P11019 / UF / osmosi). */
@@ -3853,15 +3906,12 @@
       });
     }
 
-    /** Stima %/min TK 11021: IN = UF (se abilitato), OUT = demi osmosi (≈ ingresso). */
+    /** Stima %/min TK 11021: volume utile REGOLAZIONI §0 · IN UF − OUT osmosi. */
     function estimateTk11021RatePctPerMin(qUf, qOsmOut) {
+      const V = getTk11021Geom().V;
       const qIn = __allowUfByTk11021 ? Math.max(0, Number(qUf) || 0) : 0;
       const qOut = Math.max(0, Number(qOsmOut) || 0);
-      const qRef = Math.max(1, num("regA10611QinRef") || 160);
-      const k = 2.0 / qRef;
-      let r = k * (qIn - qOut);
-      if (!Number.isFinite(r)) return 0;
-      return Math.max(-RATE_PCT_CLAMP, Math.min(RATE_PCT_CLAMP, r));
+      return ratePctPerMinFromVolume(qIn - qOut, V);
     }
 
     function paintTk11021UI(livU, rateU, blocked) {
@@ -7201,6 +7251,7 @@
       "regTk11007UpFrom", "regTk11007UpTo", "regTk11007UpMin",
       "regTk11007DnFrom", "regTk11007DnTo", "regTk11007DnMin", "regTk11007DnStopAllMin",
       "regTk11007Vutile",
+      "regTk11021Vutile",
       "cicloLavoro", "cicloPausa",
     ].forEach((id) => {
       const node = el(id);
@@ -7329,6 +7380,7 @@
       "regTk11007UpFrom", "regTk11007UpTo", "regTk11007UpMin",
       "regTk11007DnFrom", "regTk11007DnTo", "regTk11007DnMin", "regTk11007DnStopAllMin",
       "regTk11007Vutile",
+      "regTk11021Vutile",
       "livelloAttualeH",
       "livelloAttualeMbr",
       "livelloAttualeTk11007",
@@ -7687,7 +7739,7 @@
       }
     } catch (_) { /* ok */ }
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt43", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt44", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
