@@ -4218,19 +4218,14 @@
       return { hiBlock, hiRestart, loStop, loStart };
     }
 
-    function paintOnePump(bodyId, arrowId, labelId, running) {
+    function paintOnePump(bodyId, arrowId, labelId, running, disabled) {
+      const c = deviceCol(!!disabled, !!running);
       const body = el(bodyId);
       const arrow = el(arrowId);
       const label = el(labelId);
-      if (running) {
-        if (body) { body.setAttribute("fill", "#14532d"); body.setAttribute("stroke", "#4ade80"); }
-        if (arrow) arrow.setAttribute("fill", "#bbf7d0");
-        if (label) label.setAttribute("fill", "#86efac");
-      } else {
-        if (body) { body.setAttribute("fill", "#7f1d1d"); body.setAttribute("stroke", "#f87171"); }
-        if (arrow) arrow.setAttribute("fill", "#fecaca");
-        if (label) label.setAttribute("fill", "#fda4af");
-      }
+      if (body) { body.setAttribute("fill", c.fill); body.setAttribute("stroke", c.stroke); }
+      if (arrow) arrow.setAttribute("fill", c.arrow);
+      if (label) label.setAttribute("fill", c.lab);
     }
 
     function paintPumpColors(run14) {
@@ -4243,14 +4238,14 @@
         const h = livH !== null ? livH : 90;
         allow11014 = assess11014RunState(h, num("livelloAttuale")).running;
       }
-      // Verde solo se consenso E portata > 0; ferme → niente portata → rosse
+      // Verde marcia se consenso E portata > 0; ferme → grigie (non rosse)
       const qRecNow = Math.max(0, num("qRecycle"));
       const run11014 = !!allow11014 && qRecNow > 0.5;
       paintOnePump("svgPump11011", "svgPump11011Arrow", "svgPump11011Label", run11011);
       paintOnePump("svgPump11036", "svgPump11036Arrow", "svgPump11036Label", run11036);
       paintOnePump("svgPump11014", "svgPump11014Arrow", "svgPump11014Label", run11014);
       const recGroup = document.querySelector('[data-field="qRecycle"] rect.badge');
-      if (recGroup) recGroup.setAttribute("stroke", run11014 ? "#4ade80" : "#f87171");
+      if (recGroup) recGroup.setAttribute("stroke", run11014 ? DEV_COL.run.stroke : DEV_COL.stop.stroke);
       const svgQRec = el("svgQRec");
       if (svgQRec && (!allow11014 || qRecNow < 0.05)) {
         // allinea badge se ferme (evita verde/0)
@@ -4263,9 +4258,9 @@
         paintOnePump("svgPump11019" + L, "svgPump11019" + L + "Arrow", null, run11019);
       });
       const lab19 = el("svgPump11019Label");
-      if (lab19) lab19.setAttribute("fill", run11019 ? "#86efac" : "#fda4af");
+      if (lab19) lab19.setAttribute("fill", run11019 ? DEV_COL.run.lab : DEV_COL.stop.lab);
       const badge19 = el("svgQP11019Badge");
-      if (badge19) badge19.setAttribute("stroke", run11019 ? "#4ade80" : "#f87171");
+      if (badge19) badge19.setAttribute("stroke", run11019 ? DEV_COL.run.stroke : DEV_COL.stop.stroke);
       try { paintP11019SplitUI(); } catch (_) { /* ignore */ }
       // P-11040 A/B/C = relativa osmosi; D sempre ferma
       try { paintOsmosiRunUI(); } catch (_) { /* ignore */ }
