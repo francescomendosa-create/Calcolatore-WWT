@@ -256,13 +256,13 @@
     .flow-water { pointer-events: none; }
     .flow-water .flow-line {
       fill: none;
-      stroke: #7dd3fc;
-      stroke-width: 1.55;
+      stroke: #2563eb;
+      stroke-width: 1.7;
       stroke-dasharray: 5 9;
       stroke-linecap: round;
       opacity: 0;
     }
-    .flow-water.is-flowing .flow-line { opacity: 0.85; }
+    .flow-water.is-flowing .flow-line { opacity: 0.95; stroke: #3b82f6; }
     .flow-water.flow-rtl.is-flowing .flow-line {
       animation: flow-rtl 1.7s linear infinite;
     }
@@ -271,7 +271,7 @@
     }
     .flow-water.flow-down.is-flowing .flow-line {
       animation: flow-down 1.7s linear infinite;
-      stroke: #bae6fd;
+      stroke: #60a5fa;
     }
     @keyframes flow-rtl { to { stroke-dashoffset: 28; } }
     @keyframes flow-up { to { stroke-dashoffset: -28; } }
@@ -4140,7 +4140,7 @@
       updateOsmosiTk11021Interlocks(numOrNull("livelloAttualeTk11021") ?? 91);
       paintOsmosiEnableUI();
       ["A", "B", "C"].forEach((L) => {
-        const run = osmLineRunning(L);
+        const run = plantIsStarted() && osmLineRunning(L);
         const disabled = !osmLineEnabled(L);
         const node = document.querySelector(`g.node[aria-label="Osmosi ${L}"]`);
         if (node) paintOsmMiniSketch(node, run, disabled);
@@ -4165,7 +4165,7 @@
         return `${L} ${osmLineRunning(L) ? "ON" : "OFF"}`;
       });
       const txt = `TK 11021 ${round1(liv).toFixed(1)}% · P11040/Osmosi ${parts.join(" · ")} · D OFF`;
-      const col = osmRunningCount() > 0 ? "var(--ok)" : "var(--muted)";
+      const col = (plantIsStarted() && osmRunningCount() > 0) ? "var(--ok)" : "var(--muted)";
       ["tk11021OsmHint", "osmosiRunHint"].forEach((id) => {
         const hint = el(id);
         if (hint) {
@@ -6382,14 +6382,15 @@
 
     function paintUfWashUI() {
       const inletOk = ufInletAvailable();
+      const go = plantIsStarted();
       paintUfEnableUI();
       UF_LINES.forEach((L) => {
         const enabled = ufLineEnabled(L);
         const ph = ufWashPhase(L);
-        const wash = enabled && inletOk && ph.wash;
+        const wash = go && enabled && inletOk && ph.wash;
         const queued = enabled && !inletOk && ph.wash;
         const off = !enabled;
-        const runUf = enabled && !wash && !queued && inletOk;
+        const runUf = go && enabled && !wash && !queued && inletOk;
         const body = el("svgUfBody" + L);
         const fill = el("svgUfFill" + L);
         const lab = el("svgUfLab" + L);
@@ -6415,6 +6416,9 @@
           if (off) {
             st.textContent = "DISABILITATA · rossa · tap sul disegno o tieni premuto sullo schema per riabilitare";
             st.style.color = "var(--danger)";
+          } else if (!go) {
+            st.textContent = "Impianto in Stop · ferma (grigia)";
+            st.style.color = "var(--muted)";
           } else if (!inletOk) {
             if (queued) {
               st.textContent = `IN CODA · lavaggio pronto (~${ph.remainSec} s) — parte al ritorno portata UF · ferma (grigia)`;
@@ -8177,7 +8181,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt52", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt53", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
