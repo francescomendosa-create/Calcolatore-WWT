@@ -1388,40 +1388,55 @@
             <text class="badge-val" x="888" y="520" text-anchor="middle" id="svgQP11019" font-size="12">0.0</text>
             <text class="badge-unit" x="922" y="520" text-anchor="middle">m³/h</text>
           </g>
-          <path class="pipe pipe-main" d="M870 415 H800" pointer-events="none" />
+          <path class="pipe pipe-main" d="M870 415 H812" pointer-events="none" />
         </g>
 
-        <!-- FILTRI A CARBONE -->
-        <g aria-label="Filtri a carbone">
-          <line x1="742" y1="488" x2="732" y2="512" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" />
-          <line x1="760" y1="496" x2="760" y2="514" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" />
-          <line x1="778" y1="488" x2="788" y2="512" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" />
-          <path d="M736 478 L760 500 L784 478 Z" fill="#1e293b" stroke="#94a3b8" stroke-width="1.3" />
-          <rect x="734" y="370" width="52" height="110" rx="3" fill="#334155" stroke="#94a3b8" stroke-width="1.5" />
-          <rect x="740" y="400" width="40" height="68" rx="2" fill="#475569" opacity="0.7" />
-          <ellipse cx="760" cy="372" rx="26" ry="12" fill="#475569" stroke="#94a3b8" stroke-width="1.5" />
-          <text x="760" y="410" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="700">FILTRI</text>
-          <text x="760" y="424" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="700">CARBONE</text>
-          <path class="pipe pipe-main" d="M800 415 H786" />
+        <!-- FILTRI A CARBONE A · B (quasi attaccati) -->
+        <g aria-label="Filtri a carbone A e B">
+          <!-- Filtro A (verso UF) -->
+          <g aria-label="Filtro a carbone A">
+            <line x1="712" y1="488" x2="702" y2="512" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" />
+            <line x1="729" y1="496" x2="729" y2="514" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" />
+            <line x1="746" y1="488" x2="756" y2="512" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" />
+            <path d="M706 478 L729 500 L752 478 Z" fill="#1e293b" stroke="#94a3b8" stroke-width="1.3" />
+            <rect x="704" y="370" width="50" height="110" rx="3" fill="#334155" stroke="#94a3b8" stroke-width="1.5" />
+            <rect x="710" y="400" width="38" height="68" rx="2" fill="#475569" opacity="0.7" />
+            <ellipse cx="729" cy="372" rx="25" ry="12" fill="#475569" stroke="#94a3b8" stroke-width="1.5" />
+            <text x="729" y="412" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="700">CARB.</text>
+            <text x="729" y="424" text-anchor="middle" fill="#e2e8f0" font-size="9" font-weight="800">A</text>
+          </g>
+          <!-- Filtro B (verso P11019) — quasi attaccato ad A -->
+          <g aria-label="Filtro a carbone B">
+            <line x1="766" y1="488" x2="756" y2="512" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" />
+            <line x1="783" y1="496" x2="783" y2="514" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" />
+            <line x1="800" y1="488" x2="810" y2="512" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" />
+            <path d="M760 478 L783 500 L806 478 Z" fill="#1e293b" stroke="#94a3b8" stroke-width="1.3" />
+            <rect x="758" y="370" width="50" height="110" rx="3" fill="#334155" stroke="#94a3b8" stroke-width="1.5" />
+            <rect x="764" y="400" width="38" height="68" rx="2" fill="#475569" opacity="0.7" />
+            <ellipse cx="783" cy="372" rx="25" ry="12" fill="#475569" stroke="#94a3b8" stroke-width="1.5" />
+            <text x="783" y="412" text-anchor="middle" fill="#e2e8f0" font-size="8" font-weight="700">CARB.</text>
+            <text x="783" y="424" text-anchor="middle" fill="#e2e8f0" font-size="9" font-weight="800">B</text>
+          </g>
+          <!-- Ponte ingresso P11019 → B · uscita A → UF · bypass tra A e B -->
+          <path class="pipe pipe-main" d="M812 415 H808" />
+          <path class="pipe pipe-main" d="M758 415 H754" />
+          <path class="pipe pipe-main" d="M704 415 H688" />
         </g>
-
-        <!-- Linea filtri carbone → ultrafiltrazione -->
-        <path class="pipe pipe-main" d="M734 415 H700" />
 
         <!-- ULTRAFILTRAZIONE — IN A–D in ingresso · totale sopra -->
         <g aria-label="Ultrafiltrazione A B C D">
-          <text x="575" y="300" text-anchor="middle" fill="#bae6fd" font-size="9" font-weight="700">ULTRA FILTRAZIONE</text>
+          <text x="568" y="300" text-anchor="middle" fill="#bae6fd" font-size="9" font-weight="700">ULTRA FILTRAZIONE</text>
           <g class="flow-edit" data-field="qUfTotale" data-source="uf-totale">
-            <rect class="badge" x="525" y="306" width="100" height="28" rx="5" stroke="#7dd3fc" />
-            <text class="badge-label" x="575" y="317" text-anchor="middle">TOTALE</text>
-            <text class="badge-val" x="559" y="329" text-anchor="middle" id="svgQUf" font-size="12">0.0</text>
-            <text class="badge-unit" x="595" y="329" text-anchor="middle">m³/h</text>
+            <rect class="badge" x="518" y="306" width="100" height="28" rx="5" stroke="#7dd3fc" />
+            <text class="badge-label" x="568" y="317" text-anchor="middle">TOTALE</text>
+            <text class="badge-val" x="552" y="329" text-anchor="middle" id="svgQUf" font-size="12">0.0</text>
+            <text class="badge-unit" x="588" y="329" text-anchor="middle">m³/h</text>
           </g>
 
           <!-- Collettore ingresso (da carbone) + 4 misuratori → testata UF -->
-          <path class="pipe pipe-main" d="M700 360 V500" />
+          <path class="pipe pipe-main" d="M688 360 V500" />
 
-          <path class="pipe pipe-main" d="M700 372 H612" />
+          <path class="pipe pipe-main" d="M688 372 H612" />
           <g class="flow-edit" data-field="qUfA" data-source="uf-linea">
             <rect class="badge" x="620" y="357" width="70" height="28" rx="5" stroke="#7dd3fc" />
             <text class="badge-label" x="655" y="368" text-anchor="middle">IN A</text>
@@ -1431,7 +1446,7 @@
           <path class="pipe pipe-main" d="M620 372 H538" />
           <path class="pipe pipe-main" d="M538 372 V365" />
 
-          <path class="pipe pipe-main" d="M700 415 H612" />
+          <path class="pipe pipe-main" d="M688 415 H612" />
           <g class="flow-edit" data-field="qUfB" data-source="uf-linea">
             <rect class="badge" x="620" y="400" width="70" height="28" rx="5" stroke="#7dd3fc" />
             <text class="badge-label" x="655" y="411" text-anchor="middle">IN B</text>
@@ -1441,7 +1456,7 @@
           <path class="pipe pipe-main" d="M620 415 H560" />
           <path class="pipe pipe-main" d="M560 415 V365" />
 
-          <path class="pipe pipe-main" d="M700 458 H612" />
+          <path class="pipe pipe-main" d="M688 458 H612" />
           <g class="flow-edit" data-field="qUfC" data-source="uf-linea">
             <rect class="badge" x="620" y="443" width="70" height="28" rx="5" stroke="#7dd3fc" />
             <text class="badge-label" x="655" y="454" text-anchor="middle">IN C</text>
@@ -1451,7 +1466,7 @@
           <path class="pipe pipe-main" d="M620 458 H582" />
           <path class="pipe pipe-main" d="M582 458 V365" />
 
-          <path class="pipe pipe-main" d="M700 500 H612" />
+          <path class="pipe pipe-main" d="M688 500 H612" />
           <g class="flow-edit" data-field="qUfD" data-source="uf-linea">
             <rect class="badge" x="620" y="485" width="70" height="28" rx="5" stroke="#7dd3fc" />
             <text class="badge-label" x="655" y="496" text-anchor="middle">IN D</text>
@@ -7796,8 +7811,12 @@
     syncTouchUiClass();
 
     function flowEditStep(field) {
-      if (field === "freqHz" || field === "qIn" || field === "qRecycle"
-        || field === "qP11019" || field === "qP11019Ias" || field === "qP11019Impianto") return 1;
+      const f = String(field || "");
+      if (f === "freqHz" || f === "qIn" || f === "qRecycle"
+        || f === "qP11019" || f === "qP11019Ias" || f === "qP11019Impianto"
+        || f === "qUfTotale" || f.startsWith("qUf")
+        || f === "qOsmosiA" || f === "qOsmosiB" || f === "qOsmosiC"
+        || f.startsWith("qOsmosi")) return 1;
       return 0.1;
     }
 
@@ -9163,7 +9182,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt69", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt71", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
