@@ -306,10 +306,10 @@
     .badge-sep { fill: #64748b; font: 600 11px "Segoe UI", sans-serif; }
     .badge-unit { fill: var(--muted); font: 500 10px "Segoe UI", sans-serif; }
     .badge-label { fill: var(--muted); font: 600 10px "Segoe UI", sans-serif; letter-spacing: 0.03em; }
-    .uf-valve-track { fill: #0f172a; stroke: #64748b; stroke-width: 0.8; }
-    .uf-valve-fill { fill: #22d3ee; }
-    .uf-valve-fill.is-full { fill: #fbbf24; }
-    .uf-valve-pct { fill: #cbd5e1; font: 700 7px "Segoe UI", sans-serif; }
+    .uf-valve-track, .osm-valve-track { fill: #0f172a; stroke: #64748b; stroke-width: 0.8; }
+    .uf-valve-fill, .osm-valve-fill { fill: #22d3ee; }
+    .uf-valve-fill.is-full, .osm-valve-fill.is-full { fill: #fbbf24; }
+    .uf-valve-pct, .osm-valve-pct { fill: #cbd5e1; font: 700 7px "Segoe UI", sans-serif; }
     .pipe { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
     .pipe-main { stroke: #38bdf8; }
     .pipe-rec { stroke: #fb7185; }
@@ -1640,12 +1640,15 @@
           <!-- A: linea → IN → Osmosi -->
           <path class="pipe pipe-main" d="M300 348 H278" />
           <g class="flow-edit" data-field="qOsmosiA" data-source="osmosi">
-            <rect class="badge" x="194" y="333" width="84" height="30" rx="5" stroke="#7dd3fc" />
-            <text class="badge-label" x="236" y="344" text-anchor="middle">IN</text>
-            <text class="badge-val" x="224" y="357" text-anchor="middle" id="svgQOsmA">0.0</text>
-            <text class="badge-unit" x="258" y="357" text-anchor="middle">m³/h</text>
+            <rect class="badge" x="188" y="329" width="96" height="40" rx="5" stroke="#7dd3fc" />
+            <text class="badge-label" x="236" y="340" text-anchor="middle">IN A</text>
+            <text class="badge-val" x="224" y="354" text-anchor="middle" id="svgQOsmA">0.0</text>
+            <text class="badge-unit" x="252" y="354" text-anchor="middle">m³/h</text>
+            <rect class="osm-valve-track" x="192" y="359" width="58" height="6" rx="2" />
+            <rect id="svgOsmValveA" class="osm-valve-fill" x="193" y="360" width="0" height="4" rx="1" />
+            <text id="svgOsmValvePctA" class="osm-valve-pct" x="266" y="364" text-anchor="middle">0%</text>
           </g>
-          <path class="pipe pipe-main" d="M194 348 H190" />
+          <path class="pipe pipe-main" d="M188 348 H190" />
           <g class="node" tabindex="0" data-popup="osmosi" data-osm-line="A" role="button" aria-label="Osmosi A" transform="translate(90,340)">
             <rect x="-4" y="-18" width="108" height="42" fill="#000" opacity="0.001" pointer-events="all" />
             <rect class="osm-mini-body" x="0" y="0" width="100" height="16" rx="8" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
@@ -1662,12 +1665,15 @@
           <!-- B: linea → IN → Osmosi -->
           <path class="pipe pipe-main" d="M300 415 H278" />
           <g class="flow-edit" data-field="qOsmosiB" data-source="osmosi">
-            <rect class="badge" x="194" y="400" width="84" height="30" rx="5" stroke="#7dd3fc" />
-            <text class="badge-label" x="236" y="411" text-anchor="middle">IN</text>
-            <text class="badge-val" x="224" y="424" text-anchor="middle" id="svgQOsmB">0.0</text>
-            <text class="badge-unit" x="258" y="424" text-anchor="middle">m³/h</text>
+            <rect class="badge" x="188" y="396" width="96" height="40" rx="5" stroke="#7dd3fc" />
+            <text class="badge-label" x="236" y="407" text-anchor="middle">IN B</text>
+            <text class="badge-val" x="224" y="421" text-anchor="middle" id="svgQOsmB">0.0</text>
+            <text class="badge-unit" x="252" y="421" text-anchor="middle">m³/h</text>
+            <rect class="osm-valve-track" x="192" y="426" width="58" height="6" rx="2" />
+            <rect id="svgOsmValveB" class="osm-valve-fill" x="193" y="427" width="0" height="4" rx="1" />
+            <text id="svgOsmValvePctB" class="osm-valve-pct" x="266" y="431" text-anchor="middle">0%</text>
           </g>
-          <path class="pipe pipe-main" d="M194 415 H190" />
+          <path class="pipe pipe-main" d="M188 415 H190" />
           <g class="node" tabindex="0" data-popup="osmosi" data-osm-line="B" role="button" aria-label="Osmosi B" transform="translate(90,407)">
             <rect x="-4" y="-18" width="108" height="42" fill="#000" opacity="0.001" pointer-events="all" />
             <rect class="osm-mini-body" x="0" y="0" width="100" height="16" rx="8" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
@@ -1684,12 +1690,15 @@
           <!-- C: linea → IN → Osmosi -->
           <path class="pipe pipe-main" d="M300 482 H278" />
           <g class="flow-edit" data-field="qOsmosiC" data-source="osmosi">
-            <rect class="badge" x="194" y="467" width="84" height="30" rx="5" stroke="#7dd3fc" />
-            <text class="badge-label" x="236" y="478" text-anchor="middle">IN</text>
-            <text class="badge-val" x="224" y="491" text-anchor="middle" id="svgQOsmC">0.0</text>
-            <text class="badge-unit" x="258" y="491" text-anchor="middle">m³/h</text>
+            <rect class="badge" x="188" y="463" width="96" height="40" rx="5" stroke="#7dd3fc" />
+            <text class="badge-label" x="236" y="474" text-anchor="middle">IN C</text>
+            <text class="badge-val" x="224" y="488" text-anchor="middle" id="svgQOsmC">0.0</text>
+            <text class="badge-unit" x="252" y="488" text-anchor="middle">m³/h</text>
+            <rect class="osm-valve-track" x="192" y="493" width="58" height="6" rx="2" />
+            <rect id="svgOsmValveC" class="osm-valve-fill" x="193" y="494" width="0" height="4" rx="1" />
+            <text id="svgOsmValvePctC" class="osm-valve-pct" x="266" y="498" text-anchor="middle">0%</text>
           </g>
-          <path class="pipe pipe-main" d="M194 482 H190" />
+          <path class="pipe pipe-main" d="M188 482 H190" />
           <g class="node" tabindex="0" data-popup="osmosi" data-osm-line="C" role="button" aria-label="Osmosi C" transform="translate(90,474)">
             <rect x="-4" y="-18" width="108" height="42" fill="#000" opacity="0.001" pointer-events="all" />
             <rect class="osm-mini-body" x="0" y="0" width="100" height="16" rx="8" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
@@ -2972,6 +2981,15 @@
       C: { phase: Math.random() * Math.PI * 2, bias: 0 },
       D: { phase: Math.random() * Math.PI * 2, bias: 0 },
     };
+    const OSM_LINES = ["A", "B", "C"];
+    const OSM_VALVE_Q100 = 80;   // m³/h a valvola 100% per linea osmosi
+    const __osmValvePct = { A: 0, B: 0, C: 0 };
+    const __osmMeas = { A: 0, B: 0, C: 0 };
+    const __osmWobble = {
+      A: { phase: Math.random() * Math.PI * 2, bias: 0 },
+      B: { phase: Math.random() * Math.PI * 2, bias: 0 },
+      C: { phase: Math.random() * Math.PI * 2, bias: 0 },
+    };
     let __startupPumpHold = false; // dopo Reset: pompe ON finché non parti con +1′
     let __simMin = 0;
     let __simSnap = null;
@@ -3071,8 +3089,10 @@
     }
 
     function osmQinEffective(letter) {
-      if (!osmLineRunning(letter)) return 0;
-      return osmQinSetpoint(letter);
+      const L = String(letter || "").toUpperCase();
+      if (!osmLineRunning(L)) return 0;
+      if (!plantIsStarted()) return 0;
+      return round1(Math.max(0, Number(__osmMeas[L]) || 0));
     }
 
     /**
@@ -5183,6 +5203,7 @@
       try { keepScreenAwake(); } catch (_) { /* ok */ }
       advanceQInWobble(1);
       tickUfRegulation(1);
+      tickOsmRegulation(1);
       try { applyBalance("sim"); } catch (_) { /* ignore */ }
       updateSimTimeUI();
       if (__simPlayTimer) clearInterval(__simPlayTimer);
@@ -5280,36 +5301,35 @@
       const qP19 = Math.max(0, num("qP11019")); // viva (rampa) per bilanci TK
       // OUT osmosi da TK 11021: solo linee in marcia (isteresi P-11040 sul livello)
       updateOsmosiTk11021Interlocks(livU);
-      let qOsmOut = 0;
       if (deviceAutoControlled("osmosi")) {
         let qDemand = permeateDemandOut();
         if (!__allowUfByTk11021 || !membranesProcessAllowed()) {
           qDemand = Math.max(qDemand, linePermeateCapacity());
         }
         applyOsmosiAutoFlows(qDemand);
-        qOsmOut = round1(osmQinEffective("A") + osmQinEffective("B") + osmQinEffective("C"));
       } else {
-        // Osmosi manuale / impianto manuale: setpoint in popup, OUT = solo linee in marcia
+        // Osmosi manuale / impianto manuale: setpoint in popup; viva da regolazione valvole
         ["A", "B", "C"].forEach((L, i) => {
           const id = ["qOsmosiA", "qOsmosiB", "qOsmosiC"][i];
           const sp = Math.max(0, num(id));
           if (sp > 0.05) rememberProcSetpoint(id, sp);
           paintProcSetpointField(id);
-          qOsmOut += osmQinEffective(L);
         });
-        qOsmOut = round1(qOsmOut);
         syncOsmosiSvg();
         paintOsmosiRunUI();
       }
       // Timer lavaggi UF / carbone: scorrono sempre; lavaggio carbone consuma portata verso UF
       tickUfWashes(dtMin);
       tickCarbWashes(dtMin);
-      // Valvole UF + portata misurata (insegue il set con lag/oscillazione)
+      // Valvole UF + osmosi (misura insegue set)
       tickUfRegulation(dtMin);
+      tickOsmRegulation(dtMin);
       // IN UF effettivo: linee non in lavaggio (sfalsati); 0 se P11019/TK11021 bloccano
       if (!p11019Allowed()) paintUfPopupSetpoints();
       const qUfIn = sumUfEffective();
       paintUfSvgLive();
+      const qOsmOut = round1(osmQinEffective("A") + osmQinEffective("B") + osmQinEffective("C"));
+      syncOsmosiSvg();
 
       const stopRiemp = numOrNull("stopRiempA10620");
       const stopRv = stopRiemp !== null ? stopRiemp : 95;
@@ -7528,6 +7548,111 @@
       });
     }
 
+    /** Quota idraulica osmosi: permeato UF ripartito sui setpoint delle linee in marcia. */
+    function osmLineShare(letter) {
+      const L = String(letter || "").toUpperCase();
+      if (!osmLineRunning(L) || !plantIsStarted()) return 0;
+      const inlet = sumUfEffective();
+      if (inlet < 0.05) return 0;
+      let sumSp = 0;
+      const spMap = {};
+      OSM_LINES.forEach((x) => {
+        if (!osmLineRunning(x)) {
+          spMap[x] = 0;
+          return;
+        }
+        const sp = Math.max(0, procSetpointOf("qOsmosi" + x));
+        spMap[x] = sp;
+        sumSp += sp;
+      });
+      if (sumSp < 0.05) return 0;
+      return round1(inlet * (spMap[L] / sumSp));
+    }
+
+    /** Regolazione osmosi: come UF — misura segue valvola, set resta, oscillazione ±~1. */
+    function tickOsmRegulation(dtMin) {
+      const total = Math.max(0.05, Number(dtMin) || 1);
+      const n = Math.max(1, Math.min(10, Math.round(total)));
+      const dt = total / n;
+      for (let i = 0; i < n; i++) tickOsmRegulationOnce(dt);
+      paintOsmValveUI();
+    }
+
+    function tickOsmRegulationOnce(dt) {
+      const aV = 1 - Math.exp(-dt / 2.2);
+      const aQ = 1 - Math.exp(-dt / 1.1);
+      OSM_LINES.forEach((L) => {
+        const enabled = osmLineEnabled(L);
+        const running = osmLineRunning(L);
+        const sp = Math.max(0, procSetpointOf("qOsmosi" + L));
+        const run = plantIsStarted() && enabled && running && sp > 0.05;
+
+        let valve = Number(__osmValvePct[L]) || 0;
+        let meas = Number(__osmMeas[L]) || 0;
+        const w = __osmWobble[L];
+
+        if (!run) {
+          valve = Math.max(0, valve + (0 - valve) * Math.min(1, aV * 1.6));
+          meas = Math.max(0, meas + (0 - meas) * Math.min(1, aQ * 1.6));
+          __osmValvePct[L] = round1(valve);
+          __osmMeas[L] = round1(meas);
+          return;
+        }
+
+        const share = osmLineShare(L);
+        const starved = share + 0.25 < sp;
+
+        let valveTarget;
+        if (starved || share < 0.05) {
+          valveTarget = share < 0.05 ? 0 : 100;
+        } else {
+          const ff = (sp / OSM_VALVE_Q100) * 100;
+          const err = sp - meas;
+          valveTarget = ff + err * 14;
+          if (meas + 0.4 < sp) valveTarget = Math.max(valveTarget, ff + 8);
+          valveTarget = Math.max(4, Math.min(100, valveTarget));
+        }
+
+        valve = valve + (valveTarget - valve) * aV;
+        const qHyd = Math.min(share, OSM_VALVE_Q100 * (Math.max(0, valve) / 100));
+
+        const regulating = !starved && qHyd > 0.05 && Math.abs(meas - sp) < 3.5;
+        let qAim = qHyd;
+        if (regulating) {
+          w.phase += dt * (0.42 + Math.random() * 0.35);
+          w.bias += (Math.random() - 0.5) * 0.55 * dt;
+          w.bias = Math.max(-1.2, Math.min(1.2, w.bias));
+          const osc = Math.sin(w.phase) * 0.85
+            + Math.sin(w.phase * 0.37 + 0.9) * 0.4;
+          if (Math.random() < 0.08 * dt) w.bias *= 0.35;
+          const wob = osc + w.bias;
+          qAim = Math.max(0, Math.min(share, sp + wob));
+          qAim = Math.min(qAim, qHyd + 0.8);
+          qAim = Math.max(qAim, Math.min(qHyd, sp) - 0.8);
+        }
+
+        meas = meas + (qAim - meas) * aQ;
+        meas = Math.max(0, Math.min(Math.max(share, 0), meas));
+
+        __osmValvePct[L] = round1(Math.max(0, Math.min(100, valve)));
+        __osmMeas[L] = round1(meas);
+      });
+    }
+
+    function paintOsmValveUI() {
+      const trackInnerW = 56;
+      OSM_LINES.forEach((L) => {
+        const pct = Math.max(0, Math.min(100, Number(__osmValvePct[L]) || 0));
+        const fill = el("svgOsmValve" + L);
+        const lab = el("svgOsmValvePct" + L);
+        if (fill) {
+          fill.setAttribute("width", String(Math.max(0, trackInnerW * (pct / 100))));
+          fill.classList.toggle("is-full", pct >= 99.5);
+        }
+        if (lab) lab.textContent = Math.round(pct) + "%";
+      });
+    }
+
     function paintUfWashUI() {
       const inletOk = ufInletAvailable();
       const go = plantIsStarted();
@@ -7931,6 +8056,7 @@
       if (!isEditing("qOsmosiTotale")) setVal("qOsmosiTotale", totaleSp, { force: true });
       if (!isEditing("qOsmosiDemi")) setVal("qOsmosiDemi", totDemiSp, { force: true });
       if (!isEditing("qOsmosiTotConc")) setVal("qOsmosiTotConc", totConcSp, { force: true });
+      paintOsmValveUI();
     }
 
     /* Popup open/close */
@@ -9775,7 +9901,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt86", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt87", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
