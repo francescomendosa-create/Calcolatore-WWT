@@ -6877,6 +6877,10 @@
             <text class="uf-mini-lab" x="14" y="9" text-anchor="middle" fill="#7dd3fc" font-size="9" font-weight="700">${m}</text>
           </svg>
           <span class="uf-row-name">UF ${m}</span>
+          <div class="uf-wash-now is-idle" id="ufWashNow${m}">
+            <div class="uf-wash-now-title" id="ufWashNowTitle${m}"></div>
+            <div class="uf-wash-now-phase" id="ufWashNowPhase${m}"></div>
+          </div>
           <span class="uf-enable" role="group" aria-label="Abilita o disabilita UF ${m}">
             <button type="button" data-uf-line="${m}" data-uf-en="1">Abilita</button>
             <button type="button" data-uf-line="${m}" data-uf-en="0">Disabilita</button>
@@ -6899,7 +6903,7 @@
         box.appendChild(labQ);
 
         const labLav = document.createElement("label");
-        labLav.innerHTML = `<strong>Tempo lavoro prima del lavaggio (min)</strong>`;
+        labLav.innerHTML = `<strong>Tempo di lavoro per lavaggio backwash (min)</strong>`;
         const inpLav = document.createElement("input");
         inpLav.type = "number";
         inpLav.id = "ufLavoroMin" + m;
@@ -6916,7 +6920,7 @@
         box.appendChild(labLav);
 
         const labWash = document.createElement("label");
-        labWash.innerHTML = `<strong>Durata lavaggio (s) — UF ferma</strong>`;
+        labWash.innerHTML = `<strong>Durata lavaggio backwash (s) — UF ferma</strong>`;
         const inpWash = document.createElement("input");
         inpWash.type = "number";
         inpWash.id = "ufLavaggioSec" + m;
