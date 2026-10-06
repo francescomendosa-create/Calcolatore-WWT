@@ -1,0 +1,102 @@
+﻿    /** Snapshot al momento del blocco: catena livelli + portate (per diagnosi equilibrio). */
+    function captureChimicoBlockEvent() {
+      const stopR = numOrNull("stopRiempA10620");
+      const startR = numOrNull("startRiempA10620");
+      const stop = stopR !== null ? stopR : 95;
+      const start = startR !== null ? startR : 92;
+      const startSvuot = numOrNull("startSvuotA10620");
+      const stopSvuot = numOrNull("stopSvuotA10620");
+      const hiBlock = numOrNull("stopAltoA10611");
+      const hiRestart = numOrNull("ripartenzaP11011A10611");
+      const liv20 = numOrNull("livelloAttuale");
+      const liv11 = numOrNull("livelloAttualeA10611");
+      const qInSp = Math.max(0, num("qIn"));
+      const qInLive = (__qInLive != null && Number.isFinite(__qInLive))
+        ? Math.max(0, Number(__qInLive))
+        : qInSp;
+      const qRecSp = Math.max(0, flowSetpointOf("qRecycle"));
+      const qRecLive = Math.max(0, Number(__flowLive.qRecycle) || 0);
+      const pumpAllowed = !!(typeof p11011Allowed === "function" && p11011Allowed());
+      const plantGo = !!(plantIsStarted() || __simBusy || __simMin > 0);
+      const pumpOn = !!(pumpAllowed && plantGo);
+      const qPumpSp = Math.max(0, flowSetpointOf("qPump"));
+      const qPumpLive = Math.max(0, Number(__flowLive.qPump) || qPumpSp);
+      const qOut = pumpOn ? qPumpLive : 0;
+      const qMandSp = Math.max(0, flowSetpointOf("qMandata"));
+      const qMandLive = Math.max(0, Number(__flowLive.qMandata) || 0);
+      const qMemSp = Math.max(0, num("qMemTotale"));
+      const qMemLive = (__qMemPermLive != null && Number.isFinite(__qMemPermLive))
+        ? Math.max(0, Number(__qMemPermLive))
+        : qMemSp;
+      const qInTo20 = round1(qInLive + qRecLive);
+      const qEq20 = round1(qInTo20); // P11011 per livello A10620 stabile
+      let qEqPlant = qEq20;
+      try { qEqPlant = round1(Math.max(qEq20, pumpFloorForIngresso(qInSp))); } catch (_) { /* ok */ }
+      const deficit = round1(Math.max(0, qEq20 - qOut));
+      return {
+        tMin: Number(__simMin) || 0,
+        liv20: round2(liv20 !== null ? liv20 : 0),
+        liv11: round2(liv11 !== null ? liv11 : 0),
+        stop,
+        start,
+        startSvuot: startSvuot !== null ? startSvuot : 92,
+        stopSvuot: stopSvuot !== null ? stopSvuot : 88,
+        hiBlock: hiBlock !== null ? hiBlock : 96,
+        hiRestart: hiRestart !== null ? hiRestart : 90,
+        qInSp: round1(qInSp),
+        qInLive: round1(qInLive),
+        qRecSp: round1(qRecSp),
+        qRecLive: round1(qRecLive),
+        qPumpSp: round1(qPumpSp),
+        qPumpLive: round1(qPumpLive),
+        qOut: round1(qOut),
+        qMandSp: round1(qMandSp),
+        qMandLive: round1(qMandLive),
+        qMemSp: round1(qMemSp),
+        qMemLive: round1(qMemLive),
+        run11036: !!__run11036,
+        qInTo20,
+        qEq20,
+        qEqPlant,
+        deficit,
+        pumpOn,
+        runP11011By20: !!__runP11011By20,
+        blockP11011: !!__blockP11011By11,
+      };
+    }
+
+    /** Imposta marcia chimico; conta ogni passaggio ON→OFF (blocco). silent = no conteggio (reset/snap). */
+    function setChimicoAllowFill(next, { silent = false } = {}) {
+      const on = !!next;
+      if (!silent && __chimicoWasAllow && !on) {
+        try { __chimicoBlockLog.push(captureChimicoBlockEvent()); } catch (_) { /* ignore */ }
+        if (__chimicoBlockLog.length > 12) __chimicoBlockLog = __chimicoBlockLog.slice(-12);
+        __chimicoBlockCount += 1;
+        __blockQaAnswer = null;
+        __blockQaKey = "";
+        updateChimicoBlockUI();
+      }
+      __chimicoWasAllow = on;
+      __chimicoAllowFill = on;
+    }
+
+    function updateChimicoBlockUI() {
+      const node = el("chimicoBlockCount");
+      if (!node) return;
+      node.textContent = String(__chimicoBlockCount);
+      node.setAttribute("data-count", String(__chimicoBlockCount));
+      const n = __chimicoBlockCount;
+      node.title = n === 0
+        ? "Nessun blocco — clic per la catena di causa"
+        : (n === 1 ? "1 blocco — clic per la catena" : `${n} blocchi — clic per la catena`);
+    }
+
+    function resetChimicoBlockCount() {
+      __chimicoBlockCount = 0;
+      __chimicoBlockLog = [];
+      __blockQaAnswer = null;
+      __blockQaKey = "";
+      updateChimicoBlockUI();
+    }
+
+    function fmtBlockPct(v) {

@@ -1,0 +1,92 @@
+4279|    function paintBlocchiExplain() {
+4280|      const body = el("blocchiBody");
+4281|      if (!body) return;
+4282|      const last = __chimicoBlockLog.length ? __chimicoBlockLog[__chimicoBlockLog.length - 1] : null;
+4283|      const blockedNow = !__chimicoAllowFill;
+4284|      const livNow = numOrNull("livelloAttuale");
+4285|      const startNow = numOrNull("startRiempA10620");
+4286|      const startV = startNow !== null ? startNow : 92;
+4287|
+4288|      let html = "";
+4289|      if (last) {
+4290|        const rep = buildChimicoBlockReport(last);
+4291|        const ask = rep.ask;
+4292|        if (ask && ask.key !== __blockQaKey) {
+4293|          __blockQaKey = ask.key;
+4294|          __blockQaAnswer = null;
+4295|        }
+4296|        html += `<div class="block-verdict">${rep.verdict}</div>`;
+4297|        html += `<div class="block-action"><strong>Cosa regolare</strong><br>${rep.action}</div>`;
+4298|        if (rep.fault) {
+4299|          html += `<div class="block-fault">${rep.fault}</div>`;
+4300|        }
+4301|        if (ask) {
+4302|          html += `<div class="block-qa" data-qa-key="${ask.key}">`;
+4303|          html += `<p>${ask.q}</p>`;
+4304|          html += `<div class="block-qa-btns">`;
+4305|          html += `<button type="button" data-block-qa="yes"${__blockQaAnswer === "yes" ? ' class="is-picked"' : ""}>Sì</button>`;
+4306|          html += `<button type="button" data-block-qa="no"${__blockQaAnswer === "no" ? ' class="is-picked"' : ""}>No</button>`;
+4307|          html += `</div></div>`;
+4308|          if (__blockQaAnswer === "yes") {
+4309|            html += `<div class="block-action">${ask.yesHtml}</div>`;
+4310|          } else if (__blockQaAnswer === "no") {
+4311|            html += `<div class="block-alt">${ask.noHtml}</div>`;
+4312|          }
+4313|        } else if (rep.forceAlt && rep.alt) {
+4314|          html += `<div class="block-alt"><strong>Obbligatorio</strong><br>${rep.alt}</div>`;
+4315|        } else if (rep.alt && !ask) {
+4316|          html += `<div class="block-alt">${rep.alt}</div>`;
+4317|        }
+4318|        html += `<div class="block-meta">${rep.meta}</div>`;
+4319|        html += `<p class="mini" style="margin-top:10px"><strong>Catena</strong></p><ul class="block-chain">`;
+4320|        rep.chain.forEach((step) => { html += `<li>${step}</li>`; });
+4321|        html += `</ul>`;
+4322|        if (blockedNow) {
+4323|          html += `<p class="mini" style="margin-top:10px">Ancora in blocco (A10620 ${livNow !== null ? fmtBlockPct(livNow) : "—"}). `
+4324|            + `Il chimico riparte a ≤ ${fmtBlockPct(startV)}.</p>`;
+4325|        }
+4326|      } else if (__chimicoBlockCount === 0) {
+4327|        const qInSp = Math.max(0, num("qIn"));
+4328|        let qNeed = qInSp;
+4329|        try { qNeed = round1(pumpFloorForIngresso(qInSp)); } catch (_) { /* ok */ }
+4330|        const hzBit = hzBitForNeed(qNeed);
+4331|        const qSafe = round1(Math.max(0, qNeed - Q_RECYCLE_MIN));
+4332|        html += `<div class="block-action">Nessun blocco dal Reset.<br>`
+4333|          + `Con ingresso <strong>${fmtQ(qInSp)} m³/h</strong>, tieni <strong>P11011 ≥ <span class="fix-val">${fmtQ(qNeed)} m³/h</span></strong>${hzBit}.</div>`;
+4334|        html += `<div class="block-qa"><p>Se non puoi alzare le P11011, vuoi il set del chimico-fisico?</p>`
+4335|          + `<div class="block-qa-btns">`
+4336|          + `<button type="button" data-block-qa="yes"${__blockQaAnswer === "yes" ? ' class="is-picked"' : ""}>Sì</button>`
+4337|          + `<button type="button" data-block-qa="no"${__blockQaAnswer === "no" ? ' class="is-picked"' : ""}>No</button>`
+4338|          + `</div></div>`;
+4339|        if (__blockQaAnswer === "yes") {
+4340|          html += `<div class="block-alt">Chimico-fisico ≤ <strong class="fix-val">${fmtQ(qSafe)} m³/h</strong> `
+4341|            + `(riciclo min ${Q_RECYCLE_MIN}).</div>`;
+4342|        }
+4343|        __blockQaKey = `idle-${fmtQ(qInSp)}`;
+4344|      } else {
+4345|        html += `<p>Ci sono ${__chimicoBlockCount} blocco/i contati, ma senza snapshot della catena (evento precedente).</p>`;
+4346|      }
+4347|
+4348|      if (__chimicoBlockLog.length > 1) {
+4349|        const prev = __chimicoBlockLog.slice(0, -1).slice(-3).reverse();
+4350|        html += `<p class="mini" style="margin-top:12px">Precedenti: `
+4351|          + prev.map((e) => `${e.tMin}′ · IN ${fmtQ(e.qInLive)} / P11011 ${fmtQ(e.qOut)}`).join(" · ")
+4352|          + `</p>`;
+4353|      }
+4354|
+4355|      body.innerHTML = html;
+4356|      body.querySelectorAll("[data-block-qa]").forEach((btn) => {
+4357|        btn.addEventListener("click", (e) => {
+4358|          e.preventDefault();
+4359|          e.stopPropagation();
+4360|          const ans = btn.getAttribute("data-block-qa");
+4361|          __blockQaAnswer = ans === "no" ? "no" : "yes";
+4362|          paintBlocchiExplain();
+4363|        });
+4364|      });
+4365|    }
+4366|
+4367|    function openBlocchiPopup() {
+4368|      resetBlocchiPanelPos();
+4369|      paintBlocchiExplain();
+4370|      openPopup("blocchi");

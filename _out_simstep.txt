@@ -1,0 +1,80 @@
+6146|    function simulateOneStep(dtMin) {
+6147|      beginFlowStep();
+6148|      try {
+6149|      // Orologio ciclo membrane: avanza SOLO se il livello consente la marcia.
+6150|      // Se blocco livello (≤ stop), si congela e alla ripartenza riprende da qui.
+6151|      if (membranesProcessAllowed()) __mbrCycleMin += dtMin;
+6152|
+6153|      // Portata ingresso “vera”: setpoint ± piccole variazioni (effetto su tutto l’impianto)
+6154|      advanceQInWobble(dtMin);
+6155|      const qInLiveNow = qInEffective(num("qIn"));
+6156|      // In Automatico: Hz di tabella più basso che dà ≥ ingresso vivo + 100 m³/h
+6157|      if (isAutoMode() && deviceAutoControlled("pompa") && p11011Allowed() && !isEditing("qPump") && !isEditing("freqHz")) {
+6158|        const floor = pumpFloorForIngresso(qInLiveNow);
+6159|        const step = pumpStepForNeed(floor);
+6160|        const liv20now = num("livelloAttuale");
+6161|        const startSvuot = numOrNull("startSvuotA10620");
+6162|        const boostZone = liv20now >= ((startSvuot !== null ? startSvuot : 92) - 1);
+6163|        if (!boostZone) {
+6164|          lastQPump = step.q;
+6165|          if (!isEditing("freqHz")) {
+6166|            const hzNode = el("freqHz");
+6167|            if (hzNode) hzNode.value = String(step.hz);
+6168|            const svgHz = el("svgFreqHz");
+6169|            if (svgHz) svgHz.textContent = String(step.hz);
+6170|          }
+6171|          commitFlow("qPump", step.q, { setpoint: step.q });
+6172|          if (deviceAutoControlled("mandata") && el("equiparaMandata")?.checked && __run11036) {
+6173|            lastQMandata = step.q;
+6174|            commitFlow("qMandata", step.q);
+6175|          }
+6176|        } else if ((__flowDesire.qPump != null ? __flowDesire.qPump : num("qPump")) < floor - 0.05) {
+6177|          lastQPump = step.q;
+6178|          if (!isEditing("freqHz")) {
+6179|            const hzNode = el("freqHz");
+6180|            if (hzNode) hzNode.value = String(step.hz);
+6181|            const svgHz = el("svgFreqHz");
+6182|            if (svgHz) svgHz.textContent = String(step.hz);
+6183|          }
+6184|          commitFlow("qPump", step.q, { setpoint: step.q });
+6185|        }
+6186|      }
+6187|      applyBalance("sim");
+6188|      const qInSet = num("qIn");
+6189|      const qIn = qInEffective(qInSet);
+6190|      // Marcia/arresto SEMPRE da livelli (auto e manuale). In manuale il setpoint digitato resta nel campo.
+6191|      // Portate VIVE (rampa) per i bilanci di livello — non il target a scatto.
+6192|      const qPump = p11011Allowed() ? Math.max(0, num("qPump")) : 0;
+6193|      const qMandata = __run11036 ? Math.max(0, num("qMandata")) : 0;
+6194|      const liv20 = num("livelloAttuale");
+6195|      const liv11 = num("livelloAttualeA10611");
+6196|      let livH = numOrNull("livelloAttualeH");
+6197|      if (livH === null) livH = 90;
+6198|      let livMbr = numOrNull("livelloAttualeMbr");
+6199|      if (livMbr === null) livMbr = 90;
+6200|      let livP = numOrNull("livelloAttualeTk11007");
+6201|      if (livP === null) livP = 91;
+6202|      let livU = numOrNull("livelloAttualeTk11021");
+6203|      if (livU === null) livU = 91;
+6204|      const run14 = assess11014RunState(livH, liv20);
+6205|      // Riciclo: Auto locale = P11011 − ingresso; Manuale locale = setpoint libero
+6206|      const qRecycleWanted = ricicloAutoControlled()
+6207|        ? Math.max(0, Math.round(flowSetpointOf("qPump") - qInSet))
+6208|        : Math.max(0, Math.round(flowSetpointOf("qRecycle")));
+6209|      // Consenso 11014 → portata; ferme → 0
+6210|      const qRecycleDisp = qRecycleEffective(run14.running, qRecycleWanted);
+6211|      const qRecycleForH = qRecycleDisp;
+6212|      const de = dutyEffective();
+6213|      // Uscita permeato membrane (istantanea: pause ciclo = meno portata in ingresso al TK)
+6214|      const qPerm = round1(de.qPermInstant != null ? de.qPermInstant : sumMemsRunning(__mbrCycleMin));
+6215|      // P11019: solo isteresi livello TK-11007 (indipendente dalle membrane)
+6216|      updateTk11007PumpInterlocks(livP);
+6217|      applyP11019RunFromLevel();
+6218|      const qP19 = Math.max(0, num("qP11019")); // viva (rampa) per bilanci TK
+6219|      // OUT osmosi da TK 11021: solo linee in marcia (isteresi P-11040 sul livello)
+6220|      updateOsmosiTk11021Interlocks(livU);
+6221|      if (deviceAutoControlled("osmosi")) {
+6222|        let qDemand = permeateDemandOut();
+6223|        if (!__allowUfByTk11021 || !membranesProcessAllowed()) {
+6224|          qDemand = Math.max(qDemand, linePermeateCapacity());
+6225|        }

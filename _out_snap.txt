@@ -1,0 +1,141 @@
+5980|      if (lab19) lab19.setAttribute("fill", run11019 ? DEV_COL.run.lab : DEV_COL.stop.lab);
+5981|      const badge19 = el("svgQP11019Badge");
+5982|      if (badge19) badge19.setAttribute("stroke", run11019 ? DEV_COL.run.stroke : DEV_COL.stop.stroke);
+5983|      try { paintP11019SplitUI(); } catch (_) { /* ignore */ }
+5984|      try { paintCarbWashUI(); } catch (_) { /* ignore */ }
+5985|      // P-11040 A/B/C = relativa osmosi; D sempre ferma
+5986|      try { paintOsmosiRunUI(); } catch (_) { /* ignore */ }
+5987|    }
+5988|
+5989|    /** Riciclo effettivo 11014: ferme → 0; in marcia + riciclo Auto → almeno Q_RECYCLE_MIN. */
+5990|    function qRecycleEffective(running14, qWanted) {
+5991|      if (!running14) return 0;
+5992|      const w = Math.max(0, Number(qWanted) || 0);
+5993|      if (ricicloAutoControlled()) return round1(Math.max(Q_RECYCLE_MIN, w));
+5994|      return round1(w);
+5995|    }
+5996|
+5997|    function rateA10620PctPerMin(qIn, qPump, qRecycle) {
+5998|      const net = (qIn + qRecycle) - qPump;
+5999|      // Volume utile reale A10620 (REGOLAZIONI §0) — non più k empirico A10611
+6000|      const { V } = getA10620Geom();
+6001|      return ratePctPerMinFromVolume(net, V);
+6002|    }
+6003|
+6004|    function captureSimSnap() {
+6005|      let livH = numOrNull("livelloAttualeH");
+6006|      if (livH === null) livH = 90;
+6007|      let livMbr = numOrNull("livelloAttualeMbr");
+6008|      if (livMbr === null) livMbr = 90;
+6009|      let livP = numOrNull("livelloAttualeTk11007");
+6010|      if (livP === null) livP = 91;
+6011|      let livU = numOrNull("livelloAttualeTk11021");
+6012|      if (livU === null) livU = 91;
+6013|      __simSnap = {
+6014|        liv20: num("livelloAttuale"),
+6015|        liv11: num("livelloAttualeA10611"),
+6016|        livH,
+6017|        livMbr,
+6018|        livP,
+6019|        livU,
+6020|        run11036: __run11036,
+6021|        run11036Tank: __run11036Tank,
+6022|        allow11036ByMbr: __allow11036ByMbr,
+6023|        runP11011By20: __runP11011By20,
+6024|        chimicoAllowFill: __chimicoAllowFill,
+6025|        blockP11011: __blockP11011By11,
+6026|        runMbrByLevel: __runMbrByLevel,
+6027|        allowMbrByPermeate: __allowMbrByPermeate,
+6028|        runP11019By07: __runP11019By07,
+6029|        allowUfByTk11021: __allowUfByTk11021,
+6030|        runOsmA: __runOsmA,
+6031|        runOsmB: __runOsmB,
+6032|        runOsmC: __runOsmC,
+6033|        mbrCycleMin: __mbrCycleMin,
+6034|        ufSvcMin: __ufSvcMin,
+6035|        ufChem: __ufChem ? JSON.parse(JSON.stringify(__ufChem)) : null,
+6036|        carbWash: __carbWash ? JSON.parse(JSON.stringify(__carbWash)) : null,
+6037|        startupPumpHold: __startupPumpHold,
+6038|      };
+6039|    }
+6040|
+6041|    function restoreSimSnap() {
+6042|      if (!__simSnap) return;
+6043|      setVal("livelloAttuale", __simSnap.liv20, { force: true });
+6044|      setVal("livelloAttualeA10611", __simSnap.liv11, { force: true });
+6045|      if (el("livelloAttualeH")) setVal("livelloAttualeH", __simSnap.livH, { force: true });
+6046|      if (el("livelloAttualeMbr")) setVal("livelloAttualeMbr", __simSnap.livMbr != null ? __simSnap.livMbr : 90, { force: true });
+6047|      if (el("livelloAttualeTk11007")) setVal("livelloAttualeTk11007", __simSnap.livP != null ? __simSnap.livP : 91, { force: true });
+6048|      if (el("livelloAttualeTk11021")) setVal("livelloAttualeTk11021", __simSnap.livU != null ? __simSnap.livU : 91, { force: true });
+6049|      __run11036Tank = __simSnap.run11036Tank !== false;
+6050|      __allow11036ByMbr = __simSnap.allow11036ByMbr !== false;
+6051|      if (__simSnap.run11036Tank == null && __simSnap.run11036 != null) {
+6052|        // compat snap vecchi
+6053|        __run11036Tank = !!__simSnap.run11036;
+6054|        __allow11036ByMbr = true;
+6055|      }
+6056|      syncRun11036();
+6057|      __runP11011By20 = !!__simSnap.runP11011By20;
+6058|      __chimicoAllowFill = __simSnap.chimicoAllowFill !== false;
+6059|      __chimicoWasAllow = __chimicoAllowFill;
+6060|      __blockP11011By11 = __simSnap.blockP11011;
+6061|      __runMbrByLevel = __simSnap.runMbrByLevel !== false;
+6062|      __allowMbrByPermeate = __simSnap.allowMbrByPermeate !== false;
+6063|      __runP11019By07 = __simSnap.runP11019By07 !== false;
+6064|      __allowUfByTk11021 = __simSnap.allowUfByTk11021 !== false;
+6065|      __runOsmA = __simSnap.runOsmA !== false;
+6066|      __runOsmB = __simSnap.runOsmB !== false;
+6067|      __runOsmC = __simSnap.runOsmC !== false;
+6068|      __mbrCycleMin = Math.max(0, Number(__simSnap.mbrCycleMin) || 0);
+6069|      __ufSvcMin = Math.max(0, Number(__simSnap.ufSvcMin) || 0);
+6070|      if (__simSnap.ufChem && typeof __simSnap.ufChem === "object") {
+6071|        __ufChem = JSON.parse(JSON.stringify(__simSnap.ufChem));
+6072|        ensureUfChem();
+6073|      }
+6074|      if (__simSnap.carbWash && typeof __simSnap.carbWash === "object") {
+6075|        __carbWash = JSON.parse(JSON.stringify(__simSnap.carbWash));
+6076|        ensureCarbWash();
+6077|      }
+6078|      __startupPumpHold = __simSnap.startupPumpHold !== false;
+6079|      // Riallinea isteresi 11014 ai livelli ripristinati
+6080|      assess11014RunState(
+6081|        numOrNull("livelloAttualeH") ?? 90,
+6082|        num("livelloAttuale")
+6083|      );
+6084|    }
+6085|
+6086|    function updateSimTimeUI() {
+6087|      const label = el("simTimeLabel");
+6088|      if (label) label.textContent = __simMin + "′";
+6089|      try { paintUfHeadWash(); } catch (_) { /* ok */ }
+6090|      const minus = el("simMinus5");
+6091|      if (minus) minus.disabled = __simMin <= 0 || __simBusy || __simPlaying;
+6092|      const plus = el("simPlus5");
+6093|      if (plus) plus.disabled = __simBusy || __simPlaying;
+6094|      const reset = el("simReset");
+6095|      if (reset) reset.disabled = !!__simBusy;
+6096|      const playBtn = el("simPlayToggle");
+6097|      if (playBtn) {
+6098|        playBtn.disabled = !!__simBusy;
+6099|        playBtn.classList.toggle("is-start", !__simPlaying);
+6100|        playBtn.classList.toggle("is-stop", !!__simPlaying);
+6101|        playBtn.textContent = __simPlaying ? "Stop" : "Start";
+6102|        playBtn.setAttribute("aria-label", __simPlaying ? "Ferma simulazione" : "Avvia simulazione");
+6103|        playBtn.setAttribute("aria-pressed", __simPlaying ? "true" : "false");
+6104|      }
+6105|    }
+6106|
+6107|    function simTogglePlay() {
+6108|      if (__simBusy) return;
+6109|      if (__simPlaying) simStop();
+6110|      else simStart();
+6111|    }
+6112|
+6113|    /** Avvia conteggio automatico: 1 secondo reale = 1 minuto sim. */
+6114|    function simStart() {
+6115|      if (__simBusy || __simPlaying) return;
+6116|      __simPlaying = true;
+6117|      try { keepScreenAwake(); } catch (_) { /* ok */ }
+6118|      softStartPlantFlows();
+6119|      advanceQInWobble(1);
+6120|      tickUfRegulation(1);

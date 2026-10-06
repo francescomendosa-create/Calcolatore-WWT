@@ -1,0 +1,169 @@
+6512|    function runSimTo(targetMin) {
+6513|      targetMin = Math.max(0, Math.round(targetMin / SIM_STEP_MIN) * SIM_STEP_MIN);
+6514|      if (!__simSnap) {
+6515|        forcePlantRunningBaseline();
+6516|        ensurePumpsFlowing();
+6517|        captureSimSnap();
+6518|      }
+6519|      __simBusy = true;
+6520|      updateSimTimeUI();
+6521|      try {
+6522|        restoreSimSnap();
+6523|        // Non forzare pompe ON: riparti dallo snap e applica subito PROCESSO
+6524|        updateA10620RiempInterlocks(num("livelloAttuale"));
+6525|        updateA10620PumpInterlocks(num("livelloAttuale"));
+6526|        updateA10611PumpInterlocks(num("livelloAttualeA10611"));
+6527|        updateMbrLevelInterlocks(numOrNull("livelloAttualeMbr") ?? 90);
+6528|        updateMbrFillFor11036(numOrNull("livelloAttualeMbr") ?? 90);
+6529|        updateTk11007PermeateInterlocks(numOrNull("livelloAttualeTk11007") ?? 91);
+6530|        updateTk11007PumpInterlocks(numOrNull("livelloAttualeTk11007") ?? 91);
+6531|        updateTk11021Interlocks(numOrNull("livelloAttualeTk11021") ?? 91);
+6532|        ensurePumpsFlowing();
+6533|        applyBalance("sim");
+6534|        for (let t = SIM_STEP_MIN; t <= targetMin; t += SIM_STEP_MIN) {
+6535|          __simMin = t;
+6536|          simulateOneStep(SIM_STEP_MIN);
+6537|        }
+6538|        __simMin = targetMin;
+6539|      } finally {
+6540|        __simBusy = false;
+6541|        updateSimTimeUI();
+6542|        paintPumpColors();
+6543|        paintA10608Passante();
+6544|        paintMembraneCycleUI(__mbrCycleMin);
+6545|      }
+6546|    }
+6547|
+6548|    function simPlus5() {
+6549|      if (__simBusy) return;
+6550|      __simBusy = true;
+6551|      updateSimTimeUI();
+6552|      try {
+6553|        if (__simMin === 0 && !__simSnap) {
+6554|          forcePlantRunningBaseline();
+6555|          paintResetLevelsUI(SIM_RESET_LIV);
+6556|          if (isAutoMode()) ensurePumpsFlowing();
+6557|          applyBalance("sim");
+6558|          forcePlantRunningBaseline();
+6559|          paintResetLevelsUI(SIM_RESET_LIV);
+6560|          captureSimSnap();
+6561|        } else if (__simMin === 0) {
+6562|          if (isAutoMode()) ensurePumpsFlowing();
+6563|        }
+6564|        if (isAutoMode() && (__startupPumpHold || p11011Allowed())) ensurePumpsFlowing();
+6565|        // Avanza il minuto, poi simula (7′ lavoro / 1′ pausa a coppie sfalsate)
+6566|        __simMin = __simMin + SIM_STEP_MIN;
+6567|        simulateOneStep(SIM_STEP_MIN);
+6568|        paintMembraneCycleUI(__mbrCycleMin);
+6569|      } finally {
+6570|        __simBusy = false;
+6571|        updateSimTimeUI();
+6572|        paintPumpColors();
+6573|        paintA10608Passante();
+6574|        paintMembraneCycleUI(__mbrCycleMin);
+6575|      }
+6576|    }
+6577|
+6578|    function simMinus5() {
+6579|      if (__simBusy || __simMin <= 0) return;
+6580|      runSimTo(Math.max(0, __simMin - SIM_STEP_MIN));
+6581|    }
+6582|
+6583|    /** Reset: tempo 0′ e livelli A10620 / A10611 / A11004 / MBR = 90% (riparte la simulazione) */
+6584|    function simReset() {
+6585|      simStop();
+6586|      __simBusy = false;
+6587|      lock = false;
+6588|      __simMin = 0;
+6589|      __mbrCycleMin = 0;
+6590|      __ufSvcMin = 0;
+6591|      resetUfChem();
+6592|      resetCarbWash();
+6593|      resetQInWobble();
+6594|      if (__qMemPermRaf != null) {
+6595|        cancelAnimationFrame(__qMemPermRaf);
+6596|        __qMemPermRaf = null;
+6597|      }
+6598|      __qMemPermLive = null;
+6599|      __runMbrByLevel = true;
+6600|      __allowMbrByPermeate = true;
+6601|      __runP11019By07 = true;
+6602|      __allowUfByTk11021 = true;
+6603|      __runOsmA = true;
+6604|      __runOsmB = true;
+6605|      __runOsmC = true;
+6606|      __run11036Tank = true;
+6607|      __allow11036ByMbr = true;
+6608|      __run11036 = true;
+6609|      __simSnap = null;
+6610|      // Blocca sync cloud abbastanza a lungo da non ripristinare livelli vecchi
+6611|      __resetGuardUntil = Date.now() + 8000;
+6612|
+6613|      const L = SIM_RESET_LIV;
+6614|      const txt = Number(L).toFixed(1);
+6615|
+6616|      forcePlantRunningBaseline();
+6617|      ensurePumpsFlowing();
+6618|      try { applyBalance("sim"); } catch (e) { console.warn("[calcolatore] reset balance", e); }
+6619|
+6620|      // applyBalance NON deve lasciare livelli vecchi: riscrivi sempre dopo
+6621|      forcePlantRunningBaseline();
+6622|      paintResetLevelsUI(L);
+6623|      ensurePumpsFlowing();
+6624|      try { applyBalance("sim"); } catch (e) { console.warn("[calcolatore] reset balance2", e); }
+6625|
+6626|      forcePlantRunningBaseline();
+6627|      paintResetLevelsUI(L);
+6628|      captureSimSnap();
+6629|      snapFlowLiveFromFields();
+6630|      // All’avvio: chimico VERDE con la portata impostata (qIn resta nel campo)
+6631|      setChimicoAllowFill(true, { silent: true });
+6632|      resetChimicoBlockCount();
+6633|      paintChimico(num("qIn") > 0.05);
+6634|      const svgQIn0 = el("svgQIn");
+6635|      if (svgQIn0) svgQIn0.textContent = round1(num("qIn")).toFixed(1);
+6636|      paintPumpColors();
+6637|      paintA10608Passante();
+6638|      updateSimTimeUI();
+6639|
+6640|      const bar = el("statusBar");
+6641|      if (bar) {
+6642|        bar.className = "status";
+6643|        bar.textContent = `Reset · A10620/A10611/A11004 = ${txt}% · t=0′ · premi +1′`;
+6644|      }
+6645|
+6646|      try {
+6647|        const payload = collectPersistPayload(true);
+6648|        payload.livelloAttuale = txt;
+6649|        payload.livelloAttualeA10611 = txt;
+6650|        payload.livelloAttualeH = txt;
+6651|        saveLocalOnly(payload);
+6652|        __appliedCalcSyncRevision = Number(payload.syncRevision) || __appliedCalcSyncRevision;
+6653|        if (typeof pushCloud === "function") pushCloud(payload);
+6654|      } catch (e) {
+6655|        console.warn("[calcolatore] reset persist", e);
+6656|      }
+6657|
+6658|      const reaffirm = () => {
+6659|        forcePlantRunningBaseline();
+6660|        paintResetLevelsUI(L);
+6661|        paintPumpColors();
+6662|        paintA10608Passante();
+6663|        const b = el("statusBar");
+6664|        if (b && Date.now() < __resetGuardUntil) {
+6665|          b.className = "status";
+6666|          b.textContent = `Reset · A10620/A10611/A11004 = ${txt}% · t=0′ · premi +1′`;
+6667|        }
+6668|      };
+6669|      setTimeout(reaffirm, 30);
+6670|      setTimeout(reaffirm, 200);
+6671|      setTimeout(reaffirm, 600);
+6672|      setTimeout(reaffirm, 1500);
+6673|      setTimeout(reaffirm, 3000);
+6674|    }
+6675|
+6676|    /** Se l’utente cambia i livelli di partenza, azzera la simulazione */
+6677|    function invalidateSimOnLevelEdit() {
+6678|      if (__simBusy) return;
+6679|      if (__simMin === 0 && !__simSnap) return;
+6680|      __simMin = 0;

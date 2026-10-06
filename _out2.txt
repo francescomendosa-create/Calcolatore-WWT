@@ -1,0 +1,57 @@
+4000|    function fmtBlockPct(v) {
+4001|      const n = Number(v);
+4002|      return Number.isFinite(n) ? n.toFixed(1).replace(/\.0$/, "") + "%" : "—";
+4003|    }
+4004|
+4005|    function fmtQ(v) {
+4006|      const n = Number(v);
+4007|      return Number.isFinite(n) ? n.toFixed(1) : "—";
+4008|    }
+4009|
+4010|    function qInCapAtPump(qPump) {
+4011|      const qp = Math.max(0, Number(qPump) || 0);
+4012|      return round1(Math.max(0, qp - Q_RECYCLE_MIN));
+4013|    }
+4014|
+4015|    function qInCapAtOut(qOut, qRec) {
+4016|      return round1(Math.max(0, (Number(qOut) || 0) - (Number(qRec) || 0)));
+4017|    }
+4018|
+4019|    /**
+4020|     * Portata anomala: ingresso alto ma pompa/set molto sotto il bisogno
+4021|     * (es. IN 200 e P11011 a 10–50) → errore di set, non “abbassa il chimico”.
+4022|     */
+4023|    function isAnomalousLowFlow(qHave, qNeed, qIn) {
+4024|      const have = Math.max(0, Number(qHave) || 0);
+4025|      const need = Math.max(0, Number(qNeed) || 0);
+4026|      const inn = Math.max(0, Number(qIn) || 0);
+4027|      if (need < 40) return false;
+4028|      const ratio = need > 0 ? have / need : 1;
+4029|      const gap = need - have;
+4030|      if (inn >= 100 && have <= 80 && need >= 150) return true;
+4031|      if (inn >= 80 && ratio < 0.45 && gap >= 60) return true;
+4032|      if (have <= 50 && need >= 140) return true;
+4033|      return false;
+4034|    }
+4035|
+4036|    /** Quasi a posto: regolazione fine, ha senso anche scendere il chimico. */
+4037|    function isNearMissFlow(qHave, qNeed) {
+4038|      const have = Math.max(0, Number(qHave) || 0);
+4039|      const need = Math.max(0, Number(qNeed) || 0);
+4040|      if (need <= 0) return false;
+4041|      const ratio = have / need;
+4042|      const gap = need - have;
+4043|      return ratio >= 0.75 || gap <= 40;
+4044|    }
+4045|
+4046|    function hzBitForNeed(qNeed) {
+4047|      try {
+4048|        const step = pumpStepForNeed(qNeed);
+4049|        if (step && Number.isFinite(step.hz)) {
+4050|          return ` · ${step.hz} Hz → ${fmtQ(step.q)} m³/h`;
+4051|        }
+4052|      } catch (_) { /* ok */ }
+4053|      return "";
+4054|    }
+4055|
+4056|    /** Diagnosi operativa: spicciola, quesito Sì/No, niente CF a zero su anomalie. */

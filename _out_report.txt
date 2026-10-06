@@ -1,0 +1,344 @@
+4057|    function buildChimicoBlockReport(ev) {
+4058|      if (!ev) {
+4059|        return {
+4060|          chain: [], meta: "", verdict: "", action: "", alt: "", eq: "",
+4061|          ask: null, fault: "", forceAlt: false, anomaly: false,
+4062|        };
+4063|      }
+4064|      const chain = [];
+4065|      if (ev.blockP11011) {
+4066|        chain.push(
+4067|          `A10611 alto (${fmtBlockPct(ev.liv11)} ≥ ${fmtBlockPct(ev.hiBlock)}) → <strong>P11011 ferme</strong>.`
+4068|        );
+4069|        chain.push(
+4070|          `A10620 ha ricevuto ingresso ${fmtQ(ev.qInLive)} m³/h`
+4071|          + (ev.qRecLive > 0.05 ? ` + riciclo ${fmtQ(ev.qRecLive)}` : "")
+4072|          + ` senza scarico P11011.`
+4073|        );
+4074|      } else if (!ev.pumpOn) {
+4075|        if (!ev.runP11011By20) {
+4076|          chain.push(
+4077|            `P11011 OFF: A10620 sotto start svuotamento (serve ≥ ${fmtBlockPct(ev.startSvuot)}).`
+4078|          );
+4079|        } else {
+4080|          chain.push(`P11011 non scaricavano.`);
+4081|        }
+4082|        chain.push(
+4083|          `Ingresso ${fmtQ(ev.qInLive)} m³/h` + (ev.qRecLive > 0.05 ? ` + riciclo ${fmtQ(ev.qRecLive)}` : "")
+4084|          + ` ha riempito A10620.`
+4085|        );
+4086|      } else {
+4087|        chain.push(
+4088|          `Verso A10620: <strong>${fmtQ(ev.qInTo20)} m³/h</strong> (IN ${fmtQ(ev.qInLive)}`
+4089|          + (ev.qRecLive > 0.05 ? ` + riciclo ${fmtQ(ev.qRecLive)}` : "") + `).`
+4090|        );
+4091|        chain.push(
+4092|          `P11011 solo <strong>${fmtQ(ev.qOut)} m³/h</strong> (set ${fmtQ(ev.qPumpSp)}) — manca ≈ <strong>${fmtQ(ev.deficit)}</strong>.`
+4093|        );
+4094|      }
+4095|      chain.push(
+4096|        `A10620 ${fmtBlockPct(ev.liv20 != null ? ev.liv20 : ev.liv)} ≥ stop ${fmtBlockPct(ev.stop)} → <strong>blocco chimico</strong>.`
+4097|      );
+4098|
+4099|      let qMax = 334;
+4100|      try { qMax = getPumpMax(); } catch (_) { /* ok */ }
+4101|      const qPumpTarget = round1(Math.max(ev.qEq20 || 0, ev.qEqPlant || 0));
+4102|      const hzBit = hzBitForNeed(qPumpTarget);
+4103|      const qHavePump = Math.max(ev.qPumpSp || 0, ev.pumpOn ? (ev.qOut || 0) : 0);
+4104|      const anomalyPump = isAnomalousLowFlow(qHavePump, qPumpTarget, ev.qInSp);
+4105|      const nearPump = isNearMissFlow(qHavePump, qPumpTarget);
+4106|
+4107|      // Target 11036 / membrane: scaricare almeno quanto arriva da P11011 (o il bisogno impianto)
+4108|      const qMandTarget = round1(Math.max(qPumpTarget, ev.qInTo20 || 0, ev.qPumpSp || 0));
+4109|      const qMemTarget = round1(Math.max(qMandTarget * 0.85, ev.qMemSp || 0));
+4110|      const qHaveMand = Math.max(ev.qMandSp || 0, ev.run11036 ? (ev.qMandLive || 0) : 0);
+4111|      const anomalyMand = isAnomalousLowFlow(qHaveMand, qMandTarget, ev.qInSp);
+4112|      const nearMand = isNearMissFlow(qHaveMand, qMandTarget);
+4113|
+4114|      let verdict = "";
+4115|      let action = "";
+4116|      let alt = "";
+4117|      let fault = "";
+4118|      let ask = null;
+4119|      let forceAlt = false;
+4120|      let anomaly = false;
+4121|
+4122|      if (ev.blockP11011) {
+4123|        anomaly = anomalyMand;
+4124|        verdict = `Male: <strong>MP 11036 / membrane</strong> non scaricano A10611 `
+4125|          + `(${fmtBlockPct(ev.liv11)}) → P11011 ferme → blocco.`;
+4126|        action = `Metti <strong>MP 11036 A/B a <span class="fix-val">${fmtQ(qMandTarget)} m³/h</span></strong> `
+4127|          + `(e membrane ≥ <span class="fix-val">${fmtQ(qMemTarget)} m³/h</span>) `
+4128|          + `finché A10611 scende sotto <strong class="fix-val">${fmtBlockPct(ev.hiRestart)}</strong>, `
+4129|          + `poi P11011 ≥ <span class="fix-val">${fmtQ(qPumpTarget)}</span>${hzBit}.`;
+4130|        if (anomaly) {
+4131|          fault = `Portata 11036/membrane anomala rispetto all’ingresso `
+4132|            + `(IN ${fmtQ(ev.qInSp)} · 11036 ${fmtQ(qHaveMand)} · serve ≈ ${fmtQ(qMandTarget)}). `
+4133|            + `Non abbassare il chimico: regola la pompa sottodimensionata.`;
+4134|          alt = "";
+4135|          ask = {
+4136|            key: `mand-${fmtQ(qMandTarget)}-${fmtQ(ev.qInSp)}`,
+4137|            q: `Puoi aumentare <strong>MP 11036 A/B</strong> a <strong class="fix-val">${fmtQ(qMandTarget)} m³/h</strong> `
+4138|              + `(o le membrane a ≥ ${fmtQ(qMemTarget)})?`,
+4139|            yesHtml: `Ok: regola <strong>MP 11036 A/B → <span class="fix-val">${fmtQ(qMandTarget)} m³/h</span></strong> `
+4140|              + `e membrane ≥ <span class="fix-val">${fmtQ(qMemTarget)} m³/h</span>. `
+4141|              + `Poi P11011 ≥ <span class="fix-val">${fmtQ(qPumpTarget)}</span>${hzBit}.`,
+4142|            noHtml: `Allora c’è un problema su 11036/membrane: non è un set del chimico. `
+4143|              + `Controlla pompe/linee e porta la portata esercibile a ≈ <span class="fix-val">${fmtQ(qMandTarget)}</span>.`,
+4144|            hideAltOnNo: true,
+4145|          };
+4146|        } else {
+4147|          const qSafe = qInCapAtPump(Math.min(qMax, Math.max(ev.qPumpSp || 0, qPumpTarget * 0.5)));
+4148|          alt = `Abbassa il chimico-fisico a ≤ <strong class="fix-val">${fmtQ(Math.min(ev.qInSp, qSafe))} m³/h</strong> `
+4149|            + `finché A10611 scende sotto ${fmtBlockPct(ev.hiRestart)}.`;
+4150|          ask = {
+4151|            key: `mand-ok-${fmtQ(qMandTarget)}-${fmtQ(ev.qInSp)}`,
+4152|            q: `Puoi aumentare <strong>MP 11036 A/B</strong> / membrane a quanto serve `
+4153|              + `(≈ <strong class="fix-val">${fmtQ(qMandTarget)}</strong> / ≥ ${fmtQ(qMemTarget)})?`,
+4154|            yesHtml: `Regola <strong>MP 11036 → <span class="fix-val">${fmtQ(qMandTarget)} m³/h</span></strong>, `
+4155|              + `membrane ≥ <span class="fix-val">${fmtQ(qMemTarget)}</span>, poi P11011 ≥ `
+4156|              + `<span class="fix-val">${fmtQ(qPumpTarget)}</span>${hzBit}.`,
+4157|            noHtml: alt,
+4158|            hideAltOnNo: false,
+4159|          };
+4160|          if (!nearMand && !anomaly) {
+4161|            // gap medio: chiedi comunque, alt solo su No
+4162|            ask.hideAltOnNo = false;
+4163|          }
+4164|        }
+4165|      } else if (!ev.pumpOn) {
+4166|        anomaly = anomalyPump || (ev.qInSp >= 80 && qHavePump < 40);
+4167|        verdict = `Male: <strong>P11011 OFF</strong> con chimico a <strong>${fmtQ(ev.qInSp)} m³/h</strong>.`;
+4168|        action = `Metti in marcia <strong>P11011 a <span class="fix-val">${fmtQ(qPumpTarget)} m³/h</span></strong>${hzBit} `
+4169|          + `(A10620 ≥ ${fmtBlockPct(ev.startSvuot)}, A10611 &lt; stop alto).`;
+4170|        if (anomaly) {
+4171|          fault = `Con ingresso ${fmtQ(ev.qInSp)} m³/h e scarico ~${fmtQ(qHavePump)} c’è un set/pompa sbagliata — `
+4172|            + `non scendere il chimico a zero: alza le P11011.`;
+4173|          alt = "";
+4174|          ask = {
+4175|            key: `p11off-anom-${fmtQ(qPumpTarget)}`,
+4176|            q: `Puoi portare <strong>P11011</strong> a <strong class="fix-val">${fmtQ(qPumpTarget)} m³/h</strong>?`,
+4177|            yesHtml: `Regola <strong>P11011 → <span class="fix-val">${fmtQ(qPumpTarget)} m³/h</span></strong>${hzBit}.`,
+4178|            noHtml: `Allora verifica avaria/consensi P11011: con ingresso ${fmtQ(ev.qInSp)} non ha senso azzerare il chimico `
+4179|              + `se la pompa può esercire ≈ ${fmtQ(Math.min(qMax, qPumpTarget))} m³/h.`,
+4180|            hideAltOnNo: true,
+4181|          };
+4182|        } else {
+4183|          const qSafe = qInCapAtOut(ev.qOut, ev.qRecLive);
+4184|          alt = `Abbassa il chimico-fisico a ≤ <strong class="fix-val">${fmtQ(qSafe)} m³/h</strong> `
+4185|            + `(scarico attuale ${fmtQ(ev.qOut)} m³/h).`;
+4186|          ask = {
+4187|            key: `p11off-${fmtQ(qPumpTarget)}`,
+4188|            q: `Puoi mettere in marcia <strong>P11011</strong> a <strong class="fix-val">${fmtQ(qPumpTarget)} m³/h</strong>?`,
+4189|            yesHtml: `Regola <strong>P11011 → <span class="fix-val">${fmtQ(qPumpTarget)} m³/h</span></strong>${hzBit}.`,
+4190|            noHtml: alt,
+4191|            hideAltOnNo: false,
+4192|          };
+4193|        }
+4194|      } else if (ev.deficit > 0.5) {
+4195|        if (qPumpTarget > qMax + 0.05) {
+4196|          const qInMaxPlant = qInCapAtPump(qMax);
+4197|          forceAlt = true;
+4198|          verdict = `Male: <strong>chimico troppo alto</strong> (${fmtQ(ev.qInSp)} m³/h) — `
+4199|            + `P11011 max ${fmtQ(qMax)} m³/h, servirebbero ≥ ${fmtQ(qPumpTarget)}.`;
+4200|          action = `Non puoi alzare abbastanza le P11011 (max <strong>${fmtQ(qMax)}</strong>).`;
+4201|          alt = `Abbassa il chimico-fisico a ≤ <strong class="fix-val">${fmtQ(qInMaxPlant)} m³/h</strong> `
+4202|            + `(P11011 a ${fmtQ(qMax)}, riciclo min ${Q_RECYCLE_MIN}).`;
+4203|          ask = null;
+4204|        } else if (anomalyPump) {
+4205|          anomaly = true;
+4206|          verdict = `Male: <strong>P11011 sottodimensionata</strong> — set <strong>${fmtQ(ev.qPumpSp)}</strong> `
+4207|            + `con ingresso ${fmtQ(ev.qInSp)} (serve ≥ <strong>${fmtQ(qPumpTarget)}</strong>).`;
+4208|          action = `Regola <strong>P11011 a <span class="fix-val">${fmtQ(qPumpTarget)} m³/h</span></strong>${hzBit}.`;
+4209|          fault = `Portata anomala (IN ${fmtQ(ev.qInSp)} vs P11011 ${fmtQ(qHavePump)}): `
+4210|            + `non abbassare il chimico — sposta la pompa al valore esercibile.`;
+4211|          alt = "";
+4212|          ask = {
+4213|            key: `p11-anom-${fmtQ(qPumpTarget)}-${fmtQ(ev.qPumpSp)}`,
+4214|            q: `Puoi aumentare <strong>P11011 A/B</strong> a <strong class="fix-val">${fmtQ(qPumpTarget)} m³/h</strong>?`,
+4215|            yesHtml: `Regola <strong>P11011 → <span class="fix-val">${fmtQ(qPumpTarget)} m³/h</span></strong>${hzBit} `
+4216|              + `e lascia il chimico a ${fmtQ(ev.qInSp)} m³/h.`,
+4217|            noHtml: `Allora c’è un limite/avaria sulla pompa: porta comunque P11011 al massimo esercibile `
+4218|              + `(fino a <span class="fix-val">${fmtQ(qMax)}</span>). Non azzerare il chimico per un set a ${fmtQ(ev.qPumpSp)}.`,
+4219|            hideAltOnNo: true,
+4220|          };
+4221|        } else {
+4222|          anomaly = false;
+4223|          verdict = `Male: <strong>P11011 bassa</strong> — ${fmtQ(ev.qPumpSp)} m³/h, serve ≥ <strong>${fmtQ(qPumpTarget)}</strong> `
+4224|            + `(manca ${fmtQ(ev.deficit)}).`;
+4225|          action = `Regola <strong>P11011 a <span class="fix-val">${fmtQ(qPumpTarget)} m³/h</span></strong>${hzBit}.`;
+4226|          const qSafe = Math.min(qInCapAtPump(ev.qPumpSp), qInCapAtOut(ev.qOut, ev.qRecLive));
+4227|          alt = nearPump
+4228|            ? `Abbassa il chimico-fisico a ≤ <strong class="fix-val">${fmtQ(qSafe)} m³/h</strong> `
+4229|              + `(lasciando P11011 a ${fmtQ(ev.qPumpSp)}).`
+4230|            : `Abbassa il chimico-fisico a ≤ <strong class="fix-val">${fmtQ(qSafe)} m³/h</strong> `
+4231|              + `solo se non puoi alzare le P11011.`;
+4232|          ask = {
+4233|            key: `p11-${fmtQ(qPumpTarget)}-${fmtQ(ev.qPumpSp)}`,
+4234|            q: `Puoi aumentare <strong>P11011 A/B</strong> a <strong class="fix-val">${fmtQ(qPumpTarget)} m³/h</strong>?`,
+4235|            yesHtml: `Regola <strong>P11011 → <span class="fix-val">${fmtQ(qPumpTarget)} m³/h</span></strong>${hzBit}.`,
+4236|            noHtml: alt,
+4237|            hideAltOnNo: false,
+4238|          };
+4239|        }
+4240|      } else {
+4241|        verdict = `Male: A10620 allo stop con portate quasi in pareggio `
+4242|          + `(IN ${fmtQ(ev.qInSp)} · P11011 ${fmtQ(ev.qPumpSp)}).`;
+4243|        action = `Tieni <strong>P11011 ≥ <span class="fix-val">${fmtQ(qPumpTarget)} m³/h</span></strong>${hzBit}.`;
+4244|        const qSafe = qInCapAtPump(Math.min(ev.qPumpSp, ev.qOut));
+4245|        alt = `Abbassa il chimico-fisico a ≤ <strong class="fix-val">${fmtQ(qSafe)} m³/h</strong>.`;
+4246|        ask = {
+4247|          key: `near-${fmtQ(qPumpTarget)}`,
+4248|          q: `Puoi alzare un filo le <strong>P11011</strong> a ≥ <strong class="fix-val">${fmtQ(qPumpTarget)} m³/h</strong>?`,
+4249|          yesHtml: `Regola <strong>P11011 → <span class="fix-val">${fmtQ(qPumpTarget)} m³/h</span></strong>${hzBit}.`,
+4250|          noHtml: alt,
+4251|          hideAltOnNo: false,
+4252|        };
+4253|      }
+4254|
+4255|      const meta = `<div><strong>Al blocco</strong> · ${ev.tMin}′ di sim</div>
+4256|        <div>Ingresso: set <strong>${fmtQ(ev.qInSp)}</strong> · viva <strong>${fmtQ(ev.qInLive)} m³/h</strong></div>
+4257|        <div>Riciclo 11014: set <strong>${fmtQ(ev.qRecSp)}</strong> · viva <strong>${fmtQ(ev.qRecLive)}</strong></div>
+4258|        <div>P11011: set <strong>${fmtQ(ev.qPumpSp)}</strong> · scarico <strong>${fmtQ(ev.qOut)}</strong>${ev.pumpOn ? "" : " (OFF)"}</div>
+4259|        <div>MP 11036: set <strong>${fmtQ(ev.qMandSp)}</strong> · viva <strong>${fmtQ(ev.qMandLive)}</strong>${ev.run11036 ? "" : " (OFF)"}</div>
+4260|        <div>Membrane: set <strong>${fmtQ(ev.qMemSp)}</strong> · viva <strong>${fmtQ(ev.qMemLive)}</strong></div>
+4261|        <div>Ripresa chimico: A10620 ≤ <strong>${fmtBlockPct(ev.start)}</strong></div>`;
+4262|
+4263|      const eq = `<strong>In sintesi</strong><br>${verdict}<br><br>${action}`
+4264|        + (alt ? `<br><br>${alt}` : "");
+4265|      return { chain, meta, verdict, action, alt, eq, ask, fault, forceAlt, anomaly };
+4266|    }
+4267|
+4268|    function resetBlocchiPanelPos() {
+4269|      const panel = el("blocchiPanel");
+4270|      if (!panel) return;
+4271|      panel.classList.remove("is-dragging");
+4272|      panel.style.position = "";
+4273|      panel.style.left = "";
+4274|      panel.style.top = "";
+4275|      panel.style.margin = "";
+4276|      panel.style.transform = "";
+4277|    }
+4278|
+4279|    function paintBlocchiExplain() {
+4280|      const body = el("blocchiBody");
+4281|      if (!body) return;
+4282|      const last = __chimicoBlockLog.length ? __chimicoBlockLog[__chimicoBlockLog.length - 1] : null;
+4283|      const blockedNow = !__chimicoAllowFill;
+4284|      const livNow = numOrNull("livelloAttuale");
+4285|      const startNow = numOrNull("startRiempA10620");
+4286|      const startV = startNow !== null ? startNow : 92;
+4287|
+4288|      let html = "";
+4289|      if (last) {
+4290|        const rep = buildChimicoBlockReport(last);
+4291|        const ask = rep.ask;
+4292|        if (ask && ask.key !== __blockQaKey) {
+4293|          __blockQaKey = ask.key;
+4294|          __blockQaAnswer = null;
+4295|        }
+4296|        html += `<div class="block-verdict">${rep.verdict}</div>`;
+4297|        html += `<div class="block-action"><strong>Cosa regolare</strong><br>${rep.action}</div>`;
+4298|        if (rep.fault) {
+4299|          html += `<div class="block-fault">${rep.fault}</div>`;
+4300|        }
+4301|        if (ask) {
+4302|          html += `<div class="block-qa" data-qa-key="${ask.key}">`;
+4303|          html += `<p>${ask.q}</p>`;
+4304|          html += `<div class="block-qa-btns">`;
+4305|          html += `<button type="button" data-block-qa="yes"${__blockQaAnswer === "yes" ? ' class="is-picked"' : ""}>Sì</button>`;
+4306|          html += `<button type="button" data-block-qa="no"${__blockQaAnswer === "no" ? ' class="is-picked"' : ""}>No</button>`;
+4307|          html += `</div></div>`;
+4308|          if (__blockQaAnswer === "yes") {
+4309|            html += `<div class="block-action">${ask.yesHtml}</div>`;
+4310|          } else if (__blockQaAnswer === "no") {
+4311|            html += `<div class="block-alt">${ask.noHtml}</div>`;
+4312|          }
+4313|        } else if (rep.forceAlt && rep.alt) {
+4314|          html += `<div class="block-alt"><strong>Obbligatorio</strong><br>${rep.alt}</div>`;
+4315|        } else if (rep.alt && !ask) {
+4316|          html += `<div class="block-alt">${rep.alt}</div>`;
+4317|        }
+4318|        html += `<div class="block-meta">${rep.meta}</div>`;
+4319|        html += `<p class="mini" style="margin-top:10px"><strong>Catena</strong></p><ul class="block-chain">`;
+4320|        rep.chain.forEach((step) => { html += `<li>${step}</li>`; });
+4321|        html += `</ul>`;
+4322|        if (blockedNow) {
+4323|          html += `<p class="mini" style="margin-top:10px">Ancora in blocco (A10620 ${livNow !== null ? fmtBlockPct(livNow) : "—"}). `
+4324|            + `Il chimico riparte a ≤ ${fmtBlockPct(startV)}.</p>`;
+4325|        }
+4326|      } else if (__chimicoBlockCount === 0) {
+4327|        const qInSp = Math.max(0, num("qIn"));
+4328|        let qNeed = qInSp;
+4329|        try { qNeed = round1(pumpFloorForIngresso(qInSp)); } catch (_) { /* ok */ }
+4330|        const hzBit = hzBitForNeed(qNeed);
+4331|        const qSafe = round1(Math.max(0, qNeed - Q_RECYCLE_MIN));
+4332|        html += `<div class="block-action">Nessun blocco dal Reset.<br>`
+4333|          + `Con ingresso <strong>${fmtQ(qInSp)} m³/h</strong>, tieni <strong>P11011 ≥ <span class="fix-val">${fmtQ(qNeed)} m³/h</span></strong>${hzBit}.</div>`;
+4334|        html += `<div class="block-qa"><p>Se non puoi alzare le P11011, vuoi il set del chimico-fisico?</p>`
+4335|          + `<div class="block-qa-btns">`
+4336|          + `<button type="button" data-block-qa="yes"${__blockQaAnswer === "yes" ? ' class="is-picked"' : ""}>Sì</button>`
+4337|          + `<button type="button" data-block-qa="no"${__blockQaAnswer === "no" ? ' class="is-picked"' : ""}>No</button>`
+4338|          + `</div></div>`;
+4339|        if (__blockQaAnswer === "yes") {
+4340|          html += `<div class="block-alt">Chimico-fisico ≤ <strong class="fix-val">${fmtQ(qSafe)} m³/h</strong> `
+4341|            + `(riciclo min ${Q_RECYCLE_MIN}).</div>`;
+4342|        }
+4343|        __blockQaKey = `idle-${fmtQ(qInSp)}`;
+4344|      } else {
+4345|        html += `<p>Ci sono ${__chimicoBlockCount} blocco/i contati, ma senza snapshot della catena (evento precedente).</p>`;
+4346|      }
+4347|
+4348|      if (__chimicoBlockLog.length > 1) {
+4349|        const prev = __chimicoBlockLog.slice(0, -1).slice(-3).reverse();
+4350|        html += `<p class="mini" style="margin-top:12px">Precedenti: `
+4351|          + prev.map((e) => `${e.tMin}′ · IN ${fmtQ(e.qInLive)} / P11011 ${fmtQ(e.qOut)}`).join(" · ")
+4352|          + `</p>`;
+4353|      }
+4354|
+4355|      body.innerHTML = html;
+4356|      body.querySelectorAll("[data-block-qa]").forEach((btn) => {
+4357|        btn.addEventListener("click", (e) => {
+4358|          e.preventDefault();
+4359|          e.stopPropagation();
+4360|          const ans = btn.getAttribute("data-block-qa");
+4361|          __blockQaAnswer = ans === "no" ? "no" : "yes";
+4362|          paintBlocchiExplain();
+4363|        });
+4364|      });
+4365|    }
+4366|
+4367|    function openBlocchiPopup() {
+4368|      resetBlocchiPanelPos();
+4369|      paintBlocchiExplain();
+4370|      openPopup("blocchi");
+4371|    }
+4372|
+4373|    /** Avanza oscillazione lenta intorno al setpoint digitato (tipicamente ±1…2 m³/h, max ±2.5). */
+4374|    function advanceQInWobble(dtMin) {
+4375|      const set = Math.max(0, num("qIn"));
+4376|      if (set < 0.05) {
+4377|        __qInLive = 0;
+4378|        return;
+4379|      }
+4380|      if (!(__simPlaying || __simBusy)) {
+4381|        __qInLive = set;
+4382|        return;
+4383|      }
+4384|      const dt = Math.max(0.05, Number(dtMin) || 1);
+4385|      __qInWobblePhase += dt * (0.38 + Math.random() * 0.4);
+4386|      __qInWobbleBias += (Math.random() - 0.5) * 0.6 * dt;
+4387|      __qInWobbleBias = Math.max(-1.35, Math.min(1.35, __qInWobbleBias));
+4388|      const osc = Math.sin(__qInWobblePhase) * 1.1
+4389|        + Math.sin(__qInWobblePhase * 0.41 + 1.3) * 0.5;
+4390|      let live = set + osc + __qInWobbleBias;
+4391|      live = Math.max(set - 2.5, Math.min(set + 2.5, live));
+4392|      __qInLive = round1(Math.max(0, live));
+4393|    }
+4394|
+4395|    function resetQInWobble() {
+4396|      __qInWobblePhase = Math.random() * Math.PI * 2;
+4397|      __qInWobbleBias = 0;
+4398|      __qInLive = null;
+4399|    }
+4400|    const isEditing = (id) => {

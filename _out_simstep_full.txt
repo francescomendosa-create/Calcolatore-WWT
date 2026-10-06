@@ -1,0 +1,365 @@
+6146|    function simulateOneStep(dtMin) {
+6147|      beginFlowStep();
+6148|      try {
+6149|      // Orologio ciclo membrane: avanza SOLO se il livello consente la marcia.
+6150|      // Se blocco livello (≤ stop), si congela e alla ripartenza riprende da qui.
+6151|      if (membranesProcessAllowed()) __mbrCycleMin += dtMin;
+6152|
+6153|      // Portata ingresso “vera”: setpoint ± piccole variazioni (effetto su tutto l’impianto)
+6154|      advanceQInWobble(dtMin);
+6155|      const qInLiveNow = qInEffective(num("qIn"));
+6156|      // In Automatico: Hz di tabella più basso che dà ≥ ingresso vivo + 100 m³/h
+6157|      if (isAutoMode() && deviceAutoControlled("pompa") && p11011Allowed() && !isEditing("qPump") && !isEditing("freqHz")) {
+6158|        const floor = pumpFloorForIngresso(qInLiveNow);
+6159|        const step = pumpStepForNeed(floor);
+6160|        const liv20now = num("livelloAttuale");
+6161|        const startSvuot = numOrNull("startSvuotA10620");
+6162|        const boostZone = liv20now >= ((startSvuot !== null ? startSvuot : 92) - 1);
+6163|        if (!boostZone) {
+6164|          lastQPump = step.q;
+6165|          if (!isEditing("freqHz")) {
+6166|            const hzNode = el("freqHz");
+6167|            if (hzNode) hzNode.value = String(step.hz);
+6168|            const svgHz = el("svgFreqHz");
+6169|            if (svgHz) svgHz.textContent = String(step.hz);
+6170|          }
+6171|          commitFlow("qPump", step.q, { setpoint: step.q });
+6172|          if (deviceAutoControlled("mandata") && el("equiparaMandata")?.checked && __run11036) {
+6173|            lastQMandata = step.q;
+6174|            commitFlow("qMandata", step.q);
+6175|          }
+6176|        } else if ((__flowDesire.qPump != null ? __flowDesire.qPump : num("qPump")) < floor - 0.05) {
+6177|          lastQPump = step.q;
+6178|          if (!isEditing("freqHz")) {
+6179|            const hzNode = el("freqHz");
+6180|            if (hzNode) hzNode.value = String(step.hz);
+6181|            const svgHz = el("svgFreqHz");
+6182|            if (svgHz) svgHz.textContent = String(step.hz);
+6183|          }
+6184|          commitFlow("qPump", step.q, { setpoint: step.q });
+6185|        }
+6186|      }
+6187|      applyBalance("sim");
+6188|      const qInSet = num("qIn");
+6189|      const qIn = qInEffective(qInSet);
+6190|      // Marcia/arresto SEMPRE da livelli (auto e manuale). In manuale il setpoint digitato resta nel campo.
+6191|      // Portate VIVE (rampa) per i bilanci di livello — non il target a scatto.
+6192|      const qPump = p11011Allowed() ? Math.max(0, num("qPump")) : 0;
+6193|      const qMandata = __run11036 ? Math.max(0, num("qMandata")) : 0;
+6194|      const liv20 = num("livelloAttuale");
+6195|      const liv11 = num("livelloAttualeA10611");
+6196|      let livH = numOrNull("livelloAttualeH");
+6197|      if (livH === null) livH = 90;
+6198|      let livMbr = numOrNull("livelloAttualeMbr");
+6199|      if (livMbr === null) livMbr = 90;
+6200|      let livP = numOrNull("livelloAttualeTk11007");
+6201|      if (livP === null) livP = 91;
+6202|      let livU = numOrNull("livelloAttualeTk11021");
+6203|      if (livU === null) livU = 91;
+6204|      const run14 = assess11014RunState(livH, liv20);
+6205|      // Riciclo: Auto locale = P11011 − ingresso; Manuale locale = setpoint libero
+6206|      const qRecycleWanted = ricicloAutoControlled()
+6207|        ? Math.max(0, Math.round(flowSetpointOf("qPump") - qInSet))
+6208|        : Math.max(0, Math.round(flowSetpointOf("qRecycle")));
+6209|      // Consenso 11014 → portata; ferme → 0
+6210|      const qRecycleDisp = qRecycleEffective(run14.running, qRecycleWanted);
+6211|      const qRecycleForH = qRecycleDisp;
+6212|      const de = dutyEffective();
+6213|      // Uscita permeato membrane (istantanea: pause ciclo = meno portata in ingresso al TK)
+6214|      const qPerm = round1(de.qPermInstant != null ? de.qPermInstant : sumMemsRunning(__mbrCycleMin));
+6215|      // P11019: solo isteresi livello TK-11007 (indipendente dalle membrane)
+6216|      updateTk11007PumpInterlocks(livP);
+6217|      applyP11019RunFromLevel();
+6218|      const qP19 = Math.max(0, num("qP11019")); // viva (rampa) per bilanci TK
+6219|      // OUT osmosi da TK 11021: solo linee in marcia (isteresi P-11040 sul livello)
+6220|      updateOsmosiTk11021Interlocks(livU);
+6221|      if (deviceAutoControlled("osmosi")) {
+6222|        let qDemand = permeateDemandOut();
+6223|        if (!__allowUfByTk11021 || !membranesProcessAllowed()) {
+6224|          qDemand = Math.max(qDemand, linePermeateCapacity());
+6225|        }
+6226|        applyOsmosiAutoFlows(qDemand);
+6227|      } else {
+6228|        // Osmosi manuale / impianto manuale: setpoint in popup; viva da regolazione valvole
+6229|        ["A", "B", "C"].forEach((L, i) => {
+6230|          const id = ["qOsmosiA", "qOsmosiB", "qOsmosiC"][i];
+6231|          const sp = Math.max(0, num(id));
+6232|          if (sp > 0.05) rememberProcSetpoint(id, sp);
+6233|          paintProcSetpointField(id);
+6234|        });
+6235|        syncOsmosiSvg();
+6236|        paintOsmosiRunUI();
+6237|      }
+6238|      // Timer lavaggi UF / carbone: scorrono sempre; lavaggio carbone consuma portata verso UF
+6239|      tickUfWashes(dtMin);
+6240|      tickCarbWashes(dtMin);
+6241|      // Valvole UF + osmosi (misura insegue set)
+6242|      tickUfRegulation(dtMin);
+6243|      tickOsmRegulation(dtMin);
+6244|      // IN UF effettivo: linee non in lavaggio (sfalsati); 0 se P11019/TK11021 bloccano
+6245|      if (!p11019Allowed()) paintUfPopupSetpoints();
+6246|      const qUfIn = sumUfEffective();
+6247|      paintUfSvgLive();
+6248|      const qOsmOut = round1(osmQinEffective("A") + osmQinEffective("B") + osmQinEffective("C"));
+6249|      syncOsmosiSvg();
+6250|
+6251|      const stopRiemp = numOrNull("stopRiempA10620");
+6252|      const stopRv = stopRiemp !== null ? stopRiemp : 95;
+6253|
+6254|      // Solo bilanciamento reale (niente rClimb forzato: era quello che mandava subito a 95% / blocco)
+6255|      let r20 = rateA10620PctPerMin(qIn, qPump, qRecycleDisp);
+6256|      const r11 = estimateA10611RatePctPerMin(qPump, qMandata);
+6257|      const rH = estimateRicHRatePctPerMin(qMandata, qRecycleForH);
+6258|      const rMbr = estimateMbrRatePctPerMin(qMandata, qPerm);
+6259|      const rP = estimateTk11007RatePctPerMin(qPerm, qP19);
+6260|      const rU = estimateTk11021RatePctPerMin(qUfIn, qOsmOut);
+6261|
+6262|      let n20 = round2(Math.max(0, Math.min(100, liv20 + r20 * dtMin)));
+6263|      let n11 = round2(Math.max(0, Math.min(100, liv11 + r11 * dtMin)));
+6264|      let nH = round2(Math.max(0, Math.min(100, livH + rH * dtMin)));
+6265|      let nMbr = round2(Math.max(0, Math.min(100, livMbr + rMbr * dtMin)));
+6266|      let nP = round2(Math.max(0, Math.min(100, livP + rP * dtMin)));
+6267|      let nU = round2(Math.max(0, Math.min(100, livU + rU * dtMin)));
+6268|
+6269|      // Pompe P11019 ferme: il TK 11007 non può svuotarsi (solo salire con membrane o restare)
+6270|      if (!p11019Allowed() && nP < livP - 0.001) nP = livP;
+6271|
+6272|      // Non superare lo stop svuotamento A10620: a quel livello P11011 si fermano
+6273|      const stop20 = numOrNull("stopSvuotA10620");
+6274|      const stop20v = stop20 !== null ? stop20 : 88;
+6275|      if (qPump > 0.5 && liv20 > stop20v + 0.05 && n20 < stop20v) n20 = round2(stop20v);
+6276|
+6277|      // Clamp esatto allo stop riempimento → chimico in blocco (solo se ci arrivi davvero)
+6278|      if (__chimicoAllowFill && qIn > 0.5 && n20 >= stopRv - 0.05) {
+6279|        n20 = round2(stopRv);
+6280|        setChimicoAllowFill(false);
+6281|      }
+6282|
+6283|      // Non superare lo stop svuotamento A10611: a quel livello MP 11036 si fermano
+6284|      const stop11 = numOrNull("stopSvuotA10611");
+6285|      const stop11v = stop11 !== null ? stop11 : 80;
+6286|      if (qMandata > 0.5 && liv11 > stop11v + 0.05 && n11 < stop11v) n11 = round2(stop11v);
+6287|
+6288|      // Non superare lo stop riempimento MBR (A11003): a quel livello MP 11036 si fermano
+6289|      const stopRiempMbr = numOrNull("stopRiempMbr");
+6290|      const stopRiempMbrV = stopRiempMbr !== null ? stopRiempMbr : 92;
+6291|      if (__run11036 && qMandata > 0.5 && livMbr > stopRiempMbrV + 0.05 && nMbr > stopRiempMbrV - 0.05) {
+6292|        nMbr = round2(Math.min(nMbr, stopRiempMbrV));
+6293|      }
+6294|      if (__run11036 && qMandata > 0.5 && nMbr >= stopRiempMbrV - 0.05) {
+6295|        nMbr = round2(stopRiempMbrV);
+6296|      }
+6297|
+6298|      // Non scendere sotto stop svuotamento MBR se le membrane stanno svuotando
+6299|      const stopMbr = numOrNull("stopSvuotMbr");
+6300|      const stopMbrV = stopMbr !== null ? stopMbr : 77;
+6301|      if (__runMbrByLevel && qPerm > 0.5 && livMbr > stopMbrV + 0.05 && nMbr < stopMbrV) {
+6302|        nMbr = round2(stopMbrV);
+6303|      }
+6304|
+6305|      // Clamp allo stop riempimento TK 11007 → membrane in blocco
+6306|      const stopP = numOrNull("stopRiempTk11007");
+6307|      const stopPV = stopP !== null ? stopP : 97;
+6308|      if (membranesProcessAllowed() && qPerm > 0.5 && nP >= stopPV - 0.05) {
+6309|        nP = round2(stopPV);
+6310|      }
+6311|      // Non scendere sotto stop svuotamento TK 11007 se P11019 stanno aspirando
+6312|      const stopSvuotP = numOrNull("stopSvuotTk11007");
+6313|      const stopSvuotPV = stopSvuotP !== null ? stopSvuotP : 30;
+6314|      if (p11019Allowed() && qP19 > 0.5 && livP > stopSvuotPV + 0.05 && nP < stopSvuotPV) {
+6315|        nP = round2(stopSvuotPV);
+6316|      }
+6317|
+6318|      // Clamp allo stop riempimento TK 11021
+6319|      const stopU = numOrNull("stopRiempTk11021");
+6320|      const stopUV = stopU !== null ? stopU : 97;
+6321|      if (__allowUfByTk11021 && qUfIn > 0.5 && nU >= stopUV - 0.05) {
+6322|        nU = round2(stopUV);
+6323|      }
+6324|
+6325|      setVal("livelloAttuale", n20, { force: true, digits: 2 });
+6326|      setVal("livelloAttualeA10611", n11, { force: true, digits: 2 });
+6327|      if (el("livelloAttualeH")) setVal("livelloAttualeH", nH, { force: true, digits: 2 });
+6328|      if (el("livelloAttualeMbr")) setVal("livelloAttualeMbr", nMbr, { force: true, digits: 2 });
+6329|      if (el("livelloAttualeTk11007")) setVal("livelloAttualeTk11007", nP, { force: true, digits: 2 });
+6330|      if (el("livelloAttualeTk11021")) setVal("livelloAttualeTk11021", nU, { force: true, digits: 2 });
+6331|
+6332|      updateA10620RiempInterlocks(n20);
+6333|      updateA10620PumpInterlocks(n20);
+6334|      updateA10611PumpInterlocks(n11);
+6335|      updateMbrLevelInterlocks(nMbr);
+6336|      updateMbrFillFor11036(nMbr);
+6337|      updateTk11007PermeateInterlocks(nP);
+6338|      updateTk11007PumpInterlocks(nP);
+6339|      // Ri-applica P11019 sul livello aggiornato (stop svuotamento → 0; altrimenti tiene la domanda)
+6340|      applyP11019RunFromLevel();
+6341|      updateTk11021Interlocks(nU);
+6342|      applyBalance("sim");
+6343|      paintChimico(__chimicoAllowFill && num("qIn") > 0.05);
+6344|      paintMembraneCycleUI(__mbrCycleMin);
+6345|      } finally {
+6346|        endFlowStep();
+6347|      }
+6348|    }
+6349|
+6350|    function forcePlantRunningBaseline() {
+6351|      const L = SIM_RESET_LIV;
+6352|      const txt = Number(L).toFixed(1);
+6353|      // Reset a 90%: chimico ON; P11011 ON (hold) così l’ingresso regola subito le portate.
+6354|      // stillFillingToStop evita il boost che bloccava il livello a ~94% prima del 95%.
+6355|      __startupPumpHold = true;
+6356|      __runP11011By20 = true;
+6357|      __run11036Tank = true;
+6358|      __allow11036ByMbr = true;
+6359|      __run11036 = true;
+6360|      __blockP11011By11 = false;
+6361|      setChimicoAllowFill(true, { silent: true });
+6362|      __runMbrByLevel = true;
+6363|      __allowMbrByPermeate = true;
+6364|      __runP11019By07 = true;
+6365|      __allowUfByTk11021 = true;
+6366|      __runOsmA = true;
+6367|      __runOsmB = true;
+6368|      __runOsmC = true;
+6369|      __mbrCycleMin = 0;
+6370|      __run11014 = true; // all’avvio 11014 abilitate (A11004 a 90% ≥ start 80%)
+6371|      ensureA10611ProcessDefaults();
+6372|      ["livelloAttuale", "livelloAttualeA10611", "livelloAttualeH", "livelloAttualeMbr"].forEach((id) => {
+6373|        const node = el(id);
+6374|        if (node) node.value = txt;
+6375|      });
+6376|      if (el("livelloAttualeTk11007")) el("livelloAttualeTk11007").value = "91.0";
+6377|      if (el("livelloAttualeTk11021")) el("livelloAttualeTk11021").value = "91.0";
+6378|      updateA10620RiempInterlocks(L);
+6379|      updateA10620PumpInterlocks(L);
+6380|      updateA10611PumpInterlocks(L);
+6381|      updateMbrLevelInterlocks(L);
+6382|      updateMbrFillFor11036(L);
+6383|      updateTk11007PermeateInterlocks(91);
+6384|      updateTk11007PumpInterlocks(91);
+6385|      updateTk11021Interlocks(91);
+6386|      __startupPumpHold = true;
+6387|      __runP11011By20 = true;
+6388|      __run11036Tank = true;
+6389|      __allow11036ByMbr = true;
+6390|      __runMbrByLevel = true;
+6391|      __allowMbrByPermeate = true;
+6392|      __runP11019By07 = true;
+6393|      __allowUfByTk11021 = true;
+6394|      __runOsmA = true;
+6395|      __runOsmB = true;
+6396|      __runOsmC = true;
+6397|      syncRun11036();
+6398|      if (L >= (numOrNull("startSvuotA10611") ?? 88) - 0.05) __run11036Tank = true;
+6399|      syncRun11036();
+6400|    }
+6401|
+6402|    function paintTk10608Passante() {
+6403|      const tank08 = el("svgTank08");
+6404|      const tank08in = el("svgTank08in");
+6405|      const liv08 = el("svgLiv08");
+6406|      if (tank08) {
+6407|        tank08.setAttribute("fill", "#14532d");
+6408|        tank08.setAttribute("stroke", "#86efac");
+6409|      }
+6410|      if (tank08in) tank08in.setAttribute("fill", "#22c55e");
+6411|      if (liv08) {
+6412|        const V = getTk10608Geom().V;
+6413|        liv08.textContent = `${Math.round(V)} m³`;
+6414|        liv08.setAttribute("fill", "#86efac");
+6415|      }
+6416|    }
+6417|    /** @deprecated alias */
+6418|    function paintA10608Passante() { paintTk10608Passante(); }
+6419|
+6420|    /** Aggiorna subito i % e il liquido sullo schizzo a L% (Reset) */
+6421|    function paintResetLevelsUI(L) {
+6422|      const pct = Number(L);
+6423|      const txt = pct.toFixed(1) + "%";
+6424|      try {
+6425|        setTankLiquid("svgTank20liq", 285, 100, 50, 26, pct, false);
+6426|        setTankLiquid("svgTank11liq", 630, 100, 48, 25, pct, false);
+6427|        setRectLiquid("svgTankHliq", 922, 118, 54, 58, pct, false);
+6428|        paintMbrLevelUI(numOrNull("livelloAttualeMbr") ?? 90, 0);
+6429|        paintTk11007UI(numOrNull("livelloAttualeTk11007") ?? 91, 0, false);
+6430|        paintTk11021UI(numOrNull("livelloAttualeTk11021") ?? 91, 0, false);
+6431|        paintMembraneCycleUI(__mbrCycleMin);
+6432|      } catch (_) { /* setTankLiquid può non essere ancora definita in teoria — no-op */ }
+6433|      paintA10608Passante();
+6434|      const livEl20 = el("svgLiv");
+6435|      if (livEl20) { livEl20.textContent = txt; livEl20.setAttribute("fill", "#e2e8f0"); }
+6436|      const livEl11 = el("svgLivA10611");
+6437|      if (livEl11) { livEl11.textContent = txt; livEl11.setAttribute("fill", "#e2e8f0"); }
+6438|      const livH = el("svgLivH");
+6439|      if (livH) { livH.textContent = txt; livH.setAttribute("fill", "#e2e8f0"); }
+6440|      const work20 = el("svgRangeWork20");
+6441|      if (work20) { work20.textContent = txt; work20.setAttribute("fill", "#4ade80"); }
+6442|      const work11 = el("svgRangeWork11");
+6443|      if (work11) { work11.textContent = txt; work11.setAttribute("fill", "#4ade80"); }
+6444|      const workH = el("svgRangeWorkH");
+6445|      if (workH) { workH.textContent = txt; workH.setAttribute("fill", "#4ade80"); }
+6446|      const tank20 = el("svgTank20");
+6447|      if (tank20) tank20.setAttribute("stroke", "#64748b");
+6448|      const tank11 = el("svgTank11");
+6449|      if (tank11) tank11.setAttribute("stroke", "#64748b");
+6450|      const tankH = el("svgTankH");
+6451|      if (tankH) tankH.setAttribute("stroke", "#86efac");
+6452|    }
+6453|
+6454|    function ensurePumpsFlowing() {
+6455|      // Solo in Automatico: allinea P11011 / mandata al chimico
+6456|      if (!isAutoMode()) return 0;
+6457|      // Prima i setpoints PROCESSO, poi le portate (niente bypass)
+6458|      updateA10620RiempInterlocks(num("livelloAttuale"));
+6459|      updateA10620PumpInterlocks(num("livelloAttuale"));
+6460|      updateA10611PumpInterlocks(num("livelloAttualeA10611"));
+6461|
+6462|      // Durante un passo TIME già aperto: solo target (flush nel passo).
+6463|      // Se __simBusy ma passo non ancora iniziato: solo desire — simulateOneStep fa la rampa.
+6464|      const nested = __flowStepDepth > 0;
+6465|      const deferToStep = __simBusy && !nested;
+6466|      if (!nested && !deferToStep) beginFlowStep();
+6467|      try {
+6468|      const step = pumpStepForNeed(pumpFloorForIngresso(num("qIn")));
+6469|      const q = step.q;
+6470|      if (deviceAutoControlled("pompa") && p11011Allowed()) {
+6471|        rememberFlowSetpoint("qPump", q);
+6472|        if (!isEditing("freqHz")) {
+6473|          const hzNode = el("freqHz");
+6474|          if (hzNode) hzNode.value = String(step.hz);
+6475|          const svgHz = el("svgFreqHz");
+6476|          if (svgHz) svgHz.textContent = String(step.hz);
+6477|        }
+6478|        if (deferToStep) __flowDesire.qPump = q;
+6479|        else commitFlow("qPump", q, { setpoint: q });
+6480|      } else if (deviceAutoControlled("pompa")) {
+6481|        // Pompe ferme: viva → 0, setpoint resta (popup)
+6482|        if (deferToStep) __flowDesire.qPump = 0;
+6483|        else commitFlow("qPump", 0);
+6484|        if (!isEditing("freqHz")) {
+6485|          const hzNode = el("freqHz");
+6486|          if (hzNode) hzNode.value = "0";
+6487|          const svgHz0 = el("svgFreqHz");
+6488|          if (svgHz0) svgHz0.textContent = "0";
+6489|        }
+6490|      }
+6491|      if (deviceAutoControlled("mandata")) {
+6492|        if (el("equiparaMandata")) {
+6493|          el("equiparaMandata").checked = true;
+6494|          if (el("qMandata")) el("qMandata").disabled = true;
+6495|        }
+6496|        if (__run11036) {
+6497|          const qM = p11011Allowed() ? Math.max(q, getPumpMin()) : clampPump(Math.max(getPumpMin(), q));
+6498|          rememberFlowSetpoint("qMandata", round1(qM));
+6499|          if (deferToStep) __flowDesire.qMandata = round1(qM);
+6500|          else commitFlow("qMandata", round1(qM));
+6501|        } else {
+6502|          if (deferToStep) __flowDesire.qMandata = 0;
+6503|          else commitFlow("qMandata", 0);
+6504|        }
+6505|      }
+6506|      return q;
+6507|      } finally {
+6508|        if (!nested && !deferToStep) endFlowStep();
+6509|      }
+6510|    }
