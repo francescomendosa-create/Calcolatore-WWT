@@ -2809,10 +2809,10 @@
         <span>POMPE — P11019 A/B/C</span>
         <small>da TK 11007 · verso carboni / IAS</small>
       </button>
-      <label><strong>Set portata pompe P11019 (m³/h)</strong>
-        <input type="number" id="qP11019" min="0" max="500" step="0.1" value="0" inputmode="decimal" />
+      <label><strong>Set portata pompe P11019 (m³/h) · min 140</strong>
+        <input type="number" id="qP11019" min="140" max="500" step="1" value="140" inputmode="decimal" />
       </label>
-      <p class="mini">Il set pompa resta invariato. Puoi variare <strong>IAS</strong> o <strong>Impianto</strong>: l’altro si ricalcola come differenza (pompe = Impianto + IAS).</p>
+      <p class="mini">In <strong>Automatico</strong> le pompe partono a <strong>140 m³/h</strong>. Apri <strong>IAS</strong>: si sottrae dal totale; <strong>Impianto / carboni</strong> = 140 − IAS. In Manuale il set resta ≥ 140.</p>
 
       <svg class="p11019-split" viewBox="0 0 400 150" aria-label="Schizzo split Impianto / IAS">
         <text x="200" y="16" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="700">P11019 → destinazioni · tocca per modificare</text>
@@ -2874,6 +2874,7 @@
     const Q_FREQ_MIN = 42; // Automatico: minimo processo P11011
     const Q_FREQ_ABS_MIN = 0; // Manuale: puoi impostare anche sotto 42 Hz
     const Q_RECYCLE_MIN = 100; // Automatico: riciclo fanghi minimo (P11011 − ingresso)
+    const Q_P11019_MIN = 140; // P11019 A/B/C: portata pompe minima (auto = 140; IAS si sottrae → Impianto)
     const DEFAULT_REG_FREQ = {
       "50": 334, "49": 320, "48": 307, "47": 294, "46": 281, "45": 268,
       "44": 255, "43": 242, "42": 229,
@@ -2884,10 +2885,10 @@
     /** Portate “vive” pompe: salgono/scendono a rampa verso il comando (non a scatto). */
     const FLOW_IDS = ["qPump", "qMandata", "qRecycle", "qP11019"];
     const FLOW_SVG = { qPump: "svgQPump", qMandata: "svgQMand", qRecycle: "svgQRec" };
-    const __flowLive = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 0 };
-    const __flowDesire = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 0 };
+    const __flowLive = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 140 };
+    const __flowDesire = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 140 };
     /** Setpoint comando (popup modifica): resta anche a pompe ferme / portata viva = 0. */
-    const __flowSetpoint = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 0, qP11019Ias: 0, qP11019Impianto: 0 };
+    const __flowSetpoint = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 140, qP11019Ias: 0, qP11019Impianto: 140 };
     let __inlineSuppressLive = false; // non applicare 0 mentre si apre il tastierino
     /** Setpoint UF / osmosi (popup): restano anche a linee ferme / portata viva = 0. */
     const __procSetpoint = {
@@ -2901,8 +2902,8 @@
     let __flowAnimRaf = null;
     let __flowAnimStart = 0;
     let __flowAnimating = false;
-    const __flowAnimFrom = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 0 };
-    const __flowAnimTo = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 0 };
+    const __flowAnimFrom = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 140 };
+    const __flowAnimTo = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 140 };
     let inlineCtx = null;
     let __run11036 = true;       // effettivo: A10611 OK ∧ MBR riempimento OK
     let __run11036Tank = true;   // isteresi 11036 su A10611 (80/88)
@@ -3058,8 +3059,8 @@
       }
       if (id === "qP11019") {
         let s = Math.max(0, Number(__flowSetpoint.qP11019) || 0);
-        if (s < 0.05) s = Math.max(0, num("qIn"));
-        return round1(s);
+        if (s < 0.05) s = Q_P11019_MIN;
+        return round1(Math.max(Q_P11019_MIN, s));
       }
       return Math.max(0, round1(num(id)));
     }
@@ -3362,6 +3363,8 @@
           el("equiparaMandata").checked = true;
           if (el("qMandata")) el("qMandata").disabled = true;
         }
+        rememberFlowSetpoint("qP11019", Q_P11019_MIN);
+        if (!isEditing("qP11019")) setVal("qP11019", Q_P11019_MIN, { force: true });
         ensurePumpsFlowing();
         applyBalance("ingresso");
         paintPumpColors();
@@ -4037,10 +4040,10 @@
       return !!__runP11019By07;
     }
 
-    /** Setpoint P11019: domanda valle (≈ ingresso). Indipendente dallo stato membrane. */
+    /** Setpoint P11019: Automatico = 140 m³/h; Manuale ≥ 140. IAS si sottrae → Impianto. */
     function qP11019Setpoint() {
-      if (!isAutoMode()) return flowSetpointOf("qP11019");
-      return permeateDemandOut();
+      if (!isAutoMode()) return Math.max(Q_P11019_MIN, flowSetpointOf("qP11019"));
+      return Q_P11019_MIN;
     }
 
     /** Portata effettiva pompe P11019 (OUT TK-11007): 0 se stop svuotamento; altrimenti setpoint. */
@@ -4052,11 +4055,16 @@
 
     /** Set pompe P11019 memorizzato (comando). Non è la viva a 0 con pompe ferme. */
     function qP11019SplitPumpMem() {
+      if (isAutoMode()) {
+        __flowSetpoint.qP11019 = Q_P11019_MIN;
+        return Q_P11019_MIN;
+      }
       let s = Math.max(0, Number(__flowSetpoint.qP11019) || 0);
       if (s < 0.05) s = Math.max(0, num("qP11019") || 0);
-      if (s < 0.05) s = Math.max(0, flowSetpointOf("qP11019"));
-      s = Math.max(0, Math.round(s));
+      if (s < 0.05) s = Q_P11019_MIN;
+      s = Math.max(Q_P11019_MIN, Math.round(s));
       if (s > 500) s = 500;
+      __flowSetpoint.qP11019 = s;
       return s;
     }
 
@@ -4184,9 +4192,10 @@
     /** Applica marcia P11019 dal solo livello TK-11007 (mai dalle membrane). */
     function applyP11019RunFromLevel() {
       updateTk11007PumpInterlocks(numOrNull("livelloAttualeTk11007") ?? 91);
-      const qSet = Math.max(qP11019Setpoint(), qP11019SplitPumpMem());
+      const qSet = Math.max(Q_P11019_MIN, qP11019Setpoint(), qP11019SplitPumpMem());
+      rememberFlowSetpoint("qP11019", qSet);
       if (!p11019Allowed()) {
-        commitFlow("qP11019", 0, { setpoint: qSet > 0.05 ? qSet : qP11019SplitPumpMem() });
+        commitFlow("qP11019", 0, { setpoint: qSet });
       } else if (!isEditing("qP11019")) {
         commitFlow("qP11019", qSet, { setpoint: qSet });
       }
@@ -7860,7 +7869,9 @@
         paintRecycleEditableUI();
       }
       if (name === "p11019") {
-        if (!isEditing("qP11019")) setVal("qP11019", flowSetpointOf("qP11019"), { force: true });
+        const q19 = qP11019Setpoint();
+        rememberFlowSetpoint("qP11019", q19);
+        if (!isEditing("qP11019")) setVal("qP11019", q19, { force: true });
         sanitizeP11019SplitMem();
         paintP11019SplitUI();
       }
@@ -8335,12 +8346,13 @@
         return;
       }
       if (field === "qP11019") {
-        rememberFlowSetpoint("qP11019", Math.max(0, v));
-        commitFlow("qP11019", p11019Allowed() ? Math.max(0, v) : 0, {
+        const q19 = Math.max(Q_P11019_MIN, Math.round(v));
+        rememberFlowSetpoint("qP11019", q19);
+        commitFlow("qP11019", p11019Allowed() ? q19 : 0, {
           instant: true,
-          setpoint: Math.max(0, v),
+          setpoint: q19,
         });
-        applyP11019SplitFrom("ias", Math.min(qP11019IasSetpoint(), Math.max(0, v)));
+        applyP11019SplitFrom("ias", Math.min(qP11019IasSetpoint(), q19));
         return;
       }
       if (field === "qP11019Ias" || field === "qP11019Impianto") {
@@ -8442,12 +8454,13 @@
         return;
       }
       if (field === "qP11019") {
-        rememberFlowSetpoint("qP11019", Math.max(0, v));
-        commitFlow("qP11019", p11019Allowed() ? Math.max(0, v) : 0, {
+        const q19 = Math.max(Q_P11019_MIN, Math.round(v));
+        rememberFlowSetpoint("qP11019", q19);
+        commitFlow("qP11019", p11019Allowed() ? q19 : 0, {
           instant: true,
-          setpoint: Math.max(0, v),
+          setpoint: q19,
         });
-        applyP11019SplitFrom("ias", Math.min(qP11019IasSetpoint(), Math.max(0, v)));
+        applyP11019SplitFrom("ias", Math.min(qP11019IasSetpoint(), q19));
         return;
       }
       if (field === "qP11019Ias") {
@@ -8739,12 +8752,13 @@
 
     el("qP11019")?.addEventListener("input", () => {
       if (numOrNull("qP11019") === null) return;
-      const v = Math.max(0, num("qP11019"));
+      const v = Math.max(Q_P11019_MIN, num("qP11019"));
+      if (Math.abs(v - num("qP11019")) > 0.05) setVal("qP11019", v, { force: true });
       rememberFlowSetpoint("qP11019", v);
       commitFlow("qP11019", p11019Allowed() ? v : 0, { setpoint: v });
       // IAS non può superare il set pompe
       if (num("qP11019Ias") > v + 0.05) {
-        setVal("qP11019Ias", v, { force: true });
+        applyP11019SplitFrom("ias", v);
       }
       paintP11019SplitUI();
       try { syncDownstreamPermeate(null, "p11019"); } catch (_) { /* ignore */ }
@@ -9257,8 +9271,8 @@
           const qm = Math.max(0, num("qMandata") || lastQMandata || __flowSetpoint.qMandata || 0);
           if (qp > 0.05) rememberFlowSetpoint("qPump", qp);
           if (qm > 0.05) rememberFlowSetpoint("qMandata", qm);
-          const qp19 = Math.max(0, num("qP11019") || __flowSetpoint.qP11019 || 0);
-          if (qp19 > 0.05 && qp19 <= 500) rememberFlowSetpoint("qP11019", qp19);
+          const qp19 = Math.max(Q_P11019_MIN, num("qP11019") || __flowSetpoint.qP11019 || Q_P11019_MIN);
+          if (qp19 <= 500) rememberFlowSetpoint("qP11019", qp19);
           let ias = Math.max(0, num("qP11019Ias") || Number(data.qP11019Ias) || 0);
           if (ias > 500) ias = 0;
           rememberFlowSetpoint("qP11019Ias", ias, { allowZero: true });
@@ -9541,7 +9555,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt76", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt77", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
