@@ -5161,6 +5161,7 @@
       const badge19 = el("svgQP11019Badge");
       if (badge19) badge19.setAttribute("stroke", run11019 ? DEV_COL.run.stroke : DEV_COL.stop.stroke);
       try { paintP11019SplitUI(); } catch (_) { /* ignore */ }
+      try { paintCarbWashUI(); } catch (_) { /* ignore */ }
       // P-11040 A/B/C = relativa osmosi; D sempre ferma
       try { paintOsmosiRunUI(); } catch (_) { /* ignore */ }
     }
@@ -5297,6 +5298,7 @@
       tickUfRegulation(1);
       tickOsmRegulation(1);
       try { applyBalance("sim"); } catch (_) { /* ignore */ }
+      try { paintCarbWashUI(); } catch (_) { /* ignore */ }
       updateSimTimeUI();
       if (__simPlayTimer) clearInterval(__simPlayTimer);
       __simPlayTimer = setInterval(() => {
@@ -5315,6 +5317,7 @@
       __qInLive = null;
       updateSimTimeUI();
       try { applyBalance("livello"); } catch (_) { /* ignore */ }
+      try { paintCarbWashUI(); } catch (_) { /* ignore */ }
     }
 
     /** Un passo di dtMin minuti: bilancia → tassi da REGOLAZIONI → aggiorna livelli → interblocchi */
@@ -7395,7 +7398,8 @@
       const consume = carbWashConsumeQ(qIn);
       const toUf = qCarbToUfLive();
       const go = plantIsStarted();
-      const serviceFlow = go && p11019Allowed() && qIn > 0.05;
+      // Bolle appena le P11019 sono in marcia (non serve attendere la portata viva)
+      const serviceFlow = go && p11019Allowed();
       CARB_LINES.forEach((L) => {
         const st = __carbWash[L];
         const status = el("carbStatus" + L);
@@ -10028,7 +10032,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt92", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt93", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
