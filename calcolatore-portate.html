@@ -2888,6 +2888,7 @@
       <label><strong>TOTALE membrane ON (m³/h)</strong>
         <input type="number" id="qMemTotale" class="tot-mem" min="0" max="500" step="0.1" value="171.4" />
       </label>
+      <p class="mini" id="memMinHint">Set minimo vs chimico: totale ON × duty ≥ ingresso (calcolo automatico).</p>
       <p class="mini">Variando il totale si ripartisce sulle membrane <strong>abilitate</strong>. <strong>H</strong> parte disattivata (rossa): tieni premuto sullo schema per riattivarla.</p>
       <div class="mem-grid" id="memInputs"></div>
       <div class="row" style="margin-top:8px">
@@ -4573,14 +4574,11 @@
       let qPumpTarget = round1(Math.max(0, qInSp + Q_RECYCLE_MIN));
       try { qPumpTarget = round1(Math.max(qPumpTarget, pumpFloorForIngresso(qInSp))); } catch (_) { /* ok */ }
       const qMandTarget = round1(Math.max(qPumpTarget, fc.qPumpSp || 0));
-      let dutyAvg = 0.875;
-      try {
-        const d = duty();
-        if (d && d.d > 0.05) dutyAvg = d.d;
-      } catch (_) { /* ok */ }
+      const memMinInfo = qMemMinTotaleForQin(qInSp);
+      const dutyAvg = memMinInfo.duty;
       // Totale membrane (tutte ON) per esportare almeno il chimico a duty di ciclo
       const qMemTarget = round1(Math.max(
-        qInSp / dutyAvg,
+        memMinInfo.qMemMin,
         qMandTarget > 0.5 ? qMandTarget * 0.85 : 0
       ));
       const qPermHave = fc.qPermAvg != null
@@ -5525,25 +5523,59 @@
       return { min, qInRef, qMandRef, qRecRef, rateOn, rateOff, stopLiv: stopLiv != null ? stopLiv : 88 };
     }
 
+    /** Quante vaschette MBR in servizio (H fuori → tipicamente 7). */
+    function mbrTrayCount() {
+      try {
+        const n = memIdsEnabled().length;
+        if (n > 0) return n;
+      } catch (_) { /* ok */ }
+      return 7;
+    }
+
     /**
-     * Stima %/min vasca H (A11004): riempimento dallo scarico MBR (mandata − permeato),
-     * svuotamento da 11014 → A10620 (∝ riciclo). Interpolazione sulle prove ON/OFF.
+     * Volume utile A11004 (una vaschetta) dalle prove REGOLAZIONI §3:
+     * rate %/min @ portata caratteristica riciclo → V = q × 100 / (60 × |rate|).
+     */
+    function getA11004Volume() {
+      const cal = getRicicloHCalib();
+      const rateMag = Math.max(
+        0.05,
+        (Math.abs(Number(cal.rateOn) || 0) + Math.abs(Number(cal.rateOff) || 0)) / 2
+      );
+      const qChar = Math.max(1, Number(cal.qRecRef) || 1);
+      const V = Math.max(1, (qChar * 100) / (60 * rateMag));
+      return { V, cal, rateMag, qChar };
+    }
+
+    /**
+     * Volume comune vaschette MBR A–G = N × V(A11004).
+     * A11004 ha la stessa dimensione di una vaschetta; gli scarichi di tutte vanno lì.
+     */
+    function getMbrCommonVolume() {
+      const h = getA11004Volume();
+      const n = mbrTrayCount();
+      const calM = getMbrLivCalib();
+      return { V: h.V * n, Vtray: h.V, n, calH: h.cal, calM, rateMagH: h.rateMag, qCharH: h.qChar };
+    }
+
+    /**
+     * Stima %/min vasca H (A11004): IN = scarico MBR (mandata − permeato),
+     * OUT = 11014 → A10620. Volume da prove §3 (tempi ON/OFF).
      */
     function estimateRicHRatePctPerMin(qScaricoToH, qRecycle) {
-      const cal = getRicicloHCalib();
+      const { V } = getA11004Volume();
       const qInH = Math.max(0, Number(qScaricoToH) || 0);
-      const inRatio = cal.qMandRef > 0 ? Math.max(0, qInH / cal.qMandRef) : 1;
-      const outRatio = cal.qRecRef > 0 ? Math.max(0, qRecycle / cal.qRecRef) : (qRecycle > 0.5 ? 1 : 0);
-      // OFF: solo riempimento; ON: riempimento + effetto aspirazione 11014
-      let r = inRatio * cal.rateOff + outRatio * (cal.rateOn - cal.rateOff);
+      const qOut = Math.max(0, Number(qRecycle) || 0);
+      let r = ratePctPerMinFromVolume(qInH - qOut, V);
+      if (qInH < 0.5 && qOut < 0.5) r = 0;
       if (!Number.isFinite(r)) return 0;
-      return Math.max(-RATE_PCT_CLAMP, Math.min(RATE_PCT_CLAMP, r));
+      return Math.max(-RATE_PCT_CLAMP_VOL, Math.min(RATE_PCT_CLAMP_VOL, r));
     }
 
     /**
      * Livello comune vaschette MBR A–G.
-     * Arrivo = mandata; via = permeato + scarico collettore → A11004.
-     * I secondi di svuotamento (REGOLAZIONI / pausa ciclo) danno il tasso di calo.
+     * Arrivo = mandata; via = permeato + scarichi → A11004 (stessa taglia di 1 vaschetta).
+     * L’eccesso mandata−permeato va quasi tutto al collettore: il livello MBR non esplode.
      */
     function getMbrLivCalib() {
       const lavoro = Math.max(0.1, num("cicloLavoro") || 7);
@@ -5551,91 +5583,113 @@
       const scaricoSec = Math.max(1, num("regMbrScaricoSec") || Math.round(pausa * 60));
       const drop = Math.max(0.1, num("regMbrScaricoDrop") || 3);
       const qRef = Math.max(1, num("regA10611QinRef") || 160);
-      const rateDrain = drop / (scaricoSec / 60); // %/min durante lo scarico
-      const hint = el("regMbrCalibHint");
-      if (hint) {
-        hint.textContent = `Scarico ${scaricoSec}s · calo ${round1(drop)}% → ${round1(rateDrain).toFixed(2)} %/min in scarico · ciclo ${round1(lavoro)}′ lavoro / ${round1(pausa)}′ pausa · rif. ${round1(qRef)} m³/h`;
-      }
+      const rateDrain = drop / (scaricoSec / 60); // %/min durante lo scarico di pausa
       return { lavoro, pausa, scaricoSec, drop, qRef, rateDrain };
     }
 
-    /**
-     * Volume utile vaschette MBR (stima da prova scarico REGOLAZIONI §4):
-     * in scaricoSec il livello cala di `drop`% → V ≈ q_scarico_rif × Δt / (Δ%/100).
-     * Usiamo qRef come ordine di grandezza dello scarico di prova.
-     */
-    function getMbrTrayVolume() {
-      const cal = getMbrLivCalib();
-      const dtH = Math.max(1, cal.scaricoSec) / 3600;
-      const dFrac = Math.max(0.001, cal.drop / 100);
-      // V tale che qRef per dtH muove il livello di `drop`%
-      const V = Math.max(2, (cal.qRef * dtH) / dFrac);
-      return { V, cal };
+    function paintMbrRicHCalibHints() {
+      try {
+        const cal = getMbrLivCalib();
+        const m = getMbrCommonVolume();
+        const hintM = el("regMbrCalibHint");
+        if (hintM) {
+          hintM.textContent = `Scarico pausa ${cal.scaricoSec}s · calo ${round1(cal.drop)}% → ${round1(cal.rateDrain).toFixed(2)} %/min`
+            + ` · ciclo ${round1(cal.lavoro)}′/${round1(cal.pausa)}′`
+            + ` · V MBR≈${round1(m.V)} m³ (${m.n}×${round1(m.Vtray)}) · V A11004≈${round1(m.Vtray)}`;
+        }
+        const calH = m.calH;
+        const hintH = el("regRicHCalibHint");
+        if (hintH && calH) {
+          hintH.textContent = `A11004 ≈ 1 vaschetta · V≈${round1(m.Vtray)} m³ (prove ${round1(calH.min)}′ · `
+            + `ON ${round1(calH.rateOn)} / OFF ${round1(calH.rateOff)} %/min · q riciclo rif. ${round1(calH.qRecRef)}). `
+            + `MBR comune = ${m.n}×V.`;
+        }
+      } catch (_) { /* ok */ }
     }
 
     /**
-     * Livello comune vaschette MBR A–G — bilancio di massa:
-     *   IN  = mandata MP 11036
-     *   OUT = permeato membrane + scarico → A11004 (poi riciclo 11014 → A10620)
-     *
-     * Se permeato << mandata l’eccesso DEVE alzare il MBR fino a stop riempimento (92%)
-     * e fermare le MP 11036. Vicino allo stop si riduce lo sfioro verso H.
+     * Set minimo TOTALE membrane ON (m³/h) perché l’uscita media di ciclo ≥ chimico.
+     * Media = totale × duty (lavoro/(lavoro+pausa)).
+     */
+    function qMemMinTotaleForQin(qInOpt) {
+      const qIn = Math.max(0, qInOpt != null ? Number(qInOpt) : num("qIn"));
+      let d = 0.875;
+      try {
+        const du = duty();
+        if (du && du.d > 0.05) d = du.d;
+      } catch (_) { /* ok */ }
+      return {
+        qIn: round1(qIn),
+        duty: d,
+        qMemMin: round1(qIn / d),
+        qMediaMin: round1(qIn),
+      };
+    }
+
+    function paintMemMinHint() {
+      const hint = el("memMinHint");
+      if (!hint) return;
+      const info = qMemMinTotaleForQin();
+      const have = round1(Math.max(0, num("qMemTotale")));
+      const media = round1(have * info.duty);
+      const ok = media + 0.05 >= info.qIn;
+      hint.className = "mini" + (ok ? "" : " is-warn");
+      hint.style.color = ok ? "var(--ok)" : "var(--danger)";
+      hint.innerHTML = ok
+        ? `Set membrane OK vs chimico <strong>${fmtQ(info.qIn)}</strong>: `
+          + `totale ≥ <strong>${fmtQ(info.qMemMin)}</strong> m³/h `
+          + `(media ciclo ≈ <strong>${fmtQ(media)}</strong> ≥ ingresso).`
+        : `Set membrane basso: con chimico <strong>${fmtQ(info.qIn)}</strong> serve totale ON ≥ `
+          + `<strong class="fix-val">${fmtQ(info.qMemMin)}</strong> m³/h `
+          + `(ora ${fmtQ(have)} → media ≈ ${fmtQ(media)}). `
+          + `Sotto questa soglia A11004/MBR si riempiono: il riciclo non esporta.`;
+    }
+
+    /**
+     * Livello MBR: volume = N vaschette. Quasi tutto l’eccesso (mandata−permeato)
+     * scende ad A11004; resta poco netto sulle vaschette (+ effetto pausa scarico §4).
      */
     function estimateMbrRatePctPerMin(qMandata, qPerm, livMbrOpt) {
-      const { V, cal } = getMbrTrayVolume();
+      const { V, calM } = getMbrCommonVolume();
+      const cal = calM || getMbrLivCalib();
       const qIn = Math.max(0, Number(qMandata) || 0);
       const qOutPerm = Math.max(0, Number(qPerm) || 0);
-      const liv = Number.isFinite(Number(livMbrOpt))
-        ? Number(livMbrOpt)
-        : (numOrNull("livelloAttualeMbr") ?? 90);
-      const stopFill = numOrNull("stopRiempMbr") ?? 92;
-      const startFill = numOrNull("startRiempMbr") ?? 85;
       const membranesExtracting = qOutPerm > 0.5;
 
-      // Sfioro verso H: basso a livello alto (così si arriva allo stop 92%), più libero a metà banda
-      let overflowFrac = 0.25;
-      if (liv >= stopFill - 3) overflowFrac = 0.08;
-      else if (liv >= startFill) overflowFrac = 0.18;
-
-      // Membrane FERME: tutta la mandata (meno sfioro minimo) riempie verso start/stop
+      // Membrane FERME: mandata riempie le N vaschette (poco scarico ad H)
       if (!membranesExtracting) {
-        const qToH = qIn * 0.04;
-        const net = qIn - qToH;
+        const net = qIn * 0.92;
         const rFill = ratePctPerMinFromVolume(net, V);
         if (!Number.isFinite(rFill)) return 0;
         return Math.max(-RATE_PCT_CLAMP_VOL, Math.min(RATE_PCT_CLAMP_VOL, rFill));
       }
 
-      // In estrazione: netto = mandata − permeato − sfioro H
+      // In estrazione: ~90% eccesso → A11004; ~10% resta / dinamica vaschette
       const excess = Math.max(0, qIn - qOutPerm);
-      const qToH = excess * overflowFrac;
-      const net = (qIn - qOutPerm) - qToH; // = excess * (1 - overflowFrac)
-      let r = ratePctPerMinFromVolume(net, V);
+      const retainFrac = 0.10;
+      let net = excess * retainFrac;
 
-      // In pausa ciclo le vaschette scaricano: piccolo calo medio sul ciclo
+      // Pausa ciclo: scarico misurato §4 (calo % sulle vaschette)
       const cycle = Math.max(0.2, cal.lavoro + cal.pausa);
       const fracPause = Math.max(0.05, cal.pausa / cycle);
-      r -= cal.rateDrain * fracPause * 0.35;
+      // Converti rateDrain (%/min in pausa) in equivalente netto medio sul ciclo
+      const rPauseAvg = cal.rateDrain * fracPause;
+      let r = ratePctPerMinFromVolume(net, V) - rPauseAvg;
 
       if (!Number.isFinite(r)) return 0;
       return Math.max(-RATE_PCT_CLAMP_VOL, Math.min(RATE_PCT_CLAMP_VOL, r));
     }
 
-    /** Scarico MBR → A11004 (m³/h): frazione dell’eccesso (mandata − permeato). */
+    /**
+     * Scarico MBR → A11004 (m³/h): gli scarichi di tutte le vaschette vanno al collettore.
+     * In estrazione ≈ 90% di (mandata − permeato); a membrane ferme poca comunicazione.
+     */
     function mbrScaricoToH(qMandata, qPerm, livMbrOpt) {
       const qM = Math.max(0, Number(qMandata) || 0);
       const qP = Math.max(0, Number(qPerm) || 0);
-      const liv = Number.isFinite(Number(livMbrOpt))
-        ? Number(livMbrOpt)
-        : (numOrNull("livelloAttualeMbr") ?? 90);
-      const stopFill = numOrNull("stopRiempMbr") ?? 92;
-      const startFill = numOrNull("startRiempMbr") ?? 85;
-      if (qP < 0.5) return round1(qM * 0.04);
+      if (qP < 0.5) return round1(qM * 0.08);
       const excess = Math.max(0, qM - qP);
-      let overflowFrac = 0.25;
-      if (liv >= stopFill - 3) overflowFrac = 0.08;
-      else if (liv >= startFill) overflowFrac = 0.18;
-      return round1(excess * overflowFrac);
+      return round1(excess * 0.90);
     }
 
     function paintMbrLevelUI(livMbr, rateMbr) {
@@ -8040,7 +8094,7 @@
       const rateMbrUi = estimateMbrRatePctPerMin(qMandata, totAvg, livMbrUi);
       paintMbrLevelUI(livMbrUi, rateMbrUi);
       paintMembraneCycleUI(__mbrCycleMin);
-      getMbrLivCalib();
+      paintMbrRicHCalibHints();
 
       // TK 11007 permeato — IN membrane istantanee vs OUT P11019 (≈ ingresso)
       let livPUi = numOrNull("livelloAttualeTk11007");
@@ -8704,6 +8758,8 @@
         }
         setVal("qMemMedia", totAvg);
         setVal("qInFromMem", round1(qIn));
+        try { paintMemMinHint(); } catch (_) { /* ok */ }
+        try { paintMbrRicHCalibHints(); } catch (_) { /* ok */ }
 
         // Riciclo 11014:
         //  Automatico (locale) → P11011 − SETPOINT ingresso sediflottatore.
@@ -10340,8 +10396,11 @@
         refreshTankGeomHints();
         getA10611Calib();
         getRicicloHCalib();
-        getMbrLivCalib();
+        paintMbrRicHCalibHints();
         getTk11007Calib();
+      }
+      if (name === "membrane") {
+        try { paintMemMinHint(); } catch (_) { /* ok */ }
       }
     }
     function closePopups() {
@@ -11478,7 +11537,7 @@
         refreshTankGeomHints();
         getA10611Calib();
         getRicicloHCalib();
-        getMbrLivCalib();
+        paintMbrRicHCalibHints();
         getTk11007Calib();
         applyBalance("livello");
       });
