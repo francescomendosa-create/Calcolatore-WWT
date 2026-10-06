@@ -2022,7 +2022,7 @@
         <input type="number" id="qUfTotale" class="tot-mem" min="0" max="500" step="0.1" value="0" />
       </label>
       <p class="mini">Quattro ingressi A–D. La somma = totale. Variando il totale si ripartiscono in modo uguale; variando una linea si aggiorna il totale.</p>
-      <p class="mini">Ogni UF: <strong>tempo lavoro</strong> (default 20′) poi <strong>lavaggio</strong> (default 190 s ferma). I lavaggi sono <strong>sfalsati</strong> (non contemporanei). In lavaggio la portata viva va a 0; il setpoint nel popup resta.</p>
+      <p class="mini">Ogni UF: <strong>tempo lavoro</strong> (default 20′) poi <strong>lavaggio</strong> (default 190 s ferma), <strong>sfalsati</strong>. Il timer avanza solo con <strong>portata verso UF</strong>; senza portata i lavaggi restano <strong>in coda</strong> e partono al ritorno del flusso. In lavaggio la viva va a 0; il setpoint resta.</p>
       <div id="ufInputs"></div>
       <div class="settings-block show" style="margin-top:10px">
         <h4>TK 11021 — permeato UF (da PROCESSO)</h4>
@@ -2312,6 +2312,7 @@
     let __runOsmB = true;
     let __runOsmC = true;
     let __mbrCycleMin = 0;       // orologio ciclo lavoro/pausa (si congela se livello ferma tutte)
+    let __ufSvcMin = 0;          // orologio lavaggi UF: avanza solo con portata verso UF
     let __startupPumpHold = false; // dopo Reset: pompe ON finché non parti con +1′
     let __simMin = 0;
     let __simSnap = null;
@@ -3958,6 +3959,7 @@
         runOsmB: __runOsmB,
         runOsmC: __runOsmC,
         mbrCycleMin: __mbrCycleMin,
+        ufSvcMin: __ufSvcMin,
         startupPumpHold: __startupPumpHold,
       };
     }
@@ -3990,6 +3992,7 @@
       __runOsmB = __simSnap.runOsmB !== false;
       __runOsmC = __simSnap.runOsmC !== false;
       __mbrCycleMin = Math.max(0, Number(__simSnap.mbrCycleMin) || 0);
+      __ufSvcMin = Math.max(0, Number(__simSnap.ufSvcMin) || 0);
       __startupPumpHold = __simSnap.startupPumpHold !== false;
       // Riallinea isteresi 11014 ai livelli ripristinati
       assess11014RunState(
@@ -4138,6 +4141,8 @@
         syncOsmosiSvg();
         paintOsmosiRunUI();
       }
+      // Timer lavaggi UF: avanza solo con portata verso UF (altrimenti lavaggi in coda)
+      advanceUfServiceClock(dtMin);
       // IN UF effettivo: linee non in lavaggio (sfalsati); 0 se P11019/TK11021 bloccano
       if (!p11019Allowed()) paintUfPopupSetpoints();
       const qUfIn = sumUfEffective();
@@ -4474,6 +4479,7 @@
       lock = false;
       __simMin = 0;
       __mbrCycleMin = 0;
+      __ufSvcMin = 0;
       resetQInWobble();
       __runMbrByLevel = true;
       __allowMbrByPermeate = true;
@@ -4898,8 +4904,9 @@
       if (ufHint) {
         const startU = numOrNull("startRiempTk11021") ?? 80;
         const stopU = numOrNull("stopRiempTk11021") ?? 97;
-        const washN = UF_LINES.filter((L) => ufLineInWash(__simMin, L)).length;
-        const washTxt = washN ? ` · ${washN} UF in lavaggio` : "";
+        const washN = UF_LINES.filter((L) => ufLineInWash(L)).length;
+        const queueN = UF_LINES.filter((L) => ufLineQueuedWash(L)).length;
+        const washTxt = washN ? ` · ${washN} UF in lavaggio` : (queueN ? ` · ${queueN} UF lavaggio in coda` : "");
         ufHint.textContent = __allowUfByTk11021
           ? `TK 11021 OK · riempimento UF abilitato (stop a ≥${fmtPct(stopU)})${washTxt}`
           : `TK 11021 PIENO ≥${fmtPct(stopU)} · riempimento bloccato · riparte a ≤${fmtPct(startU)}${washTxt}`;
@@ -5773,11 +5780,27 @@
       return Math.max(1, num("ufLavaggioSec" + letter) || 190);
     }
 
+    /** Portata verso UF (Impianto/carboni), indipendente dai lavaggi. */
+    function ufInletAvailable() {
+      if (!__allowUfByTk11021) return false;
+      return qP11019ImpiantoLive() > 0.05;
+    }
+
+    /** Avanza l’orologio lavaggi solo se c’è portata verso UF; altrimenti i lavaggi restano in coda. */
+    function advanceUfServiceClock(dtMin) {
+      const dt = Math.max(0, Number(dtMin) || 0);
+      if (dt < 1e-9) return false;
+      if (!ufInletAvailable()) return false;
+      __ufSvcMin = Math.max(0, round2((__ufSvcMin || 0) + dt));
+      return true;
+    }
+
     /**
-     * Lavaggio UF sfalsato: ogni linea lavora `lavoro` min, poi ferma `lavaggio` s.
+     * Lavaggio UF sfalsato su orologio di servizio (__ufSvcMin):
+     * ogni linea lavora `lavoro` min, poi ferma `lavaggio` s.
      * Il primo lavaggio di B/C/D è ritardato di idx×lavaggio così non sono contemporanei.
      */
-    function ufWashPhase(tMin, letter) {
+    function ufWashPhase(letter) {
       const L = String(letter || "").toUpperCase();
       const idx = Math.max(0, UF_LINES.indexOf(L));
       const lavoro = ufLavoroMin(L);
@@ -5785,26 +5808,33 @@
       const washMin = washSec / 60;
       const cycle = lavoro + washMin;
       const firstWash = lavoro + idx * washMin;
-      const t = Math.max(0, Number(tMin) || 0);
+      const t = Math.max(0, Number(__ufSvcMin) || 0);
       if (cycle < 0.2 || t + 1e-9 < firstWash) {
-        return { wash: false, remainSec: 0, toWashSec: Math.max(0, Math.ceil((firstWash - t) * 60)) };
+        return { wash: false, queued: false, remainSec: 0, toWashSec: Math.max(0, Math.ceil((firstWash - t) * 60)) };
       }
       let u = (t - firstWash) % cycle;
       if (u < 0) u += cycle;
       if (u < washMin - 1e-9) {
-        return { wash: true, remainSec: Math.max(0, Math.ceil((washMin - u) * 60)), toWashSec: 0 };
+        return { wash: true, queued: false, remainSec: Math.max(0, Math.ceil((washMin - u) * 60)), toWashSec: 0 };
       }
-      return { wash: false, remainSec: 0, toWashSec: Math.max(0, Math.ceil((cycle - u) * 60)) };
+      return { wash: false, queued: false, remainSec: 0, toWashSec: Math.max(0, Math.ceil((cycle - u) * 60)) };
     }
 
-    function ufLineInWash(tMin, letter) {
-      return !!ufWashPhase(tMin, letter).wash;
+    /** Lavaggio attivo solo con portata verso UF; senza portata resta in coda (non parte). */
+    function ufLineInWash(letter) {
+      if (!ufInletAvailable()) return false;
+      return !!ufWashPhase(letter).wash;
+    }
+
+    function ufLineQueuedWash(letter) {
+      if (ufInletAvailable()) return false;
+      return !!ufWashPhase(letter).wash;
     }
 
     function ufLineEffective(letter) {
       const L = String(letter || "").toUpperCase();
       if (!p11019Allowed() || !__allowUfByTk11021) return 0;
-      if (ufLineInWash(__simMin, L)) return 0;
+      if (ufLineInWash(L)) return 0;
       return procSetpointOf("qUf" + L);
     }
 
@@ -5813,24 +5843,35 @@
     }
 
     function paintUfWashUI() {
+      const inletOk = ufInletAvailable();
       UF_LINES.forEach((L) => {
-        const wash = ufLineInWash(__simMin, L);
+        const ph = ufWashPhase(L);
+        const wash = inletOk && ph.wash;
+        const queued = !inletOk && ph.wash;
         const body = el("svgUfBody" + L);
         const fill = el("svgUfFill" + L);
         const lab = el("svgUfLab" + L);
         if (body) {
-          body.setAttribute("stroke", wash ? "#f87171" : "#7dd3fc");
-          body.setAttribute("fill", wash ? "#7f1d1d" : "#334155");
+          body.setAttribute("stroke", wash ? "#f87171" : (queued ? "#fbbf24" : "#7dd3fc"));
+          body.setAttribute("fill", wash ? "#7f1d1d" : (queued ? "#422006" : "#334155"));
         }
         if (fill) {
-          fill.setAttribute("fill", wash ? "#991b1b" : "#0ea5e9");
-          fill.setAttribute("opacity", wash ? "0.7" : "0.55");
+          fill.setAttribute("fill", wash ? "#991b1b" : (queued ? "#92400e" : "#0ea5e9"));
+          fill.setAttribute("opacity", wash || queued ? "0.7" : "0.55");
         }
-        if (lab) lab.setAttribute("fill", wash ? "#fda4af" : "#7dd3fc");
+        if (lab) lab.setAttribute("fill", wash ? "#fda4af" : (queued ? "#fde68a" : "#7dd3fc"));
         const st = el("ufStatus" + L);
         if (st) {
-          const ph = ufWashPhase(__simMin, L);
-          if (ph.wash) {
+          if (!inletOk) {
+            if (queued) {
+              st.textContent = `IN CODA · lavaggio pronto (~${ph.remainSec} s) — parte al ritorno portata UF`;
+              st.style.color = "var(--warn)";
+            } else {
+              const minLeft = Math.max(0, Math.round(ph.toWashSec / 60));
+              st.textContent = `Senza portata UF · timer in pausa · prox lavaggio tra ~${minLeft}′ di servizio`;
+              st.style.color = "var(--warn)";
+            }
+          } else if (wash) {
             st.textContent = `LAVAGGIO · ferma ancora ~${ph.remainSec} s (su ${Math.round(ufLavaggioSec(L))} s)`;
             st.style.color = "var(--danger)";
           } else {
@@ -5840,7 +5881,7 @@
           }
         }
         const badge = el("svgQUf" + L)?.closest("g")?.querySelector("rect.badge");
-        if (badge) badge.setAttribute("stroke", wash ? "#f87171" : "#7dd3fc");
+        if (badge) badge.setAttribute("stroke", wash ? "#f87171" : (queued ? "#fbbf24" : "#7dd3fc"));
       });
     }
 
@@ -7339,7 +7380,7 @@
       }
     } catch (_) { /* ok */ }
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt37", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt38", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
