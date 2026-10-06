@@ -251,7 +251,31 @@
     }
     @media (prefers-reduced-motion: reduce) {
       .pump-rotor.is-spinning { animation: none; }
+      .flow-water.is-flowing .flow-line { animation: none; opacity: 0.55; }
     }
+    .flow-water { pointer-events: none; }
+    .flow-water .flow-line {
+      fill: none;
+      stroke: #7dd3fc;
+      stroke-width: 1.55;
+      stroke-dasharray: 5 9;
+      stroke-linecap: round;
+      opacity: 0;
+    }
+    .flow-water.is-flowing .flow-line { opacity: 0.85; }
+    .flow-water.flow-rtl.is-flowing .flow-line {
+      animation: flow-rtl 1.7s linear infinite;
+    }
+    .flow-water.flow-up.is-flowing .flow-line {
+      animation: flow-up 1.9s linear infinite;
+    }
+    .flow-water.flow-down.is-flowing .flow-line {
+      animation: flow-down 1.7s linear infinite;
+      stroke: #bae6fd;
+    }
+    @keyframes flow-rtl { to { stroke-dashoffset: 28; } }
+    @keyframes flow-up { to { stroke-dashoffset: -28; } }
+    @keyframes flow-down { to { stroke-dashoffset: 28; } }
     .node {
       cursor: pointer;
       transition: filter 0.12s;
@@ -1236,24 +1260,48 @@
             <rect x="-6" y="-14" width="28" height="110" fill="#000" opacity="0.001" pointer-events="all" />
             <rect id="svgUfBodyA" class="uf-mini-body" x="0" y="0" width="16" height="90" rx="3" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
             <rect id="svgUfFillA" class="uf-mini-fill" x="3" y="22" width="10" height="58" rx="1" fill="#0ea5e9" opacity="0.55" />
+            <clipPath id="clipUfFlowA"><rect x="2" y="6" width="12" height="78" rx="2" /></clipPath>
+            <g class="flow-water flow-up" clip-path="url(#clipUfFlowA)">
+              <path class="flow-line" d="M4 84 V8" />
+              <path class="flow-line" d="M8 84 V8" />
+              <path class="flow-line" d="M12 84 V8" />
+            </g>
             <text id="svgUfLabA" class="uf-mini-lab" x="8" y="-4" text-anchor="middle" fill="#7dd3fc" font-size="8" font-weight="700">A</text>
           </g>
           <g class="node" tabindex="0" data-popup="ultra" data-uf-line="B" role="button" aria-label="Ultrafiltrazione B" transform="translate(552,365)">
             <rect x="-6" y="-14" width="28" height="110" fill="#000" opacity="0.001" pointer-events="all" />
             <rect id="svgUfBodyB" class="uf-mini-body" x="0" y="0" width="16" height="90" rx="3" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
             <rect id="svgUfFillB" class="uf-mini-fill" x="3" y="22" width="10" height="58" rx="1" fill="#0ea5e9" opacity="0.55" />
+            <clipPath id="clipUfFlowB"><rect x="2" y="6" width="12" height="78" rx="2" /></clipPath>
+            <g class="flow-water flow-up" clip-path="url(#clipUfFlowB)">
+              <path class="flow-line" d="M4 84 V8" />
+              <path class="flow-line" d="M8 84 V8" />
+              <path class="flow-line" d="M12 84 V8" />
+            </g>
             <text id="svgUfLabB" class="uf-mini-lab" x="8" y="-4" text-anchor="middle" fill="#7dd3fc" font-size="8" font-weight="700">B</text>
           </g>
           <g class="node" tabindex="0" data-popup="ultra" data-uf-line="C" role="button" aria-label="Ultrafiltrazione C" transform="translate(574,365)">
             <rect x="-6" y="-14" width="28" height="110" fill="#000" opacity="0.001" pointer-events="all" />
             <rect id="svgUfBodyC" class="uf-mini-body" x="0" y="0" width="16" height="90" rx="3" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
             <rect id="svgUfFillC" class="uf-mini-fill" x="3" y="22" width="10" height="58" rx="1" fill="#0ea5e9" opacity="0.55" />
+            <clipPath id="clipUfFlowC"><rect x="2" y="6" width="12" height="78" rx="2" /></clipPath>
+            <g class="flow-water flow-up" clip-path="url(#clipUfFlowC)">
+              <path class="flow-line" d="M4 84 V8" />
+              <path class="flow-line" d="M8 84 V8" />
+              <path class="flow-line" d="M12 84 V8" />
+            </g>
             <text id="svgUfLabC" class="uf-mini-lab" x="8" y="-4" text-anchor="middle" fill="#7dd3fc" font-size="8" font-weight="700">C</text>
           </g>
           <g class="node" tabindex="0" data-popup="ultra" data-uf-line="D" role="button" aria-label="Ultrafiltrazione D" transform="translate(596,365)">
             <rect x="-6" y="-14" width="28" height="110" fill="#000" opacity="0.001" pointer-events="all" />
             <rect id="svgUfBodyD" class="uf-mini-body" x="0" y="0" width="16" height="90" rx="3" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
             <rect id="svgUfFillD" class="uf-mini-fill" x="3" y="22" width="10" height="58" rx="1" fill="#0ea5e9" opacity="0.55" />
+            <clipPath id="clipUfFlowD"><rect x="2" y="6" width="12" height="78" rx="2" /></clipPath>
+            <g class="flow-water flow-up" clip-path="url(#clipUfFlowD)">
+              <path class="flow-line" d="M4 84 V8" />
+              <path class="flow-line" d="M8 84 V8" />
+              <path class="flow-line" d="M12 84 V8" />
+            </g>
             <text id="svgUfLabD" class="uf-mini-lab" x="8" y="-4" text-anchor="middle" fill="#7dd3fc" font-size="8" font-weight="700">D</text>
           </g>
         </g>
@@ -1344,6 +1392,12 @@
             <rect x="-4" y="-18" width="108" height="42" fill="#000" opacity="0.001" pointer-events="all" />
             <rect class="osm-mini-body" x="0" y="0" width="100" height="16" rx="8" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
             <rect class="osm-mini-fill" x="10" y="3" width="80" height="10" rx="4" fill="#0ea5e9" opacity="0.55" />
+            <clipPath id="clipOsmFlowA"><rect x="10" y="3" width="80" height="10" rx="4" /></clipPath>
+            <g class="flow-water flow-rtl" clip-path="url(#clipOsmFlowA)">
+              <path class="flow-line" d="M8 5 H92" />
+              <path class="flow-line" d="M8 8 H92" />
+              <path class="flow-line" d="M8 11 H92" />
+            </g>
             <text class="osm-mini-lab" x="50" y="-6" text-anchor="middle" fill="#7dd3fc" font-size="9" font-weight="700">Osmosi A</text>
           </g>
 
@@ -1360,6 +1414,12 @@
             <rect x="-4" y="-18" width="108" height="42" fill="#000" opacity="0.001" pointer-events="all" />
             <rect class="osm-mini-body" x="0" y="0" width="100" height="16" rx="8" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
             <rect class="osm-mini-fill" x="10" y="3" width="80" height="10" rx="4" fill="#0ea5e9" opacity="0.55" />
+            <clipPath id="clipOsmFlowB"><rect x="10" y="3" width="80" height="10" rx="4" /></clipPath>
+            <g class="flow-water flow-rtl" clip-path="url(#clipOsmFlowB)">
+              <path class="flow-line" d="M8 5 H92" />
+              <path class="flow-line" d="M8 8 H92" />
+              <path class="flow-line" d="M8 11 H92" />
+            </g>
             <text class="osm-mini-lab" x="50" y="-6" text-anchor="middle" fill="#7dd3fc" font-size="9" font-weight="700">Osmosi B</text>
           </g>
 
@@ -1376,6 +1436,12 @@
             <rect x="-4" y="-18" width="108" height="42" fill="#000" opacity="0.001" pointer-events="all" />
             <rect class="osm-mini-body" x="0" y="0" width="100" height="16" rx="8" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
             <rect class="osm-mini-fill" x="10" y="3" width="80" height="10" rx="4" fill="#0ea5e9" opacity="0.55" />
+            <clipPath id="clipOsmFlowC"><rect x="10" y="3" width="80" height="10" rx="4" /></clipPath>
+            <g class="flow-water flow-rtl" clip-path="url(#clipOsmFlowC)">
+              <path class="flow-line" d="M8 5 H92" />
+              <path class="flow-line" d="M8 8 H92" />
+              <path class="flow-line" d="M8 11 H92" />
+            </g>
             <text class="osm-mini-lab" x="50" y="-6" text-anchor="middle" fill="#7dd3fc" font-size="9" font-weight="700">Osmosi C</text>
           </g>
 
@@ -2326,6 +2392,12 @@
           <svg class="osm-mini" viewBox="0 0 100 28" role="button" tabindex="0" title="Tocca per Abilita / Disabilita">
             <rect class="osm-mini-body" x="0" y="10" width="100" height="16" rx="8" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
             <rect class="osm-mini-fill" x="10" y="13" width="80" height="10" rx="4" fill="#0ea5e9" opacity="0.55" />
+            <clipPath id="clipOsmPopA"><rect x="10" y="13" width="80" height="10" rx="4" /></clipPath>
+            <g class="flow-water flow-rtl" clip-path="url(#clipOsmPopA)">
+              <path class="flow-line" d="M8 15 H92" />
+              <path class="flow-line" d="M8 18 H92" />
+              <path class="flow-line" d="M8 21 H92" />
+            </g>
             <text class="osm-mini-lab" x="50" y="8" text-anchor="middle" fill="#7dd3fc" font-size="9" font-weight="700">Osmosi A</text>
           </svg>
           <span class="osm-row-name">Osmosi A</span>
@@ -2349,6 +2421,12 @@
           <svg class="osm-mini" viewBox="0 0 100 28" role="button" tabindex="0" title="Tocca per Abilita / Disabilita">
             <rect class="osm-mini-body" x="0" y="10" width="100" height="16" rx="8" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
             <rect class="osm-mini-fill" x="10" y="13" width="80" height="10" rx="4" fill="#0ea5e9" opacity="0.55" />
+            <clipPath id="clipOsmPopB"><rect x="10" y="13" width="80" height="10" rx="4" /></clipPath>
+            <g class="flow-water flow-rtl" clip-path="url(#clipOsmPopB)">
+              <path class="flow-line" d="M8 15 H92" />
+              <path class="flow-line" d="M8 18 H92" />
+              <path class="flow-line" d="M8 21 H92" />
+            </g>
             <text class="osm-mini-lab" x="50" y="8" text-anchor="middle" fill="#7dd3fc" font-size="9" font-weight="700">Osmosi B</text>
           </svg>
           <span class="osm-row-name">Osmosi B</span>
@@ -2372,6 +2450,12 @@
           <svg class="osm-mini" viewBox="0 0 100 28" role="button" tabindex="0" title="Tocca per Abilita / Disabilita">
             <rect class="osm-mini-body" x="0" y="10" width="100" height="16" rx="8" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
             <rect class="osm-mini-fill" x="10" y="13" width="80" height="10" rx="4" fill="#0ea5e9" opacity="0.55" />
+            <clipPath id="clipOsmPopC"><rect x="10" y="13" width="80" height="10" rx="4" /></clipPath>
+            <g class="flow-water flow-rtl" clip-path="url(#clipOsmPopC)">
+              <path class="flow-line" d="M8 15 H92" />
+              <path class="flow-line" d="M8 18 H92" />
+              <path class="flow-line" d="M8 21 H92" />
+            </g>
             <text class="osm-mini-lab" x="50" y="8" text-anchor="middle" fill="#7dd3fc" font-size="9" font-weight="700">Osmosi C</text>
           </svg>
           <span class="osm-row-name">Osmosi C</span>
@@ -4013,6 +4097,15 @@
       return DEV_COL.stop;
     }
 
+    function setWaterFlow(root, on, dir) {
+      if (!root) return;
+      root.querySelectorAll(".flow-water").forEach((g) => {
+        g.classList.toggle("is-flowing", !!on);
+        g.classList.remove("flow-rtl", "flow-up", "flow-down");
+        if (dir === "rtl" || dir === "up" || dir === "down") g.classList.add("flow-" + dir);
+      });
+    }
+
     function paintOsmMiniSketch(root, run, disabled) {
       if (!root) return;
       const c = deviceCol(disabled, run);
@@ -4028,6 +4121,7 @@
         inner.setAttribute("opacity", run && !disabled ? "0.65" : "0.55");
       }
       if (lab) lab.setAttribute("fill", c.lab);
+      setWaterFlow(root, !!(run && !disabled), "rtl");
     }
 
     function focusOsmosiRow(letter) {
@@ -6332,6 +6426,18 @@
         }
         const badge = el("svgQUf" + L)?.closest("g")?.querySelector("rect.badge");
         if (badge) badge.setAttribute("stroke", deviceCol(off, runUf).stroke);
+        const ufNode = document.querySelector(`g.node[data-uf-line="${L}"]`);
+        const ufRow = el("ufRow" + L);
+        if (off || (!runUf && !wash)) {
+          setWaterFlow(ufNode, false);
+          setWaterFlow(ufRow, false);
+        } else if (wash) {
+          setWaterFlow(ufNode, true, "down");
+          setWaterFlow(ufRow, true, "down");
+        } else {
+          setWaterFlow(ufNode, true, "up");
+          setWaterFlow(ufRow, true, "up");
+        }
       });
     }
 
@@ -6412,6 +6518,12 @@
           <svg class="uf-mini" viewBox="0 0 28 90" role="button" tabindex="0" title="Tocca per Abilita / Disabilita">
             <rect class="uf-mini-body" x="6" y="12" width="16" height="72" rx="3" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
             <rect class="uf-mini-fill" x="9" y="30" width="10" height="48" rx="1" fill="#0ea5e9" opacity="0.55" />
+            <clipPath id="clipUfPop${m}"><rect x="8" y="16" width="12" height="64" rx="2" /></clipPath>
+            <g class="flow-water flow-up" clip-path="url(#clipUfPop${m})">
+              <path class="flow-line" d="M10 78 V18" />
+              <path class="flow-line" d="M14 78 V18" />
+              <path class="flow-line" d="M18 78 V18" />
+            </g>
             <text class="uf-mini-lab" x="14" y="9" text-anchor="middle" fill="#7dd3fc" font-size="9" font-weight="700">${m}</text>
           </svg>
           <span class="uf-row-name">UF ${m}</span>
@@ -8056,7 +8168,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt50", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt51", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
