@@ -243,6 +243,7 @@
     }
     .node:hover { filter: brightness(1.15); }
     .node:focus, .node:focus-visible { outline: none; }
+    .node[data-osm-line] { touch-action: manipulation; }
     .badge {
       fill: #0b1220;
       stroke: var(--line);
@@ -628,6 +629,7 @@
       height: 28px;
       flex-shrink: 0;
       display: block;
+      cursor: pointer;
     }
     .osm-row-name {
       font-weight: 800;
@@ -2239,7 +2241,7 @@
       </div>
       <div class="osm-row" id="osmRowA" data-osm-line="A">
         <div class="osm-row-head">
-          <svg class="osm-mini" viewBox="0 0 100 28" aria-hidden="true">
+          <svg class="osm-mini" viewBox="0 0 100 28" role="button" tabindex="0" title="Tocca per Abilita / Disabilita">
             <rect class="osm-mini-body" x="0" y="10" width="100" height="16" rx="8" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
             <rect class="osm-mini-fill" x="10" y="13" width="80" height="10" rx="4" fill="#0ea5e9" opacity="0.55" />
             <text class="osm-mini-lab" x="50" y="8" text-anchor="middle" fill="#7dd3fc" font-size="9" font-weight="700">Osmosi A</text>
@@ -2262,7 +2264,7 @@
       </div>
       <div class="osm-row" id="osmRowB" data-osm-line="B">
         <div class="osm-row-head">
-          <svg class="osm-mini" viewBox="0 0 100 28" aria-hidden="true">
+          <svg class="osm-mini" viewBox="0 0 100 28" role="button" tabindex="0" title="Tocca per Abilita / Disabilita">
             <rect class="osm-mini-body" x="0" y="10" width="100" height="16" rx="8" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
             <rect class="osm-mini-fill" x="10" y="13" width="80" height="10" rx="4" fill="#0ea5e9" opacity="0.55" />
             <text class="osm-mini-lab" x="50" y="8" text-anchor="middle" fill="#7dd3fc" font-size="9" font-weight="700">Osmosi B</text>
@@ -2285,7 +2287,7 @@
       </div>
       <div class="osm-row" id="osmRowC" data-osm-line="C">
         <div class="osm-row-head">
-          <svg class="osm-mini" viewBox="0 0 100 28" aria-hidden="true">
+          <svg class="osm-mini" viewBox="0 0 100 28" role="button" tabindex="0" title="Tocca per Abilita / Disabilita">
             <rect class="osm-mini-body" x="0" y="10" width="100" height="16" rx="8" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
             <rect class="osm-mini-fill" x="10" y="13" width="80" height="10" rx="4" fill="#0ea5e9" opacity="0.55" />
             <text class="osm-mini-lab" x="50" y="8" text-anchor="middle" fill="#7dd3fc" font-size="9" font-weight="700">Osmosi C</text>
@@ -3721,6 +3723,10 @@
       try { schedulePersist(); } catch (_) { /* ignore */ }
     }
 
+    function toggleOsmLineEnabled(letter) {
+      setOsmLineEnabled(letter, !osmLineEnabled(letter));
+    }
+
     function osmLineRunning(letter) {
       if (!osmLineEnabled(letter)) return false;
       if (letter === "A") return !!__runOsmA;
@@ -3730,7 +3736,7 @@
     }
 
     function osmRunningCount() {
-      return (__runOsmA ? 1 : 0) + (__runOsmB ? 1 : 0) + (__runOsmC ? 1 : 0);
+      return (osmLineRunning("A") ? 1 : 0) + (osmLineRunning("B") ? 1 : 0) + (osmLineRunning("C") ? 1 : 0);
     }
 
     /** Portate osmosi in Auto: domanda ripartita solo sulle linee in marcia. */
@@ -6449,13 +6455,44 @@
     }
 
     document.querySelectorAll(".node[data-popup]").forEach((node) => {
+      const osmLine = node.getAttribute("data-osm-line") || node.dataset.osmLine;
+      let holdTimer = null;
+      let holdFired = false;
+      const clearHold = () => {
+        if (holdTimer != null) {
+          clearTimeout(holdTimer);
+          holdTimer = null;
+        }
+      };
+      if (osmLine) {
+        node.addEventListener("pointerdown", (e) => {
+          if (e.pointerType === "mouse" && e.button !== 0) return;
+          holdFired = false;
+          clearHold();
+          holdTimer = setTimeout(() => {
+            holdTimer = null;
+            holdFired = true;
+            toggleOsmLineEnabled(osmLine);
+            try { if (navigator.vibrate) navigator.vibrate(18); } catch (_) { /* ok */ }
+          }, 500);
+        });
+        ["pointerup", "pointercancel", "pointerleave", "lostpointercapture"].forEach((ev) => {
+          node.addEventListener(ev, clearHold);
+        });
+        node.addEventListener("contextmenu", (e) => { e.preventDefault(); });
+      }
       const open = (e) => {
         try {
           const t = e.target;
           if (t && t.closest && t.closest(".flow-edit")) return;
         } catch (_) { /* SVG senza closest su target rari */ }
+        if (osmLine && holdFired) {
+          holdFired = false;
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
         const name = node.getAttribute("data-popup") || node.dataset.popup;
-        const osmLine = node.getAttribute("data-osm-line") || node.dataset.osmLine;
         if (name) openPopup(name, osmLine ? { osmLine } : undefined);
         if (node.blur) node.blur();
       };
@@ -6464,7 +6501,6 @@
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           const name = node.getAttribute("data-popup") || node.dataset.popup;
-          const osmLine = node.getAttribute("data-osm-line") || node.dataset.osmLine;
           if (name) openPopup(name, osmLine ? { osmLine } : undefined);
         }
       });
@@ -7237,6 +7273,20 @@
           focusOsmosiRow(L);
         });
       });
+      document.querySelectorAll(".osm-row .osm-mini").forEach((svg) => {
+        const toggle = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const L = svg.closest(".osm-row")?.getAttribute("data-osm-line");
+          if (!L) return;
+          toggleOsmLineEnabled(L);
+          focusOsmosiRow(L);
+        };
+        svg.addEventListener("click", toggle);
+        svg.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") toggle(e);
+        });
+      });
       syncOsmosiSvg();
       applyBalance("ingresso");
       refreshTankGeomHints();
@@ -7637,7 +7687,7 @@
       }
     } catch (_) { /* ok */ }
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt42", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt43", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
