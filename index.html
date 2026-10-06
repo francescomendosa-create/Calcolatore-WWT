@@ -419,24 +419,14 @@
     .flow-edit-panel .dev-mode {
       align-self: center;
     }
-    .flow-edit-panel .flow-edit-unit { display: none; }
+    .flow-edit-panel .flow-edit-unit,
+    .flow-edit-unit-in { display: none !important; }
     .flow-edit-value {
       flex: 1 1 auto;
       min-width: 0;
-      overflow: hidden;
+      height: 100%;
       display: flex;
-      flex-direction: column;
       align-items: stretch;
-    }
-    .flow-edit-unit-in {
-      display: block;
-      margin: 3px 0 0;
-      color: #94a3b8;
-      font-size: 0.72rem;
-      font-weight: 800;
-      pointer-events: none;
-      letter-spacing: 0.02em;
-      text-align: center;
     }
     .flow-edit-corr {
       margin: 0 0 8px;
@@ -455,17 +445,17 @@
       max-width: 100%;
     }
     .flow-edit-corr[hidden] { display: none !important; }
-    /* Numero a sinistra, frecce ▲▼ a destra — sempre dentro il pannello */
+    /* Display a tutta altezza delle frecce ▲▼ */
     .flow-edit-spin {
       display: flex;
       flex-direction: row;
       align-items: stretch;
-      justify-content: stretch;
       gap: 8px;
-      margin: 0 0 8px;
+      margin: 0 0 10px;
       width: 100%;
       max-width: 100%;
       min-width: 0;
+      height: 78px;
       box-sizing: border-box;
     }
     .flow-edit-arrows {
@@ -474,6 +464,7 @@
       gap: 6px;
       flex: 0 0 44px;
       width: 44px;
+      height: 78px;
       position: relative;
       z-index: 3;
     }
@@ -481,6 +472,7 @@
       appearance: none;
       width: 44px;
       height: 36px;
+      flex: 0 0 36px;
       border-radius: 10px;
       border: 1px solid var(--line);
       background: var(--panel-2);
@@ -500,18 +492,20 @@
     #svgInlineInput {
       display: block;
       width: 100%;
+      height: 78px;
       max-width: 100%;
       min-width: 0;
       margin: 0;
-      padding: 10px 8px;
+      padding: 0 10px;
       border-radius: 10px;
       border: 2px solid var(--accent);
       background: #0b1220;
       color: #fff;
-      font-size: 1.35rem;
+      font-size: 1.7rem;
       font-weight: 800;
       font-variant-numeric: tabular-nums;
       text-align: center;
+      line-height: 74px;
       box-sizing: border-box;
       caret-color: var(--accent);
       -webkit-touch-callout: none;
@@ -1624,11 +1618,10 @@
           <button type="button" data-dev-mode="manual">Man</button>
         </span>
       </h3>
-      <p class="flow-edit-unit" id="flowEditUnit">m³/h</p>
+      <p class="flow-edit-unit" id="flowEditUnit" hidden>m³/h</p>
       <div class="flow-edit-spin">
         <div class="flow-edit-value">
-          <input type="text" id="svgInlineInput" inputmode="none" autocomplete="off" enterkeyhint="done" />
-          <span class="flow-edit-unit-in" id="flowEditUnitIn">m³/h</span>
+          <input type="text" id="svgInlineInput" inputmode="none" autocomplete="off" enterkeyhint="done" aria-label="Valore" />
         </div>
         <div class="flow-edit-arrows">
           <button type="button" id="flowEditUp" aria-label="Aumenta">▲</button>
@@ -8128,10 +8121,7 @@
           ? "P11011 · Hz"
           : (FLOW_EDIT_LABELS[field] || "Portata");
       }
-      const unitTxt = field === "freqHz" ? "Hz" : "m³/h";
-      const unitIn = el("flowEditUnitIn");
-      if (unitIn) unitIn.textContent = unitTxt;
-      if (flowEditUnit) flowEditUnit.textContent = unitTxt;
+      if (flowEditUnit) flowEditUnit.textContent = field === "freqHz" ? "Hz" : "m³/h";
       syncFlowEditDevMode(field);
       updateFlowEditCorr();
       __flowNumpadFresh = true;
@@ -9052,7 +9042,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt65", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt66", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
