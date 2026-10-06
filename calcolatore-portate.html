@@ -8034,6 +8034,7 @@
     const flowEditUnit = el("flowEditUnit");
     const flowNumpad = el("flowNumpad");
     let __flowNumpadFresh = false; // prossimo tasto numpad sostituisce il valore
+    let __flowEditGuardUntil = 0; // evita chiusura fantasma al rilascio dito su tablet
     // inlineCtx dichiarato in alto (condiviso con isEditing / applyBalance)
 
     const FLOW_EDIT_LABELS = {
@@ -8363,8 +8364,17 @@
       const raw = String(inlineInp.value ?? "").trim().replace(",", ".");
       const v = parseFloat(raw);
       inlineCtx = null;
+      resetFlowEditPanelPos();
       if (flowEditBack) flowEditBack.classList.remove("show");
-      if (!Number.isFinite(v)) {
+      if (!Number.isFinite(v) || raw === "") {
+        if (field === "qP11019Ias") {
+          applyP11019SplitFrom("ias", 0);
+          return;
+        }
+        if (field === "qP11019Impianto") {
+          applyP11019SplitFrom("impianto", 0);
+          return;
+        }
         if (field === "qUfTotale") { syncUf("uf-totale"); return; }
         if (field === "qUfA" || field === "qUfB" || field === "qUfC" || field === "qUfD") { syncUf("uf-linea"); return; }
         if (field === "qOsmosiA" || field === "qOsmosiB" || field === "qOsmosiC") { syncOsmosiSvg(); return; }
