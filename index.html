@@ -376,11 +376,14 @@
     }
     .flow-edit-back.show { display: flex; }
     .flow-edit-panel {
-      width: min(360px, 100%);
+      width: min(300px, 100%);
+      max-width: 100%;
+      overflow: hidden;
+      box-sizing: border-box;
       background: var(--panel);
       border: 1px solid var(--line);
       border-radius: 14px;
-      padding: 14px 16px 12px;
+      padding: 12px 12px 10px;
       box-shadow: 0 16px 48px rgba(0,0,0,.45);
       text-align: center;
       -webkit-touch-callout: none;
@@ -388,83 +391,101 @@
       user-select: none;
     }
     .flow-edit-panel.has-numpad {
-      width: min(380px, 100%);
+      width: min(300px, 100%);
     }
     .flow-edit-panel h3 {
-      margin: 0 0 8px;
-      font-size: 1.12rem;
+      margin: 0 0 10px;
+      font-size: 0.98rem;
       font-weight: 800;
       color: var(--text);
       display: flex;
-      align-items: center;
-      justify-content: space-between;
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: flex-start;
       gap: 8px;
-      text-align: left;
-    }
-    .flow-edit-panel h3 .modal-title-row {
-      width: 100%;
-      gap: 8px;
+      text-align: center;
     }
     .flow-edit-panel h3 #flowEditTitle {
-      font-size: 1.12rem;
+      display: block;
+      width: 100%;
+      font-size: 0.98rem;
       font-weight: 800;
-      line-height: 1.2;
+      line-height: 1.25;
       min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .flow-edit-panel .dev-mode {
+      align-self: center;
     }
     .flow-edit-panel .flow-edit-unit { display: none; }
     .flow-edit-value {
-      position: relative;
-      flex: 1;
+      flex: 1 1 auto;
       min-width: 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
     }
     .flow-edit-unit-in {
-      position: absolute;
-      right: 12px;
-      top: 50%;
-      transform: translateY(-50%);
+      display: block;
+      margin: 3px 0 0;
       color: #94a3b8;
-      font-size: 0.82rem;
+      font-size: 0.72rem;
       font-weight: 800;
       pointer-events: none;
       letter-spacing: 0.02em;
+      text-align: center;
     }
     .flow-edit-corr {
-      margin: -2px 0 10px;
-      padding: 6px 10px;
+      margin: 0 0 8px;
+      padding: 5px 8px;
       border-radius: 8px;
       border: 1px solid #164e63;
       background: #082f49;
       color: #e0f2fe;
-      font-size: 0.88rem;
+      font-size: 0.76rem;
       font-weight: 800;
       font-variant-numeric: tabular-nums;
       text-align: center;
+      overflow: hidden;
+      word-break: break-word;
+      box-sizing: border-box;
+      max-width: 100%;
     }
     .flow-edit-corr[hidden] { display: none !important; }
-    /* Numero a sinistra, frecce ▲▼ a destra */
+    /* Numero a sinistra, frecce ▲▼ a destra — sempre dentro il pannello */
     .flow-edit-spin {
       display: flex;
       flex-direction: row;
       align-items: stretch;
-      justify-content: center;
-      gap: 10px;
-      margin: 2px 0 10px;
+      justify-content: stretch;
+      gap: 8px;
+      margin: 0 0 8px;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
     }
     .flow-edit-arrows {
       display: flex;
       flex-direction: column;
       gap: 6px;
-      flex-shrink: 0;
+      flex: 0 0 44px;
+      width: 44px;
+      position: relative;
+      z-index: 3;
     }
     .flow-edit-arrows button {
       appearance: none;
-      width: 52px;
-      height: 40px;
+      width: 44px;
+      height: 36px;
       border-radius: 10px;
       border: 1px solid var(--line);
       background: var(--panel-2);
       color: var(--accent);
-      font-size: 1.15rem;
+      font-size: 1.05rem;
       font-weight: 800;
       cursor: pointer;
       line-height: 1;
@@ -472,22 +493,22 @@
       -webkit-tap-highlight-color: transparent;
       -webkit-touch-callout: none;
       user-select: none;
+      pointer-events: auto;
     }
     .flow-edit-arrows button:hover { border-color: var(--accent); color: #fff; }
     .flow-edit-arrows button:active { background: #0c4a6e; }
     #svgInlineInput {
       display: block;
-      flex: 1;
-      width: auto;
+      width: 100%;
+      max-width: 100%;
       min-width: 0;
-      max-width: none;
       margin: 0;
-      padding: 10px 3.4rem 10px 12px;
+      padding: 10px 8px;
       border-radius: 10px;
       border: 2px solid var(--accent);
       background: #0b1220;
       color: #fff;
-      font-size: 1.55rem;
+      font-size: 1.35rem;
       font-weight: 800;
       font-variant-numeric: tabular-nums;
       text-align: center;
@@ -646,58 +667,73 @@
     }
     .modal h3 {
       margin: 0 0 10px;
-      font-size: 1.18rem;
+      font-size: 1.05rem;
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: flex-start;
       gap: 8px;
     }
     .modal h3 .modal-title-row {
       display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
       min-width: 0;
       flex: 1;
     }
-    .modal h3 .dev-mode {
+    .modal h3 .modal-title-name {
+      display: block;
+      max-width: 100%;
+      font-size: 1.05rem;
+      font-weight: 800;
+      line-height: 1.25;
+      overflow: hidden;
+    }
+    .modal h3 > [data-close] {
+      flex-shrink: 0;
+      margin-top: -2px;
+    }
+    .dev-mode {
       display: inline-flex;
       align-items: center;
       gap: 4px;
       background: #0b1220;
       border: 1px solid var(--line);
       border-radius: 7px;
-      padding: 3px 5px;
+      padding: 3px 4px;
       flex-shrink: 0;
     }
-    .modal h3 .dev-mode button {
+    .dev-mode button {
       appearance: none;
       border: 1px solid var(--line);
       background: var(--panel-2);
       color: var(--text);
       width: auto;
+      min-width: 2.7rem;
       height: auto;
       border-radius: 5px;
-      padding: 4px 9px;
+      padding: 5px 8px;
       font-size: 0.72rem;
-      font-weight: 700;
+      font-weight: 800;
       cursor: pointer;
-      line-height: 1.2;
+      line-height: 1.15;
+      letter-spacing: 0.02em;
     }
-    .modal h3 .dev-mode button.is-on {
+    .dev-mode button.is-on {
       background: #14532d;
       border-color: #4ade80;
       color: #bbf7d0;
     }
-    .modal h3 .dev-mode button.is-on.is-manual {
+    .dev-mode button.is-on.is-manual {
       background: #422006;
       border-color: #fbbf24;
       color: #fde68a;
     }
     .uf-head-wash {
-      flex: 1 1 7rem;
-      min-width: 6.2rem;
-      max-width: 13.5rem;
+      flex: none;
+      width: 100%;
+      max-width: none;
+      box-sizing: border-box;
       min-height: 2.15em;
       margin: 0;
       padding: 3px 6px;
@@ -719,7 +755,7 @@
       background: #0b1220;
       font-weight: 600;
     }
-    #popUltra .modal-title-row { flex-wrap: nowrap; }
+    #popUltra .modal-title-row { flex-wrap: wrap; }
     .osm-row, .uf-row {
       border: 1px solid var(--line);
       border-radius: 10px;
@@ -1582,12 +1618,10 @@
   <div class="flow-edit-back" id="popFlowEdit" role="dialog" aria-modal="true" aria-labelledby="flowEditTitle">
     <div class="flow-edit-panel">
       <h3>
-        <span class="modal-title-row">
-          <span id="flowEditTitle">Portata</span>
-          <span class="dev-mode" id="flowEditDevMode" hidden title="Override locale: solo questo strumento">
-            <button type="button" data-dev-mode="auto" class="is-on">Automatico</button>
-            <button type="button" data-dev-mode="manual">Manuale</button>
-          </span>
+        <span id="flowEditTitle">Portata</span>
+        <span class="dev-mode" id="flowEditDevMode" hidden title="Override locale: solo questo strumento">
+          <button type="button" data-dev-mode="auto" class="is-on">Aut</button>
+          <button type="button" data-dev-mode="manual">Man</button>
         </span>
       </h3>
       <p class="flow-edit-unit" id="flowEditUnit">m³/h</p>
@@ -1631,10 +1665,10 @@
     <div class="modal">
       <h3>
         <span class="modal-title-row">
-          <span>Ingresso chimico-fisico</span>
+          <span class="modal-title-name">Ingresso chimico-fisico</span>
           <span class="dev-mode" data-dev="ingresso" title="Override locale: solo l’ingresso chimico-fisico">
-            <button type="button" data-dev-mode="auto" class="is-on">Automatico</button>
-            <button type="button" data-dev-mode="manual">Manuale</button>
+            <button type="button" data-dev-mode="auto" class="is-on">Aut</button>
+            <button type="button" data-dev-mode="manual">Man</button>
           </span>
         </span>
         <button type="button" data-close>&times;</button>
@@ -1657,10 +1691,10 @@
     <div class="modal wide-settings">
       <h3>
         <span class="modal-title-row">
-          <span>P11011 A/B</span>
+          <span class="modal-title-name">P11011 A/B</span>
           <span class="dev-mode" data-dev="pompa" title="Override locale: solo P11011 A/B">
-            <button type="button" data-dev-mode="auto" class="is-on">Automatico</button>
-            <button type="button" data-dev-mode="manual">Manuale</button>
+            <button type="button" data-dev-mode="auto" class="is-on">Aut</button>
+            <button type="button" data-dev-mode="manual">Man</button>
           </span>
         </span>
         <button type="button" data-close>&times;</button>
@@ -2155,10 +2189,10 @@
     <div class="modal wide-settings">
       <h3>
         <span class="modal-title-row">
-          <span>MP 11036 A/B</span>
+          <span class="modal-title-name">MP 11036 A/B</span>
           <span class="dev-mode" data-dev="mandata" title="Override locale: solo MP 11036 A/B">
-            <button type="button" data-dev-mode="auto" class="is-on">Automatico</button>
-            <button type="button" data-dev-mode="manual">Manuale</button>
+            <button type="button" data-dev-mode="auto" class="is-on">Aut</button>
+            <button type="button" data-dev-mode="manual">Man</button>
           </span>
         </span>
         <button type="button" data-close>&times;</button>
@@ -2232,10 +2266,10 @@
     <div class="modal">
       <h3>
         <span class="modal-title-row">
-          <span>11014 A/B · riciclo</span>
+          <span class="modal-title-name">11014 A/B · riciclo</span>
           <span class="dev-mode" data-dev="riciclo" title="Automatico: riciclo = P11011 − ingresso sediflottatore. Manuale: portata libera.">
-            <button type="button" data-dev-mode="auto" class="is-on">Automatico</button>
-            <button type="button" data-dev-mode="manual">Manuale</button>
+            <button type="button" data-dev-mode="auto" class="is-on">Aut</button>
+            <button type="button" data-dev-mode="manual">Man</button>
           </span>
         </span>
         <button type="button" data-close>&times;</button>
@@ -2287,10 +2321,10 @@
     <div class="modal wide">
       <h3>
         <span class="modal-title-row">
-          <span>MBR</span>
+          <span class="modal-title-name">MBR</span>
           <span class="dev-mode" data-dev="membrane" title="Override locale: prevale sul modo generale solo per le membrane">
-            <button type="button" data-dev-mode="auto" class="is-on">Automatico</button>
-            <button type="button" data-dev-mode="manual">Manuale</button>
+            <button type="button" data-dev-mode="auto" class="is-on">Aut</button>
+            <button type="button" data-dev-mode="manual">Man</button>
           </span>
         </span>
         <button type="button" data-close>&times;</button>
@@ -2402,10 +2436,10 @@
     <div class="modal wide">
       <h3>
         <span class="modal-title-row">
-          <span>Ultrafiltrazione A–D</span>
+          <span class="modal-title-name">Ultrafiltrazione A–D</span>
           <span class="dev-mode" data-dev="ultra" title="Override locale: prevale sul modo generale solo per l’UF">
-            <button type="button" data-dev-mode="auto" class="is-on">Automatico</button>
-            <button type="button" data-dev-mode="manual">Manuale</button>
+            <button type="button" data-dev-mode="auto" class="is-on">Aut</button>
+            <button type="button" data-dev-mode="manual">Man</button>
           </span>
           <span class="uf-head-wash is-idle" id="ufHeadWash" aria-live="polite">Nessun lavaggio</span>
         </span>
@@ -2421,7 +2455,7 @@
       </label>
       <p class="mini">Quattro ingressi A–D. La somma = totale. Variando il totale si ripartiscono in modo uguale sulle <strong>abilitate</strong>; variando una linea si aggiorna il totale.</p>
       <p class="mini">Clicca una UF sullo schema: il popup si posiziona su quella linea. <strong>Disabilita</strong> la spegne (rossa). Tap sul disegno nel popup = Abilita/Disabilita. In overview: tieni premuto ½ s.</p>
-      <p class="mini">Ogni UF: <strong>tempo di lavoro per lavaggio backwash</strong> (default 20′) poi backwash (default 190 s ferma), <strong>sfalsati</strong>. Poi i grandi lavaggi <strong>CEB</strong> (ipoclorito 21 h, soda 23 h, acido 24 h): ciascuno dura <strong>1010 s (16′ 50″)</strong> a fasi e <strong>quella UF resta ferma</strong>. Il timer avanza solo con <strong>portata verso UF</strong>; senza portata i lavaggi restano <strong>in coda</strong>. In lavaggio la viva va a 0; il setpoint resta.</p>
+      <p class="mini">Ogni UF: <strong>tempo di lavoro per lavaggio backwash</strong> (default 20′) poi backwash (default 190 s ferma), <strong>sfalsati</strong>. Poi i grandi lavaggi <strong>CEB</strong> (ipoclorito 21 h, soda 23 h, acido 24 h): ciascuno dura <strong>1010 s (16′ 50″)</strong> a fasi e <strong>quella UF resta ferma</strong>. I timer <strong>scorrono sempre</strong> (anche senza acqua) e possono andare <strong>in negativo</strong>: al ritorno della portata si lava prima chi è in ritardo da più tempo, poi le altre in sequenza. In lavaggio la viva va a 0; il setpoint resta.</p>
       <div id="ufInputs"></div>
       <div class="settings-block show" style="margin-top:10px">
         <h4>TK 11021 — permeato UF (da PROCESSO)</h4>
@@ -2502,10 +2536,10 @@
     <div class="modal wide">
       <h3>
         <span class="modal-title-row">
-          <span>Osmosi A–C</span>
+          <span class="modal-title-name">Osmosi A–C</span>
           <span class="dev-mode" data-dev="osmosi" title="Override locale: prevale sul modo generale solo per l’osmosi">
-            <button type="button" data-dev-mode="auto" class="is-on">Automatico</button>
-            <button type="button" data-dev-mode="manual">Manuale</button>
+            <button type="button" data-dev-mode="auto" class="is-on">Aut</button>
+            <button type="button" data-dev-mode="manual">Man</button>
           </span>
         </span>
         <button type="button" data-close>&times;</button>
@@ -2769,8 +2803,8 @@
     const __osmEnabled = { A: true, B: true, C: true };
     const __ufEnabled = { A: true, B: true, C: true, D: true };
     let __mbrCycleMin = 0;       // orologio ciclo lavoro/pausa (si congela se livello ferma tutte)
-    let __ufSvcMin = 0;          // orologio lavaggi UF: avanza solo con portata verso UF
-    let __ufChem = null;         // stato lavaggi CEB ipoclorito/soda/acido per linea
+    let __ufSvcMin = 0;          // compat snap vecchi
+    let __ufChem = null;         // timer per linea: remain (min, anche negativi) + wash in corso
     let __startupPumpHold = false; // dopo Reset: pompe ON finché non parti con +1′
     let __simMin = 0;
     let __simSnap = null;
@@ -4901,6 +4935,7 @@
       __ufSvcMin = Math.max(0, Number(__simSnap.ufSvcMin) || 0);
       if (__simSnap.ufChem && typeof __simSnap.ufChem === "object") {
         __ufChem = JSON.parse(JSON.stringify(__simSnap.ufChem));
+        ensureUfChem();
       }
       __startupPumpHold = __simSnap.startupPumpHold !== false;
       // Riallinea isteresi 11014 ai livelli ripristinati
@@ -5060,9 +5095,8 @@
         syncOsmosiSvg();
         paintOsmosiRunUI();
       }
-      // Timer lavaggi UF: avanza solo con portata verso UF (altrimenti lavaggi in coda)
-      advanceUfServiceClock(dtMin);
-      tickUfChemWashes(dtMin);
+      // Timer lavaggi UF: scorrono sempre (anche in negativo); il lavaggio parte solo con portata
+      tickUfWashes(dtMin);
       // IN UF effettivo: linee non in lavaggio (sfalsati); 0 se P11019/TK11021 bloccano
       if (!p11019Allowed()) paintUfPopupSetpoints();
       const qUfIn = sumUfEffective();
@@ -6735,43 +6769,102 @@
       const h = Number.isFinite(raw) && raw > 0 ? raw : meta.defH;
       return Math.max(0.1, h) * 60;
     }
+    const UF_WASH_KIND_IDS = ["cev", "ceb", "acido", "bw"];
+    function ufBlankRemain(letter, idx) {
+      const L = String(letter || "").toUpperCase();
+      const i = Math.max(0, Number(idx) || 0);
+      const washMin = ufLavaggioSec(L) / 60;
+      const chemOff = ufChemWashSec() / 60;
+      return {
+        bw: ufLavoroMin(L) + i * washMin,
+        cev: ufChemLavoroMin(L, "cev") + i * chemOff,
+        ceb: ufChemLavoroMin(L, "ceb") + i * chemOff,
+        acido: ufChemLavoroMin(L, "acido") + i * chemOff,
+      };
+    }
+    function ufNormalizeLine(L, idx, raw) {
+      const base = { remain: ufBlankRemain(L, idx), wash: null };
+      if (!raw || typeof raw !== "object") return base;
+      if (raw.remain && typeof raw.remain === "object") {
+        base.remain.bw = Number(raw.remain.bw);
+        base.remain.cev = Number(raw.remain.cev);
+        base.remain.ceb = Number(raw.remain.ceb);
+        base.remain.acido = Number(raw.remain.acido);
+        UF_WASH_KIND_IDS.forEach((k) => {
+          if (!Number.isFinite(base.remain[k])) base.remain[k] = ufBlankRemain(L, idx)[k];
+        });
+        if (raw.wash && raw.wash.kind) {
+          base.wash = { kind: raw.wash.kind, elapsedSec: Math.max(0, Number(raw.wash.elapsedSec) || 0) };
+        } else if (raw.kind) {
+          base.wash = { kind: raw.kind, elapsedSec: Math.max(0, Number(raw.elapsedSec) || 0) };
+        }
+        return base;
+      }
+      const work = raw.work || {};
+      UF_CHEM_KINDS.forEach((k) => {
+        const w = Number(work[k.id]);
+        base.remain[k.id] = Number.isFinite(w) ? ufChemLavoroMin(L, k.id) - w : ufBlankRemain(L, idx)[k.id];
+      });
+      if (raw.kind) base.wash = { kind: raw.kind, elapsedSec: Math.max(0, Number(raw.elapsedSec) || 0) };
+      return base;
+    }
     function resetUfChem() {
-      const off = ufChemWashSec() / 60;
       __ufChem = {};
       UF_LINES.forEach((L, idx) => {
-        __ufChem[L] = {
-          work: { cev: -idx * off, ceb: -idx * off, acido: -idx * off },
-          kind: null,
-          elapsedSec: 0,
-        };
+        __ufChem[L] = ufNormalizeLine(L, idx, null);
       });
     }
     function ensureUfChem() {
       if (!__ufChem) resetUfChem();
       UF_LINES.forEach((L, idx) => {
-        if (!__ufChem[L]) {
-          const off = ufChemWashSec() / 60;
-          __ufChem[L] = {
-            work: { cev: -idx * off, ceb: -idx * off, acido: -idx * off },
-            kind: null,
-            elapsedSec: 0,
-          };
-        }
+        __ufChem[L] = ufNormalizeLine(L, idx, __ufChem[L]);
       });
     }
-    function ufChemActive(letter) {
+    function ufSched(letter) {
       ensureUfChem();
-      const st = __ufChem[String(letter || "").toUpperCase()];
-      return !!(st && st.kind);
+      return __ufChem[String(letter || "").toUpperCase()] || null;
+    }
+    function ufWashKind(letter) {
+      const st = ufSched(letter);
+      return st && st.wash ? st.wash.kind : null;
+    }
+    function ufChemActive(letter) {
+      const k = ufWashKind(letter);
+      return !!(k && k !== "bw");
+    }
+    function ufKindLavoroMin(letter, kind) {
+      if (kind === "bw") return ufLavoroMin(letter);
+      return ufChemLavoroMin(letter, kind);
+    }
+    function ufKindWashSec(letter, kind) {
+      if (kind === "bw") return ufLavaggioSec(letter);
+      return ufChemWashSec();
+    }
+    function ufUrgent(letter) {
+      const st = ufSched(letter);
+      if (!st) return null;
+      let best = null;
+      UF_WASH_KIND_IDS.forEach((k) => {
+        const remain = Number(st.remain[k]);
+        if (!Number.isFinite(remain)) return;
+        if (!best || remain < best.remain - 1e-9) best = { kind: k, remain };
+      });
+      return best;
+    }
+    function ufAnyDue(letter) {
+      const u = ufUrgent(letter);
+      return !!(u && u.remain <= 1e-9);
     }
     function fmtRemainSec(sec) {
-      const s = Math.max(0, Math.ceil(Number(sec) || 0));
+      const n = Math.round(Number(sec) || 0);
+      const sign = n < 0 ? "−" : "";
+      const s = Math.abs(n);
       if (s >= 60) {
         const m = Math.floor(s / 60);
         const r = s % 60;
-        return r ? `${m}′ ${r}″` : `${m}′`;
+        return sign + (r ? `${m}′ ${r}″` : `${m}′`);
       }
-      return `${s} s`;
+      return `${sign}${s} s`;
     }
     function ufChemPhaseAt(elapsedSec) {
       let t = Math.max(0, Number(elapsedSec) || 0);
@@ -6785,35 +6878,44 @@
       const last = UF_CHEM_PHASES[UF_CHEM_PHASES.length - 1];
       return last ? { label: last.label, short: last.short || last.label, remainSec: 0, totalSec: last.sec } : null;
     }
-    function tickUfChemWashes(dtMin) {
+    function ufAnyoneWashing() {
+      ensureUfChem();
+      return UF_LINES.some((L) => ufLineEnabled(L) && ufWashKind(L));
+    }
+    function tickUfWashes(dtMin) {
       ensureUfChem();
       const dt = Math.max(0, Number(dtMin) || 0);
       if (dt < 1e-9) return;
+      __ufSvcMin = round2((__ufSvcMin || 0) + dt);
       const inlet = ufInletAvailable();
       UF_LINES.forEach((L) => {
-        const st = __ufChem[L];
         if (!ufLineEnabled(L)) return;
-        if (st.kind) {
-          if (!inlet) return;
-          st.elapsedSec += dt * 60;
-          if (st.elapsedSec >= ufChemWashSec() - 1e-6) {
-            st.kind = null;
-            st.elapsedSec = 0;
+        const st = __ufChem[L];
+        UF_WASH_KIND_IDS.forEach((k) => {
+          if (st.wash && st.wash.kind === k) return;
+          st.remain[k] = round2((Number(st.remain[k]) || 0) - dt);
+        });
+        if (st.wash && inlet) {
+          st.wash.elapsedSec += dt * 60;
+          const dur = ufKindWashSec(L, st.wash.kind);
+          if (st.wash.elapsedSec >= dur - 1e-6) {
+            st.remain[st.wash.kind] = ufKindLavoroMin(L, st.wash.kind);
+            st.wash = null;
           }
-          return;
-        }
-        if (!inlet) return;
-        if (ufWashPhase(L).wash) return;
-        st.work.cev += dt;
-        st.work.ceb += dt;
-        st.work.acido += dt;
-        const due = UF_CHEM_KINDS.find((k) => st.work[k.id] >= ufChemLavoroMin(L, k.id) - 1e-9);
-        if (due) {
-          st.kind = due.id;
-          st.elapsedSec = 0;
-          st.work[due.id] = 0;
         }
       });
+      if (!inlet || ufAnyoneWashing()) return;
+      let pick = null;
+      UF_LINES.forEach((L) => {
+        if (!ufLineEnabled(L)) return;
+        const u = ufUrgent(L);
+        if (!u || u.remain > 1e-9) return;
+        if (!pick || u.remain < pick.remain - 1e-9) pick = { L, kind: u.kind, remain: u.remain };
+      });
+      if (pick) {
+        __ufChem[pick.L].wash = { kind: pick.kind, elapsedSec: 0 };
+        __ufChem[pick.L].remain[pick.kind] = 0;
+      }
     }
 
     /** Portata verso UF (Impianto/carboni), indipendente dai lavaggi. */
@@ -6822,53 +6924,38 @@
       return qP11019ImpiantoLive() > 0.05;
     }
 
-    /** Avanza l’orologio lavaggi solo se c’è portata verso UF; altrimenti i lavaggi restano in coda. */
-    function advanceUfServiceClock(dtMin) {
-      const dt = Math.max(0, Number(dtMin) || 0);
-      if (dt < 1e-9) return false;
-      if (!ufInletAvailable()) return false;
-      __ufSvcMin = Math.max(0, round2((__ufSvcMin || 0) + dt));
-      return true;
-    }
-
     /**
-     * Lavaggio UF sfalsato su orologio di servizio (__ufSvcMin):
-     * ogni linea lavora `lavoro` min, poi ferma `lavaggio` s.
-     * Il primo lavaggio di B/C/D è ritardato di idx×lavaggio così non sono contemporanei.
+     * Countdown backwash (secondi, anche negativi = in ritardo).
+     * wash=true solo se questa linea sta eseguendo il BW.
      */
     function ufWashPhase(letter) {
       const L = String(letter || "").toUpperCase();
-      const idx = Math.max(0, UF_LINES.indexOf(L));
-      const lavoro = ufLavoroMin(L);
+      const st = ufSched(L);
       const washSec = ufLavaggioSec(L);
-      const washMin = washSec / 60;
-      const cycle = lavoro + washMin;
-      const firstWash = lavoro + idx * washMin;
-      const t = Math.max(0, Number(__ufSvcMin) || 0);
-      if (cycle < 0.2 || t + 1e-9 < firstWash) {
-        return { wash: false, queued: false, remainSec: 0, toWashSec: Math.max(0, Math.ceil((firstWash - t) * 60)) };
+      if (st && st.wash && st.wash.kind === "bw") {
+        return {
+          wash: true,
+          queued: false,
+          remainSec: Math.max(0, Math.ceil(washSec - st.wash.elapsedSec)),
+          toWashSec: 0,
+        };
       }
-      let u = (t - firstWash) % cycle;
-      if (u < 0) u += cycle;
-      if (u < washMin - 1e-9) {
-        return { wash: true, queued: false, remainSec: Math.max(0, Math.ceil((washMin - u) * 60)), toWashSec: 0 };
-      }
-      return { wash: false, queued: false, remainSec: 0, toWashSec: Math.max(0, Math.ceil((cycle - u) * 60)) };
+      const toWashSec = Math.round((st && Number.isFinite(st.remain.bw) ? st.remain.bw : ufLavoroMin(L)) * 60);
+      return { wash: false, queued: toWashSec <= 0, remainSec: 0, toWashSec };
     }
 
-    /** Lavaggio attivo solo con portata verso UF; senza portata resta in coda (non parte). */
+    /** Lavaggio in esecuzione solo con portata verso UF. */
     function ufLineInWash(letter) {
       if (!ufLineEnabled(letter)) return false;
       if (!ufInletAvailable()) return false;
-      if (ufChemActive(letter)) return true;
-      return !!ufWashPhase(letter).wash;
+      return !!ufWashKind(letter);
     }
 
     function ufLineQueuedWash(letter) {
       if (!ufLineEnabled(letter)) return false;
-      if (ufInletAvailable()) return false;
-      if (ufChemActive(letter)) return true;
-      return !!ufWashPhase(letter).wash;
+      if (ufLineInWash(letter)) return false;
+      if (ufWashKind(letter) && !ufInletAvailable()) return true;
+      return ufAnyDue(letter) && !ufInletAvailable();
     }
 
     function ufLineEffective(letter) {
@@ -6890,10 +6977,14 @@
       UF_LINES.forEach((L) => {
         const enabled = ufLineEnabled(L);
         const ph = ufWashPhase(L);
-        const washBw = go && enabled && inletOk && ph.wash && !ufChemActive(L);
-        const washChem = go && enabled && inletOk && ufChemActive(L);
+        const stc = ufSched(L);
+        const kindNow = ufWashKind(L);
+        const washBw = go && enabled && inletOk && kindNow === "bw";
+        const washChem = go && enabled && inletOk && kindNow && kindNow !== "bw";
         const wash = washBw || washChem;
-        const queued = enabled && !inletOk && (ph.wash || ufChemActive(L));
+        const urgent = ufUrgent(L);
+        const queued = enabled && !inletOk && (!!kindNow || ufAnyDue(L));
+        const seqWait = go && enabled && inletOk && !kindNow && ufAnyDue(L) && ufAnyoneWashing();
         const off = !enabled;
         const runUf = go && enabled && !wash && !queued && inletOk;
         const body = el("svgUfBody" + L);
@@ -6924,10 +7015,8 @@
           let titleTxt = "";
           let phaseTxt = "";
           if (go && enabled && washChem) {
-            ensureUfChem();
-            const st = __ufChem[L];
-            const meta = ufChemKindMeta(st.kind);
-            const phs = ufChemPhaseAt(st.elapsedSec);
+            const meta = ufChemKindMeta(kindNow);
+            const phs = ufChemPhaseAt(stc.wash.elapsedSec);
             titleTxt = meta ? meta.title : "Lavaggio in corso";
             phaseTxt = phs ? `${phs.label} · restano ${fmtRemainSec(phs.remainSec)}` : "";
             show = true;
@@ -6935,17 +7024,23 @@
             titleTxt = "Lavaggio backwash";
             phaseTxt = `in corso · restano ${fmtRemainSec(ph.remainSec)}`;
             show = true;
-          } else if (go && enabled && queued && ufChemActive(L)) {
-            ensureUfChem();
-            const st = __ufChem[L];
-            const meta = ufChemKindMeta(st.kind);
-            const phs = ufChemPhaseAt(st.elapsedSec);
-            titleTxt = meta ? `${meta.title.replace(" in corso", "")} in coda` : "Lavaggio in coda";
-            phaseTxt = phs ? `${phs.label} · in pausa · ${fmtRemainSec(phs.remainSec)}` : "in coda";
+          } else if (go && enabled && kindNow && kindNow !== "bw" && !inletOk) {
+            const meta = ufChemKindMeta(kindNow);
+            const phs = ufChemPhaseAt(stc.wash.elapsedSec);
+            titleTxt = meta ? `${meta.title.replace(" in corso", "")} in attesa acqua` : "Lavaggio in attesa";
+            phaseTxt = phs ? `${phs.label} · in pausa · ${fmtRemainSec(phs.remainSec)}` : "in pausa";
             show = true;
-          } else if (go && enabled && queued && ph.wash) {
-            titleTxt = "Lavaggio backwash in coda";
-            phaseTxt = `parte al ritorno portata · ${fmtRemainSec(ph.remainSec)}`;
+          } else if (go && enabled && kindNow === "bw" && !inletOk) {
+            titleTxt = "Lavaggio backwash in attesa acqua";
+            phaseTxt = `in pausa · ${fmtRemainSec(ph.remainSec)}`;
+            show = true;
+          } else if (go && enabled && (queued || seqWait) && urgent) {
+            titleTxt = urgent.kind === "bw"
+              ? "Lavaggio backwash in ritardo"
+              : `${(ufChemKindMeta(urgent.kind) || {}).title || "CEB"}`.replace(" in corso", "") + " in ritardo";
+            phaseTxt = seqWait
+              ? `coda sequenza · ${fmtRemainSec(urgent.remain * 60)}`
+              : `senza acqua · ${fmtRemainSec(urgent.remain * 60)}`;
             show = true;
           }
           nowBox.classList.toggle("is-idle", !show);
@@ -6961,27 +7056,31 @@
             st.textContent = "Impianto in Stop · ferma (grigia)";
             st.style.color = "var(--muted)";
           } else if (!inletOk) {
+            const u = urgent;
+            const t = u ? fmtRemainSec(u.remain * 60) : "—";
+            const kn = u ? (u.kind === "bw" ? "BW" : ufChemKindShort(u.kind)) : "lavaggio";
             if (queued) {
-              st.textContent = `IN CODA · lavaggio pronto (~${ph.remainSec} s) — parte al ritorno portata UF · ferma (grigia)`;
-              st.style.color = "var(--muted)";
+              st.textContent = `IN ATTESA ACQUA · ${kn} in ritardo ${t} · parte al ritorno portata (prima chi aspetta da più tempo) · ferma (grigia)`;
             } else {
-              const minLeft = Math.max(0, Math.round(ph.toWashSec / 60));
-              st.textContent = `Senza portata UF · ferma (grigia) · timer in pausa · prox lavaggio tra ~${minLeft}′ di servizio`;
-              st.style.color = "var(--muted)";
+              st.textContent = `Senza portata UF · ferma (grigia) · timer in corso · prox ${kn} ${t}`;
             }
+            st.style.color = "var(--muted)";
           } else if (washChem) {
-            ensureUfChem();
-            const cst = __ufChem[L];
-            const meta = ufChemKindMeta(cst.kind);
-            const phs = ufChemPhaseAt(cst.elapsedSec);
-            st.textContent = `${meta ? meta.title : "Lavaggio chimico"} · ${phs ? phs.label + " · " + fmtRemainSec(phs.remainSec) : fmtRemainSec(ufChemWashSec() - cst.elapsedSec)}`;
+            const meta = ufChemKindMeta(kindNow);
+            const phs = ufChemPhaseAt(stc.wash.elapsedSec);
+            st.textContent = `${meta ? meta.title : "Lavaggio chimico"} · ${phs ? phs.label + " · " + fmtRemainSec(phs.remainSec) : fmtRemainSec(ufChemWashSec() - stc.wash.elapsedSec)}`;
             st.style.color = "var(--muted)";
           } else if (wash) {
             st.textContent = `LAVAGGIO BACKWASH · ferma (grigia) ancora ~${ph.remainSec} s (su ${Math.round(ufLavaggioSec(L))} s)`;
             st.style.color = "var(--muted)";
+          } else if (seqWait && urgent) {
+            st.textContent = `In marcia · ${urgent.kind === "bw" ? "BW" : ufChemKindShort(urgent.kind)} in ritardo ${fmtRemainSec(urgent.remain * 60)} · in coda (si lava in sequenza)`;
+            st.style.color = "var(--ok)";
           } else {
-            const minLeft = Math.max(0, Math.round(ph.toWashSec / 60));
-            st.textContent = `In marcia (verde) · prox backwash tra ~${minLeft}′ (ciclo ${round1(ufLavoroMin(L))}′ + ${Math.round(ufLavaggioSec(L))} s, sfalsato)`;
+            const u = urgent;
+            const t = u ? fmtRemainSec(u.remain * 60) : "—";
+            const kn = u ? (u.kind === "bw" ? "BW" : ufChemKindShort(u.kind)) : "lavaggio";
+            st.textContent = `In marcia (verde) · prox ${kn} ${t}`;
             st.style.color = "var(--ok)";
           }
         }
@@ -7004,6 +7103,7 @@
     }
 
     function ufChemKindShort(kind) {
+      if (kind === "bw") return "BW";
       if (kind === "cev") return "CEB ipo";
       if (kind === "ceb") return "CEB soda";
       if (kind === "acido") return "CEB acido";
@@ -7018,17 +7118,29 @@
       const rows = [];
       UF_LINES.forEach((L) => {
         if (!ufLineEnabled(L)) return;
-        const ph = ufWashPhase(L);
-        if (ufChemActive(L)) {
-          const st = __ufChem[L];
-          const phs = ufChemPhaseAt(st.elapsedSec);
+        const stc = ufSched(L);
+        const kindNow = ufWashKind(L);
+        if (kindNow) {
           const coda = !go || !inletOk;
-          const sec = phs ? fmtRemainSec(phs.remainSec) : "0 s";
-          rows.push(`Ultra F ${L} · ${ufChemKindShort(st.kind)} · ${phs ? phs.short : "fase"} · ${coda ? "coda " : ""}${sec}`);
-        } else if (ph.wash) {
-          const coda = !go || !inletOk;
-          rows.push(`Ultra F ${L} · BW · backwash · ${coda ? "coda " : ""}${fmtRemainSec(ph.remainSec)}`);
+          if (kindNow === "bw") {
+            const left = Math.max(0, Math.ceil(ufLavaggioSec(L) - (stc.wash.elapsedSec || 0)));
+            rows.push(`Ultra F ${L} · BW · backwash · ${coda ? "coda " : ""}${fmtRemainSec(left)}`);
+          } else {
+            const phs = ufChemPhaseAt(stc.wash.elapsedSec);
+            const sec = phs ? fmtRemainSec(phs.remainSec) : "0 s";
+            rows.push(`Ultra F ${L} · ${ufChemKindShort(kindNow)} · ${phs ? phs.short : "fase"} · ${coda ? "coda " : ""}${sec}`);
+          }
+          return;
         }
+        const u = ufUrgent(L);
+        if (u && u.remain <= 1e-9) {
+          rows.push(`Ultra F ${L} · ${ufChemKindShort(u.kind)} · attesa · ${fmtRemainSec(u.remain * 60)}`);
+        }
+      });
+      rows.sort((a, b) => {
+        const ai = a.includes(" · attesa · ") ? 1 : 0;
+        const bi = b.includes(" · attesa · ") ? 1 : 0;
+        return ai - bi;
       });
       if (!rows.length) {
         box.textContent = "Nessun lavaggio";
@@ -7582,20 +7694,20 @@
     // inlineCtx dichiarato in alto (condiviso con isEditing / applyBalance)
 
     const FLOW_EDIT_LABELS = {
-      qIn: "Ingresso chimico-fisico",
+      qIn: "Chimico-fisico",
       qPump: "P11011 A/B",
-      freqHz: "Frequenza P11011 A/B",
+      freqHz: "P11011 · Hz",
       qMandata: "MP 11036 A/B",
-      qMemTotale: "Totale membrane ON",
-      qRecycle: "11014 A/B riciclo",
+      qMemTotale: "Totale MBR",
+      qRecycle: "11014 riciclo",
       qP11019: "P11019 A/B/C",
-      qP11019Ias: "P11019 verso IAS",
-      qP11019Impianto: "P11019 verso Impianto",
+      qP11019Ias: "P11019 IAS",
+      qP11019Impianto: "P11019 Impianto",
       qUfTotale: "Totale UF",
-      qUfA: "UF linea A",
-      qUfB: "UF linea B",
-      qUfC: "UF linea C",
-      qUfD: "UF linea D",
+      qUfA: "UF A",
+      qUfB: "UF B",
+      qUfC: "UF C",
+      qUfD: "UF D",
       qOsmosiA: "Osmosi A",
       qOsmosiB: "Osmosi B",
       qOsmosiC: "Osmosi C",
@@ -8013,7 +8125,7 @@
       }
       if (flowEditTitle) {
         flowEditTitle.textContent = field === "freqHz"
-          ? "P11011 A/B · frequenza"
+          ? "P11011 · Hz"
           : (FLOW_EDIT_LABELS[field] || "Portata");
       }
       const unitTxt = field === "freqHz" ? "Hz" : "m³/h";
@@ -8940,7 +9052,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt63", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt65", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
