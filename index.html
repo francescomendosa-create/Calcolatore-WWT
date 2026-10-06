@@ -1442,7 +1442,7 @@
             <clipPath id="clipCarbFlowA"><rect x="728" y="382" width="42" height="92" rx="2" /></clipPath>
             <rect id="svgCarbWaterA" x="728" y="388" width="42" height="86" rx="2" fill="#0ea5e9" opacity="0.58" pointer-events="none" />
             <rect id="svgCarbFillA" x="730" y="412" width="38" height="42" rx="2" fill="#64748b" opacity="0.45" pointer-events="none" />
-            <g id="svgCarbBubblesA" class="carb-bubbles is-gurgle" clip-path="url(#clipCarbFlowA)" pointer-events="none">
+            <g id="svgCarbBubblesA" class="carb-bubbles" clip-path="url(#clipCarbFlowA)" pointer-events="none">
               <circle class="carb-bubble" cx="735" cy="455" r="1.6" />
               <circle class="carb-bubble" cx="744" cy="462" r="1.2" />
               <circle class="carb-bubble" cx="752" cy="450" r="1.8" />
@@ -10026,7 +10026,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt90", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt91", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
