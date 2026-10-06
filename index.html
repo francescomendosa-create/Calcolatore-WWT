@@ -6199,7 +6199,7 @@
       });
       const txt = `TK 11021 ${round1(liv).toFixed(1)}% · P11040/Osmosi ${parts.join(" · ")} · D OFF`
         + (__osmAlwaysOnSf3 ? " · SF3 sempre-marcia" : "");
-      const col = (plantIsStarted() && osmRunningCount() > 0) ? "var(--ok)" : "var(--muted)");
+      const col = (plantIsStarted() && osmRunningCount() > 0) ? "var(--ok)" : "var(--muted)";
       ["tk11021OsmHint", "osmosiRunHint"].forEach((id) => {
         const hint = el(id);
         if (hint) {
