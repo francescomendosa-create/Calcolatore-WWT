@@ -391,17 +391,56 @@
       width: min(380px, 100%);
     }
     .flow-edit-panel h3 {
-      margin: 0 0 4px;
-      font-size: 0.92rem;
-      font-weight: 700;
-      color: var(--text);
-    }
-    .flow-edit-panel .flow-edit-unit {
-      font-size: 0.72rem;
-      color: var(--muted);
       margin: 0 0 8px;
-      font-weight: 600;
+      font-size: 1.12rem;
+      font-weight: 800;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      text-align: left;
     }
+    .flow-edit-panel h3 .modal-title-row {
+      width: 100%;
+      gap: 8px;
+    }
+    .flow-edit-panel h3 #flowEditTitle {
+      font-size: 1.12rem;
+      font-weight: 800;
+      line-height: 1.2;
+      min-width: 0;
+    }
+    .flow-edit-panel .flow-edit-unit { display: none; }
+    .flow-edit-value {
+      position: relative;
+      flex: 1;
+      min-width: 0;
+    }
+    .flow-edit-unit-in {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #94a3b8;
+      font-size: 0.82rem;
+      font-weight: 800;
+      pointer-events: none;
+      letter-spacing: 0.02em;
+    }
+    .flow-edit-corr {
+      margin: -2px 0 10px;
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid #164e63;
+      background: #082f49;
+      color: #e0f2fe;
+      font-size: 0.88rem;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      text-align: center;
+    }
+    .flow-edit-corr[hidden] { display: none !important; }
     /* Numero a sinistra, frecce ▲▼ a destra */
     .flow-edit-spin {
       display: flex;
@@ -443,7 +482,7 @@
       min-width: 0;
       max-width: none;
       margin: 0;
-      padding: 10px 12px;
+      padding: 10px 3.4rem 10px 12px;
       border-radius: 10px;
       border: 2px solid var(--accent);
       background: #0b1220;
@@ -607,7 +646,7 @@
     }
     .modal h3 {
       margin: 0 0 10px;
-      font-size: 1rem;
+      font-size: 1.18rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -1542,15 +1581,27 @@
   <!-- Popup centrale modifica portata (tablet / PC / mobile) -->
   <div class="flow-edit-back" id="popFlowEdit" role="dialog" aria-modal="true" aria-labelledby="flowEditTitle">
     <div class="flow-edit-panel">
-      <h3 id="flowEditTitle">Portata</h3>
+      <h3>
+        <span class="modal-title-row">
+          <span id="flowEditTitle">Portata</span>
+          <span class="dev-mode" id="flowEditDevMode" hidden title="Override locale: solo questo strumento">
+            <button type="button" data-dev-mode="auto" class="is-on">Automatico</button>
+            <button type="button" data-dev-mode="manual">Manuale</button>
+          </span>
+        </span>
+      </h3>
       <p class="flow-edit-unit" id="flowEditUnit">m³/h</p>
       <div class="flow-edit-spin">
-        <input type="text" id="svgInlineInput" inputmode="none" autocomplete="off" enterkeyhint="done" />
+        <div class="flow-edit-value">
+          <input type="text" id="svgInlineInput" inputmode="none" autocomplete="off" enterkeyhint="done" />
+          <span class="flow-edit-unit-in" id="flowEditUnitIn">m³/h</span>
+        </div>
         <div class="flow-edit-arrows">
           <button type="button" id="flowEditUp" aria-label="Aumenta">▲</button>
           <button type="button" id="flowEditDown" aria-label="Diminuisci">▼</button>
         </div>
       </div>
+      <p class="flow-edit-corr" id="flowEditCorr" hidden>≈ — m³/h</p>
       <div class="flow-numpad" id="flowNumpad" aria-label="Tastierino numerico">
         <div class="flow-numpad-grid">
           <button type="button" data-np="7">7</button>
@@ -1578,11 +1629,21 @@
   <!-- POPUP INGRESSO -->
   <div class="modal-back" id="popIngresso" role="dialog" aria-modal="true">
     <div class="modal">
-      <h3><span>TOT OUT</span><button type="button" data-close>&times;</button></h3>
+      <h3>
+        <span class="modal-title-row">
+          <span>Ingresso chimico-fisico</span>
+          <span class="dev-mode" data-dev="ingresso" title="Override locale: solo l’ingresso chimico-fisico">
+            <button type="button" data-dev-mode="auto" class="is-on">Automatico</button>
+            <button type="button" data-dev-mode="manual">Manuale</button>
+          </span>
+        </span>
+        <button type="button" data-close>&times;</button>
+      </h3>
       <button type="button" class="proc-label" disabled style="cursor:default;opacity:.95">
-        <span>PROCESSO — Ingresso chimico-fisico</span>
-        <small>TOT OUT</small>
+        <span>PROCESSO — portata ingresso</span>
+        <small>sediflottatore · TOT OUT</small>
       </button>
+      <p class="mini" id="devModeHintIngresso">Automatico: l’ingresso segue il bilanciamento. Manuale: lo imposti tu, il resto può restare in automatico.</p>
       <label><strong>Portata ingresso (m³/h)</strong>
         <input type="number" id="qIn" min="0" max="500" step="1" value="150" />
       </label>
@@ -1594,11 +1655,21 @@
   <!-- POPUP POMPE / A10620 (solo dati serbatoio) -->
   <div class="modal-back" id="popPompe" role="dialog" aria-modal="true">
     <div class="modal wide-settings">
-      <h3><span>A10620</span><button type="button" data-close>&times;</button></h3>
+      <h3>
+        <span class="modal-title-row">
+          <span>P11011 A/B</span>
+          <span class="dev-mode" data-dev="pompa" title="Override locale: solo P11011 A/B">
+            <button type="button" data-dev-mode="auto" class="is-on">Automatico</button>
+            <button type="button" data-dev-mode="manual">Manuale</button>
+          </span>
+        </span>
+        <button type="button" data-close>&times;</button>
+      </h3>
       <button type="button" class="proc-label" disabled style="cursor:default;opacity:.95">
-        <span>SERBATOIO — A10620</span>
-        <small>livello · setpoint · P11011</small>
+        <span>POMPE — P11011 A/B</span>
+        <small>A10620 · portata · frequenza</small>
       </button>
+      <p class="mini" id="devModeHintPompa">Automatico: P11011 segue ingresso + riciclo minimo. Manuale: portata tua, il resto può restare in automatico.</p>
       <div class="settings-block show">
         <h4>Livello istantaneo</h4>
         <label><strong>Livello serbatoio A10620 %</strong>
@@ -1630,8 +1701,8 @@
         <h4>Pompa P11011 A/B</h4>
         <p class="mini">Min 80 m³/h · curva Hz⟷portata da REGOLAZIONI (50 Hz = max).</p>
         <div class="row">
-          <label><strong>Portata P11011 A/B (m³/h)</strong>
-            <input type="number" id="qPump" min="80" max="500" step="0.1" value="334" inputmode="decimal" />
+          <label><strong>Portata P11011 A/B (m³/h) — da frequenza</strong>
+            <input type="number" id="qPump" min="80" max="500" step="0.1" value="334" inputmode="decimal" readonly title="Si regola solo dalla frequenza (scala REGOLAZIONI)" />
           </label>
           <label><strong>Frequenza (Hz)</strong>
             <input type="number" id="freqHz" min="0" max="60" step="1" value="50" inputmode="numeric" />
@@ -1643,7 +1714,7 @@
             <input type="number" id="freqMaxHz" min="1" max="60" step="1" value="50" />
           </label>
         </div>
-        <p class="mini" id="qPumpHint">Portata ↔ Hz (REGOLAZIONI). Automatico: min 42 Hz e ≥ ingresso + 100 m³/h (riciclo ≥ 100). Manuale: anche sotto 42, portata sulla curva.</p>
+        <p class="mini" id="qPumpHint">La portata non è libera: segue la scala Hz di REGOLAZIONI. Automatico: sceglie la frequenza più bassa che soddisfa ingresso + ≥100 m³/h (min 42 Hz). Click su portata o Hz → stesso popup.</p>
       </div>
       <div class="actions"><button type="button" data-close data-commit-pump>Applica</button></div>
     </div>
@@ -2082,11 +2153,21 @@
   <!-- POPUP MANDATA A10611/7 → MBR -->
   <div class="modal-back" id="popMandata" role="dialog" aria-modal="true">
     <div class="modal wide-settings">
-      <h3><span>A10611/7</span><button type="button" data-close>&times;</button></h3>
+      <h3>
+        <span class="modal-title-row">
+          <span>MP 11036 A/B</span>
+          <span class="dev-mode" data-dev="mandata" title="Override locale: solo MP 11036 A/B">
+            <button type="button" data-dev-mode="auto" class="is-on">Automatico</button>
+            <button type="button" data-dev-mode="manual">Manuale</button>
+          </span>
+        </span>
+        <button type="button" data-close>&times;</button>
+      </h3>
       <button type="button" class="proc-label" disabled style="cursor:default;opacity:.95">
-        <span>SERBATOIO — A10611/7</span>
-        <small>livello · setpoint · MP 11036 A/B</small>
+        <span>POMPE — MP 11036 A/B</span>
+        <small>A10611/7 · mandata verso MBR</small>
       </button>
+      <p class="mini" id="devModeHintMandata">Automatico: la mandata segue P11011. Manuale: portata tua, il resto può restare in automatico.</p>
       <div class="settings-block show">
         <h4>Livello istantaneo</h4>
         <label><strong>Livello serbatoio A10611 %</strong>
@@ -2151,7 +2232,7 @@
     <div class="modal">
       <h3>
         <span class="modal-title-row">
-          <span>MBR · riciclo</span>
+          <span>11014 A/B · riciclo</span>
           <span class="dev-mode" data-dev="riciclo" title="Automatico: riciclo = P11011 − ingresso sediflottatore. Manuale: portata libera.">
             <button type="button" data-dev-mode="auto" class="is-on">Automatico</button>
             <button type="button" data-dev-mode="manual">Manuale</button>
@@ -2801,7 +2882,7 @@
       if (id === "qPump") {
         let s = Math.max(0, Number(__flowSetpoint.qPump) || 0, Number(lastQPump) || 0);
         if (s < 0.05) {
-          try { s = clampPump(pumpFloorForIngresso(Math.max(0, num("qIn")))); }
+          try { s = pumpStepForNeed(pumpFloorForIngresso(Math.max(0, num("qIn")))).q; }
           catch (_) { s = 0; }
         }
         return round1(s);
@@ -2947,7 +3028,7 @@
     }
 
     /** Override locale per dispositivo (membrane / ultra / osmosi / riciclo). Manuale vince sul modo generale. */
-    const __devMode = { membrane: "auto", ultra: "auto", osmosi: "auto", riciclo: "auto" };
+    const __devMode = { membrane: "auto", ultra: "auto", osmosi: "auto", riciclo: "auto", pompa: "auto", mandata: "auto", ingresso: "auto" };
 
     function deviceIsManual(dev) {
       return __devMode[dev] === "manual";
@@ -2964,21 +3045,24 @@
     }
 
     function paintDevModeUI(dev) {
-      const root = document.querySelector(`.dev-mode[data-dev="${dev}"]`);
-      if (!root) return;
       const manual = deviceIsManual(dev);
-      root.querySelectorAll("[data-dev-mode]").forEach((btn) => {
-        const mode = btn.getAttribute("data-dev-mode");
-        const on = manual ? mode === "manual" : mode === "auto";
-        btn.classList.toggle("is-on", on);
-        btn.classList.toggle("is-manual", on && mode === "manual");
-        btn.setAttribute("aria-pressed", on ? "true" : "false");
+      document.querySelectorAll(`.dev-mode[data-dev="${dev}"]`).forEach((root) => {
+        root.querySelectorAll("[data-dev-mode]").forEach((btn) => {
+          const mode = btn.getAttribute("data-dev-mode");
+          const on = manual ? mode === "manual" : mode === "auto";
+          btn.classList.toggle("is-on", on);
+          btn.classList.toggle("is-manual", on && mode === "manual");
+          btn.setAttribute("aria-pressed", on ? "true" : "false");
+        });
       });
       const hintId = {
         membrane: "devModeHintMembrane",
         ultra: "devModeHintUltra",
         osmosi: "devModeHintOsmosi",
         riciclo: "devModeHintRiciclo",
+        pompa: "devModeHintPompa",
+        mandata: "devModeHintMandata",
+        ingresso: "devModeHintIngresso",
       }[dev];
       const hint = hintId ? el(hintId) : null;
       if (hint) {
@@ -3005,7 +3089,7 @@
     }
 
     function paintAllDevModeUI() {
-      ["membrane", "ultra", "osmosi", "riciclo"].forEach(paintDevModeUI);
+      ["membrane", "ultra", "osmosi", "riciclo", "pompa", "mandata", "ingresso"].forEach(paintDevModeUI);
     }
 
     function setDevMode(dev, mode) {
@@ -3031,9 +3115,27 @@
         } else if (dev === "riciclo") {
           const qr = Math.max(0, num("qRecycle"), flowSetpointOf("qRecycle"));
           if (qr > 0.05) rememberFlowSetpoint("qRecycle", Math.round(qr));
+        } else if (dev === "pompa") {
+          const qp = Math.max(0, num("qPump"), flowSetpointOf("qPump"), lastQPump);
+          if (qp > 0.05) rememberFlowSetpoint("qPump", qp);
+        } else if (dev === "mandata") {
+          const qm = Math.max(0, num("qMandata"), flowSetpointOf("qMandata"), lastQMandata);
+          if (qm > 0.05) rememberFlowSetpoint("qMandata", qm);
+          if (el("equiparaMandata")) {
+            el("equiparaMandata").checked = false;
+            if (el("qMandata")) el("qMandata").disabled = false;
+          }
+        } else if (dev === "ingresso") {
+          const qi = Math.max(0, num("qIn"));
+          if (el("qIn") && qi >= 0) setVal("qIn", qi, { force: true });
+        }
+      } else if (dev === "mandata") {
+        if (el("equiparaMandata") && isAutoMode()) {
+          el("equiparaMandata").checked = true;
+          if (el("qMandata")) el("qMandata").disabled = true;
         }
       }
-      const balSrc = ({ membrane: "membrana", ultra: "ultra", osmosi: "osmosi", riciclo: "pompa" })[dev] || "pompa";
+      const balSrc = ({ membrane: "membrana", ultra: "ultra", osmosi: "osmosi", riciclo: "pompa", pompa: "pompa", mandata: "mandata", ingresso: "ingresso" })[dev] || "pompa";
       applyBalance(balSrc);
       try { schedulePersist(); } catch (_) { /* persist può non essere ancora definito in teoria */ }
     }
@@ -3100,7 +3202,7 @@
       paintAllDevModeUI();
       if (isAutoMode()) {
         // Torna in Automatico: cervello regola per restare in marcia
-        if (el("equiparaMandata")) {
+        if (el("equiparaMandata") && !deviceIsManual("mandata")) {
           el("equiparaMandata").checked = true;
           if (el("qMandata")) el("qMandata").disabled = true;
         }
@@ -3257,6 +3359,49 @@
       return map;
     }
 
+    /** Punti tabella Hz → m³/h (scala REGOLAZIONI), ordinati per Hz. */
+    function getRegFreqPoints() {
+      const map = getRegFreqMap();
+      return Object.keys(map)
+        .map((k) => ({ hz: Number(k), q: Number(map[k]) }))
+        .filter((p) => Number.isFinite(p.hz) && Number.isFinite(p.q))
+        .sort((a, b) => a.hz - b.hz);
+    }
+
+    /** Portata esatta di tabella a un Hz intero (senza valori “a piacere”). */
+    function qPumpAtHz(hz) {
+      const h = Math.round(Number(hz));
+      if (!Number.isFinite(h)) return 0;
+      const map = getRegFreqMap();
+      const exact = Number(map[String(h)]);
+      if (Number.isFinite(exact)) return round1(exact);
+      return round1(Math.max(0, qFromFreqCurve(h)));
+    }
+
+    /**
+     * Hz di tabella più basso che dà portata ≥ qNeed.
+     * Così l’automatismo non inventa 262/263: solo i punti della scala.
+     */
+    function hzMeetPumpNeed(qNeed) {
+      const need = Math.max(0, Number(qNeed) || 0);
+      const pts = getRegFreqPoints();
+      if (!pts.length) return 50;
+      const hi = Math.max(50, Math.round(num("freqMaxHz") || 50));
+      const lo = (isAutoMode() && !deviceIsManual("pompa")) ? Q_FREQ_MIN : Q_FREQ_ABS_MIN;
+      const list = pts.filter((p) => p.hz >= lo - 1e-9 && p.hz <= hi + 1e-9);
+      const use = list.length ? list : pts;
+      for (let i = 0; i < use.length; i++) {
+        if (use[i].q + 1e-6 >= need) return use[i].hz;
+      }
+      return use[use.length - 1].hz;
+    }
+
+    /** Coppia Hz+portata di tabella per soddisfare una portata richiesta. */
+    function pumpStepForNeed(qNeed) {
+      const hz = hzMeetPumpNeed(qNeed);
+      return { hz, q: qPumpAtHz(hz) };
+    }
+
     /** Max pompa = portata a 50 Hz da REGOLAZIONI */
     function getPumpMax() {
       const map = getRegFreqMap();
@@ -3357,14 +3502,20 @@
       return pts[pts.length - 1].hz;
     }
 
-    /** Hz intero più vicino sulla tabella (solo per punti in curva) */
+    /** Hz intero di tabella per una portata: punto esatto, altrimenti il minimo che la soddisfa. */
     function hzNearestFromQ(q) {
-      return Math.round(hzFromQCurve(q));
+      const pts = getRegFreqPoints();
+      const qq = Number(q);
+      if (pts.length && Number.isFinite(qq)) {
+        const exact = pts.find((p) => Math.abs(p.q - qq) < 0.15);
+        if (exact) return exact.hz;
+      }
+      return hzMeetPumpNeed(qq);
     }
 
     function syncFreqFromPump(q) {
       if (isEditing("freqHz")) return;
-      const hz = clampFreq(hzFromQCurve(q));
+      const hz = clampFreq(hzNearestFromQ(q));
       const node = el("freqHz");
       if (node) node.value = String(hz);
       const svg = el("svgFreqHz");
@@ -3376,10 +3527,8 @@
       if (hzRaw === null) return;
       const hz = clampFreq(hzRaw);
       if (!isEditing("freqHz") && hz !== hzRaw) el("freqHz").value = String(hz);
-      // Manuale: curva libera (≥0). Automatico: clamp min/max processo.
-      const q = isAutoMode()
-        ? clampPump(qFromFreqCurve(hz))
-        : round1(Math.max(0, qFromFreqCurve(hz)));
+      // Solo portata della scala REGOLAZIONI a quell’Hz (niente valori intermedi).
+      const q = qPumpAtHz(hz);
       if (!isEditing("qPump")) {
         rememberFlowSetpoint("qPump", q);
         lastQPump = q;
@@ -4825,26 +4974,35 @@
       // Portata ingresso “vera”: setpoint ± piccole variazioni (effetto su tutto l’impianto)
       advanceQInWobble(dtMin);
       const qInLiveNow = qInEffective(num("qIn"));
-      // In Automatico (fuori zona boost alto) P11011 = ingresso vivo + ≥100 m³/h (riciclo min)
-      if (isAutoMode() && p11011Allowed() && !isEditing("qPump") && !isEditing("freqHz")) {
+      // In Automatico: Hz di tabella più basso che dà ≥ ingresso vivo + 100 m³/h
+      if (isAutoMode() && deviceAutoControlled("pompa") && p11011Allowed() && !isEditing("qPump") && !isEditing("freqHz")) {
         const floor = pumpFloorForIngresso(qInLiveNow);
+        const step = pumpStepForNeed(floor);
         const liv20now = num("livelloAttuale");
         const startSvuot = numOrNull("startSvuotA10620");
         const boostZone = liv20now >= ((startSvuot !== null ? startSvuot : 92) - 1);
         if (!boostZone) {
-          const qTrack = clampPump(floor);
-          lastQPump = qTrack;
-          commitFlow("qPump", qTrack);
-          syncFreqFromPump(qTrack);
-          if (el("equiparaMandata")?.checked && __run11036) {
-            lastQMandata = qTrack;
-            commitFlow("qMandata", qTrack);
+          lastQPump = step.q;
+          if (!isEditing("freqHz")) {
+            const hzNode = el("freqHz");
+            if (hzNode) hzNode.value = String(step.hz);
+            const svgHz = el("svgFreqHz");
+            if (svgHz) svgHz.textContent = String(step.hz);
+          }
+          commitFlow("qPump", step.q, { setpoint: step.q });
+          if (deviceAutoControlled("mandata") && el("equiparaMandata")?.checked && __run11036) {
+            lastQMandata = step.q;
+            commitFlow("qMandata", step.q);
           }
         } else if ((__flowDesire.qPump != null ? __flowDesire.qPump : num("qPump")) < floor - 0.05) {
-          const qTrack = clampPump(floor);
-          lastQPump = qTrack;
-          commitFlow("qPump", qTrack);
-          syncFreqFromPump(qTrack);
+          lastQPump = step.q;
+          if (!isEditing("freqHz")) {
+            const hzNode = el("freqHz");
+            if (hzNode) hzNode.value = String(step.hz);
+            const svgHz = el("svgFreqHz");
+            if (svgHz) svgHz.textContent = String(step.hz);
+          }
+          commitFlow("qPump", step.q, { setpoint: step.q });
         }
       }
       applyBalance("sim");
@@ -5127,13 +5285,19 @@
       const deferToStep = __simBusy && !nested;
       if (!nested && !deferToStep) beginFlowStep();
       try {
-      const q = clampPump(pumpFloorForIngresso(num("qIn")));
-      if (p11011Allowed()) {
+      const step = pumpStepForNeed(pumpFloorForIngresso(num("qIn")));
+      const q = step.q;
+      if (deviceAutoControlled("pompa") && p11011Allowed()) {
         rememberFlowSetpoint("qPump", q);
+        if (!isEditing("freqHz")) {
+          const hzNode = el("freqHz");
+          if (hzNode) hzNode.value = String(step.hz);
+          const svgHz = el("svgFreqHz");
+          if (svgHz) svgHz.textContent = String(step.hz);
+        }
         if (deferToStep) __flowDesire.qPump = q;
-        else commitFlow("qPump", q);
-        if (!isEditing("freqHz")) syncFreqFromPump(q);
-      } else {
+        else commitFlow("qPump", q, { setpoint: q });
+      } else if (deviceAutoControlled("pompa")) {
         // Pompe ferme: viva → 0, setpoint resta (popup)
         if (deferToStep) __flowDesire.qPump = 0;
         else commitFlow("qPump", 0);
@@ -5144,18 +5308,20 @@
           if (svgHz0) svgHz0.textContent = "0";
         }
       }
-      if (el("equiparaMandata")) {
-        el("equiparaMandata").checked = true;
-        if (el("qMandata")) el("qMandata").disabled = true;
-      }
-      if (__run11036) {
-        const qM = p11011Allowed() ? Math.max(q, getPumpMin()) : clampPump(Math.max(getPumpMin(), q));
-        rememberFlowSetpoint("qMandata", round1(qM));
-        if (deferToStep) __flowDesire.qMandata = round1(qM);
-        else commitFlow("qMandata", round1(qM));
-      } else {
-        if (deferToStep) __flowDesire.qMandata = 0;
-        else commitFlow("qMandata", 0);
+      if (deviceAutoControlled("mandata")) {
+        if (el("equiparaMandata")) {
+          el("equiparaMandata").checked = true;
+          if (el("qMandata")) el("qMandata").disabled = true;
+        }
+        if (__run11036) {
+          const qM = p11011Allowed() ? Math.max(q, getPumpMin()) : clampPump(Math.max(getPumpMin(), q));
+          rememberFlowSetpoint("qMandata", round1(qM));
+          if (deferToStep) __flowDesire.qMandata = round1(qM);
+          else commitFlow("qMandata", round1(qM));
+        } else {
+          if (deferToStep) __flowDesire.qMandata = 0;
+          else commitFlow("qMandata", 0);
+        }
       }
       return q;
       } finally {
@@ -5782,37 +5948,26 @@
       return round1(Math.min(getPumpMax(), Math.max(getPumpMin(), v)));
     }
 
-    /** Solo Automatico: minimo/max di processo. In Manuale resta esattamente ciò che digiti (≥0). */
+    /** Allinea P11011 al punto di tabella Hz (mai portata libera). */
     function commitPump() {
-      const raw = numOrNull("qPump");
-      const qPumpEl = el("qPump");
       const hint = el("qPumpHint");
-      if (!isAutoMode()) {
-        const free = raw === null ? Math.max(0, lastQPump) : Math.max(0, raw);
-        const kept = round1(free);
-        if (qPumpEl) qPumpEl.value = String(kept);
-        lastQPump = kept;
-        if (hint) {
-          hint.textContent = "Manuale: portata libera (nessun minimo/massimo imposto).";
-          hint.style.color = "var(--accent)";
-        }
-        applyBalance("pompa");
-        return;
-      }
       const floor = pumpFloorForIngresso(num("qIn"));
-      const clamped = clampPump(Math.max(floor, raw === null ? lastQPump : raw));
-      if (qPumpEl) qPumpEl.value = String(clamped);
-      lastQPump = clamped;
+      const want = deviceAutoControlled("pompa")
+        ? floor
+        : Math.max(0, numOrNull("qPump") ?? lastQPump ?? floor);
+      const step = pumpStepForNeed(want);
+      el("freqHz").value = String(step.hz);
+      const svgHz = el("svgFreqHz");
+      if (svgHz) svgHz.textContent = String(step.hz);
+      rememberFlowSetpoint("qPump", step.q);
+      lastQPump = step.q;
       if (hint) {
-        if (raw !== null && raw < floor) {
-          hint.textContent = `Automatico: P11011 portata a ingresso + ${Q_RECYCLE_MIN} = ${round1(floor)} m³/h (riciclo ≥ ${Q_RECYCLE_MIN}).`;
-          hint.style.color = "var(--warn)";
-        } else {
-          hint.textContent = `Automatico: P11011 ≥ ingresso + ${Q_RECYCLE_MIN} m³/h e min 42 Hz.`;
-          hint.style.color = "";
-        }
+        hint.textContent = deviceAutoControlled("pompa")
+          ? `Automatico: ${step.hz} Hz ≈ ${step.q.toFixed(1)} m³/h (≥ ingresso + ${Q_RECYCLE_MIN}).`
+          : `Manuale: frequenza ${step.hz} Hz → ≈ ${step.q.toFixed(1)} m³/h (scala REGOLAZIONI).`;
+        hint.style.color = "";
       }
-      applyBalance("pompa");
+      applyBalance("freq");
     }
 
     function getMems() {
@@ -5921,9 +6076,7 @@
           if (hzRaw !== null) {
             const hz = clampFreq(hzRaw);
             if (!isEditing("freqHz") || hz !== Math.round(hzRaw)) el("freqHz").value = String(hz);
-            const qFromHz = isAutoMode()
-              ? clampPump(qFromFreqCurve(hz))
-              : round1(Math.max(0, qFromFreqCurve(hz)));
+            const qFromHz = qPumpAtHz(hz);
             qFromFreqThisPass = qFromHz;
             if (!isEditing("qPump")) {
               lastQPump = qFromHz;
@@ -5975,7 +6128,7 @@
         } else if (deviceAutoControlled("membrane") && simulating && source === "membrana") {
           // In sim: aggiorna solo il totale configurato, senza ricalcolare qIn da duty istantaneo
           setVal("qMemTotale", sumMems());
-        } else if (isAutoMode() && deviceIsManual("membrane") && !isEditing("qIn")) {
+        } else if (isAutoMode() && deviceIsManual("membrane") && !deviceIsManual("ingresso") && !isEditing("qIn")) {
           // Membrane in manuale locale: l’impianto adatta l’ingresso alla loro media (evita blocco flottatore)
           const totOn = Math.max(0, sumMemsAllOn());
           const qFromMem = round1(totOn * dAvg);
@@ -6007,9 +6160,11 @@
         const qInSet = qIn;
         const qInEff = qInEffective(qInSet);
         const auto = isAutoMode();
+        const autoPump = auto && deviceAutoControlled("pompa");
+        const autoMand = auto && deviceAutoControlled("mandata");
 
         // —— AUTOMATICO: allinea portate (cervello). MANUALE: lascia i valori digitati. ——
-        if (auto) {
+        if (autoPump) {
           // Minimo pompe solo se in marcia da PROCESSO
           if (pumpOn && !isEditing("qPump") && source !== "freq") {
             const pMin = getPumpMin();
@@ -6023,23 +6178,29 @@
           const ingressoDriven = source === "ingresso" || source === "ciclo"
             || source === "totale" || source === "membrana" || source === "sim";
           if (pumpOn && ingressoDriven && !isEditing("qPump") && !isEditing("freqHz")) {
-            qPump = clampPump(pumpFloorForIngresso(qInSet));
+            const step = pumpStepForNeed(pumpFloorForIngresso(qInSet));
+            qPump = step.q;
             lastQPump = qPump;
-            commitFlow("qPump", qPump);
-            syncFreqFromPump(qPump);
-            if (el("equiparaMandata")?.checked && __run11036) {
+            el("freqHz").value = String(step.hz);
+            const svgHz = el("svgFreqHz");
+            if (svgHz) svgHz.textContent = String(step.hz);
+            commitFlow("qPump", qPump, { setpoint: qPump });
+            if (autoMand && el("equiparaMandata")?.checked && __run11036) {
               lastQMandata = qPump;
               commitFlow("qMandata", qPump);
             }
           }
 
-          // Pompe almeno = ingresso + 100 (riciclo fanghi minimo)
+          // Pompe almeno = ingresso + 100 → Hz di tabella sufficiente
           const pumpFloor = pumpFloorForIngresso(qInSet);
-          if (pumpOn && !isEditing("qPump") && qPump < pumpFloor && source !== "freq") {
-            qPump = clampPump(pumpFloor);
+          if (pumpOn && !isEditing("qPump") && !isEditing("freqHz") && qPump < pumpFloor - 0.05 && source !== "freq") {
+            const step = pumpStepForNeed(pumpFloor);
+            qPump = step.q;
             lastQPump = qPump;
-            commitFlow("qPump", qPump);
-            if (!isEditing("freqHz")) syncFreqFromPump(qPump);
+            el("freqHz").value = String(step.hz);
+            const svgHz = el("svgFreqHz");
+            if (svgHz) svgHz.textContent = String(step.hz);
+            commitFlow("qPump", qPump, { setpoint: qPump });
           }
 
           // P11011 FERME: viva → 0; setpoint resta per il popup
@@ -6074,24 +6235,24 @@
               ? lastQPump
               : (isEditing("qPump")
                 ? qPump
-                : (auto
+                : (autoPump
                   ? clampPump(Math.max(lastQPump, __flowSetpoint.qPump ?? 0))
                   : flowSetpointOf("qPump"))))
         );
         // Manuale: a pompe ON la viva = setpoint (da Hz o digitato). Non ricalcolare se arriva da freq (già fatto).
-        if (!auto && !isEditing("qPump") && source !== "freq" && qFromFreqThisPass == null) {
+        if (!autoPump && !isEditing("qPump") && source !== "freq" && qFromFreqThisPass == null) {
           if (pumpOn) commitFlow("qPump", qPumpSet, { setpoint: qPumpSet });
           else commitFlow("qPump", 0);
         }
         // Target effettivo (comando). La portata VIVA resta in campo/SVG via commitFlow.
         const qPumpEff = !pumpOn
           ? 0
-          : (auto ? (isEditing("qPump") ? Math.max(qPump, 0) : clampPump(qPumpSet)) : qPumpSet);
+          : (autoPump ? (isEditing("qPump") ? Math.max(qPump, 0) : clampPump(qPumpSet)) : qPumpSet);
 
         // Mandata MP 11036 A/B
         let qMandataSet;
         let qMandata;
-        if (auto && el("equiparaMandata")?.checked && __run11036) {
+        if (autoMand && el("equiparaMandata")?.checked && __run11036) {
           qMandataSet = round1(Math.max(qPumpEff, getPumpMin()));
           if (!isEditing("qMandata")) {
             lastQMandata = qMandataSet;
@@ -6099,7 +6260,7 @@
           }
           lastQMandata = qMandataSet;
           qMandata = Math.max(0, num("qMandata")); // viva (rampa)
-        } else if (!auto) {
+        } else if (!autoMand) {
           // Manuale: setpoint congelato / digitato; viva 0 se 11036 ferme, altrimenti setpoint
           const qMandRaw = numOrNull("qMandata");
           if (source === "mandata" && isEditing("qMandata") && qMandRaw === null) return;
@@ -6215,14 +6376,14 @@
             ? (!isEditing("qPump") ? Math.max(0, num("qPump")) : qPumpEff)
             : Math.max(0, num("qPump") || qPumpSet));
         // Automatico: azzera solo la VIVA se OFF. Setpoint (popup) resta.
-        if (auto && !pumpOn) {
+        if (autoPump && !pumpOn) {
           if (!isEditing("qPump")) commitFlow("qPump", 0);
           qPumpEff2 = Math.max(0, num("qPump"));
         }
-        if (auto && !__run11036) {
+        if (autoMand && !__run11036) {
           qMandata = 0;
           if (!isEditing("qMandata")) commitFlow("qMandata", 0);
-        } else if (auto && el("equiparaMandata")?.checked) {
+        } else if (autoMand && el("equiparaMandata")?.checked) {
           const qMandTgt = round1(Math.max(qPumpSet, getPumpMin()));
           if (!isEditing("qMandata")) {
             commitFlow("qMandata", __run11036 ? qMandTgt : 0, { setpoint: qMandTgt });
@@ -6241,16 +6402,14 @@
         // Portata → Hz (curva): Auto sempre; Manuale se cambi portata (non se stai editando Hz)
         if (source !== "freq" && !isEditing("freqHz") && qFromFreqThisPass == null) {
           if (pumpOn && qPumpEff2 > 0.05) {
-            if (auto || source === "pompa") syncFreqFromPump(qPumpEff2);
+            if (autoPump || source === "pompa") syncFreqFromPump(qPumpEff2);
           } else if (!pumpOn) {
-            if (auto) {
+            if (autoPump) {
               const hzNode = el("freqHz");
               if (hzNode) hzNode.value = "0";
+              const svgHz0 = el("svgFreqHz");
+              if (svgHz0) svgHz0.textContent = "0";
             }
-            // Manuale: Hz a 0 solo visualmente sull’occhio se vuoi? Meglio tenere Hz di setpoint.
-            // Solo Auto azzera Hz a pompe ferme.
-            const svgHz0 = el("svgFreqHz");
-            if (svgHz0 && auto) svgHz0.textContent = "0";
           }
         }
 
@@ -7425,11 +7584,11 @@
     const FLOW_EDIT_LABELS = {
       qIn: "Ingresso chimico-fisico",
       qPump: "P11011 A/B",
-      freqHz: "Frequenza P11011",
-      qMandata: "Mandata MP 11036",
+      freqHz: "Frequenza P11011 A/B",
+      qMandata: "MP 11036 A/B",
       qMemTotale: "Totale membrane ON",
-      qRecycle: "Riciclo 11014 A/B",
-      qP11019: "P11019 set pompe",
+      qRecycle: "11014 A/B riciclo",
+      qP11019: "P11019 A/B/C",
       qP11019Ias: "P11019 verso IAS",
       qP11019Impianto: "P11019 verso Impianto",
       qUfTotale: "Totale UF",
@@ -7441,6 +7600,30 @@
       qOsmosiB: "Osmosi B",
       qOsmosiC: "Osmosi C",
     };
+    function devForFlowField(field) {
+      const f = String(field || "");
+      if (f === "qIn") return "ingresso";
+      if (f === "qPump" || f === "freqHz") return "pompa";
+      if (f === "qMandata") return "mandata";
+      if (f === "qRecycle") return "riciclo";
+      if (f === "qMemTotale") return "membrane";
+      if (f.startsWith("qUf")) return "ultra";
+      if (f.startsWith("qOsmosi")) return "osmosi";
+      return "";
+    }
+    function syncFlowEditDevMode(field) {
+      const root = el("flowEditDevMode");
+      if (!root) return;
+      const dev = devForFlowField(field);
+      if (!dev) {
+        root.hidden = true;
+        root.removeAttribute("data-dev");
+        return;
+      }
+      root.hidden = false;
+      root.setAttribute("data-dev", dev);
+      paintDevModeUI(dev);
+    }
 
     function isTouchUi() {
       try {
@@ -7481,6 +7664,8 @@
       if (flowEditBack) flowEditBack.classList.remove("show");
       inlineCtx = null;
       __inlineSuppressLive = false;
+      const corr = el("flowEditCorr");
+      if (corr) corr.hidden = true;
       try { if (inlineInp) inlineInp.blur(); } catch (_) { /* ignore */ }
       syncScrollLock();
     }
@@ -7495,9 +7680,12 @@
       v = Math.max(0, v + dir * step);
       if (step >= 1) v = Math.round(v);
       else v = round1(v);
+      // Frequenza P11011: resta sui punti tabella (42…50 tipicamente)
+      if (inlineCtx.field === "freqHz") v = clampFreq(v);
       inlineInp.value = step >= 1 ? String(v) : String(v);
       __flowNumpadFresh = true;
       applyInlineLive();
+      updateFlowEditCorr();
     }
 
     function applyNumpadKey(key) {
@@ -7539,6 +7727,7 @@
         else inlineInp.value = cur + key;
       }
       applyInlineLive();
+      updateFlowEditCorr();
     }
 
     function applyInlineLive() {
@@ -7561,16 +7750,16 @@
           applyBalance("livello");
           return;
         }
-        // Automatico riciclo: desiderata → alza P11011 = ingresso + max(riciclo, 100)
+        // Automatico riciclo: alza P11011 al Hz di tabella che dà ≥ ingresso + riciclo
         const qInNow = Math.max(0, num("qIn"));
         const qRecNeed = Math.max(Q_RECYCLE_MIN, Math.max(0, Math.round(v)));
-        const qPumpNeed = clampPump(Math.max(getPumpMin(), qInNow + qRecNeed));
-        const qRecSet = Math.max(0, Math.round(qPumpNeed - qInNow));
-        rememberFlowSetpoint("qPump", qPumpNeed);
+        const step = pumpStepForNeed(Math.max(getPumpMin(), qInNow + qRecNeed));
+        const qRecSet = Math.max(0, Math.round(step.q - qInNow));
+        el("freqHz").value = String(step.hz);
+        rememberFlowSetpoint("qPump", step.q);
         rememberFlowSetpoint("qRecycle", qRecSet);
-        if (el("equiparaMandata")?.checked) rememberFlowSetpoint("qMandata", qPumpNeed);
-        syncFreqFromPump(qPumpNeed);
-        applyBalance("pompa");
+        if (el("equiparaMandata")?.checked) rememberFlowSetpoint("qMandata", step.q);
+        applyBalance("freq");
         return;
       }
       if (field === "qUfTotale") {
@@ -7591,12 +7780,12 @@
         return;
       }
       if (field === "qPump") {
-        // live: in Manuale non clampare; in Automatico applyBalance gestisce
-        rememberFlowSetpoint("qPump", Math.max(0, v));
-        el("qPump").value = String(Math.max(0, v));
-        lastQPump = Math.max(0, v);
-        if (!isEditing("freqHz")) syncFreqFromPump(Math.max(0, v));
-        applyBalance("pompa");
+        // Portata non libera: snap all’Hz di tabella che la soddisfa
+        const step = pumpStepForNeed(Math.max(0, v));
+        el("freqHz").value = String(step.hz);
+        rememberFlowSetpoint("qPump", step.q);
+        lastQPump = step.q;
+        applyBalance("freq");
         return;
       }
       if (field === "freqHz") {
@@ -7604,12 +7793,11 @@
         el("freqHz").value = String(hz);
         const svgHz = el("svgFreqHz");
         if (svgHz) svgHz.textContent = String(hz);
-        // Aggiorna subito portata dalla curva (anche in Manuale)
-        const qFromHz = isAutoMode()
-          ? clampPump(qFromFreqCurve(hz))
-          : round1(Math.max(0, qFromFreqCurve(hz)));
+        // Portata = solo punto di tabella REGOLAZIONI
+        const qFromHz = qPumpAtHz(hz);
         rememberFlowSetpoint("qPump", qFromHz);
         lastQPump = qFromHz;
+        updateFlowEditCorr();
         applyBalance("freq");
         return;
       }
@@ -7668,16 +7856,16 @@
           applyBalance("livello");
           return;
         }
-        // Automatico riciclo: desiderata → alza P11011 = ingresso + max(riciclo, 100)
+        // Automatico riciclo: alza P11011 al Hz di tabella che dà ≥ ingresso + riciclo
         const qInNow = Math.max(0, num("qIn"));
         const qRecNeed = Math.max(Q_RECYCLE_MIN, Math.max(0, Math.round(v)));
-        const qPumpNeed = clampPump(Math.max(getPumpMin(), qInNow + qRecNeed));
-        const qRecSet = Math.max(0, Math.round(qPumpNeed - qInNow));
-        rememberFlowSetpoint("qPump", qPumpNeed);
+        const step = pumpStepForNeed(Math.max(getPumpMin(), qInNow + qRecNeed));
+        const qRecSet = Math.max(0, Math.round(step.q - qInNow));
+        el("freqHz").value = String(step.hz);
+        rememberFlowSetpoint("qPump", step.q);
         rememberFlowSetpoint("qRecycle", qRecSet);
-        if (el("equiparaMandata")?.checked) rememberFlowSetpoint("qMandata", qPumpNeed);
-        syncFreqFromPump(qPumpNeed);
-        applyBalance("pompa");
+        if (el("equiparaMandata")?.checked) rememberFlowSetpoint("qMandata", step.q);
+        applyBalance("freq");
         return;
       }
       if (field === "qUfTotale") {
@@ -7698,13 +7886,11 @@
         return;
       }
       if (field === "qPump") {
-        // Manuale: conferma esatta; Automatico: commitPump. Sempre collega Hz ↔ portata.
-        rememberFlowSetpoint("qPump", round1(Math.max(0, v)));
-        lastQPump = round1(Math.max(0, v));
-        setVal("qPump", Math.max(0, v), { force: true });
-        syncFreqFromPump(Math.max(0, v));
-        if (isAutoMode()) commitPump();
-        else applyBalance("pompa");
+        const step = pumpStepForNeed(Math.max(0, v));
+        el("freqHz").value = String(step.hz);
+        rememberFlowSetpoint("qPump", step.q);
+        lastQPump = step.q;
+        applyBalance("freq");
         return;
       }
       if (field === "freqHz") {
@@ -7712,9 +7898,7 @@
         el("freqHz").value = String(hz);
         const svgHz = el("svgFreqHz");
         if (svgHz) svgHz.textContent = String(hz);
-        const qFromHz = isAutoMode()
-          ? clampPump(qFromFreqCurve(hz))
-          : round1(Math.max(0, qFromFreqCurve(hz)));
+        const qFromHz = qPumpAtHz(hz);
         rememberFlowSetpoint("qPump", qFromHz);
         lastQPump = qFromHz;
         applyBalance("freq");
@@ -7769,19 +7953,44 @@
       startInlineEdit(fake);
     }
 
+    function updateFlowEditCorr() {
+      const box = el("flowEditCorr");
+      if (!box) return;
+      if (!inlineCtx || inlineCtx.field !== "freqHz") {
+        box.hidden = true;
+        return;
+      }
+      const raw = String(inlineInp?.value ?? "").trim().replace(",", ".");
+      const v = parseFloat(raw);
+      box.hidden = false;
+      if (!Number.isFinite(v)) {
+        box.textContent = "≈ — m³/h (scala REGOLAZIONI)";
+        return;
+      }
+      const hz = clampFreq(v);
+      const q = qPumpAtHz(hz);
+      box.textContent = `≈ ${q.toFixed(1)} m³/h · a ${hz} Hz`;
+    }
+
     function startInlineEdit(flowGroup) {
-      const field = flowGroup.dataset?.field || flowGroup.getAttribute?.("data-field") || "";
-      const source = flowGroup.dataset?.source || flowGroup.getAttribute?.("data-source") || "";
+      let field = flowGroup.dataset?.field || flowGroup.getAttribute?.("data-field") || "";
+      let source = flowGroup.dataset?.source || flowGroup.getAttribute?.("data-source") || "";
+      // P11011: portata e frequenza aprono lo stesso popup (si regola solo in Hz)
+      if (field === "qPump") {
+        field = "freqHz";
+        source = "freq";
+      }
       // Pompe: nel popup SEMPRE il SETPOINT (mai la viva a 0 se la pompa è ferma)
       let val;
-      if (field === "qPump" || field === "qMandata" || field === "qRecycle" || field === "qP11019") {
-        val = flowSetpointOf(field);
-        // Se per qualche motivo è ancora 0, riparti dal floor di processo
-        if (!(val > 0.05) && field === "qPump") {
-          try { val = clampPump(pumpFloorForIngresso(Math.max(0, num("qIn")))); }
-          catch (_) { val = Math.max(0, lastQPump); }
-          if (val > 0.05) rememberFlowSetpoint("qPump", val);
+      if (field === "freqHz") {
+        const hzNow = numOrNull("freqHz");
+        if (hzNow !== null && hzNow > 0.05) val = clampFreq(hzNow);
+        else {
+          const step = pumpStepForNeed(Math.max(flowSetpointOf("qPump"), lastQPump, pumpFloorForIngresso(num("qIn"))));
+          val = step.hz;
         }
+      } else if (field === "qMandata" || field === "qRecycle" || field === "qP11019") {
+        val = flowSetpointOf(field);
       } else if (field === "qP11019Ias" || field === "qP11019Impianto") {
         paintP11019SplitUI();
         val = readP11019SplitEditVal(field);
@@ -7803,12 +8012,16 @@
         inlineInp.value = seed;
       }
       if (flowEditTitle) {
-        const base = FLOW_EDIT_LABELS[field] || "Portata";
-        flowEditTitle.textContent = (splitEdit || FLOW_IDS.includes(field)) && hasMem
-          ? (base + " · attuale " + (step >= 1 ? Math.round(val) : val))
-          : base;
+        flowEditTitle.textContent = field === "freqHz"
+          ? "P11011 A/B · frequenza"
+          : (FLOW_EDIT_LABELS[field] || "Portata");
       }
-      if (flowEditUnit) flowEditUnit.textContent = field === "freqHz" ? "Hz" : "m³/h";
+      const unitTxt = field === "freqHz" ? "Hz" : "m³/h";
+      const unitIn = el("flowEditUnitIn");
+      if (unitIn) unitIn.textContent = unitTxt;
+      if (flowEditUnit) flowEditUnit.textContent = unitTxt;
+      syncFlowEditDevMode(field);
+      updateFlowEditCorr();
       __flowNumpadFresh = true;
       if (isTouchUi()) {
         // Mobile: popup già pronto con numpad, niente tastiera di sistema
@@ -7964,12 +8177,25 @@
       e.preventDefault();
     }, { passive: false, capture: true });
 
-    // Digitatura libera: bilancia solo se c'è un numero; clamp al blur
-    el("qPump").addEventListener("input", () => {
-      if (numOrNull("qPump") === null) return; // campo cancellato: lascia scrivere
-      applyBalance("pompa");
+    // Portata P11011: non digitabile — apre lo stesso popup della frequenza
+    el("qPump")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      startFieldInlineEdit("freqHz", "freq");
     });
-    el("qPump").addEventListener("blur", commitPump);
+    el("qPump")?.addEventListener("focus", (e) => {
+      e.preventDefault();
+      try { el("qPump").blur(); } catch (_) { /* ok */ }
+      startFieldInlineEdit("freqHz", "freq");
+    });
+    el("freqHz")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      startFieldInlineEdit("freqHz", "freq");
+    });
+    el("freqHz")?.addEventListener("focus", (e) => {
+      e.preventDefault();
+      try { el("freqHz").blur(); } catch (_) { /* ok */ }
+      startFieldInlineEdit("freqHz", "freq");
+    });
 
     el("qP11019")?.addEventListener("input", () => {
       if (numOrNull("qP11019") === null) return;
@@ -8100,6 +8326,7 @@
     paintRecycleEditableUI();
     paintAllDevModeUI();
     document.querySelectorAll(".dev-mode[data-dev]").forEach((root) => {
+      if (root.id === "flowEditDevMode") return;
       const dev = root.getAttribute("data-dev");
       root.querySelectorAll("[data-dev-mode]").forEach((btn) => {
         btn.addEventListener("click", (e) => {
@@ -8107,6 +8334,14 @@
           e.stopPropagation();
           setDevMode(dev, btn.getAttribute("data-dev-mode"));
         });
+      });
+    });
+    el("flowEditDevMode")?.querySelectorAll("[data-dev-mode]").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const dev = el("flowEditDevMode")?.getAttribute("data-dev");
+        if (dev) setDevMode(dev, btn.getAttribute("data-dev-mode"));
       });
     });
 
@@ -8300,6 +8535,9 @@
         ultra: __devMode.ultra === "manual" ? "manual" : "auto",
         osmosi: __devMode.osmosi === "manual" ? "manual" : "auto",
         riciclo: __devMode.riciclo === "manual" ? "manual" : "auto",
+        pompa: __devMode.pompa === "manual" ? "manual" : "auto",
+        mandata: __devMode.mandata === "manual" ? "manual" : "auto",
+        ingresso: __devMode.ingresso === "manual" ? "manual" : "auto",
       };
       data.memQs = Array.from(document.querySelectorAll(".mem-q")).map((inp) => inp.value);
       data.ufQs = Array.from(document.querySelectorAll(".uf-q")).map((inp) => inp.value);
@@ -8368,7 +8606,7 @@
           paintFlowModeUI();
           paintRecycleEditableUI();
           if (data.devMode && typeof data.devMode === "object") {
-            ["membrane", "ultra", "osmosi", "riciclo"].forEach((d) => {
+            ["membrane", "ultra", "osmosi", "riciclo", "pompa", "mandata", "ingresso"].forEach((d) => {
               if (data.devMode[d] === "manual" || data.devMode[d] === "auto") __devMode[d] = data.devMode[d];
             });
           }
@@ -8702,7 +8940,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt61", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt63", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
