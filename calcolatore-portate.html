@@ -8618,11 +8618,18 @@
       try { applyBalance("livello"); } catch (_) { /* ignore */ }
     });
     flowEditBack?.addEventListener("click", (e) => {
-      if (e.target === flowEditBack) {
-        hideInline();
-        try { applyBalance("livello"); } catch (_) { /* ignore */ }
-      }
+      if (e.target !== flowEditBack) return;
+      if (Date.now() < __flowEditGuardUntil) return;
+      hideInline();
+      try { applyBalance("livello"); } catch (_) { /* ignore */ }
     });
+    flowEditBack?.addEventListener("pointerup", (e) => {
+      if (e.target !== flowEditBack) return;
+      if (Date.now() < __flowEditGuardUntil) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    }, true);
 
     // Click sul numero: su mobile apre il numpad (non la tastiera di sistema)
     inlineInp.addEventListener("pointerdown", (e) => {
@@ -8751,14 +8758,20 @@
       applyP11019SplitFrom("impianto", num("qP11019Impianto"));
     });
 
-    // Click su schizzo IAS / Impianto → tastierino (come le altre portate)
+    // Tap su schizzo IAS / Impianto → numpad (resta aperto; valore = quello in scheda)
     document.querySelectorAll(".p11019-edit[data-field]").forEach((g) => {
       const open = (e) => {
         e.preventDefault();
         e.stopPropagation();
+        if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
         const field = g.getAttribute("data-field");
-        if (field) startFieldInlineEdit(field, "p11019");
+        if (!field) return;
+        sanitizeP11019SplitMem();
+        paintP11019SplitUI();
+        __flowEditGuardUntil = Date.now() + 450;
+        startFieldInlineEdit(field, "p11019");
       };
+      g.addEventListener("pointerup", open);
       g.addEventListener("click", open);
       g.addEventListener("keydown", (e) => {
         if (e.key === "Enter" || e.key === " ") open(e);
@@ -8768,14 +8781,26 @@
     ["qP11019Ias", "qP11019Impianto"].forEach((id) => {
       const node = el(id);
       if (!node) return;
-      node.addEventListener("focus", () => {
-        try { node.select(); } catch (_) { /* ignore */ }
-      });
-      node.addEventListener("pointerdown", (e) => {
+      const openField = (e) => {
         if (!isTouchUi()) return;
         e.preventDefault();
+        e.stopPropagation();
+        sanitizeP11019SplitMem();
+        paintP11019SplitUI();
+        __flowEditGuardUntil = Date.now() + 450;
         startFieldInlineEdit(id, "p11019");
-      }, { passive: false });
+      };
+      node.addEventListener("focus", (e) => {
+        if (isTouchUi()) {
+          e.preventDefault();
+          try { node.blur(); } catch (_) { /* ignore */ }
+          openField(e);
+          return;
+        }
+        try { node.select(); } catch (_) { /* ignore */ }
+      });
+      node.addEventListener("pointerup", openField, { passive: false });
+      node.addEventListener("click", openField);
     });
 
     el("qIn").addEventListener("input", () => {
