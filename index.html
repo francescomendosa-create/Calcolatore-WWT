@@ -254,6 +254,15 @@
     .pipe { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
     .pipe-main { stroke: #38bdf8; }
     .pipe-rec { stroke: #fb7185; }
+    .p11019-split {
+      width: 100%;
+      max-width: 420px;
+      margin: 8px auto 12px;
+      display: block;
+      background: #0b1220;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
     .tank-body { stroke: #64748b; stroke-width: 1.5; }
     .proc-label {
       display: flex;
@@ -1008,32 +1017,35 @@
           <text x="988" y="455" text-anchor="middle" fill="#f87171" font-size="8" font-weight="700" id="svgRangeHi11007">97</text>
         </g>
 
-        <!-- 3 pompe P11019 A/B/C (da TK-1107 → filtri a carbone), più distanziate -->
-        <g aria-label="P11019 A/B/C verso filtri a carbone">
-          <path class="pipe pipe-main" d="M940 415 H880" />
-          <path class="pipe pipe-main" d="M880 375 V455" />
-          <g transform="translate(880,375)">
+        <!-- 3 pompe P11019 A/B/C (da TK-1107 → filtri a carbone) — click → popup set + split IAS -->
+        <g class="node" tabindex="0" data-popup="p11019" role="button" aria-label="P11019 A/B/C verso filtri a carbone">
+          <!-- hit-area: in SVG lo spazio vuoto del <g> non riceve click -->
+          <rect x="848" y="352" width="120" height="186" fill="#000" opacity="0.001" pointer-events="all" />
+          <path class="pipe pipe-main" d="M940 415 H880" pointer-events="none" />
+          <path class="pipe pipe-main" d="M880 375 V455" pointer-events="none" />
+          <g transform="translate(880,375)" pointer-events="none">
             <rect x="7" y="-6" width="12" height="11" rx="1.5" fill="#334155" stroke="#94a3b8" stroke-width="1.1" />
             <circle id="svgPump11019A" r="10" fill="#14532d" stroke="#4ade80" stroke-width="1.6" />
             <path id="svgPump11019AArrow" d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#bbf7d0" />
           </g>
-          <g transform="translate(880,415)">
+          <g transform="translate(880,415)" pointer-events="none">
             <rect x="7" y="-6" width="12" height="11" rx="1.5" fill="#334155" stroke="#94a3b8" stroke-width="1.1" />
             <circle id="svgPump11019B" r="10" fill="#14532d" stroke="#4ade80" stroke-width="1.6" />
             <path id="svgPump11019BArrow" d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#bbf7d0" />
           </g>
-          <g transform="translate(880,455)">
+          <g transform="translate(880,455)" pointer-events="none">
             <rect x="7" y="-6" width="12" height="11" rx="1.5" fill="#334155" stroke="#94a3b8" stroke-width="1.1" />
             <circle id="svgPump11019C" r="10" fill="#14532d" stroke="#4ade80" stroke-width="1.6" />
             <path id="svgPump11019CArrow" d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#bbf7d0" />
           </g>
-          <text id="svgPump11019Label" x="910" y="485" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700">P11019 A/B/C</text>
-          <g class="flow-edit" data-field="qP11019" data-source="p11019">
-            <rect class="badge" id="svgQP11019Badge" x="873" y="492" width="74" height="32" rx="5" stroke="#4ade80" />
-            <text class="badge-val" x="897" y="513" text-anchor="middle" id="svgQP11019">0.0</text>
-            <text class="badge-unit" x="927" y="513" text-anchor="middle">m³/h</text>
+          <text id="svgPump11019Label" x="910" y="485" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700" pointer-events="none">P11019 A/B/C</text>
+          <g pointer-events="none">
+            <rect class="badge" id="svgQP11019Badge" x="860" y="492" width="96" height="36" rx="5" stroke="#4ade80" />
+            <text class="badge-label" x="908" y="504" text-anchor="middle">IMPIANTO</text>
+            <text class="badge-val" x="888" y="520" text-anchor="middle" id="svgQP11019" font-size="12">0.0</text>
+            <text class="badge-unit" x="922" y="520" text-anchor="middle">m³/h</text>
           </g>
-          <path class="pipe pipe-main" d="M870 415 H800" />
+          <path class="pipe pipe-main" d="M870 415 H800" pointer-events="none" />
         </g>
 
         <!-- FILTRI A CARBONE -->
@@ -1065,24 +1077,24 @@
 
           <!-- Colonne UF A–D -->
           <g class="node" tabindex="0" data-popup="ultra" role="button" aria-label="Ultrafiltrazione A" transform="translate(530,365)">
-            <rect x="0" y="0" width="16" height="90" rx="3" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
-            <rect x="3" y="22" width="10" height="58" rx="1" fill="#0ea5e9" opacity="0.55" />
-            <text x="8" y="-4" text-anchor="middle" fill="#7dd3fc" font-size="8" font-weight="700">A</text>
+            <rect id="svgUfBodyA" x="0" y="0" width="16" height="90" rx="3" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
+            <rect id="svgUfFillA" x="3" y="22" width="10" height="58" rx="1" fill="#0ea5e9" opacity="0.55" />
+            <text id="svgUfLabA" x="8" y="-4" text-anchor="middle" fill="#7dd3fc" font-size="8" font-weight="700">A</text>
           </g>
           <g class="node" tabindex="0" data-popup="ultra" role="button" aria-label="Ultrafiltrazione B" transform="translate(552,365)">
-            <rect x="0" y="0" width="16" height="90" rx="3" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
-            <rect x="3" y="22" width="10" height="58" rx="1" fill="#0ea5e9" opacity="0.55" />
-            <text x="8" y="-4" text-anchor="middle" fill="#7dd3fc" font-size="8" font-weight="700">B</text>
+            <rect id="svgUfBodyB" x="0" y="0" width="16" height="90" rx="3" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
+            <rect id="svgUfFillB" x="3" y="22" width="10" height="58" rx="1" fill="#0ea5e9" opacity="0.55" />
+            <text id="svgUfLabB" x="8" y="-4" text-anchor="middle" fill="#7dd3fc" font-size="8" font-weight="700">B</text>
           </g>
           <g class="node" tabindex="0" data-popup="ultra" role="button" aria-label="Ultrafiltrazione C" transform="translate(574,365)">
-            <rect x="0" y="0" width="16" height="90" rx="3" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
-            <rect x="3" y="22" width="10" height="58" rx="1" fill="#0ea5e9" opacity="0.55" />
-            <text x="8" y="-4" text-anchor="middle" fill="#7dd3fc" font-size="8" font-weight="700">C</text>
+            <rect id="svgUfBodyC" x="0" y="0" width="16" height="90" rx="3" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
+            <rect id="svgUfFillC" x="3" y="22" width="10" height="58" rx="1" fill="#0ea5e9" opacity="0.55" />
+            <text id="svgUfLabC" x="8" y="-4" text-anchor="middle" fill="#7dd3fc" font-size="8" font-weight="700">C</text>
           </g>
           <g class="node" tabindex="0" data-popup="ultra" role="button" aria-label="Ultrafiltrazione D" transform="translate(596,365)">
-            <rect x="0" y="0" width="16" height="90" rx="3" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
-            <rect x="3" y="22" width="10" height="58" rx="1" fill="#0ea5e9" opacity="0.55" />
-            <text x="8" y="-4" text-anchor="middle" fill="#7dd3fc" font-size="8" font-weight="700">D</text>
+            <rect id="svgUfBodyD" x="0" y="0" width="16" height="90" rx="3" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
+            <rect id="svgUfFillD" x="3" y="22" width="10" height="58" rx="1" fill="#0ea5e9" opacity="0.55" />
+            <text id="svgUfLabD" x="8" y="-4" text-anchor="middle" fill="#7dd3fc" font-size="8" font-weight="700">D</text>
           </g>
 
           <!-- Collettore ingresso (da carbone) + 4 misuratori → testata UF -->
@@ -2008,7 +2020,8 @@
         <input type="number" id="qUfTotale" class="tot-mem" min="0" max="500" step="0.1" value="0" />
       </label>
       <p class="mini">Quattro ingressi A–D. La somma = totale. Variando il totale si ripartiscono in modo uguale; variando una linea si aggiorna il totale.</p>
-      <div class="mem-grid" id="ufInputs"></div>
+      <p class="mini">Ogni UF: <strong>tempo lavoro</strong> (default 20′) poi <strong>lavaggio</strong> (default 190 s ferma). I lavaggi sono <strong>sfalsati</strong> (non contemporanei). In lavaggio la portata viva va a 0; il setpoint nel popup resta.</p>
+      <div id="ufInputs"></div>
       <div class="settings-block show" style="margin-top:10px">
         <h4>TK 11021 — permeato UF (da PROCESSO)</h4>
         <div class="row">
@@ -2178,9 +2191,66 @@
     </div>
   </div>
 
-  <!-- Valori ausiliari -->
-  <div hidden>
-    <input type="number" id="qP11019" min="0" max="500" step="0.1" value="0" />
+  <!-- POPUP P11019 A/B/C — set pompe + split Impianto (carboni) / IAS -->
+  <div class="modal-back" id="popP11019" role="dialog" aria-modal="true">
+    <div class="modal wide-settings">
+      <h3><span>P11019 A/B/C · permeato</span><button type="button" data-close>&times;</button></h3>
+      <button type="button" class="proc-label" disabled style="cursor:default;opacity:.95">
+        <span>POMPE — P11019 A/B/C</span>
+        <small>da TK 11007 · verso carboni / IAS</small>
+      </button>
+      <label><strong>Set portata pompe P11019 (m³/h)</strong>
+        <input type="number" id="qP11019" min="0" max="500" step="0.1" value="0" inputmode="decimal" />
+      </label>
+      <p class="mini">Il set pompa resta invariato. La portata si riparte sotto tra Impianto (carboni → UF) e IAS.</p>
+
+      <svg class="p11019-split" viewBox="0 0 400 150" aria-label="Schizzo split Impianto / IAS">
+        <text x="200" y="16" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="700">P11019 → destinazioni</text>
+        <!-- pompa -->
+        <circle cx="48" cy="78" r="16" fill="#14532d" stroke="#4ade80" stroke-width="2" />
+        <path d="M54,70 L38,78 L54,86 Z" fill="#bbf7d0" />
+        <text x="48" y="108" text-anchor="middle" fill="#86efac" font-size="9" font-weight="700">P11019</text>
+        <text id="svgPopP11019Pump" x="48" y="122" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="700">0.0</text>
+        <!-- tronco -->
+        <path d="M64 78 H160" stroke="#38bdf8" stroke-width="3" fill="none" stroke-linecap="round" />
+        <circle cx="160" cy="78" r="4" fill="#38bdf8" />
+        <!-- verso impianto / carboni -->
+        <path d="M160 78 H280" stroke="#38bdf8" stroke-width="3" fill="none" stroke-linecap="round" />
+        <path d="M280 78 L268 72 M280 78 L268 84" stroke="#38bdf8" stroke-width="2" fill="none" />
+        <rect x="286" y="58" width="100" height="40" rx="6" fill="#0c4a6e" stroke="#7dd3fc" />
+        <text x="336" y="74" text-anchor="middle" fill="#bae6fd" font-size="9" font-weight="700">IMPIANTO</text>
+        <text x="336" y="88" text-anchor="middle" fill="#e0f2fe" font-size="9">Carboni → UF</text>
+        <text id="svgPopP11019Imp" x="336" y="48" text-anchor="middle" fill="#7dd3fc" font-size="12" font-weight="800">0.0</text>
+        <!-- verso IAS -->
+        <path d="M160 78 V28 H240" stroke="#fbbf24" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round" />
+        <path d="M240 28 L228 22 M240 28 L228 34" stroke="#fbbf24" stroke-width="2" fill="none" />
+        <rect x="246" y="10" width="70" height="36" rx="6" fill="#422006" stroke="#fbbf24" />
+        <text x="281" y="26" text-anchor="middle" fill="#fde68a" font-size="10" font-weight="800">IAS</text>
+        <text id="svgPopP11019Ias" x="281" y="40" text-anchor="middle" fill="#fef3c7" font-size="11" font-weight="700">0.0</text>
+      </svg>
+
+      <div class="row">
+        <label><strong>Verso IAS (m³/h)</strong>
+          <input type="number" id="qP11019Ias" min="0" max="500" step="0.1" value="0" inputmode="decimal" />
+        </label>
+        <label><strong>Verso Impianto / carboni (m³/h)</strong>
+          <input type="number" id="qP11019Impianto" min="0" max="500" step="0.1" value="0" readonly />
+        </label>
+      </div>
+      <p class="mini" id="p11019SplitHint">Normale: IAS = 0 → tutta la portata va in Impianto. Aumentando IAS si sottrae dall’Impianto; il set pompe non cambia. In overview vedi solo il residuo Impianto.</p>
+      <div class="settings-block show">
+        <h4>TK 11007 — consenso (da PROCESSO)</h4>
+        <div class="row">
+          <label><strong>Start svuotamento % → P11019 ON</strong>
+            <input type="number" id="viewStartSvuotTk11007c" readonly placeholder="—" inputmode="decimal" />
+          </label>
+          <label><strong>Stop svuotamento % → P11019 OFF</strong>
+            <input type="number" id="viewStopSvuotTk11007c" readonly placeholder="—" inputmode="decimal" />
+          </label>
+        </div>
+      </div>
+      <div class="actions"><button type="button" data-close>Applica</button></div>
+    </div>
   </div>
 
   <script>
@@ -2199,7 +2269,7 @@
     let lastQMandata = 334;
     /** Portate “vive” pompe: salgono/scendono a rampa verso il comando (non a scatto). */
     const FLOW_IDS = ["qPump", "qMandata", "qRecycle", "qP11019"];
-    const FLOW_SVG = { qPump: "svgQPump", qMandata: "svgQMand", qRecycle: "svgQRec", qP11019: "svgQP11019" };
+    const FLOW_SVG = { qPump: "svgQPump", qMandata: "svgQMand", qRecycle: "svgQRec" };
     const __flowLive = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 0 };
     const __flowDesire = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 0 };
     /** Setpoint comando (popup modifica): resta anche a pompe ferme / portata viva = 0. */
@@ -2377,10 +2447,20 @@
       const next = Math.max(0, round1(Number(v) || 0));
       __flowLive[id] = next;
       if (!isEditing(id)) {
-        setVal(id, next, { force: true });
-        const sid = FLOW_SVG[id];
-        const node = sid ? el(sid) : null;
-        if (node) node.textContent = next.toFixed(1);
+        if (id === "qP11019") {
+          // Popup P11019: campo = setpoint (anche a pompe ferme); overview = Impianto
+          const popOpen = !!el("popP11019")?.classList.contains("show");
+          if (popOpen || !p11019Allowed()) setVal(id, flowSetpointOf("qP11019"), { force: true });
+          else setVal(id, next, { force: true });
+        } else {
+          setVal(id, next, { force: true });
+          const sid = FLOW_SVG[id];
+          const node = sid ? el(sid) : null;
+          if (node) node.textContent = next.toFixed(1);
+        }
+      }
+      if (id === "qP11019") {
+        try { paintP11019SplitUI(); } catch (_) { /* ok a runtime */ }
       }
       return next;
     }
@@ -3220,11 +3300,77 @@
       return permeateDemandOut();
     }
 
-    /** Portata effettiva P11019: 0 SOLO se stop svuotamento TK-11007; altrimenti setpoint. */
+    /** Portata effettiva pompe P11019 (OUT TK-11007): 0 se stop svuotamento; altrimenti setpoint. */
     function qP11019Effective() {
       updateTk11007PumpInterlocks(numOrNull("livelloAttualeTk11007") ?? 91);
       if (!p11019Allowed()) return 0;
       return qP11019Setpoint();
+    }
+
+    /** Set IAS (clamp ≤ set pompe). Parte da 0; se aumenta sottrae dall’Impianto. */
+    function qP11019IasSetpoint() {
+      const pump = Math.max(0, qP11019Setpoint());
+      let ias = Math.max(0, num("qP11019Ias") || 0);
+      if (ias > pump + 0.05) ias = pump;
+      return round1(ias);
+    }
+
+    /** Portata viva pompe (rampa) usata per lo split. */
+    function qP11019PumpLive() {
+      if (!p11019Allowed()) return 0;
+      return Math.max(0, round1(Number(__flowLive.qP11019) != null ? __flowLive.qP11019 : num("qP11019")));
+    }
+
+    /** Verso IAS (viva): min(set IAS, portata pompa viva). */
+    function qP11019IasLive() {
+      return round1(Math.min(qP11019IasSetpoint(), qP11019PumpLive()));
+    }
+
+    /** Verso Impianto/carboni (viva) = pompa − IAS. Overview mostra questo. */
+    function qP11019ImpiantoLive() {
+      return round1(Math.max(0, qP11019PumpLive() - qP11019IasLive()));
+    }
+
+    /** Impianto da setpoint (per auto UF / domanda valle). */
+    function qP11019ImpiantoSetpoint() {
+      if (!p11019Allowed()) return 0;
+      return round1(Math.max(0, qP11019Setpoint() - qP11019IasSetpoint()));
+    }
+
+    function paintP11019SplitUI() {
+      const pumpSp = qP11019Setpoint();
+      const iasSp = qP11019IasSetpoint();
+      const impSp = round1(Math.max(0, pumpSp - iasSp));
+      const pumpL = qP11019PumpLive();
+      const iasL = qP11019IasLive();
+      const impL = qP11019ImpiantoLive();
+
+      if (!isEditing("qP11019Ias")) {
+        const iasNode = el("qP11019Ias");
+        if (iasNode && Math.abs((parseFloat(iasNode.value) || 0) - iasSp) > 0.05) {
+          iasNode.value = String(iasSp);
+        }
+      }
+      const impNode = el("qP11019Impianto");
+      if (impNode) impNode.value = String(impSp);
+
+      const popPump = el("svgPopP11019Pump");
+      if (popPump) popPump.textContent = pumpL.toFixed(1);
+      const popIas = el("svgPopP11019Ias");
+      if (popIas) popIas.textContent = iasL.toFixed(1);
+      const popImp = el("svgPopP11019Imp");
+      if (popImp) popImp.textContent = impL.toFixed(1);
+
+      const ov = el("svgQP11019");
+      if (ov && !isEditing("qP11019")) ov.textContent = impL.toFixed(1);
+
+      const hint = el("p11019SplitHint");
+      if (hint) {
+        hint.textContent = p11019Allowed()
+          ? `Pompe ${pumpL.toFixed(1)} = Impianto ${impL.toFixed(1)} + IAS ${iasL.toFixed(1)} m³/h · overview = solo Impianto`
+          : `P11019 FERME (TK 11007) · set pompe ${pumpSp.toFixed(1)} · IAS ${iasSp.toFixed(1)} · Impianto residuo ${impSp.toFixed(1)}`;
+        hint.style.color = p11019Allowed() ? "var(--ok)" : "var(--danger)";
+      }
     }
 
     /** Applica marcia P11019 dal solo livello TK-11007 (mai dalle membrane). */
@@ -3236,6 +3382,7 @@
       } else if (!isEditing("qP11019")) {
         commitFlow("qP11019", qSet, { setpoint: qSet });
       }
+      paintP11019SplitUI();
       return p11019Allowed();
     }
 
@@ -3731,6 +3878,7 @@
       if (lab19) lab19.setAttribute("fill", run11019 ? "#86efac" : "#fda4af");
       const badge19 = el("svgQP11019Badge");
       if (badge19) badge19.setAttribute("stroke", run11019 ? "#4ade80" : "#f87171");
+      try { paintP11019SplitUI(); } catch (_) { /* ignore */ }
       // P-11040 A/B/C = relativa osmosi; D sempre ferma
       try { paintOsmosiRunUI(); } catch (_) { /* ignore */ }
     }
@@ -3937,7 +4085,6 @@
       updateTk11007PumpInterlocks(livP);
       applyP11019RunFromLevel();
       const qP19 = Math.max(0, num("qP11019")); // viva (rampa) per bilanci TK
-      const qUf = Math.max(0, num("qUfTotale"));
       // OUT osmosi da TK 11021: solo linee in marcia (isteresi P-11040 sul livello)
       updateOsmosiTk11021Interlocks(livU);
       let qOsmOut = 0;
@@ -3961,17 +4108,10 @@
         syncOsmosiSvg();
         paintOsmosiRunUI();
       }
-      // IN UF effettivo (bilancio): 0 se P11019 ferme; popup tiene il setpoint
-      let qUfIn = qUf;
-      if (!p11019Allowed()) {
-        qUfIn = 0;
-        paintUfPopupSetpoints();
-        paintUfSvgLive(0);
-      } else if (deviceAutoControlled("ultra")) {
-        qUfIn = __allowUfByTk11021 ? Math.max(0, qP19) : 0;
-      } else if (deviceIsManual("ultra")) {
-        qUfIn = __allowUfByTk11021 ? Math.max(0, procSetpointOf("qUfTotale") || num("qUfTotale")) : 0;
-      }
+      // IN UF effettivo: linee non in lavaggio (sfalsati); 0 se P11019/TK11021 bloccano
+      if (!p11019Allowed()) paintUfPopupSetpoints();
+      const qUfIn = sumUfEffective();
+      paintUfSvgLive();
 
       const stopRiemp = numOrNull("stopRiempA10620");
       const stopRv = stopRiemp !== null ? stopRiemp : 95;
@@ -4043,7 +4183,7 @@
       // Clamp allo stop riempimento TK 11021
       const stopU = numOrNull("stopRiempTk11021");
       const stopUV = stopU !== null ? stopU : 97;
-      if (__allowUfByTk11021 && qUf > 0.5 && nU >= stopUV - 0.05) {
+      if (__allowUfByTk11021 && qUfIn > 0.5 && nU >= stopUV - 0.05) {
         nU = round2(stopUV);
       }
 
@@ -4699,12 +4839,14 @@
         const memTxt = __allowMbrByPermeate
           ? `membrane OK (stop riemp. ≥${fmtPct(stopR)})`
           : `membrane FERME ≥${fmtPct(stopR)} (ripartono ≤${fmtPct(startR)})`;
+        const qIasUi = qP11019IasLive();
+        const qImpUi = qP11019ImpiantoLive();
         const pumpTxt = __runP11019By07
-          ? `P11019 ON (solo livello · stop ≤${fmtPct(stopS)} · start ≥${fmtPct(startS)})`
+          ? `P11019 ON (solo livello · stop ≤${fmtPct(stopS)} · start ≥${fmtPct(startS)}) · Impianto ${round1(qImpUi)} / IAS ${round1(qIasUi)}`
           : `P11019 FERME per livello ≤${fmtPct(stopS)} (ripartono ≥${fmtPct(startS)}) — non per le membrane`;
         const netP = round1(qPermUi - qP19Ui);
         const trendTxt = netP > 0.5 ? "livello SALE" : (netP < -0.5 ? "livello SCENDE" : "livello STABILE");
-        permHint.textContent = `TK 11007 · ${memTxt} · ${pumpTxt} · IN ${round1(qPermUi)} / OUT ${round1(qP19Ui)} → netto ${netP} m³/h · ${trendTxt}`;
+        permHint.textContent = `TK 11007 · ${memTxt} · ${pumpTxt} · IN ${round1(qPermUi)} / OUT pompe ${round1(qP19Ui)} → netto ${netP} m³/h · ${trendTxt}`;
         permHint.style.color = __runP11019By07 ? "var(--ok)" : "var(--danger)";
       }
 
@@ -4717,22 +4859,21 @@
           ? Math.max(permeateDemandOut(), linePermeateCapacity())
           : permeateDemandOut())
         : Math.max(0, num("qOsmosiDemi") || (num("qOsmosiA") + num("qOsmosiB") + num("qOsmosiC")));
-      const qUfUi = !__allowUfByTk11021
-        ? 0
-        : (deviceIsManual("ultra")
-          ? Math.max(0, num("qUfTotale"))
-          : (p11019Allowed() ? Math.max(0, qP19Ui || num("qUfTotale")) : 0));
+      const qUfUi = sumUfEffective();
       const rateUUi = estimateTk11021RatePctPerMin(qUfUi, qOsmUi);
       paintTk11021UI(livUUi, rateUUi, !__allowUfByTk11021);
       paintOsmosiRunUI();
+      paintUfSvgLive();
       const ufHint = el("tk11021Hint");
       if (ufHint) {
         const startU = numOrNull("startRiempTk11021") ?? 80;
         const stopU = numOrNull("stopRiempTk11021") ?? 97;
+        const washN = UF_LINES.filter((L) => ufLineInWash(__simMin, L)).length;
+        const washTxt = washN ? ` · ${washN} UF in lavaggio` : "";
         ufHint.textContent = __allowUfByTk11021
-          ? `TK 11021 OK · riempimento UF abilitato (stop a ≥${fmtPct(stopU)})`
-          : `TK 11021 PIENO ≥${fmtPct(stopU)} · riempimento bloccato · riparte a ≤${fmtPct(startU)}`;
-        ufHint.style.color = __allowUfByTk11021 ? "var(--ok)" : "var(--danger)";
+          ? `TK 11021 OK · riempimento UF abilitato (stop a ≥${fmtPct(stopU)})${washTxt}`
+          : `TK 11021 PIENO ≥${fmtPct(stopU)} · riempimento bloccato · riparte a ≤${fmtPct(startU)}${washTxt}`;
+        ufHint.style.color = __allowUfByTk11021 && !washN ? "var(--ok)" : "var(--danger)";
       }
 
       const ricHint = el("ricicloRunHint");
@@ -4926,19 +5067,20 @@
         paintOsmosiRunUI();
         return;
       }
-      const qP19 = qP11019Effective();
+      const qP19Pump = qP11019Effective();
+      const qP19Plant = qP11019ImpiantoSetpoint(); // valle carboni/UF = pompa − IAS
 
       // TK 11021: IN = UF, OUT = osmosi ≈ ingresso (non forzare IN=OUT in TIME)
       const srcUf = source === "uf-totale" || source === "uf-linea" || source === "ultra";
       let qUfSet = 0;
       if (!isEditingUf() && !srcUf && deviceAutoControlled("ultra")) {
-        // UF a valle di P11019: viva può essere 0, setpoint popup resta
-        if (!__allowUfByTk11021 || !p11019Allowed() || qP19 < 0.05) {
+        // UF a valle Impianto (dopo split IAS): viva può essere 0, setpoint popup resta
+        if (!__allowUfByTk11021 || !p11019Allowed() || qP19Plant < 0.05) {
           qUfSet = 0;
           paintUfPopupSetpoints();
-          paintUfSvgLive(0);
+          paintUfSvgLive();
         } else {
-          qUfSet = round1(qP19);
+          qUfSet = round1(qP19Plant);
           rememberProcSetpoint("qUfTotale", qUfSet);
           setVal("qUfTotale", qUfSet, { force: true });
           setUfEqual(qUfSet);
@@ -4951,7 +5093,7 @@
       if (!isEditingOsmosi() && !srcOsm && deviceAutoControlled("osmosi")) {
         const qDemand = permeateDemandOut();
         let qOsm = qDemand;
-        if (p11019Allowed() && (!__allowUfByTk11021 || qP19 < 0.05)) {
+        if (p11019Allowed() && (!__allowUfByTk11021 || qP19Plant < 0.05 || qP19Pump < 0.05)) {
           qOsm = Math.max(qOsm, linePermeateCapacity());
         }
         applyOsmosiAutoFlows(qOsm);
@@ -5442,9 +5584,9 @@
           || Math.abs(qMandata - qPumpEff2) <= 0.25
           || el("equiparaMandata").checked
           || !p11011Allowed();
-        const qUf = round1(sumUfs());
+        const qUf = round1(sumUfEffective());
         const qDemi = round1(OSM_IDS.reduce((s, id) => s + Math.max(0, num(id)), 0));
-        const downOk = Math.abs(qUf - totAvg) <= 0.6 && Math.abs(qDemi - totAvg) <= 0.6;
+        const downOk = Math.abs(procSetpointOf("qUfTotale") - totAvg) <= 0.6 && Math.abs(qDemi - totAvg) <= 0.6;
         if (!__chimicoAllowFill && ilRiemp.configured) {
           bar.className = "status danger";
           bar.textContent = `Stop riempimento A10620 ≥${fmtPct(ilRiemp.stopR)} · CHIMICO FERMO · riparte ≤${fmtPct(ilRiemp.startR)}`;
@@ -5594,16 +5736,98 @@
       });
     }
 
-    /** Schema UF: mostra portata viva (0 se ferme); popup resta sul setpoint. */
-    function paintUfSvgLive(qLiveTot) {
-      const tot = Math.max(0, round1(Number(qLiveTot) || 0));
+    function ufLavoroMin(letter) {
+      return Math.max(0.1, num("ufLavoroMin" + letter) || 20);
+    }
+    function ufLavaggioSec(letter) {
+      return Math.max(1, num("ufLavaggioSec" + letter) || 190);
+    }
+
+    /**
+     * Lavaggio UF sfalsato: ogni linea lavora `lavoro` min, poi ferma `lavaggio` s.
+     * Il primo lavaggio di B/C/D è ritardato di idx×lavaggio così non sono contemporanei.
+     */
+    function ufWashPhase(tMin, letter) {
+      const L = String(letter || "").toUpperCase();
+      const idx = Math.max(0, UF_LINES.indexOf(L));
+      const lavoro = ufLavoroMin(L);
+      const washSec = ufLavaggioSec(L);
+      const washMin = washSec / 60;
+      const cycle = lavoro + washMin;
+      const firstWash = lavoro + idx * washMin;
+      const t = Math.max(0, Number(tMin) || 0);
+      if (cycle < 0.2 || t + 1e-9 < firstWash) {
+        return { wash: false, remainSec: 0, toWashSec: Math.max(0, Math.ceil((firstWash - t) * 60)) };
+      }
+      let u = (t - firstWash) % cycle;
+      if (u < 0) u += cycle;
+      if (u < washMin - 1e-9) {
+        return { wash: true, remainSec: Math.max(0, Math.ceil((washMin - u) * 60)), toWashSec: 0 };
+      }
+      return { wash: false, remainSec: 0, toWashSec: Math.max(0, Math.ceil((cycle - u) * 60)) };
+    }
+
+    function ufLineInWash(tMin, letter) {
+      return !!ufWashPhase(tMin, letter).wash;
+    }
+
+    function ufLineEffective(letter) {
+      const L = String(letter || "").toUpperCase();
+      if (!p11019Allowed() || !__allowUfByTk11021) return 0;
+      if (ufLineInWash(__simMin, L)) return 0;
+      return procSetpointOf("qUf" + L);
+    }
+
+    function sumUfEffective() {
+      return round1(UF_LINES.reduce((s, L) => s + ufLineEffective(L), 0));
+    }
+
+    function paintUfWashUI() {
+      UF_LINES.forEach((L) => {
+        const wash = ufLineInWash(__simMin, L);
+        const body = el("svgUfBody" + L);
+        const fill = el("svgUfFill" + L);
+        const lab = el("svgUfLab" + L);
+        if (body) {
+          body.setAttribute("stroke", wash ? "#f87171" : "#7dd3fc");
+          body.setAttribute("fill", wash ? "#7f1d1d" : "#334155");
+        }
+        if (fill) {
+          fill.setAttribute("fill", wash ? "#991b1b" : "#0ea5e9");
+          fill.setAttribute("opacity", wash ? "0.7" : "0.55");
+        }
+        if (lab) lab.setAttribute("fill", wash ? "#fda4af" : "#7dd3fc");
+        const st = el("ufStatus" + L);
+        if (st) {
+          const ph = ufWashPhase(__simMin, L);
+          if (ph.wash) {
+            st.textContent = `LAVAGGIO · ferma ancora ~${ph.remainSec} s (su ${Math.round(ufLavaggioSec(L))} s)`;
+            st.style.color = "var(--danger)";
+          } else {
+            const minLeft = Math.max(0, Math.round(ph.toWashSec / 60));
+            st.textContent = `Lavoro · prox lavaggio tra ~${minLeft}′ (ciclo ${round1(ufLavoroMin(L))}′ + ${Math.round(ufLavaggioSec(L))} s, sfalsato)`;
+            st.style.color = "var(--ok)";
+          }
+        }
+        const badge = el("svgQUf" + L)?.closest("g")?.querySelector("rect.badge");
+        if (badge) badge.setAttribute("stroke", wash ? "#f87171" : "#7dd3fc");
+      });
+    }
+
+    /** Schema UF: portata viva per linea (0 in lavaggio / blocco); popup resta sul setpoint. */
+    function paintUfSvgLive() {
+      let tot = 0;
+      UF_LINES.forEach((L) => {
+        const q = ufLineEffective(L);
+        tot += q;
+        const node = el("svgQUf" + L);
+        if (node) node.textContent = round1(q).toFixed(1);
+      });
+      tot = round1(tot);
       const svg = el("svgQUf");
       if (svg) svg.textContent = tot.toFixed(1);
-      const each = UF_LINES.length ? round1(tot / UF_LINES.length) : 0;
-      UF_LINES.forEach((L) => {
-        const node = el("svgQUf" + L);
-        if (node) node.textContent = each.toFixed(1);
-      });
+      paintUfWashUI();
+      return tot;
     }
     function sumUfs() {
       return getUfs().reduce((s, u) => s + u.q, 0);
@@ -5627,12 +5851,10 @@
           paintUfPopupSetpoints();
         }
       }
-      // Popup = setpoint; schema = viva (0 se P11019/UF bloccate)
+      // Popup = setpoint; schema = viva per linea (0 in lavaggio / blocco)
       paintUfPopupSetpoints();
       const totSp = procSetpointOf("qUfTotale");
-      const liveOk = p11019Allowed() && __allowUfByTk11021;
-      const totLive = liveOk ? totSp : 0;
-      paintUfSvgLive(deviceIsManual("ultra") ? totSp : totLive);
+      paintUfSvgLive();
       // UF in manuale locale: allinea valle solo se osmosi non è manuale
       if ((source === "uf-linea" || source === "uf-totale") && deviceIsManual("ultra")) {
         const q = totSp;
@@ -5654,11 +5876,20 @@
 
     function buildUfInputs() {
       const wrap = el("ufInputs");
+      if (!wrap) return;
       wrap.innerHTML = "";
       const startEach = round1(num("qUfTotale") / UF_LINES.length);
       UF_LINES.forEach((m) => {
-        const lab = document.createElement("label");
-        lab.innerHTML = `<strong>UF ${m} — ingresso (m³/h)</strong>`;
+        const box = document.createElement("div");
+        box.className = "settings-block";
+        box.style.margin = "0.55rem 0";
+        const title = document.createElement("div");
+        title.className = "settings-title";
+        title.textContent = `UF ${m}`;
+        box.appendChild(title);
+
+        const labQ = document.createElement("label");
+        labQ.innerHTML = `<strong>Ingresso (m³/h)</strong>`;
         const inp = document.createElement("input");
         inp.type = "number";
         inp.id = "qUf" + m;
@@ -5669,8 +5900,51 @@
         inp.className = "uf-q";
         inp.inputMode = "decimal";
         inp.addEventListener("input", () => syncUf("uf-linea"));
-        lab.appendChild(inp);
-        wrap.appendChild(lab);
+        labQ.appendChild(inp);
+        box.appendChild(labQ);
+
+        const labLav = document.createElement("label");
+        labLav.innerHTML = `<strong>Tempo lavoro prima del lavaggio (min)</strong>`;
+        const inpLav = document.createElement("input");
+        inpLav.type = "number";
+        inpLav.id = "ufLavoroMin" + m;
+        inpLav.min = "0.1";
+        inpLav.max = "600";
+        inpLav.step = "0.1";
+        inpLav.value = "20";
+        inpLav.inputMode = "decimal";
+        inpLav.addEventListener("input", () => {
+          paintUfSvgLive();
+          schedulePersist();
+        });
+        labLav.appendChild(inpLav);
+        box.appendChild(labLav);
+
+        const labWash = document.createElement("label");
+        labWash.innerHTML = `<strong>Durata lavaggio (s) — UF ferma</strong>`;
+        const inpWash = document.createElement("input");
+        inpWash.type = "number";
+        inpWash.id = "ufLavaggioSec" + m;
+        inpWash.min = "1";
+        inpWash.max = "3600";
+        inpWash.step = "1";
+        inpWash.value = "190";
+        inpWash.inputMode = "numeric";
+        inpWash.addEventListener("input", () => {
+          paintUfSvgLive();
+          schedulePersist();
+        });
+        labWash.appendChild(inpWash);
+        box.appendChild(labWash);
+
+        const st = document.createElement("p");
+        st.className = "mini";
+        st.id = "ufStatus" + m;
+        st.textContent = "Lavoro · prox lavaggio ogni 20′ (sfalsato)";
+        st.style.color = "var(--ok)";
+        box.appendChild(st);
+
+        wrap.appendChild(box);
       });
     }
 
@@ -5728,6 +6002,7 @@
       riciclo: el("popRiciclo"),
       membrane: el("popMembrane"),
       permeato: el("popPermeato"),
+      p11019: el("popP11019"),
       tk11021: el("popTk11021"),
       ultra: el("popUltra"),
       osmosi: el("popOsmosi"),
@@ -5757,6 +6032,8 @@
         ["viewStopRiempTk11007b", "stopRiempTk11007"],
         ["viewStartSvuotTk11007", "startSvuotTk11007"],
         ["viewStopSvuotTk11007", "stopSvuotTk11007"],
+        ["viewStartSvuotTk11007c", "startSvuotTk11007"],
+        ["viewStopSvuotTk11007c", "stopSvuotTk11007"],
         ["viewStartRiempTk11021", "startRiempTk11021"],
         ["viewStopRiempTk11021", "stopRiempTk11021"],
         ["viewStartRiempTk11021b", "startRiempTk11021"],
@@ -5864,7 +6141,11 @@
         try { popups[name].scrollTop = 0; } catch (_) { /* ignore */ }
       }
       syncScrollLock();
-      if (name === "pompe" || name === "mandata" || name === "processo" || name === "riciclo" || name === "membrane" || name === "permeato" || name === "tk11021" || name === "ultra") refreshProcViews();
+      if (name === "pompe" || name === "mandata" || name === "processo" || name === "riciclo" || name === "membrane" || name === "permeato" || name === "p11019" || name === "tk11021" || name === "ultra") refreshProcViews();
+      if (name === "p11019") {
+        if (!isEditing("qP11019")) setVal("qP11019", flowSetpointOf("qP11019"), { force: true });
+        paintP11019SplitUI();
+      }
       if (name === "ultra") {
         paintUfPopupSetpoints();
         syncUf("uf-totale");
@@ -5894,13 +6175,21 @@
 
     document.querySelectorAll(".node[data-popup]").forEach((node) => {
       const open = (e) => {
-        if (e.target.closest && e.target.closest(".flow-edit")) return;
-        openPopup(node.dataset.popup);
+        try {
+          const t = e.target;
+          if (t && t.closest && t.closest(".flow-edit")) return;
+        } catch (_) { /* SVG senza closest su target rari */ }
+        const name = node.getAttribute("data-popup") || node.dataset.popup;
+        if (name) openPopup(name);
         if (node.blur) node.blur();
       };
       node.addEventListener("click", open);
       node.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openPopup(node.dataset.popup); }
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          const name = node.getAttribute("data-popup") || node.dataset.popup;
+          if (name) openPopup(name);
+        }
       });
     });
 
@@ -5921,7 +6210,8 @@
       qMandata: "Mandata MP 11036",
       qMemTotale: "Totale membrane ON",
       qRecycle: "Riciclo 11014 A/B",
-      qP11019: "P11019",
+      qP11019: "P11019 set pompe",
+      qP11019Ias: "P11019 verso IAS",
       qUfTotale: "Totale UF",
       qUfA: "UF linea A",
       qUfB: "UF linea B",
@@ -6391,6 +6681,32 @@
     });
     el("qPump").addEventListener("blur", commitPump);
 
+    el("qP11019")?.addEventListener("input", () => {
+      if (numOrNull("qP11019") === null) return;
+      const v = Math.max(0, num("qP11019"));
+      rememberFlowSetpoint("qP11019", v);
+      commitFlow("qP11019", p11019Allowed() ? v : 0, { setpoint: v });
+      // IAS non può superare il set pompe
+      if (num("qP11019Ias") > v + 0.05) {
+        setVal("qP11019Ias", v, { force: true });
+      }
+      paintP11019SplitUI();
+      try { syncDownstreamPermeate(null, "p11019"); } catch (_) { /* ignore */ }
+      schedulePersist();
+    });
+    el("qP11019Ias")?.addEventListener("input", () => {
+      if (numOrNull("qP11019Ias") === null) return;
+      const pump = qP11019Setpoint();
+      let ias = Math.max(0, num("qP11019Ias"));
+      if (ias > pump + 0.05) {
+        ias = pump;
+        setVal("qP11019Ias", ias, { force: true });
+      }
+      paintP11019SplitUI();
+      try { syncDownstreamPermeate(null, "p11019"); } catch (_) { /* ignore */ }
+      schedulePersist();
+    });
+
     el("qIn").addEventListener("input", () => {
       if (numOrNull("qIn") === null) return;
       applyBalance("ingresso");
@@ -6578,8 +6894,10 @@
       appId: "1:844169156848:web:91b6c4e08900a350078a35",
     };
     const PERSIST_IDS = [
-      "qIn", "qPump", "qMandata", "qMemTotale", "qUfTotale", "qP11019",
+      "qIn", "qPump", "qMandata", "qMemTotale", "qUfTotale", "qP11019", "qP11019Ias",
       "qOsmosiA", "qOsmosiB", "qOsmosiC",
+      "ufLavoroMinA", "ufLavoroMinB", "ufLavoroMinC", "ufLavoroMinD",
+      "ufLavaggioSecA", "ufLavaggioSecB", "ufLavaggioSecC", "ufLavaggioSecD",
       "cicloLavoro", "cicloPausa", "freqHz", "freqMaxHz",
       "livelloAttuale", "livelloAttualeA10611",
       "startRiempA10620", "stopRiempA10620", "startSvuotA10620", "stopSvuotA10620",
@@ -6943,7 +7261,7 @@
       }
     } catch (_) { /* ok */ }
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt34", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt36", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
