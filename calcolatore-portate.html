@@ -6936,6 +6936,28 @@
         labWash.appendChild(inpWash);
         box.appendChild(labWash);
 
+        const addOre = (id, label, val) => {
+          const lab = document.createElement("label");
+          lab.innerHTML = `<strong>${label}</strong>`;
+          const inp = document.createElement("input");
+          inp.type = "number";
+          inp.id = id;
+          inp.min = "0.1";
+          inp.max = "720";
+          inp.step = "1";
+          inp.value = String(val);
+          inp.inputMode = "decimal";
+          inp.addEventListener("input", () => {
+            paintUfSvgLive();
+            schedulePersist();
+          });
+          lab.appendChild(inp);
+          box.appendChild(lab);
+        };
+        addOre("ufCevOre" + m, "Tempo di lavoro per avvio CEV con ipoclorito (h)", 21);
+        addOre("ufCebOre" + m, "Tempo di lavoro per avvio CEB con soda (h)", 23);
+        addOre("ufAcidoOre" + m, "Tempo di lavoro per avvio con acido (h)", 24);
+
         const st = document.createElement("p");
         st.className = "mini";
         st.id = "ufStatus" + m;
@@ -8089,6 +8111,9 @@
       "qOsmosiA", "qOsmosiB", "qOsmosiC",
       "ufLavoroMinA", "ufLavoroMinB", "ufLavoroMinC", "ufLavoroMinD",
       "ufLavaggioSecA", "ufLavaggioSecB", "ufLavaggioSecC", "ufLavaggioSecD",
+      "ufCevOreA", "ufCevOreB", "ufCevOreC", "ufCevOreD",
+      "ufCebOreA", "ufCebOreB", "ufCebOreC", "ufCebOreD",
+      "ufAcidoOreA", "ufAcidoOreB", "ufAcidoOreC", "ufAcidoOreD",
       "cicloLavoro", "cicloPausa", "freqHz", "freqMaxHz",
       "livelloAttuale", "livelloAttualeA10611",
       "startRiempA10620", "stopRiempA10620", "startSvuotA10620", "stopSvuotA10620",
@@ -8555,7 +8580,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt56", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt57", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
