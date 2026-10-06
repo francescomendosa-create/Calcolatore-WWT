@@ -266,6 +266,38 @@
       animation: flow-down 1.7s linear infinite;
       stroke: #bae6fd;
     }
+    .carb-bubbles { pointer-events: none; }
+    .carb-bubbles .carb-bubble {
+      fill: #e0f2fe;
+      opacity: 0;
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+    .carb-bubbles.is-gurgle .carb-bubble {
+      opacity: 0.65;
+      animation: carb-gurgle-up 2.4s ease-in infinite;
+    }
+    .carb-bubbles.is-gurgle.is-reverse .carb-bubble {
+      animation: carb-gurgle-down 2s ease-in infinite;
+    }
+    .carb-bubbles .carb-bubble:nth-child(2) { animation-delay: 0.4s; }
+    .carb-bubbles .carb-bubble:nth-child(3) { animation-delay: 0.9s; }
+    .carb-bubbles .carb-bubble:nth-child(4) { animation-delay: 1.3s; }
+    .carb-bubbles .carb-bubble:nth-child(5) { animation-delay: 1.7s; }
+    .carb-bubbles .carb-bubble:nth-child(6) { animation-delay: 2.1s; }
+    @keyframes carb-gurgle-up {
+      0%   { transform: translateY(0); opacity: 0.15; }
+      35%  { opacity: 0.75; }
+      100% { transform: translateY(-52px); opacity: 0; }
+    }
+    @keyframes carb-gurgle-down {
+      0%   { transform: translateY(-48px); opacity: 0.15; }
+      35%  { opacity: 0.75; }
+      100% { transform: translateY(8px); opacity: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .carb-bubbles.is-gurgle .carb-bubble { animation: none; opacity: 0.4; }
+    }
     @keyframes flow-rtl { to { stroke-dashoffset: 28; } }
     @keyframes flow-up { to { stroke-dashoffset: -28; } }
     @keyframes flow-down { to { stroke-dashoffset: 28; } }
@@ -1408,8 +1440,16 @@
             <path d="M726 478 L749 500 L772 478 Z" fill="#1e293b" stroke="#94a3b8" stroke-width="1.3" pointer-events="none" />
             <rect id="svgCarbBodyA" x="724" y="370" width="50" height="110" rx="3" fill="#334155" stroke="#94a3b8" stroke-width="1.5" pointer-events="none" />
             <clipPath id="clipCarbFlowA"><rect x="728" y="382" width="42" height="92" rx="2" /></clipPath>
-            <rect id="svgCarbWaterA" x="728" y="402" width="42" height="72" rx="2" fill="#0ea5e9" opacity="0.55" pointer-events="none" />
-            <rect id="svgCarbFillA" x="730" y="412" width="38" height="42" rx="2" fill="#64748b" opacity="0.55" pointer-events="none" />
+            <rect id="svgCarbWaterA" x="728" y="388" width="42" height="86" rx="2" fill="#0ea5e9" opacity="0.58" pointer-events="none" />
+            <rect id="svgCarbFillA" x="730" y="412" width="38" height="42" rx="2" fill="#64748b" opacity="0.45" pointer-events="none" />
+            <g id="svgCarbBubblesA" class="carb-bubbles is-gurgle" clip-path="url(#clipCarbFlowA)" pointer-events="none">
+              <circle class="carb-bubble" cx="735" cy="455" r="1.6" />
+              <circle class="carb-bubble" cx="744" cy="462" r="1.2" />
+              <circle class="carb-bubble" cx="752" cy="450" r="1.8" />
+              <circle class="carb-bubble" cx="760" cy="458" r="1.3" />
+              <circle class="carb-bubble" cx="738" cy="468" r="1.1" />
+              <circle class="carb-bubble" cx="756" cy="465" r="1.5" />
+            </g>
             <g id="svgCarbFlowA" class="flow-water" clip-path="url(#clipCarbFlowA)" pointer-events="none">
               <path class="flow-line" d="M735 472 V388" />
               <path class="flow-line" d="M749 472 V388" />
@@ -1428,8 +1468,16 @@
             <path d="M786 478 L809 500 L832 478 Z" fill="#1e293b" stroke="#94a3b8" stroke-width="1.3" pointer-events="none" />
             <rect id="svgCarbBodyB" x="784" y="370" width="50" height="110" rx="3" fill="#334155" stroke="#94a3b8" stroke-width="1.5" pointer-events="none" />
             <clipPath id="clipCarbFlowB"><rect x="788" y="382" width="42" height="92" rx="2" /></clipPath>
-            <rect id="svgCarbWaterB" x="788" y="402" width="42" height="72" rx="2" fill="#0ea5e9" opacity="0.55" pointer-events="none" />
-            <rect id="svgCarbFillB" x="790" y="412" width="38" height="42" rx="2" fill="#64748b" opacity="0.55" pointer-events="none" />
+            <rect id="svgCarbWaterB" x="788" y="388" width="42" height="86" rx="2" fill="#0ea5e9" opacity="0.58" pointer-events="none" />
+            <rect id="svgCarbFillB" x="790" y="412" width="38" height="42" rx="2" fill="#64748b" opacity="0.45" pointer-events="none" />
+            <g id="svgCarbBubblesB" class="carb-bubbles is-gurgle" clip-path="url(#clipCarbFlowB)" pointer-events="none">
+              <circle class="carb-bubble" cx="795" cy="455" r="1.6" />
+              <circle class="carb-bubble" cx="804" cy="462" r="1.2" />
+              <circle class="carb-bubble" cx="812" cy="450" r="1.8" />
+              <circle class="carb-bubble" cx="820" cy="458" r="1.3" />
+              <circle class="carb-bubble" cx="798" cy="468" r="1.1" />
+              <circle class="carb-bubble" cx="816" cy="465" r="1.5" />
+            </g>
             <g id="svgCarbFlowB" class="flow-water" clip-path="url(#clipCarbFlowB)" pointer-events="none">
               <path class="flow-line" d="M795 472 V388" />
               <path class="flow-line" d="M809 472 V388" />
@@ -2949,6 +2997,13 @@
     let __flowAnimating = false;
     const __flowAnimFrom = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 140 };
     const __flowAnimTo = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 140 };
+    /** Totale membrane ON (badge): rampa veloce quando una/due vanno in pausa. */
+    const MEM_PERM_RAMP_MS = 380;
+    let __qMemPermLive = null;
+    let __qMemPermDesire = 0;
+    let __qMemPermRaf = null;
+    let __qMemPermAnimStart = 0;
+    let __qMemPermAnimFrom = 0;
     let inlineCtx = null;
     let __run11036 = true;       // effettivo: A10611 OK ∧ MBR riempimento OK
     let __run11036Tank = true;   // isteresi 11036 su A10611 (80/88)
@@ -3199,6 +3254,43 @@
         __flowAnimRaf = requestAnimationFrame(tickFlowTween);
       }
       // se già in corso: ritarget da valore attuale, stesso clock ripartito
+    }
+
+    function paintMemPermLive(v) {
+      __qMemPermLive = round1(Math.max(0, Number(v) || 0));
+      const svg = el("svgQMem");
+      if (svg) svg.textContent = __qMemPermLive.toFixed(1);
+    }
+
+    /** Scende/sale velocemente il totale membrane sullo schema (pause ciclo). */
+    function kickMemPermTween(target) {
+      const tgt = round1(Math.max(0, Number(target) || 0));
+      __qMemPermDesire = tgt;
+      if (__qMemPermLive == null) {
+        paintMemPermLive(tgt);
+        return;
+      }
+      if (Math.abs(__qMemPermLive - tgt) < 0.08) {
+        paintMemPermLive(tgt);
+        return;
+      }
+      __qMemPermAnimFrom = __qMemPermLive;
+      __qMemPermAnimStart = performance.now();
+      if (__qMemPermRaf == null) {
+        __qMemPermRaf = requestAnimationFrame(tickMemPermTween);
+      }
+    }
+
+    function tickMemPermTween(ts) {
+      const t = Math.min(1, (ts - __qMemPermAnimStart) / MEM_PERM_RAMP_MS);
+      const e = 1 - (1 - t) * (1 - t); // ease-out: veloce all’inizio
+      paintMemPermLive(__qMemPermAnimFrom + (__qMemPermDesire - __qMemPermAnimFrom) * e);
+      if (t < 1) {
+        __qMemPermRaf = requestAnimationFrame(tickMemPermTween);
+      } else {
+        __qMemPermRaf = null;
+        paintMemPermLive(__qMemPermDesire);
+      }
     }
 
     /**
@@ -5674,6 +5766,11 @@
       resetUfChem();
       resetCarbWash();
       resetQInWobble();
+      if (__qMemPermRaf != null) {
+        cancelAnimationFrame(__qMemPermRaf);
+        __qMemPermRaf = null;
+      }
+      __qMemPermLive = null;
       __runMbrByLevel = true;
       __allowMbrByPermeate = true;
       __runP11019By07 = true;
@@ -6810,7 +6907,7 @@
           svgQRec.textContent = round1(__flowLive.qRecycle != null ? __flowLive.qRecycle : qRecycle).toFixed(0);
         }
         const svgQMem = el("svgQMem");
-        if (svgQMem) svgQMem.textContent = totOn.toFixed(1);
+        if (svgQMem) kickMemPermTween(totOn);
         const svgAvg = el("svgQAvg");
         if (svgAvg) svgAvg.textContent = totAvg.toFixed(1);
         const svgLiv = el("svgLiv");
@@ -7322,24 +7419,25 @@
           fill.setAttribute("fill", washing ? "#a16207" : "#64748b");
           fill.setAttribute("opacity", washing ? "0.45" : "0.55");
         }
-        // Acqua nel filtro: visibile in servizio / lavaggio; livello più alto in lavaggio
+        // Acqua SEMPRE nel filtro (non si svuota) + gorgoglio bolle
         if (water) {
-          const wet = washing || serviceFlow;
-          const y0 = 382;
-          const hMax = 92;
-          const frac = !wet ? 0.12 : (washing ? 0.92 : 0.78);
-          const h = Math.max(4, hMax * frac);
-          water.setAttribute("y", String(y0 + hMax - h));
-          water.setAttribute("height", String(h));
+          water.setAttribute("y", "388");
+          water.setAttribute("height", "86");
           water.setAttribute("fill", washing
             ? (st.phase === "ctrl" ? "#38bdf8" : "#22d3ee")
             : "#0ea5e9");
-          water.setAttribute("opacity", wet ? (washing ? "0.72" : "0.55") : "0.22");
+          water.setAttribute("opacity", washing ? "0.72" : "0.58");
         }
-        // Movimento: controlavaggio ↓ · lavaggio ↑ · servizio quieto (nessuna animazione)
+        const bubbles = el("svgCarbBubbles" + L);
+        if (bubbles) {
+          bubbles.classList.add("is-gurgle");
+          // controlavaggio = gorgoglio al contrario (verso il basso)
+          bubbles.classList.toggle("is-reverse", go && st.phase === "ctrl");
+        }
+        // Flusso linee: servizio/lavaggio ↑ · controlavaggio ↓ (contrario)
         if (flowRoot) {
           if (go && st.phase === "ctrl") setWaterFlow(flowRoot, true, "down");
-          else if (go && st.phase === "lav") setWaterFlow(flowRoot, true, "up");
+          else if (go && (st.phase === "lav" || serviceFlow)) setWaterFlow(flowRoot, true, "up");
           else setWaterFlow(flowRoot, false);
         }
         if (status) {
@@ -9901,7 +9999,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt87", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt89", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
