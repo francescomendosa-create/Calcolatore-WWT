@@ -1732,11 +1732,11 @@
             </g>
           </g>
           <text id="svgPump11019Label" x="910" y="485" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700" pointer-events="none">P11019 A/B/C</text>
+          <text id="svgP11019IasOpen" x="908" y="490" text-anchor="middle" fill="#fbbf24" font-size="8" font-weight="800" opacity="0" pointer-events="none">Aperto IAS</text>
           <g pointer-events="none">
-            <rect class="badge" id="svgQP11019Badge" x="860" y="492" width="96" height="36" rx="5" stroke="#4ade80" />
-            <text class="badge-label" x="908" y="504" text-anchor="middle">IMPIANTO</text>
-            <text class="badge-val" x="888" y="520" text-anchor="middle" id="svgQP11019" font-size="12">0.0</text>
-            <text class="badge-unit" x="922" y="520" text-anchor="middle">m³/h</text>
+            <rect class="badge" id="svgQP11019Badge" x="860" y="494" width="96" height="32" rx="5" stroke="#4ade80" />
+            <text class="badge-val" x="888" y="515" text-anchor="middle" id="svgQP11019" font-size="12">140.0</text>
+            <text class="badge-unit" x="922" y="515" text-anchor="middle">m³/h</text>
           </g>
           <path class="pipe pipe-main" d="M870 415 H834" pointer-events="none" />
         </g>
@@ -3255,10 +3255,10 @@
         <span>POMPE — P11019 A/B/C</span>
         <small>da TK 11007 · verso carboni / IAS</small>
       </button>
-      <label><strong>Set portata pompe P11019 (m³/h) · min 140</strong>
-        <input type="number" id="qP11019" min="140" max="500" step="1" value="140" inputmode="decimal" />
+      <label><strong>Set portata pompe P11019 (m³/h)</strong>
+        <input type="number" id="qP11019" min="0" max="500" step="1" value="140" inputmode="decimal" />
       </label>
-      <p class="mini">In <strong>Automatico</strong> le pompe partono a <strong>140 m³/h</strong>. Apri <strong>IAS</strong>: si sottrae dal totale; <strong>Impianto / carboni</strong> = 140 − IAS. In Manuale il set resta ≥ 140.</p>
+      <p class="mini">In <strong>Automatico</strong> le pompe partono a <strong>140 m³/h</strong>. In Manuale puoi scendere anche sotto (es. 80–90) senza aprire IAS. <strong>IAS</strong> si apre solo se lo imposti tu: Impianto/carboni = set pompe − IAS. Overview = set pompe; se IAS &gt; 0 compare «Aperto IAS».</p>
 
       <svg class="p11019-split" viewBox="0 0 400 150" aria-label="Schizzo split Impianto / IAS">
         <text x="200" y="16" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="700">P11019 → destinazioni · tocca per modificare</text>
@@ -3297,7 +3297,7 @@
           <input type="number" id="qP11019Impianto" min="0" max="500" step="0.1" value="" placeholder="" inputmode="decimal" />
         </label>
       </div>
-      <p class="mini" id="p11019SplitHint">Tocca IAS o Impianto (schizzo o campi): la differenza chiude sul ramo opposto. Set pompe invariato. Overview = solo Impianto.</p>
+      <p class="mini" id="p11019SplitHint">Tocca IAS per aprirlo (sottrae dal set pompe). Cambiare il set pompe con IAS a 0 non apre IAS. Overview = set pompe.</p>
       <div class="settings-block show">
         <h4>TK 11007 — consenso (da PROCESSO)</h4>
         <div class="row">
@@ -3320,7 +3320,12 @@
     const Q_FREQ_MIN = 42; // Automatico: minimo processo P11011
     const Q_FREQ_ABS_MIN = 0; // Manuale: puoi impostare anche sotto 42 Hz
     const Q_RECYCLE_MIN = 100; // Automatico: riciclo fanghi minimo (P11011 − ingresso)
-    const Q_P11019_MIN = 140; // P11019 A/B/C: portata pompe minima (auto = 140; IAS si sottrae → Impianto)
+    const Q_P11019_MIN = 140; // default Automatico (non pavimento assoluto in Manuale)
+
+    /** Pavimento set P11019: Auto = 140; Manuale = libero (≥ 0). */
+    function qP11019Floor() {
+      return isAutoMode() ? Q_P11019_MIN : 0;
+    }
     const DEFAULT_REG_FREQ = {
       "50": 334, "49": 320, "48": 307, "47": 294, "46": 281, "45": 268,
       "44": 255, "43": 242, "42": 229,
@@ -3570,8 +3575,9 @@
       }
       if (id === "qP11019") {
         let s = Math.max(0, Number(__flowSetpoint.qP11019) || 0);
+        if (s < 0.05) s = Math.max(0, num("qP11019") || 0);
         if (s < 0.05) s = Q_P11019_MIN;
-        return round1(Math.max(Q_P11019_MIN, s));
+        return round1(Math.max(qP11019Floor(), s));
       }
       return Math.max(0, round1(num(id)));
     }
@@ -4179,17 +4185,15 @@
       node.setAttribute("data-warn", warn ? "1" : "0");
     }
 
-    /** Anteprima regolazione (sinistra di Sync): bene/male + dove sbagli, già prima dello Start. */
+    /** Anteprima regolazione (sinistra di Sync): sempre aggiornata a ogni variazione / Reset. */
     function paintRegPreviewBar() {
       if (__simBusy || __simPlaying) return;
       const bar = el("statusBar");
       if (!bar) return;
-      // Lascia i messaggi di blocco vivo (più urgenti)
-      if (!__chimicoAllowFill || __blockP11011By11) return;
+      bar.setAttribute("data-clickable", "1");
       try {
         const fc = forecastChimicoHorizon(BLOCK_FORECAST_HORIZON);
         const adv = buildHorizonAdvice(fc);
-        bar.setAttribute("data-clickable", "1");
         if (fc.ok) {
           bar.className = "status";
           bar.textContent = "Regolato bene · 8 h OK";
@@ -4199,7 +4203,11 @@
           bar.textContent = shortRegPreviewBad(adv, fc);
           bar.title = (adv.verdict || "Regolazione da correggere") + " — clic per dettaglio / Sì-No";
         }
-      } catch (_) { /* ignore */ }
+      } catch (_) {
+        bar.className = "status warn";
+        bar.textContent = "Regolazione · in aggiornamento…";
+        bar.title = "Clic: dettaglio previsione 8 ore";
+      }
     }
 
     function shortRegPreviewBad(adv, fc) {
@@ -5578,10 +5586,10 @@
       return !!__runP11019By07;
     }
 
-    /** Setpoint P11019: Automatico = 140 m³/h; Manuale ≥ 140. IAS si sottrae → Impianto. */
+    /** Setpoint P11019: Automatico = 140; Manuale = set libero (≥ 0). IAS si sottrae → Impianto. */
     function qP11019Setpoint() {
-      if (!isAutoMode()) return Math.max(Q_P11019_MIN, flowSetpointOf("qP11019"));
-      return Q_P11019_MIN;
+      if (isAutoMode()) return Q_P11019_MIN;
+      return Math.max(0, flowSetpointOf("qP11019"));
     }
 
     /** Portata effettiva pompe P11019 (OUT TK-11007): 0 se stop svuotamento; altrimenti setpoint. */
@@ -5600,10 +5608,29 @@
       let s = Math.max(0, Number(__flowSetpoint.qP11019) || 0);
       if (s < 0.05) s = Math.max(0, num("qP11019") || 0);
       if (s < 0.05) s = Q_P11019_MIN;
-      s = Math.max(Q_P11019_MIN, Math.round(s));
-      if (s > 500) s = 500;
+      s = Math.round(Math.min(500, Math.max(0, s)));
       __flowSetpoint.qP11019 = s;
       return s;
+    }
+
+    /** Dopo cambio set pompe: IAS resta (clamp ≤ set), Impianto = set − IAS. Non apre IAS. */
+    function syncP11019SplitKeepIas() {
+      const pump = qP11019SplitPumpMem();
+      let ias = Math.max(0, Math.round(Number(__flowSetpoint.qP11019Ias) || 0));
+      if (ias > pump + 0.05) ias = pump;
+      rememberFlowSetpoint("qP11019Ias", ias, { allowZero: true });
+      const imp = Math.max(0, pump - ias);
+      rememberFlowSetpoint("qP11019Impianto", imp, { allowZero: true });
+      if (!isEditing("qP11019Ias")) {
+        const n = el("qP11019Ias");
+        if (n) n.value = ias > 0.05 ? String(ias) : "";
+      }
+      if (!isEditing("qP11019Impianto")) {
+        const n = el("qP11019Impianto");
+        if (n) n.value = imp > 0.05 ? String(imp) : "";
+      }
+      paintP11019SplitUI();
+      return { pump, ias, imp };
     }
 
     /** Pulisce IAS/Impianto spurii (es. 1981 da concatenazione numpad). */
@@ -5714,12 +5741,15 @@
       const popImp = el("svgPopP11019Imp");
       if (popImp) popImp.textContent = fmtSet(impSp);
 
-      // Schema sotto le pompe: SOLO portata viva Impianto. Pompe ferme / Stop → 0.0
+      // Overview: sempre il SET pompe (massimo); non azzerare a pompe ferme.
       const ov = el("svgQP11019");
-      if (ov) {
-        const running = plantIsStarted() && p11019Allowed() && pumpL > 0.05;
-        const shown = running ? Math.min(impL, pumpSp) : 0;
-        ov.textContent = round1(shown).toFixed(1);
+      if (ov) ov.textContent = round1(pumpSp).toFixed(1);
+
+      const iasOpen = el("svgP11019IasOpen");
+      if (iasOpen) {
+        const open = iasSp > 0.05;
+        iasOpen.setAttribute("opacity", open ? "1" : "0");
+        iasOpen.textContent = open ? "Aperto IAS" : "";
       }
 
       const hint = el("p11019SplitHint");
@@ -5727,7 +5757,7 @@
         const running = plantIsStarted() && p11019Allowed();
         hint.textContent = running
           ? `Set pompe ${pumpSp} = Impianto ${impSp} + IAS ${iasSp} m³/h · viva Impianto ${impL.toFixed(1)}`
-          : `P11019 FERME · sul misuratore Impianto = 0 · set in memoria ${pumpSp} (IAS ${iasSp} · Impianto ${impSp})`;
+          : `P11019 FERME · overview = set ${pumpSp} · IAS ${iasSp} · Impianto ${impSp}`;
         hint.style.color = running ? "var(--ok)" : "var(--danger)";
       }
     }
@@ -5735,14 +5765,14 @@
     /** Applica marcia P11019 dal solo livello TK-11007 (mai dalle membrane). */
     function applyP11019RunFromLevel() {
       updateTk11007PumpInterlocks(numOrNull("livelloAttualeTk11007") ?? 91);
-      const qSet = Math.max(Q_P11019_MIN, qP11019Setpoint(), qP11019SplitPumpMem());
+      const qSet = qP11019Setpoint();
       rememberFlowSetpoint("qP11019", qSet);
       if (!p11019Allowed()) {
         commitFlow("qP11019", 0, { setpoint: qSet });
       } else if (!isEditing("qP11019")) {
         commitFlow("qP11019", qSet, { setpoint: qSet });
       }
-      paintP11019SplitUI();
+      syncP11019SplitKeepIas();
       return p11019Allowed();
     }
 
@@ -7341,11 +7371,8 @@
       paintA10608Passante();
       updateSimTimeUI();
 
-      const bar = el("statusBar");
-      if (bar) {
-        bar.className = "status";
-        bar.textContent = `Reset · A10620/A10611/A11004 = ${txt}% · t=0′ · premi +1′`;
-      }
+      try { paintRegPreviewBar(); } catch (_) { /* ok */ }
+      try { updateChimicoBlockUI(); } catch (_) { /* ok */ }
 
       try {
         const payload = collectPersistPayload(true);
@@ -7364,11 +7391,7 @@
         paintResetLevelsUI(L);
         paintPumpColors();
         paintA10608Passante();
-        const b = el("statusBar");
-        if (b && Date.now() < __resetGuardUntil) {
-          b.className = "status";
-          b.textContent = `Reset · A10620/A10611/A11004 = ${txt}% · t=0′ · premi +1′`;
-        }
+        try { paintRegPreviewBar(); } catch (_) { /* ok */ }
       };
       setTimeout(reaffirm, 30);
       setTimeout(reaffirm, 200);
@@ -8451,6 +8474,10 @@
 
         const bar = el("statusBar");
         if (!bar) return;
+        // A impianto fermo: solo consiglio regolazione 8 h (ogni variazione / Reset).
+        if (!__simPlaying && !__simBusy) {
+          try { paintRegPreviewBar(); } catch (_) { /* ok */ }
+        } else {
         const pumpOk = !p11011Allowed() || qPumpEff2 + 0.05 >= qInSet + Q_RECYCLE_MIN;
         const aboveMin = !p11011Allowed() || qPumpEff2 + 0.05 >= getPumpMin();
         const mandOk = !__run11036
@@ -8528,8 +8555,7 @@
               ? `TOT ON ${totOn.toFixed(1)}/${maxM.toFixed(1)} (−${offN} memb.)`
               : `TOT ON ${totOn.toFixed(1)} (tutte ON)`);
           bar.textContent = `t=${__simMin}′ · ${outTxt} · ` + bar.textContent;
-        } else {
-          try { paintRegPreviewBar(); } catch (_) { /* ok */ }
+        }
         }
       } finally {
         endFlowStep();
@@ -10464,13 +10490,13 @@
         return;
       }
       if (field === "qP11019") {
-        const q19 = Math.max(Q_P11019_MIN, Math.round(v));
+        const q19 = Math.max(qP11019Floor(), Math.round(v));
         rememberFlowSetpoint("qP11019", q19);
         commitFlow("qP11019", p11019Allowed() ? q19 : 0, {
           instant: true,
           setpoint: q19,
         });
-        applyP11019SplitFrom("ias", Math.min(qP11019IasSetpoint(), q19));
+        syncP11019SplitKeepIas();
         return;
       }
       if (field === "qP11019Ias" || field === "qP11019Impianto") {
@@ -10572,13 +10598,13 @@
         return;
       }
       if (field === "qP11019") {
-        const q19 = Math.max(Q_P11019_MIN, Math.round(v));
+        const q19 = Math.max(qP11019Floor(), Math.round(v));
         rememberFlowSetpoint("qP11019", q19);
         commitFlow("qP11019", p11019Allowed() ? q19 : 0, {
           instant: true,
           setpoint: q19,
         });
-        applyP11019SplitFrom("ias", Math.min(qP11019IasSetpoint(), q19));
+        syncP11019SplitKeepIas();
         return;
       }
       if (field === "qP11019Ias") {
@@ -10870,15 +10896,12 @@
 
     el("qP11019")?.addEventListener("input", () => {
       if (numOrNull("qP11019") === null) return;
-      const v = Math.max(Q_P11019_MIN, num("qP11019"));
+      const v = Math.max(qP11019Floor(), Math.round(num("qP11019")));
       if (Math.abs(v - num("qP11019")) > 0.05) setVal("qP11019", v, { force: true });
       rememberFlowSetpoint("qP11019", v);
       commitFlow("qP11019", p11019Allowed() ? v : 0, { setpoint: v });
-      // IAS non può superare il set pompe
-      if (num("qP11019Ias") > v + 0.05) {
-        applyP11019SplitFrom("ias", v);
-      }
-      paintP11019SplitUI();
+      // Abbassare il set NON apre IAS: tiene IAS e ricalcola Impianto = set − IAS
+      syncP11019SplitKeepIas();
       try { syncDownstreamPermeate(null, "p11019"); } catch (_) { /* ignore */ }
       schedulePersist();
     });
@@ -11428,7 +11451,7 @@
           const qm = Math.max(0, num("qMandata") || lastQMandata || __flowSetpoint.qMandata || 0);
           if (qp > 0.05) rememberFlowSetpoint("qPump", qp);
           if (qm > 0.05) rememberFlowSetpoint("qMandata", qm);
-          const qp19 = Math.max(Q_P11019_MIN, num("qP11019") || __flowSetpoint.qP11019 || Q_P11019_MIN);
+          const qp19 = Math.max(qP11019Floor(), num("qP11019") || __flowSetpoint.qP11019 || Q_P11019_MIN);
           if (qp19 <= 500) rememberFlowSetpoint("qP11019", qp19);
           let ias = Math.max(0, num("qP11019Ias") || Number(data.qP11019Ias) || 0);
           if (ias > 500) ias = 0;
