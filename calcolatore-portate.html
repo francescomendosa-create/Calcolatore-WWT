@@ -1262,9 +1262,9 @@
           </g>
           <g transform="translate(360,479)">
             <rect x="7" y="-6" width="12" height="11" rx="1.5" fill="#334155" stroke="#94a3b8" stroke-width="1.1" />
-            <circle id="svgPump11040D" r="10" fill="#7f1d1d" stroke="#f87171" stroke-width="1.6" />
-            <path id="svgPump11040DArrow" d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#fecaca" />
-            <text id="svgPump11040DLabel" x="-22" y="4" text-anchor="middle" fill="#fda4af" font-size="9" font-weight="700">D</text>
+            <circle id="svgPump11040D" r="10" fill="#334155" stroke="#94a3b8" stroke-width="1.6" />
+            <path id="svgPump11040DArrow" d="M5,-5.5 L-7,0 L5,5.5 Z" fill="#cbd5e1" />
+            <text id="svgPump11040DLabel" x="-22" y="4" text-anchor="middle" fill="#94a3b8" font-size="9" font-weight="700">D</text>
           </g>
           <text id="svgPump11040Label" x="360" y="508" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700">P11040 A–D</text>
           <!-- prosegue vicino alle osmosi -->
@@ -2392,10 +2392,10 @@
 
       <div class="row">
         <label><strong>Verso IAS (m³/h)</strong>
-          <input type="number" id="qP11019Ias" min="0" max="500" step="0.1" value="0" inputmode="decimal" />
+          <input type="number" id="qP11019Ias" min="0" max="500" step="0.1" value="" placeholder="" inputmode="decimal" />
         </label>
         <label><strong>Verso Impianto / carboni (m³/h)</strong>
-          <input type="number" id="qP11019Impianto" min="0" max="500" step="0.1" value="0" inputmode="decimal" />
+          <input type="number" id="qP11019Impianto" min="0" max="500" step="0.1" value="" placeholder="" inputmode="decimal" />
         </label>
       </div>
       <p class="mini" id="p11019SplitHint">Tocca IAS o Impianto (schizzo o campi): la differenza chiude sul ramo opposto. Set pompe invariato. Overview = solo Impianto.</p>
@@ -2434,7 +2434,8 @@
     const __flowLive = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 0 };
     const __flowDesire = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 0 };
     /** Setpoint comando (popup modifica): resta anche a pompe ferme / portata viva = 0. */
-    const __flowSetpoint = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 0 };
+    const __flowSetpoint = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 0, qP11019Ias: 0, qP11019Impianto: 0 };
+    let __inlineSuppressLive = false; // non applicare 0 mentre si apre il tastierino
     /** Setpoint UF / osmosi (popup): restano anche a linee ferme / portata viva = 0. */
     const __procSetpoint = {
       qUfTotale: 0, qUfA: 0, qUfB: 0, qUfC: 0, qUfD: 0,
@@ -3523,10 +3524,11 @@
       return qP11019Setpoint();
     }
 
-    /** Set IAS (clamp ≤ set pompe). Parte da 0; se aumenta sottrae dall’Impianto. */
+    /** Set IAS (clamp ≤ set pompe). Usa la memoria comando, non la viva a 0. */
     function qP11019IasSetpoint() {
       const pump = Math.max(0, qP11019Setpoint());
-      let ias = Math.max(0, num("qP11019Ias") || 0);
+      let ias = Math.max(0, Number(__flowSetpoint.qP11019Ias) || 0);
+      if (ias < 0.05) ias = Math.max(0, num("qP11019Ias") || 0);
       if (ias > pump + 0.05) ias = pump;
       return round1(ias);
     }
@@ -3561,13 +3563,21 @@
       const pump = Math.max(0, qP11019Setpoint());
       let v = Math.max(0, round1(Number(raw) || 0));
       if (v > pump + 0.05) v = pump;
+      let ias;
+      let imp;
       if (which === "impianto") {
-        setVal("qP11019Impianto", v, { force: true });
-        setVal("qP11019Ias", round1(pump - v), { force: !isEditing("qP11019Ias") });
+        imp = v;
+        ias = round1(pump - v);
       } else {
-        setVal("qP11019Ias", v, { force: true });
-        setVal("qP11019Impianto", round1(pump - v), { force: !isEditing("qP11019Impianto") });
+        ias = v;
+        imp = round1(pump - v);
       }
+      if (ias > 0.05) rememberFlowSetpoint("qP11019Ias", ias);
+      else __flowSetpoint.qP11019Ias = 0;
+      if (imp > 0.05) rememberFlowSetpoint("qP11019Impianto", imp);
+      else __flowSetpoint.qP11019Impianto = 0;
+      setVal("qP11019Ias", ias, { force: !isEditing("qP11019Ias") || which === "ias" });
+      setVal("qP11019Impianto", imp, { force: !isEditing("qP11019Impianto") || which === "impianto" });
       paintP11019SplitUI();
       try { syncDownstreamPermeate(null, "p11019"); } catch (_) { /* ignore */ }
       try { schedulePersist(); } catch (_) { /* ignore */ }
@@ -3917,8 +3927,8 @@
         const hint = el("osmEnableHint" + L);
         if (hint) {
           hint.textContent = on
-            ? "Abilitata · segue livello TK 11021 (verde = in marcia)."
-            : "Disabilitata · spenta (rossa) · non parte finché non la riabiliti.";
+            ? "Abilitata · verde = in marcia, grigia = ferma."
+            : "Disabilitata · rossa · non parte finché non la riabiliti.";
           hint.style.color = on ? "var(--ok)" : "var(--danger)";
         }
         document.querySelectorAll(`.osm-enable button[data-osm-line="${L}"]`).forEach((btn) => {
@@ -3928,20 +3938,33 @@
       });
     }
 
-    function paintOsmMiniSketch(root, run) {
+    /** Verde = marcia, grigio = fermo, rosso = disabilitata. Non usare il rosso per lo stop. */
+    const DEV_COL = {
+      run: { fill: "#14532d", stroke: "#4ade80", inner: "#22c55e", arrow: "#bbf7d0", lab: "#86efac" },
+      stop: { fill: "#334155", stroke: "#94a3b8", inner: "#64748b", arrow: "#cbd5e1", lab: "#94a3b8" },
+      off: { fill: "#7f1d1d", stroke: "#f87171", inner: "#991b1b", arrow: "#fecaca", lab: "#fda4af" },
+    };
+    function deviceCol(disabled, running) {
+      if (disabled) return DEV_COL.off;
+      if (running) return DEV_COL.run;
+      return DEV_COL.stop;
+    }
+
+    function paintOsmMiniSketch(root, run, disabled) {
       if (!root) return;
+      const c = deviceCol(disabled, run);
       const outer = root.querySelector(".osm-mini-body");
       const inner = root.querySelector(".osm-mini-fill");
       const lab = root.querySelector(".osm-mini-lab");
       if (outer) {
-        outer.setAttribute("stroke", run ? "#4ade80" : "#f87171");
-        outer.setAttribute("fill", run ? "#14532d" : "#7f1d1d");
+        outer.setAttribute("stroke", c.stroke);
+        outer.setAttribute("fill", c.fill);
       }
       if (inner) {
-        inner.setAttribute("fill", run ? "#22c55e" : "#991b1b");
-        inner.setAttribute("opacity", run ? "0.65" : "0.75");
+        inner.setAttribute("fill", c.inner);
+        inner.setAttribute("opacity", run && !disabled ? "0.65" : "0.55");
       }
-      if (lab) lab.setAttribute("fill", run ? "#86efac" : "#fda4af");
+      if (lab) lab.setAttribute("fill", c.lab);
     }
 
     function focusOsmosiRow(letter) {
@@ -4368,6 +4391,7 @@
     function simStart() {
       if (__simBusy || __simPlaying) return;
       __simPlaying = true;
+      try { keepScreenAwake(); } catch (_) { /* ok */ }
       advanceQInWobble(1);
       try { applyBalance("sim"); } catch (_) { /* ignore */ }
       updateSimTimeUI();
@@ -6762,6 +6786,7 @@
       hideFlowNumpad();
       if (flowEditBack) flowEditBack.classList.remove("show");
       inlineCtx = null;
+      __inlineSuppressLive = false;
       try { if (inlineInp) inlineInp.blur(); } catch (_) { /* ignore */ }
       syncScrollLock();
     }
@@ -6823,6 +6848,7 @@
     }
 
     function applyInlineLive() {
+      if (__inlineSuppressLive) return;
       if (!inlineCtx) return;
       const { field, source } = inlineCtx;
       const raw = String(inlineInp.value ?? "").trim().replace(",", ".");
@@ -7027,18 +7053,34 @@
       applyBalance(source);
     }
 
-    /** Valore già in schermo (campo/SVG) per aprire il tastierino senza ripartire da 0. */
+    /** Setpoint memorizzato IAS/Impianto (> 0). Ignora 0 di default HTML e la viva a pompe ferme. */
     function readP11019SplitEditVal(field) {
       const id = String(field || "");
-      const svgId = id === "qP11019Ias" ? "svgPopP11019Ias" : "svgPopP11019Imp";
-      const fromInp = numOrNull(id);
-      const svgRaw = String(el(svgId)?.textContent || "").trim().replace(",", ".");
-      const fromSvg = parseFloat(svgRaw);
-      const computed = id === "qP11019Ias" ? qP11019IasSetpoint() : qP11019ImpiantoSetpoint();
-      // Priorità: ciò che l’utente vede (campo → SVG → calcolo)
-      if (fromInp != null && Number.isFinite(fromInp) && fromInp >= 0) return round1(fromInp);
-      if (Number.isFinite(fromSvg) && fromSvg >= 0) return round1(fromSvg);
-      return round1(Math.max(0, computed));
+      const pumpMem = Math.max(0, flowSetpointOf("qP11019"));
+      const pick = (...cands) => {
+        for (let i = 0; i < cands.length; i += 1) {
+          const n = Number(cands[i]);
+          if (Number.isFinite(n) && n > 0.05) return round1(n);
+        }
+        return null;
+      };
+      if (id === "qP11019Ias") {
+        return pick(__flowSetpoint.qP11019Ias, numOrNull("qP11019Ias"), qP11019IasSetpoint());
+      }
+      const ias = pick(__flowSetpoint.qP11019Ias, numOrNull("qP11019Ias")) || 0;
+      return pick(
+        __flowSetpoint.qP11019Impianto,
+        numOrNull("qP11019Impianto"),
+        pumpMem - ias,
+        qP11019ImpiantoSetpoint(),
+        qP11019ImpiantoLive()
+      );
+    }
+
+    function formatFlowEditSeed(val, step) {
+      if (!(Number(val) > 0.05)) return "";
+      const n = round1(Number(val));
+      return step >= 1 ? String(Math.round(n)) : String(n);
     }
 
     function startFieldInlineEdit(field, source) {
@@ -7049,7 +7091,6 @@
     function startInlineEdit(flowGroup) {
       const field = flowGroup.dataset?.field || flowGroup.getAttribute?.("data-field") || "";
       const source = flowGroup.dataset?.source || flowGroup.getAttribute?.("data-source") || "";
-      inlineCtx = { field, source };
       // Pompe: nel popup SEMPRE il SETPOINT (mai la viva a 0 se la pompa è ferma)
       let val;
       if (field === "qPump" || field === "qMandata" || field === "qRecycle" || field === "qP11019") {
@@ -7061,23 +7102,28 @@
           if (val > 0.05) rememberFlowSetpoint("qPump", val);
         }
       } else if (field === "qP11019Ias" || field === "qP11019Impianto") {
-        // Mostra la portata già presente (es. Impianto 80 → tastierino apre su 80)
         paintP11019SplitUI();
         val = readP11019SplitEditVal(field);
       } else {
         val = num(field);
       }
       if (field === "livelloAttuale") val = num("livelloAttuale");
-      if (!Number.isFinite(val)) val = 0;
-      val = Math.max(0, round1(val));
+      const splitEdit = field === "qP11019Ias" || field === "qP11019Impianto";
+      const hasMem = Number.isFinite(val) && Number(val) > 0.05;
+      if (hasMem) val = Math.max(0, round1(val));
       const step = flowEditStep(field);
+      const seed = splitEdit ? formatFlowEditSeed(val, step)
+        : (step >= 1 ? String(Math.round(Number.isFinite(val) ? val : 0)) : String(Number.isFinite(val) ? round1(val) : 0));
+      inlineCtx = { field, source };
+      __inlineSuppressLive = true;
+      const releaseLive = () => { __inlineSuppressLive = false; };
       if (inlineInp) {
         inlineInp.step = String(step);
-        inlineInp.value = step >= 1 ? String(Math.round(val)) : String(val);
+        inlineInp.value = seed;
       }
       if (flowEditTitle) {
         const base = FLOW_EDIT_LABELS[field] || "Portata";
-        flowEditTitle.textContent = (field === "qP11019Ias" || field === "qP11019Impianto" || FLOW_IDS.includes(field))
+        flowEditTitle.textContent = (splitEdit || FLOW_IDS.includes(field)) && hasMem
           ? (base + " · attuale " + (step >= 1 ? Math.round(val) : val))
           : base;
       }
@@ -7088,27 +7134,31 @@
         if (inlineInp) {
           inlineInp.setAttribute("readonly", "readonly");
           inlineInp.setAttribute("inputmode", "none");
-          // riscrivi dopo show: evita che resti 0 da sessione precedente
-          inlineInp.value = step >= 1 ? String(Math.round(val)) : String(val);
+          inlineInp.value = seed;
           inlineInp.blur();
         }
         if (flowEditBack) flowEditBack.classList.add("show");
         showFlowNumpad();
-        if (inlineInp) inlineInp.value = step >= 1 ? String(Math.round(val)) : String(val);
+        if (inlineInp) inlineInp.value = seed;
+        setTimeout(releaseLive, 80);
       } else {
         hideFlowNumpad();
         if (inlineInp) {
           inlineInp.removeAttribute("readonly");
           inlineInp.setAttribute("inputmode", step >= 1 ? "numeric" : "decimal");
-          inlineInp.value = step >= 1 ? String(Math.round(val)) : String(val);
+          inlineInp.value = seed;
         }
         if (flowEditBack) flowEditBack.classList.add("show");
         setTimeout(() => {
-          if (!inlineInp) return;
-          // di nuovo il valore attuale (focus/select non deve azzerare)
-          inlineInp.value = step >= 1 ? String(Math.round(val)) : String(val);
-          inlineInp.focus();
-          inlineInp.select();
+          if (!inlineInp) { releaseLive(); return; }
+          inlineInp.value = seed;
+          if (seed) {
+            inlineInp.focus();
+            inlineInp.select();
+          } else {
+            inlineInp.focus();
+          }
+          releaseLive();
         }, 30);
       }
       syncScrollLock();
@@ -7675,6 +7725,12 @@
           const qm = Math.max(0, num("qMandata") || lastQMandata || __flowSetpoint.qMandata || 0);
           if (qp > 0.05) rememberFlowSetpoint("qPump", qp);
           if (qm > 0.05) rememberFlowSetpoint("qMandata", qm);
+          const qp19 = Math.max(0, num("qP11019") || __flowSetpoint.qP11019 || 0);
+          if (qp19 > 0.05) rememberFlowSetpoint("qP11019", qp19);
+          const ias = Math.max(0, num("qP11019Ias") || 0);
+          if (ias > 0.05) rememberFlowSetpoint("qP11019Ias", ias);
+          const imp = round1(Math.max(0, qp19 - ias));
+          if (imp > 0.05) rememberFlowSetpoint("qP11019Impianto", imp);
         }
         syncUf("uf-linea");
         paintUfSvgLive();
@@ -7890,8 +7946,63 @@
         if (l) l.style.display = "none";
       }
     } catch (_) { /* ok */ }
+
+    /* Display acceso ≥ 5 min (Wake Lock), poi il telefono può andare in standby da solo.
+       L’impianto continua a lavorare anche a schermo spento. Ogni tocco / Start rinnova i 5 min. */
+    const SCREEN_WAKE_MS = 5 * 60 * 1000;
+    let __wakeSentinel = null;
+    let __wakeUntil = 0;
+    let __wakeTimer = null;
+
+    function releaseScreenWake() {
+      const s = __wakeSentinel;
+      __wakeSentinel = null;
+      if (s && s.released !== true) {
+        try { s.release(); } catch (_) { /* ok */ }
+      }
+    }
+
+    function requestScreenWake() {
+      if (Date.now() >= __wakeUntil) return;
+      if (document.visibilityState !== "visible") return;
+      if (!navigator.wakeLock || typeof navigator.wakeLock.request !== "function") return;
+      if (__wakeSentinel && __wakeSentinel.released !== true) return;
+      navigator.wakeLock.request("screen").then((sentinel) => {
+        if (Date.now() >= __wakeUntil) {
+          try { sentinel.release(); } catch (_) { /* ok */ }
+          return;
+        }
+        __wakeSentinel = sentinel;
+        sentinel.addEventListener("release", () => {
+          if (__wakeSentinel === sentinel) __wakeSentinel = null;
+          if (Date.now() < __wakeUntil && document.visibilityState === "visible") {
+            requestScreenWake();
+          }
+        });
+      }).catch(() => { /* iOS vecchio / risparmio energetico: non si può forzare */ });
+    }
+
+    function keepScreenAwake(ms) {
+      const hold = Math.max(1000, Number(ms) || SCREEN_WAKE_MS);
+      __wakeUntil = Date.now() + hold;
+      if (__wakeTimer) clearTimeout(__wakeTimer);
+      __wakeTimer = setTimeout(() => {
+        __wakeUntil = 0;
+        releaseScreenWake();
+      }, hold);
+      requestScreenWake();
+    }
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") requestScreenWake();
+    });
+    ["pointerdown", "keydown"].forEach((ev) => {
+      document.addEventListener(ev, () => keepScreenAwake(), { passive: true });
+    });
+    try { keepScreenAwake(); } catch (_) { /* ok */ }
+
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt44", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt47", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
