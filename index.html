@@ -4786,9 +4786,16 @@
           const badge = svgQ.closest("g")?.querySelector("rect.badge");
           if (badge) badge.setAttribute("stroke", deviceCol(disabled, run).stroke);
         }
-        paintOnePump("svgPump11040" + L, "svgPump11040" + L + "Arrow", "svgPump11040" + L + "Label", plantIsStarted() && run, disabled);
+        paintOnePump(
+          "svgPump11040" + L,
+          "svgPump11040" + L + "Arrow",
+          "svgPump11040" + L + "Label",
+          plantIsStarted() && run,
+          disabled,
+          osmQinEffective(L)
+        );
       });
-      paintOnePump("svgPump11040D", "svgPump11040DArrow", "svgPump11040DLabel", false, false);
+      paintOnePump("svgPump11040D", "svgPump11040DArrow", "svgPump11040DLabel", false, false, 0);
       const labGroup = el("svgPump11040Label");
       if (labGroup) {
         const any = plantIsStarted() && osmRunningCount() > 0;
@@ -5017,15 +5024,27 @@
       return !!__simPlaying;
     }
 
-    const PUMP_REV_MS = 1100;
+    const PUMP_REV_MS = 1100;       // default
+    const PUMP_REV_MS_MIN = 420;    // portata alta → giro più veloce
+    const PUMP_REV_MS_MAX = 1750;   // portata bassa → giro più lento
+    const PUMP_Q_REF = 380;         // m³/h di riferimento (≈ velocità “piena”)
     const PUMP_REST_EPS = 1.2;
     let __pumpSpinRaf = 0;
     const __pumpSpin = Object.create(null);
     function pumpReduceMotion() {
       try { return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); } catch (_) { return false; }
     }
+    /** ms/giro in funzione della portata viva: più Q → più veloce. */
+    function pumpRevMsForQ(q) {
+      const qq = Math.max(0, Number(q) || 0);
+      if (qq < 0.5) return PUMP_REV_MS_MAX;
+      const t = Math.min(1, qq / PUMP_Q_REF);
+      // ease: anche un po’ di portata già accelera
+      const e = Math.sqrt(t);
+      return Math.round(PUMP_REV_MS_MAX - e * (PUMP_REV_MS_MAX - PUMP_REV_MS_MIN));
+    }
     function pumpSpinSt(id) {
-      if (!__pumpSpin[id]) __pumpSpin[id] = { ang: 0, last: 0, coast: false, want: false, disabled: false, arrowId: "", labelId: "" };
+      if (!__pumpSpin[id]) __pumpSpin[id] = { ang: 0, last: 0, coast: false, want: false, disabled: false, arrowId: "", labelId: "", revMs: PUMP_REV_MS };
       return __pumpSpin[id];
     }
     function applyPumpRotorAng(rotor, ang) {
@@ -5063,18 +5082,19 @@
         const body = el(id);
         const rotor = body && body.closest && body.closest(".pump-rotor");
         if (!rotor) continue;
+        const revMs = Math.max(PUMP_REV_MS_MIN, Number(st.revMs) || PUMP_REV_MS);
         if (st.want) {
           if (!st.last) st.last = ts;
           const dt = Math.min(80, Math.max(0, ts - st.last));
           st.last = ts;
-          st.ang = (st.ang + (360 * dt) / PUMP_REV_MS) % 360;
+          st.ang = (st.ang + (360 * dt) / revMs) % 360;
           applyPumpRotorAng(rotor, st.ang);
           need = true;
         } else if (st.coast) {
           if (!st.last) st.last = ts;
           const dt = Math.min(80, Math.max(0, ts - st.last));
           st.last = ts;
-          st.ang += (360 * dt) / PUMP_REV_MS;
+          st.ang += (360 * dt) / Math.max(revMs, PUMP_REV_MS);
           if (st.ang >= 360 - PUMP_REST_EPS) {
             st.ang = 0;
             st.coast = false;
@@ -5093,11 +5113,12 @@
       }
       __pumpSpinRaf = need ? requestAnimationFrame(tickPumpSpin) : 0;
     }
-    function paintOnePump(bodyId, arrowId, labelId, running, disabled) {
+    function paintOnePump(bodyId, arrowId, labelId, running, disabled, qFlow) {
       const st = pumpSpinSt(bodyId);
       st.arrowId = arrowId || "";
       st.labelId = labelId || "";
       st.disabled = !!disabled;
+      st.revMs = pumpRevMsForQ(qFlow);
       const want = !!(running && !disabled);
       st.want = want;
       if (pumpReduceMotion()) {
@@ -5140,9 +5161,12 @@
       const vis11011 = go && run11011;
       const vis11036 = go && run11036;
       const vis11014 = go && run11014;
-      paintOnePump("svgPump11011", "svgPump11011Arrow", "svgPump11011Label", vis11011);
-      paintOnePump("svgPump11036", "svgPump11036Arrow", "svgPump11036Label", vis11036);
-      paintOnePump("svgPump11014", "svgPump11014Arrow", "svgPump11014Label", vis11014);
+      const qPumpLive = Math.max(0, Number(__flowLive.qPump) || num("qPump") || 0);
+      const qMandLive = Math.max(0, Number(__flowLive.qMandata) || num("qMandata") || 0);
+      const qRecLive = Math.max(0, Number(__flowLive.qRecycle) || qRecNow || 0);
+      paintOnePump("svgPump11011", "svgPump11011Arrow", "svgPump11011Label", vis11011, false, qPumpLive);
+      paintOnePump("svgPump11036", "svgPump11036Arrow", "svgPump11036Label", vis11036, false, qMandLive);
+      paintOnePump("svgPump11014", "svgPump11014Arrow", "svgPump11014Label", vis11014, false, qRecLive);
       const recGroup = document.querySelector('[data-field="qRecycle"] rect.badge');
       if (recGroup) recGroup.setAttribute("stroke", vis11014 ? DEV_COL.run.stroke : DEV_COL.stop.stroke);
       const svgQRec = el("svgQRec");
@@ -5153,8 +5177,10 @@
 
       // P11019 A/B/C: verdi se consenso livello TK-11007 (start/stop svuotamento) — non dalle membrane
       const run11019 = go && p11019Allowed();
+      const q19Live = Math.max(0, Number(__flowLive.qP11019) || num("qP11019") || 0);
+      const q19Each = run11019 ? q19Live / 3 : 0;
       ["A", "B", "C"].forEach((L) => {
-        paintOnePump("svgPump11019" + L, "svgPump11019" + L + "Arrow", null, run11019);
+        paintOnePump("svgPump11019" + L, "svgPump11019" + L + "Arrow", null, run11019, false, q19Each);
       });
       const lab19 = el("svgPump11019Label");
       if (lab19) lab19.setAttribute("fill", run11019 ? DEV_COL.run.lab : DEV_COL.stop.lab);
@@ -10032,7 +10058,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt94", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt95", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
