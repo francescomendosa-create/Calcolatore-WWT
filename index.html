@@ -12,9 +12,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Process Managed" />
-  <link rel="manifest" href="manifest.json?v=wwt32" />
-  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt32" />
-  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt32" />
+  <link rel="manifest" href="manifest.json?v=wwt33" />
+  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt33" />
+  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt33" />
   <style>
     :root {
       --bg: #0b1220;
@@ -549,7 +549,48 @@
       align-items: center;
       gap: 8px;
     }
-    .modal h3 button {
+    .modal h3 .modal-title-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      min-width: 0;
+      flex: 1;
+    }
+    .modal h3 .dev-mode {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #0b1220;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 3px 5px;
+    }
+    .modal h3 .dev-mode button {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      color: var(--text);
+      width: auto;
+      height: auto;
+      border-radius: 5px;
+      padding: 4px 9px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      cursor: pointer;
+      line-height: 1.2;
+    }
+    .modal h3 .dev-mode button.is-on {
+      background: #14532d;
+      border-color: #4ade80;
+      color: #bbf7d0;
+    }
+    .modal h3 .dev-mode button.is-on.is-manual {
+      background: #422006;
+      border-color: #fbbf24;
+      color: #fde68a;
+    }
+    .modal h3 button[data-close] {
       border: 0;
       background: var(--panel-2);
       color: var(--text);
@@ -558,6 +599,7 @@
       border-radius: 8px;
       cursor: pointer;
       font-size: 1.1rem;
+      flex-shrink: 0;
     }
     .modal label {
       display: flex;
@@ -1832,11 +1874,21 @@
   <!-- POPUP MEMBRANE -->
   <div class="modal-back" id="popMembrane" role="dialog" aria-modal="true">
     <div class="modal wide">
-      <h3><span>MBR</span><button type="button" data-close>&times;</button></h3>
+      <h3>
+        <span class="modal-title-row">
+          <span>MBR</span>
+          <span class="dev-mode" data-dev="membrane" title="Override locale: prevale sul modo generale solo per le membrane">
+            <button type="button" data-dev-mode="auto" class="is-on">Automatico</button>
+            <button type="button" data-dev-mode="manual">Manuale</button>
+          </span>
+        </span>
+        <button type="button" data-close>&times;</button>
+      </h3>
       <button type="button" class="proc-label" disabled style="cursor:default;opacity:.95">
         <span>PROCESSO — Membrane MBR</span>
         <small>A–G in servizio · H fuori uso · scarichi → A11004</small>
       </button>
+      <p class="mini" id="devModeHintMembrane">Modo membrane: segue l’impianto (Automatico generale).</p>
       <div class="row">
         <label><strong>Lavoro (min)</strong>
           <input type="number" id="cicloLavoro" min="0.1" max="120" step="0.1" value="7" />
@@ -1937,11 +1989,21 @@
   <!-- POPUP ULTRAFILTRAZIONE A–D -->
   <div class="modal-back" id="popUltra" role="dialog" aria-modal="true">
     <div class="modal wide">
-      <h3><span>Ultrafiltrazione A–D</span><button type="button" data-close>&times;</button></h3>
+      <h3>
+        <span class="modal-title-row">
+          <span>Ultrafiltrazione A–D</span>
+          <span class="dev-mode" data-dev="ultra" title="Override locale: prevale sul modo generale solo per l’UF">
+            <button type="button" data-dev-mode="auto" class="is-on">Automatico</button>
+            <button type="button" data-dev-mode="manual">Manuale</button>
+          </span>
+        </span>
+        <button type="button" data-close>&times;</button>
+      </h3>
       <button type="button" class="proc-label" disabled style="cursor:default;opacity:.95">
         <span>PROCESSO — Ultrafiltrazione</span>
         <small>UF A · B · C · D</small>
       </button>
+      <p class="mini" id="devModeHintUltra">Modo UF: segue l’impianto (Automatico generale).</p>
       <label><strong>TOTALE UF (m³/h)</strong>
         <input type="number" id="qUfTotale" class="tot-mem" min="0" max="500" step="0.1" value="0" />
       </label>
@@ -2024,11 +2086,21 @@
   <!-- POPUP OSMOSI A B C -->
   <div class="modal-back" id="popOsmosi" role="dialog" aria-modal="true">
     <div class="modal wide">
-      <h3><span>Osmosi A–C</span><button type="button" data-close>&times;</button></h3>
+      <h3>
+        <span class="modal-title-row">
+          <span>Osmosi A–C</span>
+          <span class="dev-mode" data-dev="osmosi" title="Override locale: prevale sul modo generale solo per l’osmosi">
+            <button type="button" data-dev-mode="auto" class="is-on">Automatico</button>
+            <button type="button" data-dev-mode="manual">Manuale</button>
+          </span>
+        </span>
+        <button type="button" data-close>&times;</button>
+      </h3>
       <button type="button" class="proc-label" disabled style="cursor:default;opacity:.95">
         <span>PROCESSO — Osmosi</span>
         <small>ingresso · concentrato fisso 15</small>
       </button>
+      <p class="mini" id="devModeHintOsmosi">Modo osmosi: segue l’impianto (Automatico generale).</p>
       <div class="row" style="grid-template-columns:1fr 1fr 1fr">
         <label><strong>TOTALE (m³/h)</strong>
           <input type="number" id="qOsmosiTotale" class="tot-mem" readonly tabindex="-1" value="0" />
@@ -2373,6 +2445,75 @@
       return __flowMode !== "manual";
     }
 
+    /** Override locale per dispositivo (membrane / ultra / osmosi). Manuale vince sul modo generale. */
+    const __devMode = { membrane: "auto", ultra: "auto", osmosi: "auto" };
+
+    function deviceIsManual(dev) {
+      return __devMode[dev] === "manual";
+    }
+
+    /** true = l’auto di impianto può scrivere le portate di quel dispositivo */
+    function deviceAutoControlled(dev) {
+      return isAutoMode() && !deviceIsManual(dev);
+    }
+
+    function paintDevModeUI(dev) {
+      const root = document.querySelector(`.dev-mode[data-dev="${dev}"]`);
+      if (!root) return;
+      const manual = deviceIsManual(dev);
+      root.querySelectorAll("[data-dev-mode]").forEach((btn) => {
+        const mode = btn.getAttribute("data-dev-mode");
+        const on = manual ? mode === "manual" : mode === "auto";
+        btn.classList.toggle("is-on", on);
+        btn.classList.toggle("is-manual", on && mode === "manual");
+        btn.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+      const hintId = { membrane: "devModeHintMembrane", ultra: "devModeHintUltra", osmosi: "devModeHintOsmosi" }[dev];
+      const hint = hintId ? el(hintId) : null;
+      if (hint) {
+        if (manual) {
+          hint.textContent = `Manuale locale: portate tue su questo dispositivo. Il resto dell’impianto resta in ${isAutoMode() ? "Automatico" : "Manuale"} e si adatta.`;
+          hint.style.color = "var(--warn)";
+        } else if (isAutoMode()) {
+          hint.textContent = "Automatico locale: segue il bilanciamento generale dell’impianto.";
+          hint.style.color = "var(--muted)";
+        } else {
+          hint.textContent = "Impianto in Manuale generale · questo dispositivo è impostato Automatico (si attiverà quando l’impianto torna in Automatico).";
+          hint.style.color = "var(--muted)";
+        }
+      }
+    }
+
+    function paintAllDevModeUI() {
+      ["membrane", "ultra", "osmosi"].forEach(paintDevModeUI);
+    }
+
+    function setDevMode(dev, mode) {
+      if (!__devMode.hasOwnProperty(dev)) return;
+      const next = mode === "manual" ? "manual" : "auto";
+      if (__devMode[dev] === next) {
+        paintDevModeUI(dev);
+        return;
+      }
+      __devMode[dev] = next;
+      paintDevModeUI(dev);
+      if (next === "manual") {
+        // Congela le portate attuali del dispositivo come setpoint manuale
+        if (dev === "membrane") {
+          const tot = Math.max(0, sumMemsAllOn());
+          if (tot > 0.05) setVal("qMemTotale", tot, { force: true });
+        } else if (dev === "ultra") {
+          const tot = Math.max(0, sumUfs());
+          if (el("qUfTotale")) setVal("qUfTotale", tot, { force: true });
+        } else if (dev === "osmosi") {
+          // tiene qOsmosiA/B/C già impostati
+          try { syncOsmosiSvg(); } catch (_) { /* ok */ }
+        }
+      }
+      applyBalance(dev === "membrane" ? "membrana" : (dev === "ultra" ? "ultra" : "osmosi"));
+      try { schedulePersist(); } catch (_) { /* persist può non essere ancora definito in teoria */ }
+    }
+
     function paintFlowModeUI() {
       const autoBtn = el("btnModeAuto");
       const manBtn = el("btnModeManual");
@@ -2432,6 +2573,7 @@
       __flowMode = next;
       paintFlowModeUI();
       paintRecycleEditableUI();
+      paintAllDevModeUI();
       if (isAutoMode()) {
         // Torna in Automatico: cervello regola per restare in marcia
         if (el("equiparaMandata")) {
@@ -3223,6 +3365,17 @@
 
     /** Portate osmosi in Auto: domanda ripartita solo sulle linee in marcia. */
     function applyOsmosiAutoFlows(qDemandTotal) {
+      if (deviceIsManual("osmosi")) {
+        // Manuale locale: non riscrivere le portate; azzera solo linee ferme per livello
+        ["A", "B", "C"].forEach((L, i) => {
+          const id = ["qOsmosiA", "qOsmosiB", "qOsmosiC"][i];
+          if (!osmLineRunning(L) && !isEditing(id)) setVal(id, 0, { force: true });
+        });
+        syncOsmosiSvg();
+        paintOsmosiRunUI();
+        const qDemand = Math.max(0, round1(Number(qDemandTotal) || 0));
+        return { each: 0, nRun: osmRunningCount(), qDemand, manual: true };
+      }
       const qDemand = Math.max(0, round1(Number(qDemandTotal) || 0));
       const nRun = osmRunningCount();
       const each = nRun > 0 ? round1(qDemand / nRun) : 0;
@@ -3750,8 +3903,8 @@
       const qUf = Math.max(0, num("qUfTotale"));
       // OUT osmosi da TK 11021: solo linee in marcia (isteresi P-11040 sul livello)
       let qOsmOut = Math.max(0, num("qOsmosiDemi") || (num("qOsmosiA") + num("qOsmosiB") + num("qOsmosiC")));
-      if (isAutoMode()) {
-        updateOsmosiTk11021Interlocks(livU);
+      updateOsmosiTk11021Interlocks(livU);
+      if (deviceAutoControlled("osmosi")) {
         let qDemand = permeateDemandOut();
         if (!__allowUfByTk11021 || !membranesProcessAllowed()) {
           qDemand = Math.max(qDemand, linePermeateCapacity());
@@ -3759,7 +3912,7 @@
         const applied = applyOsmosiAutoFlows(qDemand);
         qOsmOut = round1(applied.each * applied.nRun);
       } else {
-        updateOsmosiTk11021Interlocks(livU);
+        // Osmosi manuale locale (o impianto manuale): tiene le portate impostate
         qOsmOut = 0;
         ["A", "B", "C"].forEach((L, i) => {
           const id = ["qOsmosiA", "qOsmosiB", "qOsmosiC"][i];
@@ -3770,12 +3923,14 @@
         syncOsmosiSvg();
         paintOsmosiRunUI();
       }
-      // IN UF = uscita P11019 (non le membrane): se P11019 in marcia per livello, UF riceve
+      // IN UF: in auto-dispositivo segue P11019; in manuale locale tiene il totale UF impostato
       let qUfIn = qUf;
       if (!p11019Allowed()) {
         qUfIn = 0;
-      } else if (isAutoMode()) {
+      } else if (deviceAutoControlled("ultra")) {
         qUfIn = __allowUfByTk11021 ? Math.max(0, qP19) : 0;
+      } else if (deviceIsManual("ultra")) {
+        qUfIn = __allowUfByTk11021 ? Math.max(0, num("qUfTotale")) : 0;
       }
 
       const stopRiemp = numOrNull("stopRiempA10620");
@@ -4517,14 +4672,16 @@
       let livUUi = numOrNull("livelloAttualeTk11021");
       if (livUUi === null) livUUi = 91;
       updateTk11021Interlocks(livUUi);
-      const qOsmUi = isAutoMode()
+      const qOsmUi = deviceAutoControlled("osmosi")
         ? ((!__allowUfByTk11021 || !membranesProcessAllowed())
           ? Math.max(permeateDemandOut(), linePermeateCapacity())
           : permeateDemandOut())
         : Math.max(0, num("qOsmosiDemi") || (num("qOsmosiA") + num("qOsmosiB") + num("qOsmosiC")));
-      const qUfUi = (__allowUfByTk11021 && p11019Allowed())
-        ? Math.max(0, qP19Ui || num("qUfTotale"))
-        : 0;
+      const qUfUi = !__allowUfByTk11021
+        ? 0
+        : (deviceIsManual("ultra")
+          ? Math.max(0, num("qUfTotale"))
+          : (p11019Allowed() ? Math.max(0, qP19Ui || num("qUfTotale")) : 0));
       const rateUUi = estimateTk11021RatePctPerMin(qUfUi, qOsmUi);
       paintTk11021UI(livUUi, rateUUi, !__allowUfByTk11021);
       paintOsmosiRunUI();
@@ -4737,8 +4894,8 @@
       // TK 11021: IN = UF, OUT = osmosi ≈ ingresso (non forzare IN=OUT in TIME)
       const srcUf = source === "uf-totale" || source === "uf-linea" || source === "ultra";
       let qUfSet = 0;
-      if (!isEditingUf() && !srcUf) {
-        // UF a valle di P11019: segue la portata pompe, non lo stato membrane
+      if (!isEditingUf() && !srcUf && deviceAutoControlled("ultra")) {
+        // UF a valle di P11019 (solo se UF non è in manuale locale)
         if (!__allowUfByTk11021 || !p11019Allowed() || qP19 < 0.05) {
           qUfSet = 0;
         } else {
@@ -4750,15 +4907,16 @@
       }
 
       const srcOsm = source === "osmosi";
-      if (!isEditingOsmosi() && !srcOsm) {
+      if (!isEditingOsmosi() && !srcOsm && deviceAutoControlled("osmosi")) {
         const qDemand = permeateDemandOut();
-        // OUT osmosi = domanda; se P11019 in marcia tiene almeno la capacità di scarico
         let qOsm = qDemand;
         if (p11019Allowed() && (!__allowUfByTk11021 || qP19 < 0.05)) {
           qOsm = Math.max(qOsm, linePermeateCapacity());
         }
         applyOsmosiAutoFlows(qOsm);
-      } else {
+      } else if (deviceIsManual("osmosi") || srcOsm) {
+        paintOsmosiRunUI();
+      } else if (!deviceAutoControlled("osmosi")) {
         paintOsmosiRunUI();
       }
     }
@@ -4810,7 +4968,7 @@
         let qIn = qInRaw === null ? num("qIn") : qInRaw;
         let qPump = qPumpRaw === null ? lastQPump : qPumpRaw;
 
-        if (isAutoMode() && !simulating) {
+        if (deviceAutoControlled("membrane") && !simulating) {
           // Solo a freddo (non in sim): bilancia capacità tutte-ON col duty medio
           if (source === "ingresso" || source === "ciclo") {
             const totOn = dAvg > 0 ? qIn / dAvg : qIn;
@@ -4827,9 +4985,17 @@
             qIn = totOn * dAvg;
             setVal("qIn", qIn);
           }
-        } else if (isAutoMode() && simulating && source === "membrana") {
+        } else if (deviceAutoControlled("membrane") && simulating && source === "membrana") {
           // In sim: aggiorna solo il totale configurato, senza ricalcolare qIn da duty istantaneo
           setVal("qMemTotale", sumMems());
+        } else if (isAutoMode() && deviceIsManual("membrane") && !isEditing("qIn")) {
+          // Membrane in manuale locale: l’impianto adatta l’ingresso alla loro media (evita blocco flottatore)
+          const totOn = Math.max(0, sumMemsAllOn());
+          const qFromMem = round1(totOn * dAvg);
+          if (Math.abs(qIn - qFromMem) > 0.15) {
+            qIn = qFromMem;
+            setVal("qIn", qIn, { force: true });
+          }
         }
 
         if (!isEditing("qIn")) qIn = num("qIn");
@@ -5000,10 +5166,10 @@
           }
         }
 
-        const editingMem = isEditing("qMemTotale") || source === "membrana" || source === "totale";
+        const editingMem = isEditing("qMemTotale") || source === "membrana" || source === "totale" || deviceIsManual("membrane");
         // In sim NON riscrivere le portate membrane: restano il setpoint "tutte ON".
         // L'uscita effettiva scende da sola via sumMemsRunning (membrane in pausa = 0).
-        if (auto && !editingMem && !simulating) {
+        if (deviceAutoControlled("membrane") && !editingMem && !simulating) {
           const qPermTarget = round1(qInEff + scaricoExtra);
           const totOnTarget = dAvg > 0 ? qPermTarget / dAvg : qPermTarget;
           setVal("qMemTotale", totOnTarget, { force: true });
@@ -5380,13 +5546,14 @@
         const node = el("svgQUf" + m);
         if (node && inp) node.textContent = round1(parseFloat(inp.value) || 0).toFixed(1);
       });
-      // Se l'utente regola UF, allinea Demi osmosi e P11019 al totale UF (no accumulo)
-      if (source === "uf-linea" || source === "uf-totale") {
+      // UF in manuale locale: allinea valle solo se osmosi non è manuale
+      if ((source === "uf-linea" || source === "uf-totale") && deviceIsManual("ultra")) {
         const q = round1(sumUfs());
-        setVal("qP11019", q, { force: !isEditing("qP11019") });
-        const svgP = el("svgQP11019");
-        if (svgP) svgP.textContent = q.toFixed(1);
-        if (!isEditingOsmosi()) {
+        if (p11019Allowed() && !isEditing("qP11019")) {
+          rememberFlowSetpoint("qP11019", q);
+          commitFlow("qP11019", q, { setpoint: q });
+        }
+        if (!deviceIsManual("osmosi") && !isEditingOsmosi()) {
           const ids = ["qOsmosiA", "qOsmosiB", "qOsmosiC"];
           const each = ids.length ? round1(q / ids.length) : 0;
           ids.forEach((id) => setVal(id, each, { force: true }));
@@ -6194,6 +6361,17 @@
     });
     paintFlowModeUI();
     paintRecycleEditableUI();
+    paintAllDevModeUI();
+    document.querySelectorAll(".dev-mode[data-dev]").forEach((root) => {
+      const dev = root.getAttribute("data-dev");
+      root.querySelectorAll("[data-dev-mode]").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setDevMode(dev, btn.getAttribute("data-dev-mode"));
+        });
+      });
+    });
 
     [
       "regA10620L", "regA10620W", "regA10620H", "regA10620Vutile",
@@ -6349,6 +6527,11 @@
       data.equiparaMandata = !!el("equiparaMandata")?.checked;
       data.usaFrequenza = !!el("usaFrequenza")?.checked;
       data.flowMode = isAutoMode() ? "auto" : "manual";
+      data.devMode = {
+        membrane: __devMode.membrane === "manual" ? "manual" : "auto",
+        ultra: __devMode.ultra === "manual" ? "manual" : "auto",
+        osmosi: __devMode.osmosi === "manual" ? "manual" : "auto",
+      };
       data.memQs = Array.from(document.querySelectorAll(".mem-q")).map((inp) => inp.value);
       data.ufQs = Array.from(document.querySelectorAll(".uf-q")).map((inp) => inp.value);
       data.regFreqQs = {};
@@ -6394,6 +6577,12 @@
           __flowMode = data.flowMode;
           paintFlowModeUI();
           paintRecycleEditableUI();
+          if (data.devMode && typeof data.devMode === "object") {
+            ["membrane", "ultra", "osmosi"].forEach((d) => {
+              if (data.devMode[d] === "manual" || data.devMode[d] === "auto") __devMode[d] = data.devMode[d];
+            });
+          }
+          paintAllDevModeUI();
           if (!isAutoMode() && el("equiparaMandata") && el("qMandata")) {
             el("equiparaMandata").checked = false;
             el("qMandata").disabled = false;
@@ -6643,7 +6832,7 @@
       }
     } catch (_) { /* ok */ }
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt32", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt33", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
