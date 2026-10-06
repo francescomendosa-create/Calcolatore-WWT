@@ -318,7 +318,7 @@
     #popBlocchi.modal-back {
       background: rgba(2, 8, 20, 0.22);
       align-items: flex-start;
-      justify-content: flex-start;
+      justify-content: flex-end;
       padding: max(10px, env(safe-area-inset-top, 0px)) 8px max(16px, env(safe-area-inset-bottom, 0px)) 8px;
     }
     #popBlocchi.modal-back.show {
@@ -327,7 +327,7 @@
     #popBlocchi .modal {
       pointer-events: auto;
       width: min(360px, calc(100vw - 16px));
-      margin: 8px 0 8px 8px;
+      margin: 8px 8px 8px 0;
       max-height: min(88vh, 720px);
       overflow-x: hidden;
       overflow-y: auto;
@@ -351,6 +351,48 @@
       font-weight: 600;
       color: #94a3b8;
       margin: -4px 0 10px;
+    }
+    #popBlocchi .block-improve {
+      display: none;
+      margin: 0 0 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: #0f172a;
+      border: 1px solid #334155;
+    }
+    #popBlocchi .block-improve.is-open { display: block; }
+    #popBlocchi .block-improve-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin: 0 0 8px;
+    }
+    #popBlocchi .block-improve-row input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      margin-top: 2px;
+      flex-shrink: 0;
+      accent-color: #38bdf8;
+    }
+    #popBlocchi .block-improve-row label {
+      flex: 1;
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: #e2e8f0;
+      line-height: 1.35;
+      cursor: pointer;
+    }
+    #popBlocchi .block-improve .mini { margin: 0; color: #94a3b8; }
+    #popBlocchi .block-improve .mini strong { color: #7dd3fc; }
+    #popBlocchi .actions button[data-blocchi-improve] {
+      background: #14532d;
+      border-color: #4ade80;
+      color: #bbf7d0;
+    }
+    #popBlocchi .actions button[data-blocchi-improve].is-open {
+      background: #0c4a6e;
+      border-color: #38bdf8;
+      color: #e0f2fe;
     }
     #popBlocchi .block-qa {
       margin: 0 0 10px;
@@ -3173,11 +3215,21 @@
   <div class="modal-back" id="popBlocchi" role="dialog" aria-modal="true" aria-labelledby="blocchiTitle">
     <div class="modal" id="blocchiPanel">
       <h3><span id="blocchiTitle">Blocco / previsione 8 ore</span><button type="button" data-close>&times;</button></h3>
-      <span class="block-drag-hint">Trascina a sinistra: leggi e vedi le pompe sullo schema</span>
+      <span class="block-drag-hint">Trascina: leggi e vedi le pompe sullo schema</span>
       <div class="block-explain" id="blocchiBody">
         <p class="mini">Nessun dettaglio.</p>
       </div>
-      <div class="actions"><button type="button" data-close>Chiudi</button></div>
+      <div class="block-improve" id="blocchiImprove" hidden>
+        <div class="block-improve-row">
+          <input type="checkbox" id="osmAlwaysOnSf3" />
+          <label for="osmAlwaysOnSf3">Osmosi sempre in marcia per SF3</label>
+        </div>
+        <p class="mini" id="blocchiImproveHint">Attiva: ricalcola start/stop TK-11021 (A keeper a stop 0%, B/C a cascata anticipata) così resta almeno una linea in marcia, senza alto 11021 né cascata sul chimico. Disattiva: ripristina i set precedenti.</p>
+      </div>
+      <div class="actions">
+        <button type="button" data-blocchi-improve>Miglioramenti</button>
+        <button type="button" data-close>Chiudi</button>
+      </div>
     </div>
   </div>
 
@@ -3315,6 +3367,20 @@
     let __runOsmB = true;
     let __runOsmC = true;
     const __osmEnabled = { A: true, B: true, C: true };
+    /** Miglioramento SF3: almeno un’osmosi sempre in marcia (via start/stop TK-11021). */
+    let __osmAlwaysOnSf3 = false;
+    let __osmAlwaysOnBackup = null; // { startSvuotOsmA, stopSvuotOsmA, ... } set “normali”
+    const OSM_SVUOT_IDS = [
+      "startSvuotOsmA", "stopSvuotOsmA",
+      "startSvuotOsmB", "stopSvuotOsmB",
+      "startSvuotOsmC", "stopSvuotOsmC",
+    ];
+    /** Set ottimizzati SF3: A keeper (stop 0), B ponte, C anticipata vs alto 11021. */
+    const OSM_ALWAYS_ON_SETS = {
+      startSvuotOsmA: 32, stopSvuotOsmA: 0,
+      startSvuotOsmB: 50, stopSvuotOsmB: 12,
+      startSvuotOsmC: 65, stopSvuotOsmC: 35,
+    };
     const __ufEnabled = { A: true, B: true, C: true, D: true };
     let __mbrCycleMin = 0;       // orologio ciclo lavoro/pausa (si congela se livello ferma tutte)
     let __ufSvcMin = 0;          // compat snap vecchi
@@ -4820,6 +4886,7 @@
     function openBlocchiPopup() {
       resetBlocchiPanelPos();
       paintBlocchiExplain();
+      paintBlocchiImproveUI();
       openPopup("blocchi");
     }
 
@@ -5716,6 +5783,7 @@
      * Isteresi TK-11021 lato linee osmosi 1 passo (P-11040 A/D · B/D · C/D):
      *  ≥ start svuotamento → linea ON; ≤ stop svuotamento → linea OFF.
      *  Default HMI: A 60/15 · B 60/20 · C 85/60.
+     *  Con SF3 “sempre in marcia”: keeper + boost anti-alto 11021.
      */
     function updateOsmosiTk11021Interlocks(livU) {
       const liv = Number(livU);
@@ -5740,7 +5808,100 @@
         else __runOsmC = flag;
         out[d.runKey] = { running: flag && osmLineEnabled(d.runKey), startS: startV, stopS: stopV };
       });
+
+      // SF3: almeno una linea ON se c’è acqua; boost se il 11021 sale verso lo stop riempimento.
+      if (__osmAlwaysOnSf3 && Number.isFinite(liv)) {
+        const stopRiemp = numOrNull("stopRiempTk11021");
+        const hi = stopRiemp !== null ? stopRiemp : 97;
+        if (liv > 1.0) {
+          // Keeper: non lasciare tutte ferme (basso livello → UF riempie → blocco alto → cascata).
+          if (!__runOsmA && !__runOsmB && !__runOsmC) {
+            if (osmLineEnabled("A")) __runOsmA = true;
+            else if (osmLineEnabled("B")) __runOsmB = true;
+            else if (osmLineEnabled("C")) __runOsmC = true;
+          }
+        }
+        // Anti alto 11021: avvicinandosi allo stop riempimento forza più linee in marcia.
+        if (liv >= hi - 18) {
+          if (osmLineEnabled("A")) __runOsmA = true;
+          if (osmLineEnabled("B")) __runOsmB = true;
+        }
+        if (liv >= hi - 12) {
+          if (osmLineEnabled("C")) __runOsmC = true;
+        }
+        out.A = { ...out.A, running: !!__runOsmA && osmLineEnabled("A") };
+        out.B = { ...out.B, running: !!__runOsmB && osmLineEnabled("B") };
+        out.C = { ...out.C, running: !!__runOsmC && osmLineEnabled("C") };
+      }
       return out;
+    }
+
+    function readOsmSvuotSets() {
+      const o = {};
+      OSM_SVUOT_IDS.forEach((id) => {
+        const v = numOrNull(id);
+        o[id] = v !== null ? v : (OSM_ALWAYS_ON_SETS[id] != null ? OSM_ALWAYS_ON_SETS[id] : 0);
+      });
+      return o;
+    }
+
+    function writeOsmSvuotSets(sets) {
+      if (!sets || typeof sets !== "object") return;
+      OSM_SVUOT_IDS.forEach((id) => {
+        if (sets[id] == null || sets[id] === "") return;
+        const node = el(id);
+        if (node) node.value = String(round1(Number(sets[id])));
+      });
+      try { refreshProcViews(); } catch (_) { /* ok */ }
+    }
+
+    function paintBlocchiImproveUI() {
+      const box = el("blocchiImprove");
+      const btn = document.querySelector("#popBlocchi [data-blocchi-improve]");
+      const chk = el("osmAlwaysOnSf3");
+      if (chk) chk.checked = !!__osmAlwaysOnSf3;
+      if (btn) btn.classList.toggle("is-open", !!(box && box.classList.contains("is-open")));
+      const hint = el("blocchiImproveHint");
+      if (hint) {
+        hint.innerHTML = __osmAlwaysOnSf3
+          ? `Attivo: set A <strong>32/0</strong> · B <strong>50/12</strong> · C <strong>65/35</strong> + keeper anti-fermo e boost sotto lo stop riempimento 11021. Disattiva per i set normali.`
+          : `Attiva: ricalcola start/stop TK-11021 (A keeper a stop 0%, B/C a cascata anticipata) così resta almeno una linea in marcia, senza alto 11021 né cascata sul chimico. Disattiva: ripristina i set precedenti.`;
+      }
+    }
+
+    function setOsmAlwaysOnSf3(on, { fromPersist = false } = {}) {
+      const want = !!on;
+      if (want === __osmAlwaysOnSf3 && !fromPersist) {
+        paintBlocchiImproveUI();
+        return;
+      }
+      if (want) {
+        if (!__osmAlwaysOnBackup) __osmAlwaysOnBackup = readOsmSvuotSets();
+        writeOsmSvuotSets(OSM_ALWAYS_ON_SETS);
+        __osmAlwaysOnSf3 = true;
+      } else {
+        if (__osmAlwaysOnBackup) writeOsmSvuotSets(__osmAlwaysOnBackup);
+        __osmAlwaysOnBackup = null;
+        __osmAlwaysOnSf3 = false;
+      }
+      paintBlocchiImproveUI();
+      try {
+        updateTk11021Interlocks(num("livelloAttualeTk11021"));
+        paintOsmosiRunUI();
+        applyBalance("osmosi");
+      } catch (_) { /* ignore */ }
+      if (!fromPersist) {
+        try { schedulePersist(); } catch (_) { /* ignore */ }
+      }
+    }
+
+    function toggleBlocchiImprovePanel() {
+      const box = el("blocchiImprove");
+      if (!box) return;
+      const open = !box.classList.contains("is-open");
+      box.classList.toggle("is-open", open);
+      box.hidden = !open;
+      paintBlocchiImproveUI();
     }
 
     function osmLineEnabled(letter) {
@@ -6036,8 +6197,9 @@
         if (!osmLineEnabled(L)) return `${L} DIS`;
         return `${L} ${osmLineRunning(L) ? "ON" : "OFF"}`;
       });
-      const txt = `TK 11021 ${round1(liv).toFixed(1)}% · P11040/Osmosi ${parts.join(" · ")} · D OFF`;
-      const col = (plantIsStarted() && osmRunningCount() > 0) ? "var(--ok)" : "var(--muted)";
+      const txt = `TK 11021 ${round1(liv).toFixed(1)}% · P11040/Osmosi ${parts.join(" · ")} · D OFF`
+        + (__osmAlwaysOnSf3 ? " · SF3 sempre-marcia" : "");
+      const col = (plantIsStarted() && osmRunningCount() > 0) ? "var(--ok)" : "var(--muted)");
       ["tk11021OsmHint", "osmosiRunHint"].forEach((id) => {
         const hint = el(id);
         if (hint) {
@@ -10776,6 +10938,14 @@
         if (e.key === "Enter" || e.key === " ") openBlocks(e);
       });
     }
+    document.querySelector("#popBlocchi [data-blocchi-improve]")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleBlocchiImprovePanel();
+    });
+    el("osmAlwaysOnSf3")?.addEventListener("change", () => {
+      setOsmAlwaysOnSf3(!!el("osmAlwaysOnSf3")?.checked);
+    });
 
     el("simReset")?.addEventListener("click", (e) => {
       e.preventDefault();
@@ -11056,6 +11226,10 @@
       });
       ensureCarbWash();
       data.carbWash = __carbWash ? JSON.parse(JSON.stringify(__carbWash)) : null;
+      data.osmAlwaysOnSf3 = !!__osmAlwaysOnSf3;
+      data.osmAlwaysOnBackup = __osmAlwaysOnBackup
+        ? JSON.parse(JSON.stringify(__osmAlwaysOnBackup))
+        : null;
       if (bump) __calcSyncRevision += 1;
       data.syncRevision = __calcSyncRevision;
       data.updatedAt = Date.now();
@@ -11165,6 +11339,20 @@
           __carbWash = JSON.parse(JSON.stringify(data.carbWash));
           ensureCarbWash();
         }
+        if (data.osmAlwaysOnBackup && typeof data.osmAlwaysOnBackup === "object") {
+          __osmAlwaysOnBackup = data.osmAlwaysOnBackup;
+        } else if (!data.osmAlwaysOnSf3) {
+          __osmAlwaysOnBackup = null;
+        }
+        __osmAlwaysOnSf3 = !!data.osmAlwaysOnSf3;
+        if (__osmAlwaysOnSf3 && !__osmAlwaysOnBackup) {
+          __osmAlwaysOnBackup = {
+            startSvuotOsmA: 60, stopSvuotOsmA: 15,
+            startSvuotOsmB: 60, stopSvuotOsmB: 20,
+            startSvuotOsmC: 85, stopSvuotOsmC: 60,
+          };
+        }
+        try { paintBlocchiImproveUI(); } catch (_) { /* ok */ }
         syncUf("uf-linea");
         paintUfSvgLive();
         syncOsmosiSvg();
@@ -11448,7 +11636,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt104", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt105", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
