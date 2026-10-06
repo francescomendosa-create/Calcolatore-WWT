@@ -2314,7 +2314,7 @@
       </label>
       <p class="mini">Quattro ingressi A–D. La somma = totale. Variando il totale si ripartiscono in modo uguale sulle <strong>abilitate</strong>; variando una linea si aggiorna il totale.</p>
       <p class="mini">Clicca una UF sullo schema: il popup si posiziona su quella linea. <strong>Disabilita</strong> la spegne (rossa). Tap sul disegno nel popup = Abilita/Disabilita. In overview: tieni premuto ½ s.</p>
-      <p class="mini">Ogni UF: <strong>tempo di lavoro per lavaggio backwash</strong> (default 20′) poi backwash (default 190 s ferma), <strong>sfalsati</strong>. Poi CEV ipoclorito (21 h), CEB soda (23 h) e acido (24 h): ciascun lavaggio chimico dura <strong>1010 s (16′ 50″)</strong> a fasi. Il timer avanza solo con <strong>portata verso UF</strong>; senza portata i lavaggi restano <strong>in coda</strong>. In lavaggio la viva va a 0; il setpoint resta.</p>
+      <p class="mini">Ogni UF: <strong>tempo di lavoro per lavaggio backwash</strong> (default 20′) poi backwash (default 190 s ferma), <strong>sfalsati</strong>. Poi i grandi lavaggi <strong>CEB</strong> (ipoclorito 21 h, soda 23 h, acido 24 h): ciascuno dura <strong>1010 s (16′ 50″)</strong> a fasi e <strong>quella UF resta ferma</strong>. Il timer avanza solo con <strong>portata verso UF</strong>; senza portata i lavaggi restano <strong>in coda</strong>. In lavaggio la viva va a 0; il setpoint resta.</p>
       <div id="ufInputs"></div>
       <div class="settings-block show" style="margin-top:10px">
         <h4>TK 11021 — permeato UF (da PROCESSO)</h4>
@@ -2663,7 +2663,7 @@
     const __ufEnabled = { A: true, B: true, C: true, D: true };
     let __mbrCycleMin = 0;       // orologio ciclo lavoro/pausa (si congela se livello ferma tutte)
     let __ufSvcMin = 0;          // orologio lavaggi UF: avanza solo con portata verso UF
-    let __ufChem = null;         // stato lavaggi CEV/CEB/acido per linea
+    let __ufChem = null;         // stato lavaggi CEB ipoclorito/soda/acido per linea
     let __startupPumpHold = false; // dopo Reset: pompe ON finché non parti con +1′
     let __simMin = 0;
     let __simSnap = null;
@@ -6520,11 +6520,11 @@
     }
 
     const UF_CHEM_KINDS = [
-      { id: "cev", title: "Lavaggio ipoclorito in corso", oreId: "ufCevOre", defH: 21 },
-      { id: "ceb", title: "Lavaggio soda in corso", oreId: "ufCebOre", defH: 23 },
-      { id: "acido", title: "Lavaggio acido in corso", oreId: "ufAcidoOre", defH: 24 },
+      { id: "cev", title: "Lavaggio CEB ipoclorito in corso", oreId: "ufCevOre", defH: 21 },
+      { id: "ceb", title: "Lavaggio CEB soda in corso", oreId: "ufCebOre", defH: 23 },
+      { id: "acido", title: "Lavaggio CEB acido in corso", oreId: "ufAcidoOre", defH: 24 },
     ];
-    /** Fasi CEV/CEB/acido. Elenco utente = 970 s; aggiunto controlavaggio basso 2 = 40 s → 1010 s. */
+    /** Fasi CEB. Elenco utente = 970 s; aggiunto controlavaggio basso 2 = 40 s → 1010 s. */
     const UF_CHEM_PHASES = [
       { id: "aria1", label: "Tempo aria compressa 1", sec: 30 },
       { id: "svuot1", label: "Tempo di svuotamento 1", sec: 30 },
@@ -6724,8 +6724,8 @@
             b.setAttribute("fill", c.fill);
           }
           if (f) {
-            f.setAttribute("fill", waterInner(off, runUf, wash));
-            f.setAttribute("opacity", off || (!runUf && !wash) ? "0.7" : "0.92");
+            f.setAttribute("fill", waterInner(off, runUf, washBw));
+            f.setAttribute("opacity", off || !runUf ? "0.7" : "0.92");
           }
           if (t) t.setAttribute("fill", c.lab);
         };
@@ -6804,10 +6804,10 @@
         if (badge) badge.setAttribute("stroke", deviceCol(off, runUf).stroke);
         const ufNode = document.querySelector(`g.node[data-uf-line="${L}"]`);
         const ufRow = el("ufRow" + L);
-        if (off || (!runUf && !wash)) {
+        if (off || (!runUf && !washBw)) {
           setWaterFlow(ufNode, false);
           setWaterFlow(ufRow, false);
-        } else if (wash) {
+        } else if (washBw) {
           setWaterFlow(ufNode, true, "down");
           setWaterFlow(ufRow, true, "down");
         } else {
@@ -6980,9 +6980,9 @@
           lab.appendChild(inp);
           box.appendChild(lab);
         };
-        addOre("ufCevOre" + m, "Tempo di lavoro per avvio CEV con ipoclorito (h)", 21);
+        addOre("ufCevOre" + m, "Tempo di lavoro per avvio CEB con ipoclorito (h)", 21);
         addOre("ufCebOre" + m, "Tempo di lavoro per avvio CEB con soda (h)", 23);
-        addOre("ufAcidoOre" + m, "Tempo di lavoro per avvio con acido (h)", 24);
+        addOre("ufAcidoOre" + m, "Tempo di lavoro per avvio CEB con acido (h)", 24);
 
         const st = document.createElement("p");
         st.className = "mini";
@@ -8622,7 +8622,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt58", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt59", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
