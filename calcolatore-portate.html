@@ -72,9 +72,15 @@
       color: #a7f3d0;
       border: 1px solid #065f46;
       line-height: 1.25;
+      max-width: min(420px, 46vw);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .status.warn { background: #422006; color: #fde68a; border-color: #854d0e; }
     .status.danger { background: #450a0a; color: #fecaca; border-color: #7f1d1d; }
+    #statusBar[data-clickable="1"] { cursor: pointer; }
+    #statusBar[data-clickable="1"]:hover { filter: brightness(1.12); }
 
     .schema-wrap {
       background: var(--panel);
@@ -1440,7 +1446,7 @@
   <header>
     <h1>Process Managed</h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
-    <div class="status" id="statusBar">Equilibrato</div>
+    <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
   </header>
 
@@ -3224,7 +3230,7 @@
           <input type="checkbox" id="osmAlwaysOnSf3" />
           <label for="osmAlwaysOnSf3">Osmosi sempre in marcia per SF3</label>
         </div>
-        <p class="mini" id="blocchiImproveHint">Attiva: ricalcola start/stop TK-11021 (A keeper a stop 0%, B/C a cascata anticipata) così resta almeno una linea in marcia, senza alto 11021 né cascata sul chimico. Disattiva: ripristina i set precedenti.</p>
+        <p class="mini" id="blocchiImproveHint">Attiva: cascata start/stop sul 11021 (A lunga, B/C in alto anti-97%) e ingresso minimo 20 + 15 conc per linea. Valvole fisse sul set. Sotto i 20 m³/h non si tiene la linea accesa.</p>
       </div>
       <div class="actions">
         <button type="button" data-blocchi-improve>Miglioramenti</button>
@@ -3367,7 +3373,7 @@
     let __runOsmB = true;
     let __runOsmC = true;
     const __osmEnabled = { A: true, B: true, C: true };
-    /** Miglioramento SF3: almeno un’osmosi sempre in marcia (via start/stop TK-11021). */
+    /** Miglioramento SF3: tenere almeno un’osmosi in marcia quando c’è acqua (min reale). */
     let __osmAlwaysOnSf3 = false;
     let __osmAlwaysOnBackup = null; // { startSvuotOsmA, stopSvuotOsmA, ... } set “normali”
     const OSM_SVUOT_IDS = [
@@ -3375,12 +3381,20 @@
       "startSvuotOsmB", "stopSvuotOsmB",
       "startSvuotOsmC", "stopSvuotOsmC",
     ];
-    /** Set ottimizzati SF3: A keeper (stop 0), B ponte, C anticipata vs alto 11021. */
+    /** Ingresso minimo per linea in marcia (demi). Concentrato fisso = +15 → totale min 35. */
+    const OSM_IN_MIN = 20;
+    /**
+     * Cascata SF3 (anti alto 11021, senza portate ridicole):
+     * A base ampia · B ponte · C solo in alto per svuotare prima del 97%.
+     * Stop A > 0: sotto non si forza a secco (min 20 non regge).
+     */
     const OSM_ALWAYS_ON_SETS = {
-      startSvuotOsmA: 32, stopSvuotOsmA: 0,
-      startSvuotOsmB: 50, stopSvuotOsmB: 12,
-      startSvuotOsmC: 65, stopSvuotOsmC: 35,
+      startSvuotOsmA: 42, stopSvuotOsmA: 10,
+      startSvuotOsmB: 58, stopSvuotOsmB: 28,
+      startSvuotOsmC: 76, stopSvuotOsmC: 48,
     };
+    /** In Automatico: quali linee ricevono davvero portata (≥ OSM_IN_MIN). */
+    const __osmFeedOk = { A: false, B: false, C: false };
     const __ufEnabled = { A: true, B: true, C: true, D: true };
     let __mbrCycleMin = 0;       // orologio ciclo lavoro/pausa (si congela se livello ferma tutte)
     let __ufSvcMin = 0;          // compat snap vecchi
@@ -3514,7 +3528,7 @@
 
     function osmQinEffective(letter) {
       const L = String(letter || "").toUpperCase();
-      if (!osmLineRunning(L)) return 0;
+      if (!osmLineFeeding(L)) return 0;
       if (!plantIsStarted()) return 0;
       return round1(Math.max(0, Number(__osmMeas[L]) || 0));
     }
@@ -3939,6 +3953,7 @@
           bar.className = "status";
           bar.textContent = "Automatico · P11011 = ingresso + ≥100 · riciclo fanghi ≥ 100 m³/h";
         }
+        try { paintRegPreviewBar(); } catch (_) { /* ok */ }
       } else {
         // Manuale: tieni le portate già impostate dall’auto (setpoint), sblocca edit
         freezeFlowSetpointsFromCurrent();
@@ -3974,6 +3989,7 @@
           bar.className = "status";
           bar.textContent = "Manuale · portate congelate dall’auto · libere da variare · marcia/arresto sui livelli";
         }
+        try { paintRegPreviewBar(); } catch (_) { /* ok */ }
       }
       schedulePersist();
     }
@@ -4120,6 +4136,7 @@
             ? "Nessun blocco — clic per previsione 8 ore"
             : (n === 1 ? "1 blocco — clic" : `${n} blocchi — clic`);
         }
+        try { paintRegPreviewBar(); } catch (_) { /* ok */ }
       } else if (n === 0) {
         node.title = "Simulazione in corso — clic per previsione/consigli";
       } else {
@@ -4129,6 +4146,51 @@
         warn = false;
       }
       node.setAttribute("data-warn", warn ? "1" : "0");
+    }
+
+    /** Anteprima regolazione (sinistra di Sync): bene/male + dove sbagli, già prima dello Start. */
+    function paintRegPreviewBar() {
+      if (__simBusy || __simPlaying) return;
+      const bar = el("statusBar");
+      if (!bar) return;
+      // Lascia i messaggi di blocco vivo (più urgenti)
+      if (!__chimicoAllowFill || __blockP11011By11) return;
+      try {
+        const fc = forecastChimicoHorizon(BLOCK_FORECAST_HORIZON);
+        const adv = buildHorizonAdvice(fc);
+        bar.setAttribute("data-clickable", "1");
+        if (fc.ok) {
+          bar.className = "status";
+          bar.textContent = "Regolato bene · 8 h OK";
+          bar.title = "Nessun blocco previsto nelle prossime 8 ore — clic per dettaglio";
+        } else {
+          bar.className = "status danger";
+          bar.textContent = shortRegPreviewBad(adv, fc);
+          bar.title = (adv.verdict || "Regolazione da correggere") + " — clic per dettaglio / Sì-No";
+        }
+      } catch (_) { /* ignore */ }
+    }
+
+    function shortRegPreviewBad(adv, fc) {
+      const when = fmtForecastWhen(fc && fc.firstBlockMin);
+      const qSafe = adv && adv.qSafeSamePumps != null ? fmtQ(adv.qSafeSamePumps) : "—";
+      const focus = (adv && adv.focus) || "";
+      if (focus === "mand") {
+        return `Male · MP 11036 bassa · o chimico ≤ ${qSafe} · ~${when}`;
+      }
+      if (focus === "mem") {
+        return `Male · membrane basse · o chimico ≤ ${qSafe} · ~${when}`;
+      }
+      if (focus === "cf") {
+        return `Male · scendi chimico ≤ ${qSafe} · ~${when}`;
+      }
+      return `Male · alza P11011 · o chimico ≤ ${qSafe} · ~${when}`;
+    }
+
+    /** Se rispondi No (non puoi alzare la pompa): quanto scendere il chimico. */
+    function cfLowerNoHtml(qSafe, device, haveNow) {
+      return `Allora scendi il chimico-fisico a ≤ <strong class="fix-val">${fmtQ(qSafe)} m³/h</strong> `
+        + `(con <strong>${device}</strong> a ${fmtQ(haveNow)}, senza blocco per 8 ore).`;
     }
 
     function resetChimicoBlockCount() {
@@ -4387,6 +4449,7 @@
       if (fc.ok) {
         return {
           ok: true,
+          focus: "",
           forecastHtml: `<div class="block-forecast is-ok"><strong>Tutto OK — prossime 8 ore</strong><br>`
             + `Impianto in marcia: chimico <strong>${fmtQ(qInSp)}</strong> · P11011 <strong>${fmtQ(fc.qPumpSp)}</strong>`
             + ` · MP 11036 <strong>${fmtQ(fc.qMandSp)}</strong> · membrane <strong>${fmtQ(fc.qMemSp)}</strong>. `
@@ -4397,6 +4460,7 @@
           fault: "",
           alt: "",
           forceAlt: false,
+          qSafeSamePumps: qInSp,
         };
       }
 
@@ -4483,19 +4547,17 @@
       }
 
       if (anomaly) {
-        fault = `Portata sbagliata: ingresso <strong>${fmtQ(qInSp)}</strong> ma <strong>${device}</strong> a `
+        fault = `Portata bassa: ingresso <strong>${fmtQ(qInSp)}</strong> ma <strong>${device}</strong> a `
           + `<strong>${fmtQ(haveNow)}</strong> (serve ≈ <span class="fix-val">${fmtQ(target)}</span>). `
-          + `Non scendere il chimico: regola quella portata.`;
-        const maxEx = focus === "mand" ? qMandTarget : (focus === "mem" ? qMemTarget : qMax);
-        noHtml = `Allora porta <strong>${device}</strong> al massimo esercibile `
-          + `(fino a <span class="fix-val">${fmtQ(maxEx)}</span>). Non abbassare il chimico per un set anomalo.`;
+          + `Prima prova ad alzarla; se non puoi, rispondi No e ti dico a quanto scendere il chimico.`;
+        noHtml = cfLowerNoHtml(qSafeSamePumps, device, haveNow);
       } else if (forceAlt) {
         const qInMaxPlant = qInCapAtPump(qMax);
+        focus = "cf";
         noHtml = `Scendi il chimico-fisico a ≤ <strong class="fix-val">${fmtQ(qInMaxPlant)} m³/h</strong> `
           + `(minimo per 8 ore, P11011 a ${fmtQ(qMax)}).`;
       } else {
-        noHtml = `Allora scendi il chimico-fisico a ≤ <strong class="fix-val">${fmtQ(qSafeSamePumps)} m³/h</strong> `
-          + `(minimo giusto per non andare in blocco per 8 ore, con le pompe così).`;
+        noHtml = cfLowerNoHtml(qSafeSamePumps, device, haveNow);
       }
 
       const ask = (!forceAlt && askQ)
@@ -4504,7 +4566,7 @@
             q: askQ,
             yesHtml,
             noHtml,
-            hideAltOnNo: !!anomaly,
+            hideAltOnNo: false,
           }
         : null;
 
@@ -4517,6 +4579,7 @@
         fault,
         alt: forceAlt ? noHtml : "",
         forceAlt,
+        focus,
         qSafeSamePumps,
         qPumpTarget,
         qMandTarget,
@@ -4610,20 +4673,18 @@
           action = `Membrane → <span class="fix-val">${fmtQ(qMemTarget)} m³/h</span> · MP 11036 ≥ <span class="fix-val">${fmtQ(qMandTarget)}</span> `
             + `finché A10611 &lt; <strong class="fix-val">${fmtBlockPct(ev.hiRestart)}</strong>.`;
           if (anomaly) {
-            fault = `Portata sbagliata: IN ${fmtQ(ev.qInSp)} ma membrane a ${fmtQ(qHaveMem)} (serve ≈ ${fmtQ(qMemTarget)}). `
-              + `Non scendere il chimico: alza le membrane.`;
+            fault = `Portata bassa: IN ${fmtQ(ev.qInSp)} ma membrane a ${fmtQ(qHaveMem)} (serve ≈ ${fmtQ(qMemTarget)}). `
+              + `Prima alza le membrane; se non puoi, No → quanto scendere il chimico.`;
             alt = "";
             ask = {
               key: `mem-${fmtQ(qMemTarget)}-${fmtQ(ev.qInSp)}`,
               q: `È possibile aumentare le <strong>membrane</strong> a <strong class="fix-val">${fmtQ(qMemTarget)} m³/h</strong>?`,
               yesHtml: `Ok: membrane → <span class="fix-val">${fmtQ(qMemTarget)}</span>, MP 11036 ≥ <span class="fix-val">${fmtQ(qMandTarget)}</span>.`,
-              noHtml: `Allora porta le membrane al massimo esercibile (≈ <span class="fix-val">${fmtQ(qMemTarget)}</span>). `
-                + `Non abbassare il chimico per un set anomalo.`,
-              hideAltOnNo: true,
+              noHtml: cfLowerNoHtml(Math.min(ev.qInSp, qSafe8h), "membrane", qHaveMem),
+              hideAltOnNo: false,
             };
           } else {
-            alt = `Abbassa il chimico-fisico a ≤ <strong class="fix-val">${fmtQ(Math.min(ev.qInSp, qSafe8h))} m³/h</strong> `
-              + `(minimo per 8 ore / finché A10611 scende sotto ${fmtBlockPct(ev.hiRestart)}).`;
+            alt = cfLowerNoHtml(Math.min(ev.qInSp, qSafe8h), "membrane", qHaveMem);
             ask = {
               key: `mem-ok-${fmtQ(qMemTarget)}-${fmtQ(ev.qInSp)}`,
               q: `È possibile aumentare le <strong>membrane</strong> a <strong class="fix-val">${fmtQ(qMemTarget)} m³/h</strong>?`,
@@ -4638,21 +4699,19 @@
           action = `MP 11036 → <span class="fix-val">${fmtQ(qMandTarget)} m³/h</span> · membrane ≥ <span class="fix-val">${fmtQ(qMemTarget)}</span> `
             + `finché A10611 &lt; <strong class="fix-val">${fmtBlockPct(ev.hiRestart)}</strong>, poi P11011 ≥ <span class="fix-val">${fmtQ(qPumpTarget)}</span>${hzBit}.`;
           if (anomaly) {
-            fault = `Portata sbagliata: IN ${fmtQ(ev.qInSp)} ma 11036 a ${fmtQ(qHaveMand)} (serve ≈ ${fmtQ(qMandTarget)}). `
-              + `Non scendere il chimico: alza la pompa.`;
+            fault = `Portata bassa: IN ${fmtQ(ev.qInSp)} ma 11036 a ${fmtQ(qHaveMand)} (serve ≈ ${fmtQ(qMandTarget)}). `
+              + `Prima alza MP 11036; se non puoi, No → quanto scendere il chimico.`;
             alt = "";
             ask = {
               key: `mand-${fmtQ(qMandTarget)}-${fmtQ(ev.qInSp)}`,
               q: `È possibile aumentare <strong>MP 11036 A/B</strong> a <strong class="fix-val">${fmtQ(qMandTarget)} m³/h</strong>?`,
               yesHtml: `Ok: MP 11036 → <span class="fix-val">${fmtQ(qMandTarget)}</span>, membrane ≥ <span class="fix-val">${fmtQ(qMemTarget)}</span>, `
                 + `poi P11011 ≥ <span class="fix-val">${fmtQ(qPumpTarget)}</span>${hzBit}.`,
-              noHtml: `Allora porta 11036/membrane al massimo esercibile (≈ <span class="fix-val">${fmtQ(qMandTarget)}</span>). `
-                + `Non abbassare il chimico per un set anomalo.`,
-              hideAltOnNo: true,
+              noHtml: cfLowerNoHtml(Math.min(ev.qInSp, qSafe8h), "MP 11036 A/B", qHaveMand),
+              hideAltOnNo: false,
             };
           } else {
-            alt = `Abbassa il chimico-fisico a ≤ <strong class="fix-val">${fmtQ(Math.min(ev.qInSp, qSafe8h))} m³/h</strong> `
-              + `(minimo per 8 ore / finché A10611 scende sotto ${fmtBlockPct(ev.hiRestart)}).`;
+            alt = cfLowerNoHtml(Math.min(ev.qInSp, qSafe8h), "MP 11036 A/B", qHaveMand);
             ask = {
               key: `mand-ok-${fmtQ(qMandTarget)}-${fmtQ(ev.qInSp)}`,
               q: `È possibile aumentare <strong>MP 11036 A/B</strong> a <strong class="fix-val">${fmtQ(qMandTarget)} m³/h</strong>?`,
@@ -4668,19 +4727,18 @@
         verdict = `Male: <strong>P11011 OFF</strong> con chimico a <strong>${fmtQ(ev.qInSp)}</strong>.`;
         action = `P11011 → <span class="fix-val">${fmtQ(qPumpTarget)} m³/h</span>${hzBit}.`;
         if (anomaly) {
-          fault = `Portata sbagliata: IN ${fmtQ(ev.qInSp)} ma P11011 ~${fmtQ(qHavePump)}. Non scendere il chimico: alza la pompa.`;
+          fault = `Portata bassa: IN ${fmtQ(ev.qInSp)} ma P11011 ~${fmtQ(qHavePump)}. `
+            + `Prima alza la pompa; se non puoi, No → quanto scendere il chimico.`;
           alt = "";
           ask = {
             key: `p11off-anom-${fmtQ(qPumpTarget)}`,
             q: `Puoi portare <strong>P11011</strong> a <strong class="fix-val">${fmtQ(qPumpTarget)} m³/h</strong>?`,
             yesHtml: `Regola <strong>P11011 → <span class="fix-val">${fmtQ(qPumpTarget)} m³/h</span></strong>${hzBit}.`,
-            noHtml: `Allora verifica avaria/consensi P11011: con ingresso ${fmtQ(ev.qInSp)} non ha senso azzerare il chimico `
-              + `se la pompa può esercire ≈ ${fmtQ(Math.min(qMax, qPumpTarget))} m³/h.`,
-            hideAltOnNo: true,
+            noHtml: cfLowerNoHtml(qSafe8h, "P11011 A/B", qHavePump),
+            hideAltOnNo: false,
           };
         } else {
-          alt = `Abbassa il chimico-fisico a ≤ <strong class="fix-val">${fmtQ(qSafe8h)} m³/h</strong> `
-            + `(minimo per non bloccare 8 ore con lo scarico attuale ${fmtQ(ev.qOut)} m³/h).`;
+          alt = cfLowerNoHtml(qSafe8h, "P11011 A/B", Math.max(ev.qOut || 0, qHavePump));
           ask = {
             key: `p11off-${fmtQ(qPumpTarget)}`,
             q: `Puoi mettere in marcia <strong>P11011</strong> a <strong class="fix-val">${fmtQ(qPumpTarget)} m³/h</strong>?`,
@@ -4704,26 +4762,22 @@
           verdict = `Male: <strong>P11011 a ${fmtQ(ev.qPumpSp)}</strong> — mettila a <strong class="fix-val">${fmtQ(qPumpTarget)}</strong> `
             + `(ingresso ${fmtQ(ev.qInSp)}).`;
           action = `P11011 → <span class="fix-val">${fmtQ(qPumpTarget)} m³/h</span>${hzBit}.`;
-          fault = `Portata sbagliata: IN ${fmtQ(ev.qInSp)} vs P11011 ${fmtQ(qHavePump)}. Non scendere il chimico: regola la pompa.`;
+          fault = `Portata bassa: IN ${fmtQ(ev.qInSp)} vs P11011 ${fmtQ(qHavePump)}. `
+            + `Prima alza la pompa; se non puoi, No → quanto scendere il chimico.`;
           alt = "";
           ask = {
             key: `p11-anom-${fmtQ(qPumpTarget)}-${fmtQ(ev.qPumpSp)}`,
             q: `È possibile aumentare <strong>P11011 A/B</strong> a <strong class="fix-val">${fmtQ(qPumpTarget)} m³/h</strong>?`,
             yesHtml: `Ok: P11011 → <span class="fix-val">${fmtQ(qPumpTarget)} m³/h</span>${hzBit}. Chimico resta ${fmtQ(ev.qInSp)}.`,
-            noHtml: `Allora porta P11011 al massimo esercibile (fino a <span class="fix-val">${fmtQ(qMax)}</span>). `
-              + `Non azzerare il chimico per un set a ${fmtQ(ev.qPumpSp)}.`,
-            hideAltOnNo: true,
+            noHtml: cfLowerNoHtml(qSafe8h, "P11011 A/B", qHavePump),
+            hideAltOnNo: false,
           };
         } else {
           anomaly = false;
           verdict = `Male: <strong>P11011 a ${fmtQ(ev.qPumpSp)}</strong> — mettila a <strong class="fix-val">${fmtQ(qPumpTarget)}</strong> `
             + `(manca ${fmtQ(ev.deficit)}).`;
           action = `P11011 → <span class="fix-val">${fmtQ(qPumpTarget)} m³/h</span>${hzBit}.`;
-          alt = nearPump
-            ? `Abbassa il chimico-fisico a ≤ <strong class="fix-val">${fmtQ(qSafe8h)} m³/h</strong> `
-              + `(8 ore OK lasciando P11011 a ${fmtQ(ev.qPumpSp)}).`
-            : `Abbassa il chimico-fisico a ≤ <strong class="fix-val">${fmtQ(qSafe8h)} m³/h</strong> `
-              + `solo se non puoi alzare le P11011 (minimo per 8 ore).`;
+          alt = cfLowerNoHtml(qSafe8h, "P11011 A/B", ev.qPumpSp);
           ask = {
             key: `p11-${fmtQ(qPumpTarget)}-${fmtQ(ev.qPumpSp)}`,
             q: `È possibile aumentare <strong>P11011 A/B</strong> a <strong class="fix-val">${fmtQ(qPumpTarget)} m³/h</strong>?`,
@@ -4736,8 +4790,7 @@
         verdict = `Male: A10620 allo stop con portate quasi in pareggio `
           + `(IN ${fmtQ(ev.qInSp)} · P11011 ${fmtQ(ev.qPumpSp)}).`;
         action = `Tieni <strong>P11011 ≥ <span class="fix-val">${fmtQ(qPumpTarget)} m³/h</span></strong>${hzBit}.`;
-        alt = `Abbassa il chimico-fisico a ≤ <strong class="fix-val">${fmtQ(qSafe8h)} m³/h</strong> `
-          + `(minimo per 8 ore).`;
+        alt = cfLowerNoHtml(qSafe8h, "P11011 A/B", ev.qPumpSp);
         ask = {
           key: `near-${fmtQ(qPumpTarget)}`,
           q: `Puoi alzare un filo le <strong>P11011</strong> a ≥ <strong class="fix-val">${fmtQ(qPumpTarget)} m³/h</strong>?`,
@@ -5783,7 +5836,7 @@
      * Isteresi TK-11021 lato linee osmosi 1 passo (P-11040 A/D · B/D · C/D):
      *  ≥ start svuotamento → linea ON; ≤ stop svuotamento → linea OFF.
      *  Default HMI: A 60/15 · B 60/20 · C 85/60.
-     *  Con SF3 “sempre in marcia”: keeper + boost anti-alto 11021.
+     *  SF3: solo cascata start/stop (niente forza-ON a livello quasi vuoto).
      */
     function updateOsmosiTk11021Interlocks(livU) {
       const liv = Number(livU);
@@ -5808,31 +5861,6 @@
         else __runOsmC = flag;
         out[d.runKey] = { running: flag && osmLineEnabled(d.runKey), startS: startV, stopS: stopV };
       });
-
-      // SF3: almeno una linea ON se c’è acqua; boost se il 11021 sale verso lo stop riempimento.
-      if (__osmAlwaysOnSf3 && Number.isFinite(liv)) {
-        const stopRiemp = numOrNull("stopRiempTk11021");
-        const hi = stopRiemp !== null ? stopRiemp : 97;
-        if (liv > 1.0) {
-          // Keeper: non lasciare tutte ferme (basso livello → UF riempie → blocco alto → cascata).
-          if (!__runOsmA && !__runOsmB && !__runOsmC) {
-            if (osmLineEnabled("A")) __runOsmA = true;
-            else if (osmLineEnabled("B")) __runOsmB = true;
-            else if (osmLineEnabled("C")) __runOsmC = true;
-          }
-        }
-        // Anti alto 11021: avvicinandosi allo stop riempimento forza più linee in marcia.
-        if (liv >= hi - 18) {
-          if (osmLineEnabled("A")) __runOsmA = true;
-          if (osmLineEnabled("B")) __runOsmB = true;
-        }
-        if (liv >= hi - 12) {
-          if (osmLineEnabled("C")) __runOsmC = true;
-        }
-        out.A = { ...out.A, running: !!__runOsmA && osmLineEnabled("A") };
-        out.B = { ...out.B, running: !!__runOsmB && osmLineEnabled("B") };
-        out.C = { ...out.C, running: !!__runOsmC && osmLineEnabled("C") };
-      }
       return out;
     }
 
@@ -5864,8 +5892,8 @@
       const hint = el("blocchiImproveHint");
       if (hint) {
         hint.innerHTML = __osmAlwaysOnSf3
-          ? `Attivo: set A <strong>32/0</strong> · B <strong>50/12</strong> · C <strong>65/35</strong> + keeper anti-fermo e boost sotto lo stop riempimento 11021. Disattiva per i set normali.`
-          : `Attiva: ricalcola start/stop TK-11021 (A keeper a stop 0%, B/C a cascata anticipata) così resta almeno una linea in marcia, senza alto 11021 né cascata sul chimico. Disattiva: ripristina i set precedenti.`;
+          ? `Attivo: cascata A <strong>42/10</strong> · B <strong>58/28</strong> · C <strong>76/48</strong>. Ogni linea in marcia ha ingresso ≥ <strong>${OSM_IN_MIN}</strong> (+15 conc). Valvole fisse sul set. Se l’acqua non basta (lavaggi UF / serbatoio sotto stop), la linea si ferma — sotto i ${OSM_IN_MIN} non è reale tenerla accesa.`
+          : `Attiva: cascata start/stop sul 11021 (A lunga, B/C solo in alto anti-97%) e ingresso minimo ${OSM_IN_MIN}+15 per linea. Non forza portate da “mezzo metro cubo”. Disattiva = set normali.`;
       }
     }
 
@@ -6049,37 +6077,67 @@
       return false;
     }
 
+    /** True solo se la linea è in marcia E riceve portata (≥ min in Auto). */
+    function osmLineFeeding(letter) {
+      const L = String(letter || "").toUpperCase();
+      if (!osmLineRunning(L)) return false;
+      if (!deviceAutoControlled("osmosi")) return true;
+      return __osmFeedOk[L] === true;
+    }
+
     function osmRunningCount() {
       return (osmLineRunning("A") ? 1 : 0) + (osmLineRunning("B") ? 1 : 0) + (osmLineRunning("C") ? 1 : 0);
     }
 
-    /** Portate osmosi in Auto: domanda ripartita solo sulle linee in marcia. */
+    function osmFeedingCount() {
+      return (osmLineFeeding("A") ? 1 : 0) + (osmLineFeeding("B") ? 1 : 0) + (osmLineFeeding("C") ? 1 : 0);
+    }
+
+    /** Portate osmosi in Auto: domanda sulle linee in marcia, ciascuna ≥ OSM_IN_MIN (20). */
     function applyOsmosiAutoFlows(qDemandTotal) {
       const qDemand = Math.max(0, round1(Number(qDemandTotal) || 0));
-      const nRun = osmRunningCount();
-      const each = nRun > 0 ? round1(qDemand / nRun) : 0;
       const ids = ["qOsmosiA", "qOsmosiB", "qOsmosiC"];
       const letters = ["A", "B", "C"];
+      __osmFeedOk.A = false;
+      __osmFeedOk.B = false;
+      __osmFeedOk.C = false;
       if (deviceIsManual("osmosi")) {
-        // Manuale locale: tiene i setpoint nel popup; viva=0 sulle linee ferme
-        letters.forEach((L, i) => paintProcSetpointField(ids[i]));
+        letters.forEach((L, i) => {
+          paintProcSetpointField(ids[i]);
+          if (osmLineRunning(L) && procSetpointOf(ids[i]) >= OSM_IN_MIN - 0.05) __osmFeedOk[L] = true;
+        });
         syncOsmosiSvg();
         paintOsmosiRunUI();
-        return { each: 0, nRun, qDemand, manual: true };
+        return { each: 0, nRun: osmFeedingCount(), qDemand, manual: true };
       }
+
+      // Linee che il livello tiene ON (priorità A→B→C).
+      let want = letters.filter((L) => osmLineRunning(L));
+      while (want.length > 1 && qDemand / want.length < OSM_IN_MIN - 0.05) {
+        want.pop();
+      }
+      if (want.length === 1 && qDemand < OSM_IN_MIN - 0.05) {
+        want = [];
+      }
+      if (__osmAlwaysOnSf3 && qDemand >= OSM_IN_MIN - 0.05 && want.length === 0 && osmLineRunning("A")) {
+        want = ["A"];
+      }
+
+      const nRun = want.length;
+      const each = nRun > 0 ? round1(Math.max(OSM_IN_MIN, qDemand / nRun)) : 0;
       letters.forEach((L, i) => {
         const id = ids[i];
-        if (osmLineRunning(L)) {
+        if (want.indexOf(L) >= 0) {
+          __osmFeedOk[L] = true;
           rememberProcSetpoint(id, each);
           if (!isEditing(id)) setVal(id, each, { force: true });
         } else {
-          // Linea ferma: popup resta al setpoint, non a zero
           paintProcSetpointField(id);
         }
       });
       syncOsmosiSvg();
       paintOsmosiRunUI();
-      return { each, nRun, qDemand };
+      return { each, nRun, qDemand, want };
     }
 
     function paintOsmosiEnableUI() {
@@ -6166,7 +6224,7 @@
       updateOsmosiTk11021Interlocks(numOrNull("livelloAttualeTk11021") ?? 91);
       paintOsmosiEnableUI();
       ["A", "B", "C"].forEach((L) => {
-        const run = plantIsStarted() && osmLineRunning(L);
+        const run = plantIsStarted() && osmLineFeeding(L);
         const disabled = !osmLineEnabled(L);
         const node = document.querySelector(`g.node[aria-label="Osmosi ${L}"]`);
         if (node) paintOsmMiniSketch(node, run, disabled);
@@ -6189,17 +6247,17 @@
       paintOnePump("svgPump11040D", "svgPump11040DArrow", "svgPump11040DLabel", false, false, 0);
       const labGroup = el("svgPump11040Label");
       if (labGroup) {
-        const any = plantIsStarted() && osmRunningCount() > 0;
+        const any = plantIsStarted() && osmFeedingCount() > 0;
         labGroup.setAttribute("fill", any ? DEV_COL.run.lab : DEV_COL.stop.lab);
       }
       const liv = numOrNull("livelloAttualeTk11021") ?? 91;
       const parts = ["A", "B", "C"].map((L) => {
         if (!osmLineEnabled(L)) return `${L} DIS`;
-        return `${L} ${osmLineRunning(L) ? "ON" : "OFF"}`;
+        return `${L} ${osmLineFeeding(L) ? "ON" : "OFF"}`;
       });
       const txt = `TK 11021 ${round1(liv).toFixed(1)}% · P11040/Osmosi ${parts.join(" · ")} · D OFF`
-        + (__osmAlwaysOnSf3 ? " · SF3 sempre-marcia" : "");
-      const col = (plantIsStarted() && osmRunningCount() > 0) ? "var(--ok)" : "var(--muted)";
+        + (__osmAlwaysOnSf3 ? " · SF3 min " + OSM_IN_MIN : "");
+      const col = (plantIsStarted() && osmFeedingCount() > 0) ? "var(--ok)" : "var(--muted)";
       ["tk11021OsmHint", "osmosiRunHint"].forEach((id) => {
         const hint = el(id);
         if (hint) {
@@ -8439,6 +8497,8 @@
               ? `TOT ON ${totOn.toFixed(1)}/${maxM.toFixed(1)} (−${offN} memb.)`
               : `TOT ON ${totOn.toFixed(1)} (tutte ON)`);
           bar.textContent = `t=${__simMin}′ · ${outTxt} · ` + bar.textContent;
+        } else {
+          try { paintRegPreviewBar(); } catch (_) { /* ok */ }
         }
       } finally {
         endFlowStep();
@@ -9058,8 +9118,8 @@
         __osmMeas[L] = m1;
         if (Math.abs(v1 - (Number(__osmValveTarget[L]) || 0)) > 0.08) need = true;
         if (Math.abs(m1 - (Number(__osmMeasTarget[L]) || 0)) > 0.05) need = true;
-        const qLive = (plantIsStarted() && osmLineRunning(L)) ? Math.max(0, m1) : 0;
-        osmTotLive += qLive + (qLive > 0.05 ? 15 : 0);
+        const qLive = (plantIsStarted() && osmLineFeeding(L)) ? Math.max(0, m1) : 0;
+        osmTotLive += qLive + (qLive >= OSM_IN_MIN - 0.05 ? 15 : 0);
         const node = el({ A: "svgQOsmA", B: "svgQOsmB", C: "svgQOsmC" }[L]);
         if (node) node.textContent = round1(qLive).toFixed(1);
       });
@@ -9151,11 +9211,11 @@
       });
     }
 
-    /** Domanda setpoint delle sole linee osmosi in marcia. */
+    /** Domanda setpoint delle sole linee osmosi che ricevono portata. */
     function osmDemandRunning() {
       let d = 0;
       OSM_LINES.forEach((L) => {
-        if (osmLineRunning(L)) d += Math.max(0, procSetpointOf("qOsmosi" + L));
+        if (osmLineFeeding(L)) d += Math.max(0, procSetpointOf("qOsmosi" + L));
       });
       return round1(d);
     }
@@ -9178,13 +9238,13 @@
     /** Quota idraulica osmosi: max(UF verso TK, capacità serbatoio) ripartita sui set. */
     function osmLineShare(letter) {
       const L = String(letter || "").toUpperCase();
-      if (!osmLineRunning(L) || !plantIsStarted()) return 0;
+      if (!osmLineFeeding(L) || !plantIsStarted()) return 0;
       const inlet = Math.max(sumUfEffective(), osmTankFeedCapacity());
       if (inlet < 0.05) return 0;
       let sumSp = 0;
       const spMap = {};
       OSM_LINES.forEach((x) => {
-        if (!osmLineRunning(x)) {
+        if (!osmLineFeeding(x)) {
           spMap[x] = 0;
           return;
         }
@@ -9208,9 +9268,9 @@
     function tickOsmRegulationOnce(dt) {
       OSM_LINES.forEach((L) => {
         const enabled = osmLineEnabled(L);
-        const running = osmLineRunning(L);
+        const feeding = osmLineFeeding(L);
         const sp = Math.max(0, procSetpointOf("qOsmosi" + L));
-        const run = plantIsStarted() && enabled && running && sp > 0.05;
+        const run = plantIsStarted() && enabled && feeding && sp >= OSM_IN_MIN - 0.05;
         const w = __osmWobble[L];
         const measNow = Number(__osmMeas[L]) || 0;
 
@@ -9224,29 +9284,27 @@
         const q100 = osmValveQ100();
         const starved = share + 0.35 < sp || share < 0.05;
         let valveTarget;
+        let qAim;
+
         if (starved) {
-          // Ingresso < set: valvola al 100%, portata limitata dall'acqua disponibile.
+          // Ingresso < set: valvola al 100%, portata = acqua disponibile (mostra il reale).
           valveTarget = 100;
+          qAim = Math.max(0, share);
         } else {
           const ff = valveOpenPctForSet(sp, q100);
           const err = sp - measNow;
-          valveTarget = ff + err * 14;
-          if (measNow + 0.4 < sp) valveTarget = Math.max(valveTarget, ff + 8);
-          valveTarget = Math.max(10, Math.min(100, valveTarget));
-        }
-
-        const qHyd = Math.min(share, q100 * (Math.max(0, valveTarget) / 100));
-        let qAim = qHyd;
-        const regulating = !starved && qHyd > 0.05 && Math.abs(measNow - sp) < 3.5;
-        if (regulating) {
-          w.phase += dt * (0.35 + Math.random() * 0.2);
-          w.bias += (Math.random() - 0.5) * 0.25 * dt;
-          w.bias = Math.max(-0.9, Math.min(0.9, w.bias));
-          const osc = Math.sin(w.phase) * 0.55 + Math.sin(w.phase * 0.37 + 0.9) * 0.25;
-          if (Math.random() < 0.05 * dt) w.bias *= 0.5;
-          qAim = Math.max(0, Math.min(share, sp + osc + w.bias));
-          qAim = Math.min(qAim, qHyd + 0.5);
-          qAim = Math.max(qAim, Math.min(qHyd, sp) - 0.5);
+          // Vicino al set: valvola fissa sul % di progetto, portata = set (niente oscillazioni).
+          if (Math.abs(err) <= 0.6) {
+            valveTarget = Math.max(1, Math.min(100, Math.round(ff)));
+            qAim = Math.min(share, sp);
+            w.bias = 0;
+          } else {
+            valveTarget = ff + err * 10;
+            if (measNow + 0.4 < sp) valveTarget = Math.max(valveTarget, ff + 6);
+            valveTarget = Math.max(10, Math.min(100, valveTarget));
+            const qHyd = Math.min(share, q100 * (Math.max(0, valveTarget) / 100));
+            qAim = qHyd;
+          }
         }
 
         __osmValveTarget[L] = Math.max(0, Math.min(100, valveTarget));
@@ -10946,6 +11004,19 @@
     el("osmAlwaysOnSf3")?.addEventListener("change", () => {
       setOsmAlwaysOnSf3(!!el("osmAlwaysOnSf3")?.checked);
     });
+    {
+      const statusBtn = el("statusBar");
+      if (statusBtn) {
+        const openReg = (e) => {
+          try { e.preventDefault(); e.stopPropagation(); } catch (_) { /* ignore */ }
+          openBlocchiPopup();
+        };
+        statusBtn.addEventListener("click", openReg);
+        statusBtn.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") openReg(e);
+        });
+      }
+    }
 
     el("simReset")?.addEventListener("click", (e) => {
       e.preventDefault();
