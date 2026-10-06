@@ -1504,6 +1504,7 @@
             <text class="badge-val" x="50" y="133" text-anchor="middle" id="svgQIn">150</text>
             <text class="badge-unit" x="78" y="133" text-anchor="middle">m³/h</text>
           </g>
+          <text id="svgManIngresso" class="svg-man-mark" x="102" y="128" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
         </g>
 
         <!-- Tasto PROCESSO (sotto chimico fisico, distaccato) -->
@@ -1543,6 +1544,7 @@
             <text class="badge-val" x="342" y="159" text-anchor="middle" id="svgQPump">334</text>
             <text class="badge-unit" x="372" y="159" text-anchor="middle">m³/h</text>
           </g>
+          <text id="svgManPompa" class="svg-man-mark" x="396" y="158" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
           <g class="flow-edit" data-field="freqHz" data-source="freq">
             <rect class="badge" x="398" y="84" width="58" height="32" rx="5" stroke="#86efac" />
             <text class="badge-val" x="418" y="105" text-anchor="middle" id="svgFreqHz">50</text>
@@ -1581,6 +1583,7 @@
             <text class="badge-val" x="687" y="159" text-anchor="middle" id="svgQMand">334</text>
             <text class="badge-unit" x="717" y="159" text-anchor="middle">m³/h</text>
           </g>
+          <text id="svgManMandata" class="svg-man-mark" x="741" y="158" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
         </g>
 
         <!-- MBR: vaschette A–G (+H fuori uso). Scarichi → A11004. Mandata/permeato dalle membrane -->
@@ -1662,6 +1665,7 @@
           <text class="badge-label" x="966" y="20" text-anchor="middle">TOT ON</text>
           <text class="badge-val" x="966" y="34" text-anchor="middle" id="svgQMem" font-size="12">171.4</text>
         </g>
+        <text id="svgManMembrane" class="svg-man-mark" x="1006" y="30" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
 
         <!-- aspirazione A11004 → 11014 -->
         <path class="pipe pipe-rec" d="M949 176 V200" fill="none" />
@@ -1682,6 +1686,7 @@
             <text class="badge-val" x="936" y="268" text-anchor="middle" id="svgQRec">170.8</text>
             <text class="badge-unit" x="966" y="268" text-anchor="middle">m³/h</text>
           </g>
+          <text id="svgManRiciclo" class="svg-man-mark" x="990" y="267" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
         </g>
 
         <!-- TK-11007 permeato — click → popup livello + setpoints -->
@@ -1800,7 +1805,7 @@
 
         <!-- ULTRAFILTRAZIONE — IN A–D in ingresso · totale sopra -->
         <g aria-label="Ultrafiltrazione A B C D">
-          <text x="568" y="300" text-anchor="middle" fill="#bae6fd" font-size="9" font-weight="700">ULTRA FILTRAZIONE</text>
+          <text x="539" y="300" text-anchor="middle" fill="#bae6fd" font-size="9" font-weight="700">ULTRA FILTRAZIONE</text>
           <g class="flow-edit" data-field="qUfTotale" data-source="uf-totale" aria-label="Totale UF misura e setpoint">
             <rect class="badge" x="474" y="306" width="130" height="28" rx="5" stroke="#7dd3fc" />
             <text class="badge-label" x="539" y="317" text-anchor="middle">TOTALE</text>
@@ -1809,6 +1814,7 @@
             <text class="badge-sp" x="558" y="329" text-anchor="middle" id="svgQUfSp" font-size="12">0.0</text>
             <text class="badge-unit" x="586" y="329" text-anchor="middle">m³/h</text>
           </g>
+          <text id="svgManUltra" class="svg-man-mark" x="608" y="324" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
 
           <!-- Collettore ingresso (da carbone) + 4 misuratori → testata UF -->
           <path class="pipe pipe-main" d="M688 360 V500" />
@@ -1987,6 +1993,7 @@
             <text class="badge-sp" x="187" y="321" text-anchor="middle" id="svgQOsmTotaleSp" font-size="12">0.0</text>
             <text class="badge-unit" x="215" y="321" text-anchor="middle">m³/h</text>
           </g>
+          <text id="svgManOsmosi" class="svg-man-mark" x="238" y="316" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
 
           <path class="pipe pipe-main" d="M310 415 H300" />
           <path class="pipe pipe-main" d="M300 348 V482" />
@@ -3780,6 +3787,26 @@
       return !deviceIsManual("riciclo");
     }
 
+    function paintDevModeMarks() {
+      const map = {
+        ingresso: "svgManIngresso",
+        pompa: "svgManPompa",
+        mandata: "svgManMandata",
+        membrane: "svgManMembrane",
+        riciclo: "svgManRiciclo",
+        ultra: "svgManUltra",
+        osmosi: "svgManOsmosi",
+      };
+      Object.keys(map).forEach((dev) => {
+        const node = el(map[dev]);
+        if (!node) return;
+        const on = deviceIsManual(dev);
+        node.setAttribute("opacity", on ? "1" : "0");
+        node.style.display = on ? "" : "";
+        if (on) node.setAttribute("title", "Manuale locale");
+      });
+    }
+
     function paintDevModeUI(dev) {
       const manual = deviceIsManual(dev);
       document.querySelectorAll(`.dev-mode[data-dev="${dev}"]`).forEach((root) => {
@@ -3822,10 +3849,12 @@
         }
       }
       if (dev === "riciclo") paintRecycleEditableUI();
+      paintDevModeMarks();
     }
 
     function paintAllDevModeUI() {
       ["membrane", "ultra", "osmosi", "riciclo", "pompa", "mandata", "ingresso"].forEach(paintDevModeUI);
+      paintDevModeMarks();
     }
 
     function setDevMode(dev, mode) {
