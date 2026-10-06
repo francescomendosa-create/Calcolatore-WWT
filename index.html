@@ -4151,12 +4151,12 @@
           const badge = svgQ.closest("g")?.querySelector("rect.badge");
           if (badge) badge.setAttribute("stroke", deviceCol(disabled, run).stroke);
         }
-        paintOnePump("svgPump11040" + L, "svgPump11040" + L + "Arrow", "svgPump11040" + L + "Label", run, disabled);
+        paintOnePump("svgPump11040" + L, "svgPump11040" + L + "Arrow", "svgPump11040" + L + "Label", plantIsStarted() && run, disabled);
       });
       paintOnePump("svgPump11040D", "svgPump11040DArrow", "svgPump11040DLabel", false, false);
       const labGroup = el("svgPump11040Label");
       if (labGroup) {
-        const any = osmRunningCount() > 0;
+        const any = plantIsStarted() && osmRunningCount() > 0;
         labGroup.setAttribute("fill", any ? DEV_COL.run.lab : DEV_COL.stop.lab);
       }
       const liv = numOrNull("livelloAttualeTk11021") ?? 91;
@@ -4375,6 +4375,10 @@
       return { hiBlock, hiRestart, loStop, loStart };
     }
 
+    function plantIsStarted() {
+      return !!__simPlaying;
+    }
+
     function paintOnePump(bodyId, arrowId, labelId, running, disabled) {
       const c = deviceCol(!!disabled, !!running);
       const body = el(bodyId);
@@ -4407,11 +4411,16 @@
       // Verde marcia se consenso E portata > 0; ferme → grigie (non rosse)
       const qRecNow = Math.max(0, num("qRecycle"));
       const run11014 = !!allow11014 && qRecNow > 0.5;
-      paintOnePump("svgPump11011", "svgPump11011Arrow", "svgPump11011Label", run11011);
-      paintOnePump("svgPump11036", "svgPump11036Arrow", "svgPump11036Label", run11036);
-      paintOnePump("svgPump11014", "svgPump11014Arrow", "svgPump11014Label", run11014);
+      // In Stop impianto: tutte le pompe graficamente ferme. In Start: marcia da processo.
+      const go = plantIsStarted();
+      const vis11011 = go && run11011;
+      const vis11036 = go && run11036;
+      const vis11014 = go && run11014;
+      paintOnePump("svgPump11011", "svgPump11011Arrow", "svgPump11011Label", vis11011);
+      paintOnePump("svgPump11036", "svgPump11036Arrow", "svgPump11036Label", vis11036);
+      paintOnePump("svgPump11014", "svgPump11014Arrow", "svgPump11014Label", vis11014);
       const recGroup = document.querySelector('[data-field="qRecycle"] rect.badge');
-      if (recGroup) recGroup.setAttribute("stroke", run11014 ? DEV_COL.run.stroke : DEV_COL.stop.stroke);
+      if (recGroup) recGroup.setAttribute("stroke", vis11014 ? DEV_COL.run.stroke : DEV_COL.stop.stroke);
       const svgQRec = el("svgQRec");
       if (svgQRec && (!allow11014 || qRecNow < 0.05)) {
         // allinea badge se ferme (evita verde/0)
@@ -4419,7 +4428,7 @@
       }
 
       // P11019 A/B/C: verdi se consenso livello TK-11007 (start/stop svuotamento) — non dalle membrane
-      const run11019 = p11019Allowed();
+      const run11019 = go && p11019Allowed();
       ["A", "B", "C"].forEach((L) => {
         paintOnePump("svgPump11019" + L, "svgPump11019" + L + "Arrow", null, run11019);
       });
@@ -8168,7 +8177,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt51", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt52", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
