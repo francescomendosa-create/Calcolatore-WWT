@@ -3984,22 +3984,23 @@
       paintOsmosiEnableUI();
       ["A", "B", "C"].forEach((L) => {
         const run = osmLineRunning(L);
+        const disabled = !osmLineEnabled(L);
         const node = document.querySelector(`g.node[aria-label="Osmosi ${L}"]`);
-        if (node) paintOsmMiniSketch(node, run);
+        if (node) paintOsmMiniSketch(node, run, disabled);
         const popMini = el("osmRow" + L)?.querySelector(".osm-mini");
-        if (popMini) paintOsmMiniSketch(popMini, run);
+        if (popMini) paintOsmMiniSketch(popMini, run, disabled);
         const svgQ = el({ A: "svgQOsmA", B: "svgQOsmB", C: "svgQOsmC" }[L]);
         if (svgQ) {
           const badge = svgQ.closest("g")?.querySelector("rect.badge");
-          if (badge) badge.setAttribute("stroke", run ? "#4ade80" : "#f87171");
+          if (badge) badge.setAttribute("stroke", deviceCol(disabled, run).stroke);
         }
-        paintOnePump("svgPump11040" + L, "svgPump11040" + L + "Arrow", "svgPump11040" + L + "Label", run);
+        paintOnePump("svgPump11040" + L, "svgPump11040" + L + "Arrow", "svgPump11040" + L + "Label", run, disabled);
       });
-      paintOnePump("svgPump11040D", "svgPump11040DArrow", "svgPump11040DLabel", false);
+      paintOnePump("svgPump11040D", "svgPump11040DArrow", "svgPump11040DLabel", false, false);
       const labGroup = el("svgPump11040Label");
       if (labGroup) {
         const any = osmRunningCount() > 0;
-        labGroup.setAttribute("fill", any ? "#86efac" : "#fda4af");
+        labGroup.setAttribute("fill", any ? DEV_COL.run.lab : DEV_COL.stop.lab);
       }
       const liv = numOrNull("livelloAttualeTk11021") ?? 91;
       const parts = ["A", "B", "C"].map((L) => {
@@ -4105,25 +4106,21 @@
       return sumMemsRunning(cycleMin) / tot;
     }
 
-    /** Colora ogni membrana: verde in lavoro, rosso in pausa di ciclo o blocco livello. H fuori uso. */
+    /** Colora ogni membrana: verde in lavoro, grigia in pausa/blocco. H fuori uso. */
     function paintMembraneCycleUI(cycleMin) {
       const clk = cycleMin != null ? cycleMin : __mbrCycleMin;
       MBR_MEM_IDS.forEach((letter) => {
         const node = el("svgMem" + letter);
         if (!node) return;
         const pause = membraneIsPaused(clk, letter);
-        if (pause) {
-          node.setAttribute("fill", "#7f1d1d");
-          node.setAttribute("stroke", "#f87171");
-        } else {
-          node.setAttribute("fill", "#14532d");
-          node.setAttribute("stroke", "#4ade80");
-        }
+        const c = deviceCol(false, !pause);
+        node.setAttribute("fill", c.fill);
+        node.setAttribute("stroke", c.stroke);
       });
       const h = el("svgMemH");
       if (h) {
-        h.setAttribute("fill", "#1f2937");
-        h.setAttribute("stroke", "#64748b");
+        h.setAttribute("fill", DEV_COL.off.fill);
+        h.setAttribute("stroke", DEV_COL.off.stroke);
       }
     }
 
