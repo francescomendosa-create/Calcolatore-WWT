@@ -240,17 +240,10 @@
       transform-box: fill-box;
       transform-origin: center;
     }
-    .pump-rotor.is-spinning {
-      animation: pump-spin 3.2s linear infinite;
-    }
     .pump-ring {
       pointer-events: none;
     }
-    @keyframes pump-spin {
-      to { transform: rotate(360deg); }
-    }
     @media (prefers-reduced-motion: reduce) {
-      .pump-rotor.is-spinning { animation: none; }
       .flow-water.is-flowing .flow-line { animation: none; opacity: 0.55; }
     }
     .flow-water { pointer-events: none; }
@@ -1010,10 +1003,12 @@
           <text x="285" y="78" text-anchor="middle" fill="#bbf7d0" font-size="11" font-weight="700">A10620</text>
           <text x="285" y="104" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700" id="svgLiv">63.8%</text>
           <!-- pompa a destra verso 10608 -->
-          <g class="pump-rotor">
-            <circle id="svgPump11011" cx="355" cy="100" r="15" fill="#14532d" stroke="#4ade80" stroke-width="2" />
-            <circle class="pump-ring" cx="355" cy="100" r="9.5" fill="none" stroke="#86efac" stroke-width="1.6" stroke-dasharray="7 11" stroke-linecap="round" />
-            <path id="svgPump11011Arrow" d="M348,92 L366,100 L348,108 Z" fill="#bbf7d0" />
+          <g transform="translate(355,100)">
+            <g class="pump-rotor">
+              <circle id="svgPump11011" r="15" fill="#14532d" stroke="#4ade80" stroke-width="2" />
+              <circle class="pump-ring" r="9.5" fill="none" stroke="#86efac" stroke-width="1.6" stroke-dasharray="7 11" stroke-linecap="round" />
+              <path id="svgPump11011Arrow" d="M-7,-8 L11,0 L-7,8 Z" fill="#bbf7d0" />
+            </g>
           </g>
           <text id="svgPump11011Label" x="355" y="128" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700">P11011 A/B</text>
           <g class="flow-edit" data-field="qPump" data-source="pompa">
@@ -1046,10 +1041,12 @@
           <rect id="svgTank11liq" x="582" y="75" width="96" height="50" fill="#22c55e" clip-path="url(#clipTank11)" opacity="0.9" />
           <text x="630" y="78" text-anchor="middle" fill="#bbf7d0" font-size="11" font-weight="700">A10611/7</text>
           <text x="630" y="104" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700" id="svgLivA10611">55.0%</text>
-          <g class="pump-rotor">
-            <circle id="svgPump11036" cx="700" cy="100" r="15" fill="#14532d" stroke="#4ade80" stroke-width="2" />
-            <circle class="pump-ring" cx="700" cy="100" r="9.5" fill="none" stroke="#86efac" stroke-width="1.6" stroke-dasharray="7 11" stroke-linecap="round" />
-            <path id="svgPump11036Arrow" d="M693,92 L711,100 L693,108 Z" fill="#bbf7d0" />
+          <g transform="translate(700,100)">
+            <g class="pump-rotor">
+              <circle id="svgPump11036" r="15" fill="#14532d" stroke="#4ade80" stroke-width="2" />
+              <circle class="pump-ring" r="9.5" fill="none" stroke="#86efac" stroke-width="1.6" stroke-dasharray="7 11" stroke-linecap="round" />
+              <path id="svgPump11036Arrow" d="M-7,-8 L11,0 L-7,8 Z" fill="#bbf7d0" />
+            </g>
           </g>
           <text id="svgPump11036Label" x="700" y="128" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700">MP 11036 A/B</text>
           <g class="flow-edit" data-field="qMandata" data-source="mandata">
@@ -1121,10 +1118,12 @@
 
         <!-- 11014 A/B -->
         <g class="node" tabindex="0" data-popup="riciclo" role="button" aria-label="11014 A/B riciclo fanghi da A11004">
-          <g class="pump-rotor">
-            <circle id="svgPump11014" cx="949" cy="218" r="14" fill="#14532d" stroke="#4ade80" stroke-width="2" />
-            <circle class="pump-ring" cx="949" cy="218" r="8.5" fill="none" stroke="#86efac" stroke-width="1.5" stroke-dasharray="6 10" stroke-linecap="round" />
-            <path id="svgPump11014Arrow" d="M956,211 L940,218 L956,225 Z" fill="#bbf7d0" />
+          <g transform="translate(949,218)">
+            <g class="pump-rotor">
+              <circle id="svgPump11014" r="14" fill="#14532d" stroke="#4ade80" stroke-width="2" />
+              <circle class="pump-ring" r="8.5" fill="none" stroke="#86efac" stroke-width="1.5" stroke-dasharray="6 10" stroke-linecap="round" />
+              <path id="svgPump11014Arrow" d="M7,-7 L-9,0 L7,7 Z" fill="#bbf7d0" />
+            </g>
           </g>
           <text id="svgPump11014Label" x="949" y="242" text-anchor="middle" fill="#86efac" font-size="9" font-weight="700">11014 A/B</text>
           <g class="flow-edit" data-field="qRecycle" data-source="riciclo-inline">
@@ -4386,7 +4385,22 @@
       return !!__simPlaying;
     }
 
-    function paintOnePump(bodyId, arrowId, labelId, running, disabled) {
+    const PUMP_REV_MS = 3200;
+    const PUMP_REST_EPS = 1.2;
+    let __pumpSpinRaf = 0;
+    const __pumpSpin = Object.create(null);
+    function pumpReduceMotion() {
+      try { return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); } catch (_) { return false; }
+    }
+    function pumpSpinSt(id) {
+      if (!__pumpSpin[id]) __pumpSpin[id] = { ang: 0, last: 0, coast: false, want: false, disabled: false, arrowId: "", labelId: "" };
+      return __pumpSpin[id];
+    }
+    function applyPumpRotorAng(rotor, ang) {
+      if (!rotor) return;
+      rotor.setAttribute("transform", "rotate(" + (Number(ang) || 0) + ")");
+    }
+    function paintPumpShell(bodyId, arrowId, labelId, running, disabled) {
       const c = deviceCol(!!disabled, !!running);
       const body = el(bodyId);
       const arrow = el(arrowId);
@@ -4396,13 +4410,84 @@
       if (label) label.setAttribute("fill", c.lab);
       const rotor = body && body.closest && body.closest(".pump-rotor");
       if (rotor) {
-        rotor.classList.toggle("is-spinning", !!running && !disabled);
         const ring = rotor.querySelector(".pump-ring");
         if (ring) {
           ring.setAttribute("stroke", running && !disabled ? c.lab : c.stroke);
           ring.setAttribute("opacity", running && !disabled ? "0.95" : "0.45");
         }
       }
+      return rotor;
+    }
+    function kickPumpSpinLoop() {
+      if (__pumpSpinRaf) return;
+      __pumpSpinRaf = requestAnimationFrame(tickPumpSpin);
+    }
+    function tickPumpSpin(ts) {
+      let need = false;
+      const ids = Object.keys(__pumpSpin);
+      for (let i = 0; i < ids.length; i++) {
+        const id = ids[i];
+        const st = __pumpSpin[id];
+        const body = el(id);
+        const rotor = body && body.closest && body.closest(".pump-rotor");
+        if (!rotor) continue;
+        if (st.want) {
+          if (!st.last) st.last = ts;
+          const dt = Math.min(80, Math.max(0, ts - st.last));
+          st.last = ts;
+          st.ang = (st.ang + (360 * dt) / PUMP_REV_MS) % 360;
+          applyPumpRotorAng(rotor, st.ang);
+          need = true;
+        } else if (st.coast) {
+          if (!st.last) st.last = ts;
+          const dt = Math.min(80, Math.max(0, ts - st.last));
+          st.last = ts;
+          st.ang += (360 * dt) / PUMP_REV_MS;
+          if (st.ang >= 360 - PUMP_REST_EPS) {
+            st.ang = 0;
+            st.coast = false;
+            st.last = 0;
+            applyPumpRotorAng(rotor, 0);
+            paintPumpShell(id, st.arrowId, st.labelId, false, st.disabled);
+          } else {
+            applyPumpRotorAng(rotor, st.ang);
+            need = true;
+          }
+        } else {
+          st.ang = 0;
+          st.last = 0;
+          applyPumpRotorAng(rotor, 0);
+        }
+      }
+      __pumpSpinRaf = need ? requestAnimationFrame(tickPumpSpin) : 0;
+    }
+    function paintOnePump(bodyId, arrowId, labelId, running, disabled) {
+      const st = pumpSpinSt(bodyId);
+      st.arrowId = arrowId || "";
+      st.labelId = labelId || "";
+      st.disabled = !!disabled;
+      const want = !!(running && !disabled);
+      st.want = want;
+      if (pumpReduceMotion()) {
+        st.ang = 0;
+        st.coast = false;
+        st.last = 0;
+        const rotor = paintPumpShell(bodyId, arrowId, labelId, want, !!disabled);
+        applyPumpRotorAng(rotor, 0);
+        return;
+      }
+      if (want) {
+        st.coast = false;
+      } else if ((st.ang % 360) > PUMP_REST_EPS) {
+        st.coast = true;
+      } else {
+        st.ang = 0;
+        st.coast = false;
+        st.last = 0;
+      }
+      const visRun = want || st.coast;
+      paintPumpShell(bodyId, arrowId, labelId, visRun, !visRun && !!disabled);
+      if (want || st.coast) kickPumpSpinLoop();
     }
 
     function paintPumpColors(run14) {
@@ -8188,7 +8273,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt54", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt55", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
