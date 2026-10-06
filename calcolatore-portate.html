@@ -160,17 +160,39 @@
     }
     .sim-time .chimico-blocks {
       min-width: 1.1em;
-      padding: 0 2px;
+      padding: 2px 6px;
       text-align: center;
       font-size: 1.05rem;
       font-weight: 800;
       color: #f87171;
       font-variant-numeric: tabular-nums;
       line-height: 1.15;
-      cursor: default;
+      cursor: pointer;
       user-select: none;
+      border-radius: 6px;
+      border: 1px solid transparent;
     }
-    .sim-time .chimico-blocks[data-count="0"] { opacity: 0.45; }
+    .sim-time .chimico-blocks:hover {
+      border-color: #f87171;
+      background: rgba(127, 29, 29, 0.35);
+      color: #fecaca;
+    }
+    .sim-time .chimico-blocks[data-count="0"] { opacity: 0.55; }
+    #popBlocchi .block-explain p { margin: 0 0 10px; line-height: 1.45; }
+    #popBlocchi .block-explain strong { color: #fecaca; }
+    #popBlocchi .block-explain .ok-line strong { color: #86efac; }
+    #popBlocchi .block-meta {
+      margin: 12px 0 0;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      font-size: 0.85rem;
+      color: #cbd5e1;
+      line-height: 1.45;
+    }
+    #popBlocchi .block-meta div { margin: 0 0 4px; }
+    #popBlocchi .block-meta div:last-child { margin: 0; }
     .sim-time button {
       appearance: none;
       border: 1px solid var(--line);
@@ -1159,7 +1181,7 @@
         <span id="simTimeLabel">0′</span>
         <button type="button" id="simPlus5" aria-label="Avanti 1 minuto">+1′</button>
         <button type="button" id="simReset" aria-label="Azzera tempo">Reset</button>
-        <span id="chimicoBlockCount" class="chimico-blocks" data-count="0" title="Blocchi chimico-fisico (conteggio)">0</span>
+        <span id="chimicoBlockCount" class="chimico-blocks" data-count="0" role="button" tabindex="0" title="Clic: spiega i blocchi chimico-fisico" aria-label="Blocchi chimico-fisico — clic per spiegazione">0</span>
       </div>
     </div>
 
@@ -2894,6 +2916,18 @@
     </div>
   </div>
 
+
+  <!-- POPUP spiegazione blocchi chimico-fisico -->
+  <div class="modal-back" id="popBlocchi" role="dialog" aria-modal="true" aria-labelledby="blocchiTitle">
+    <div class="modal">
+      <h3><span id="blocchiTitle">Blocchi chimico-fisico</span><button type="button" data-close>&times;</button></h3>
+      <div class="block-explain" id="blocchiBody">
+        <p class="mini">Nessun dettaglio.</p>
+      </div>
+      <div class="actions"><button type="button" data-close>Chiudi</button></div>
+    </div>
+  </div>
+
   <!-- POPUP P11019 A/B/C — set pompe + split Impianto (carboni) / IAS -->
   <div class="modal-back" id="popP11019" role="dialog" aria-modal="true">
     <div class="modal wide-settings">
@@ -3015,6 +3049,7 @@
     let __chimicoAllowFill = true; // isteresi chimico su A10620 (start/stop riempimento)
     let __chimicoWasAllow = true;  // fronte per conteggio blocchi
     let __chimicoBlockCount = 0;   // quante volte il chimico è andato in blocco (dal Reset)
+    let __chimicoBlockLog = [];    // ultimi eventi blocco (motivo + portate)
     let __blockP11011By11 = false; // isteresi alto A10611 (96/90) → ferma P11011
     let __runMbrByLevel = true;  // isteresi membrane su livello MBR (start 85 / stop 77)
     let __allowMbrByPermeate = true; // isteresi TK 11007 (start riemp 90 / stop riemp 97)
@@ -3653,10 +3688,44 @@
       return Number.isFinite(v) ? v : null;
     };
 
+    /** Snapshot al momento del blocco: livelli, soglie e portate coinvolte. */
+    function captureChimicoBlockEvent() {
+      const stopR = numOrNull("stopRiempA10620");
+      const startR = numOrNull("startRiempA10620");
+      const stop = stopR !== null ? stopR : 95;
+      const start = startR !== null ? startR : 92;
+      const liv = numOrNull("livelloAttuale");
+      const livV = liv !== null ? liv : 0;
+      const qInSp = Math.max(0, num("qIn"));
+      const qInLive = (__qInLive != null && Number.isFinite(__qInLive))
+        ? Math.max(0, Number(__qInLive))
+        : qInSp;
+      const pumpOn = !!(typeof p11011Allowed === "function" && p11011Allowed() && (plantIsStarted() || __simBusy || __simMin > 0));
+      const qPumpSp = Math.max(0, num("qPump"));
+      const qPumpLive = Math.max(0, Number(__flowLive.qPump) || qPumpSp);
+      const qOut = pumpOn ? qPumpLive : 0;
+      const delta = round1(qInLive - qOut);
+      return {
+        tMin: Number(__simMin) || 0,
+        liv: round2(livV),
+        stop,
+        start,
+        qInSp: round1(qInSp),
+        qInLive: round1(qInLive),
+        qPump: round1(qPumpLive),
+        qOut: round1(qOut),
+        pumpOn,
+        delta,
+        blockP11011: !!__blockP11011By11,
+      };
+    }
+
     /** Imposta marcia chimico; conta ogni passaggio ON→OFF (blocco). silent = no conteggio (reset/snap). */
     function setChimicoAllowFill(next, { silent = false } = {}) {
       const on = !!next;
       if (!silent && __chimicoWasAllow && !on) {
+        try { __chimicoBlockLog.push(captureChimicoBlockEvent()); } catch (_) { /* ignore */ }
+        if (__chimicoBlockLog.length > 12) __chimicoBlockLog = __chimicoBlockLog.slice(-12);
         __chimicoBlockCount += 1;
         updateChimicoBlockUI();
       }
@@ -3669,14 +3738,90 @@
       if (!node) return;
       node.textContent = String(__chimicoBlockCount);
       node.setAttribute("data-count", String(__chimicoBlockCount));
-      node.title = __chimicoBlockCount === 1
-        ? "1 blocco chimico-fisico"
-        : `${__chimicoBlockCount} blocchi chimico-fisico`;
+      const n = __chimicoBlockCount;
+      node.title = n === 0
+        ? "Nessun blocco — clic per capire quando scatta"
+        : (n === 1 ? "1 blocco — clic per la spiegazione" : `${n} blocchi — clic per la spiegazione`);
     }
 
     function resetChimicoBlockCount() {
       __chimicoBlockCount = 0;
+      __chimicoBlockLog = [];
       updateChimicoBlockUI();
+    }
+
+    function fmtBlockPct(v) {
+      const n = Number(v);
+      return Number.isFinite(n) ? n.toFixed(1).replace(/\.0$/, "") + "%" : "—";
+    }
+
+    function paintBlocchiExplain() {
+      const body = el("blocchiBody");
+      if (!body) return;
+      const stopR = numOrNull("stopRiempA10620");
+      const startR = numOrNull("startRiempA10620");
+      const stopNow = stopR !== null ? stopR : 95;
+      const startNow = startR !== null ? startR : 92;
+      const livNow = numOrNull("livelloAttuale");
+      const blockedNow = !__chimicoAllowFill;
+      const last = __chimicoBlockLog.length ? __chimicoBlockLog[__chimicoBlockLog.length - 1] : null;
+
+      let html = "";
+      html += `<p><strong>Cosa significa il numero</strong><br>
+        Conta quante volte il <strong>chimico-fisico</strong> si è fermato dal Reset perché A10620 ha raggiunto lo
+        <strong>stop riempimento</strong> (ora ${fmtBlockPct(stopNow)}).</p>`;
+
+      if (blockedNow) {
+        html += `<p><strong>Stato attuale: in blocco</strong><br>
+          Livello A10620 ${livNow !== null ? fmtBlockPct(livNow) : "—"}.
+          L’ingresso (TOT OUT) è interrotto finché il livello non scende a ≤ <strong>${fmtBlockPct(startNow)}</strong>
+          (start riempimento).</p>`;
+      } else {
+        html += `<p class="ok-line"><strong>Stato attuale: chimico ON</strong><br>
+          Livello A10620 ${livNow !== null ? fmtBlockPct(livNow) : "—"}.
+          Può mandare finché non raggiunge di nuovo lo stop riempimento ${fmtBlockPct(stopNow)}.</p>`;
+      }
+
+      if (last) {
+        const causePump = last.blockP11011
+          ? "P11011 erano già ferme per blocco alto A10611, quindi A10620 non si svuotava."
+          : (!last.pumpOn
+            ? "P11011 non erano in marcia (livello basso / start svuotamento non raggiunto), quindi A10620 si è riempita solo con l’ingresso."
+            : (last.delta > 0.5
+              ? `La portata in ingresso (${last.qInLive.toFixed(1)} m³/h) era maggiore dello scarico P11011 (${last.qOut.toFixed(1)} m³/h): sbilancio circa +${last.delta.toFixed(1)} m³/h.`
+              : `Anche con scarico simile all’ingresso, il livello ha comunque toccato lo stop riempimento ${fmtBlockPct(last.stop)}.`));
+        html += `<div class="block-meta">
+          <div><strong>Ultimo blocco</strong> · tempo sim ${last.tMin}′</div>
+          <div>Livello A10620: <strong>${fmtBlockPct(last.liv)}</strong> ≥ stop riempimento <strong>${fmtBlockPct(last.stop)}</strong></div>
+          <div>Portata che riempie (ingresso / TOT OUT): set <strong>${last.qInSp.toFixed(1)}</strong> · viva <strong>${last.qInLive.toFixed(1)} m³/h</strong></div>
+          <div>Scarico P11011 al momento: <strong>${last.qOut.toFixed(1)} m³/h</strong>${last.pumpOn ? "" : " (pompe OFF)"}</div>
+          <div style="margin-top:8px">${causePump}</div>
+          <div style="margin-top:8px"><strong>Cosa ripristinare</strong>: far scendere A10620 a ≤ <strong>${fmtBlockPct(last.start)}</strong>
+            (aumentando lo scarico P11011 e/o riducendo l’ingresso). Al ripristino il chimico riparte da solo.</div>
+        </div>`;
+      } else if (__chimicoBlockCount === 0) {
+        html += `<div class="block-meta">
+          <div>Ancora nessun blocco dal Reset.</div>
+          <div style="margin-top:6px">Scatta quando ingresso &gt; capacità di svuotamento e A10620 arriva a ${fmtBlockPct(stopNow)}.
+            Per evitare: tenere P11011 in grado di scaricare almeno quanto TOT OUT, oppure abbassare l’ingresso.</div>
+        </div>`;
+      } else {
+        html += `<div class="block-meta"><div>${__chimicoBlockCount} blocco/i contati, ma senza dettaglio memorizzato (evento prima dell’aggiornamento).</div></div>`;
+      }
+
+      if (__chimicoBlockLog.length > 1) {
+        const prev = __chimicoBlockLog.slice(0, -1).slice(-4).reverse();
+        html += `<p class="mini" style="margin-top:12px">Precedenti: `
+          + prev.map((e) => `${e.tMin}′ @ ${fmtBlockPct(e.liv)} · IN ${e.qInLive.toFixed(1)} / OUT ${e.qOut.toFixed(1)}`).join(" · ")
+          + `</p>`;
+      }
+
+      body.innerHTML = html;
+    }
+
+    function openBlocchiPopup() {
+      paintBlocchiExplain();
+      openPopup("blocchi");
     }
 
     /** Avanza oscillazione lenta intorno al setpoint digitato (tipicamente ±1…2 m³/h, max ±2.5). */
@@ -8339,6 +8484,7 @@
       tk11021: el("popTk11021"),
       ultra: el("popUltra"),
       osmosi: el("popOsmosi"),
+      blocchi: el("popBlocchi"),
     };
 
     function refreshProcViews() {
@@ -8475,6 +8621,7 @@
       }
       syncScrollLock();
       if (name === "pompe" || name === "mandata" || name === "processo" || name === "riciclo" || name === "membrane" || name === "permeato" || name === "p11019" || name === "tk11021" || name === "ultra") refreshProcViews();
+      if (name === "blocchi") paintBlocchiExplain();
       if (name === "riciclo") {
         paintDevModeUI("riciclo");
         paintRecycleEditableUI();
@@ -9509,6 +9656,18 @@
     el("simPlayToggle")?.addEventListener("click", (e) => { e.preventDefault(); simTogglePlay(); });
     el("simPlus5")?.addEventListener("click", (e) => { e.preventDefault(); simPlus5(); });
     el("simMinus5")?.addEventListener("click", (e) => { e.preventDefault(); simMinus5(); });
+    const blockCountBtn = el("chimicoBlockCount");
+    if (blockCountBtn) {
+      const openBlocks = (e) => {
+        try { e.preventDefault(); e.stopPropagation(); } catch (_) { /* ignore */ }
+        openBlocchiPopup();
+      };
+      blockCountBtn.addEventListener("click", openBlocks);
+      blockCountBtn.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") openBlocks(e);
+      });
+    }
+
     el("simReset")?.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -10166,7 +10325,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt100", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt101", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
