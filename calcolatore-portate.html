@@ -304,6 +304,10 @@
     .badge-val { fill: #fff; font: 700 13px "Segoe UI", sans-serif; }
     .badge-unit { fill: var(--muted); font: 500 10px "Segoe UI", sans-serif; }
     .badge-label { fill: var(--muted); font: 600 10px "Segoe UI", sans-serif; letter-spacing: 0.03em; }
+    .uf-valve-track { fill: #020617; stroke: #475569; stroke-width: 0.9; }
+    .uf-valve-fill { fill: #38bdf8; }
+    .uf-valve-fill.is-full { fill: #fbbf24; }
+    .uf-valve-pct { fill: #94a3b8; font: 700 6px "Segoe UI", sans-serif; }
     .pipe { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
     .pipe-main { stroke: #38bdf8; }
     .pipe-rec { stroke: #fb7185; }
@@ -1439,40 +1443,52 @@
 
           <path class="pipe pipe-main" d="M688 372 H612" />
           <g class="flow-edit" data-field="qUfA" data-source="uf-linea">
-            <rect class="badge" x="620" y="357" width="70" height="28" rx="5" stroke="#7dd3fc" />
-            <text class="badge-label" x="655" y="368" text-anchor="middle">IN A</text>
-            <text class="badge-val" x="643" y="380" text-anchor="middle" id="svgQUfA">0.0</text>
-            <text class="badge-unit" x="671" y="380" text-anchor="middle">m³/h</text>
+            <rect class="badge" x="608" y="352" width="90" height="36" rx="5" stroke="#7dd3fc" />
+            <text class="badge-label" x="646" y="363" text-anchor="middle">IN A</text>
+            <text class="badge-val" x="634" y="378" text-anchor="middle" id="svgQUfA">0.0</text>
+            <text class="badge-unit" x="662" y="378" text-anchor="middle">m³/h</text>
+            <rect class="uf-valve-track" x="684" y="355" width="8" height="30" rx="2" />
+            <rect id="svgUfValveA" class="uf-valve-fill" x="685" y="384" width="6" height="0" rx="1" />
+            <text id="svgUfValvePctA" class="uf-valve-pct" x="688" y="389" text-anchor="middle">0</text>
           </g>
           <path class="pipe pipe-main" d="M620 372 H538" />
           <path class="pipe pipe-main" d="M538 372 V365" />
 
           <path class="pipe pipe-main" d="M688 415 H612" />
           <g class="flow-edit" data-field="qUfB" data-source="uf-linea">
-            <rect class="badge" x="620" y="400" width="70" height="28" rx="5" stroke="#7dd3fc" />
-            <text class="badge-label" x="655" y="411" text-anchor="middle">IN B</text>
-            <text class="badge-val" x="643" y="423" text-anchor="middle" id="svgQUfB">0.0</text>
-            <text class="badge-unit" x="671" y="423" text-anchor="middle">m³/h</text>
+            <rect class="badge" x="608" y="395" width="90" height="36" rx="5" stroke="#7dd3fc" />
+            <text class="badge-label" x="646" y="406" text-anchor="middle">IN B</text>
+            <text class="badge-val" x="634" y="421" text-anchor="middle" id="svgQUfB">0.0</text>
+            <text class="badge-unit" x="662" y="421" text-anchor="middle">m³/h</text>
+            <rect class="uf-valve-track" x="684" y="398" width="8" height="30" rx="2" />
+            <rect id="svgUfValveB" class="uf-valve-fill" x="685" y="427" width="6" height="0" rx="1" />
+            <text id="svgUfValvePctB" class="uf-valve-pct" x="688" y="432" text-anchor="middle">0</text>
           </g>
           <path class="pipe pipe-main" d="M620 415 H560" />
           <path class="pipe pipe-main" d="M560 415 V365" />
 
           <path class="pipe pipe-main" d="M688 458 H612" />
           <g class="flow-edit" data-field="qUfC" data-source="uf-linea">
-            <rect class="badge" x="620" y="443" width="70" height="28" rx="5" stroke="#7dd3fc" />
-            <text class="badge-label" x="655" y="454" text-anchor="middle">IN C</text>
-            <text class="badge-val" x="643" y="466" text-anchor="middle" id="svgQUfC">0.0</text>
-            <text class="badge-unit" x="671" y="466" text-anchor="middle">m³/h</text>
+            <rect class="badge" x="608" y="438" width="90" height="36" rx="5" stroke="#7dd3fc" />
+            <text class="badge-label" x="646" y="449" text-anchor="middle">IN C</text>
+            <text class="badge-val" x="634" y="464" text-anchor="middle" id="svgQUfC">0.0</text>
+            <text class="badge-unit" x="662" y="464" text-anchor="middle">m³/h</text>
+            <rect class="uf-valve-track" x="684" y="441" width="8" height="30" rx="2" />
+            <rect id="svgUfValveC" class="uf-valve-fill" x="685" y="470" width="6" height="0" rx="1" />
+            <text id="svgUfValvePctC" class="uf-valve-pct" x="688" y="475" text-anchor="middle">0</text>
           </g>
           <path class="pipe pipe-main" d="M620 458 H582" />
           <path class="pipe pipe-main" d="M582 458 V365" />
 
           <path class="pipe pipe-main" d="M688 500 H612" />
           <g class="flow-edit" data-field="qUfD" data-source="uf-linea">
-            <rect class="badge" x="620" y="485" width="70" height="28" rx="5" stroke="#7dd3fc" />
-            <text class="badge-label" x="655" y="496" text-anchor="middle">IN D</text>
-            <text class="badge-val" x="643" y="508" text-anchor="middle" id="svgQUfD">0.0</text>
-            <text class="badge-unit" x="671" y="508" text-anchor="middle">m³/h</text>
+            <rect class="badge" x="608" y="480" width="90" height="36" rx="5" stroke="#7dd3fc" />
+            <text class="badge-label" x="646" y="491" text-anchor="middle">IN D</text>
+            <text class="badge-val" x="634" y="506" text-anchor="middle" id="svgQUfD">0.0</text>
+            <text class="badge-unit" x="662" y="506" text-anchor="middle">m³/h</text>
+            <rect class="uf-valve-track" x="684" y="483" width="8" height="30" rx="2" />
+            <rect id="svgUfValveD" class="uf-valve-fill" x="685" y="512" width="6" height="0" rx="1" />
+            <text id="svgUfValvePctD" class="uf-valve-pct" x="688" y="517" text-anchor="middle">0</text>
           </g>
           <path class="pipe pipe-main" d="M620 500 H604" />
           <path class="pipe pipe-main" d="M604 500 V365" />
@@ -2927,6 +2943,8 @@
     let __ufSvcMin = 0;          // compat snap vecchi
     let __ufChem = null;         // timer per linea: remain (min, anche negativi) + wash in corso
     let __carbWash = null;       // filtri carbone A/B: remain + phase ctrl/lav
+    const UF_VALVE_Q100 = 60;    // m³/h a valvola 100% (apertura di progetto per linea)
+    const __ufValvePct = { A: 0, B: 0, C: 0, D: 0 };
     let __startupPumpHold = false; // dopo Reset: pompe ON finché non parti con +1′
     let __simMin = 0;
     let __simSnap = null;
@@ -4082,9 +4100,8 @@
       if (iasNode && !isEditing("qP11019Ias")) {
         iasNode.value = ias > 0.05 ? String(ias) : "";
       }
-      let imp = Math.max(0, Math.round(Number(__flowSetpoint.qP11019Impianto) || 0));
-      if (imp > 500) imp = 0;
-      if (pump > 0.05) imp = Math.max(0, pump - ias);
+      // Impianto = sempre pompe − IAS (mai valori spurii tipo 500)
+      let imp = Math.max(0, pump - ias);
       __flowSetpoint.qP11019Impianto = imp;
       const impNode = el("qP11019Impianto");
       if (impNode && !isEditing("qP11019Impianto")) {
@@ -4177,15 +4194,21 @@
       const popImp = el("svgPopP11019Imp");
       if (popImp) popImp.textContent = fmtSet(impSp);
 
+      // Schema sotto le pompe: SOLO portata viva Impianto. Pompe ferme / Stop → 0.0
       const ov = el("svgQP11019");
-      if (ov && !isEditing("qP11019")) ov.textContent = impL.toFixed(1);
+      if (ov) {
+        const running = plantIsStarted() && p11019Allowed() && pumpL > 0.05;
+        const shown = running ? Math.min(impL, pumpSp) : 0;
+        ov.textContent = round1(shown).toFixed(1);
+      }
 
       const hint = el("p11019SplitHint");
       if (hint) {
-        hint.textContent = p11019Allowed()
+        const running = plantIsStarted() && p11019Allowed();
+        hint.textContent = running
           ? `Set pompe ${pumpSp} = Impianto ${impSp} + IAS ${iasSp} m³/h · viva Impianto ${impL.toFixed(1)}`
-          : `P11019 FERME (TK 11007) · set pompe ${pumpSp} · IAS ${iasSp} · Impianto ${impSp} (il set resta)`;
-        hint.style.color = p11019Allowed() ? "var(--ok)" : "var(--danger)";
+          : `P11019 FERME · sul misuratore Impianto = 0 · set in memoria ${pumpSp} (IAS ${iasSp} · Impianto ${impSp})`;
+        hint.style.color = running ? "var(--ok)" : "var(--danger)";
       }
     }
 
@@ -6221,17 +6244,20 @@
       const srcUf = source === "uf-totale" || source === "uf-linea" || source === "ultra";
       let qUfSet = 0;
       if (!isEditingUf() && !srcUf && deviceAutoControlled("ultra")) {
-        // UF a valle Impianto (dopo split IAS e lavaggi carbone): viva può essere 0, setpoint popup resta
+        // Setpoint UF: si seminano una volta dalla portata Impianto; poi RESTANO.
+        // La viva (schema) scende se carbone/lavaggi riducono l’ingresso; le valvole si aprono.
         if (!__allowUfByTk11021 || !p11019Allowed() || qP19Plant < 0.05) {
-          qUfSet = 0;
           paintUfPopupSetpoints();
           paintUfSvgLive();
         } else {
-          qUfSet = round1(qP19Plant);
-          rememberProcSetpoint("qUfTotale", qUfSet);
-          setVal("qUfTotale", qUfSet, { force: true });
-          setUfEqual(qUfSet);
-          syncUf("uf-totale");
+          const totSp = procSetpointOf("qUfTotale");
+          if (totSp < 0.05) {
+            qUfSet = round1(qP19Plant);
+            rememberProcSetpoint("qUfTotale", qUfSet);
+            setUfEqual(qUfSet);
+          }
+          paintUfPopupSetpoints();
+          paintUfSvgLive();
         }
       }
 
@@ -7297,16 +7323,84 @@
       return ufAnyDue(letter) && !ufInletAvailable();
     }
 
+    /** Quota idraulica disponibile per linea (ingresso carbone→UF ripartito sui setpoint). */
+    function ufLineShare(letter) {
+      const L = String(letter || "").toUpperCase();
+      if (!ufLineEnabled(L) || ufLineInWash(L)) return 0;
+      if (!plantIsStarted() || !p11019Allowed() || !__allowUfByTk11021) return 0;
+      const inlet = qCarbToUfLive();
+      if (inlet < 0.05) return 0;
+      let sumSp = 0;
+      const spMap = {};
+      UF_LINES.forEach((x) => {
+        if (!ufLineEnabled(x) || ufLineInWash(x)) {
+          spMap[x] = 0;
+          return;
+        }
+        const sp = Math.max(0, procSetpointOf("qUf" + x));
+        spMap[x] = sp;
+        sumSp += sp;
+      });
+      if (sumSp < 0.05) return 0;
+      return round1(inlet * (spMap[L] / sumSp));
+    }
+
+    /** Portata viva linea: min(setpoint, quota disponibile). Setpoint popup non scende. */
     function ufLineEffective(letter) {
       const L = String(letter || "").toUpperCase();
       if (!ufLineEnabled(L)) return 0;
       if (!p11019Allowed() || !__allowUfByTk11021) return 0;
       if (ufLineInWash(L)) return 0;
-      return procSetpointOf("qUf" + L);
+      if (!plantIsStarted()) return 0;
+      const sp = Math.max(0, procSetpointOf("qUf" + L));
+      if (sp < 0.05) return 0;
+      return round1(Math.min(sp, ufLineShare(L)));
     }
 
     function sumUfEffective() {
       return round1(UF_LINES.reduce((s, L) => s + ufLineEffective(L), 0));
+    }
+
+    /**
+     * Apertura valvola 0–100%: cerca il setpoint.
+     * Se l’acqua basta → apertura proporzionale al set; se manca → va al 100%.
+     */
+    function tickUfValves() {
+      UF_LINES.forEach((L) => {
+        let target = 0;
+        const enabled = ufLineEnabled(L);
+        const washing = ufLineInWash(L);
+        const sp = Math.max(0, procSetpointOf("qUf" + L));
+        if (plantIsStarted() && enabled && !washing && sp > 0.05 && p11019Allowed() && __allowUfByTk11021) {
+          const share = ufLineShare(L);
+          const actual = Math.min(sp, share);
+          if (actual + 0.2 < sp - 1e-6) {
+            target = 100; // sete non raggiunto: valvola tutta aperta
+          } else {
+            target = Math.max(8, Math.min(100, (sp / UF_VALVE_Q100) * 100));
+          }
+        }
+        const cur = Number(__ufValvePct[L]) || 0;
+        __ufValvePct[L] = round1(cur + (target - cur) * 0.28);
+      });
+      paintUfValveUI();
+    }
+
+    function paintUfValveUI() {
+      const trackH = 30;
+      UF_LINES.forEach((L) => {
+        const pct = Math.max(0, Math.min(100, Number(__ufValvePct[L]) || 0));
+        const fill = el("svgUfValve" + L);
+        const lab = el("svgUfValvePct" + L);
+        if (fill) {
+          const h = (trackH - 2) * (pct / 100);
+          const yBottom = ({ A: 384, B: 427, C: 470, D: 512 })[L] || 384;
+          fill.setAttribute("height", String(Math.max(0, h)));
+          fill.setAttribute("y", String(yBottom - h));
+          fill.classList.toggle("is-full", pct >= 99.5);
+        }
+        if (lab) lab.textContent = String(Math.round(pct));
+      });
     }
 
     function paintUfWashUI() {
@@ -7502,6 +7596,7 @@
       tot = round1(tot);
       const svg = el("svgQUf");
       if (svg) svg.textContent = tot.toFixed(1);
+      tickUfValves();
       paintUfWashUI();
       return tot;
     }
@@ -7531,13 +7626,9 @@
       paintUfPopupSetpoints();
       const totSp = procSetpointOf("qUfTotale");
       paintUfSvgLive();
-      // UF in manuale locale: allinea valle solo se osmosi non è manuale
+      // UF in manuale locale: allinea solo osmosi a valle (P11019 resta sul suo set ≥140, non prende il totale UF)
       if ((source === "uf-linea" || source === "uf-totale") && deviceIsManual("ultra")) {
         const q = totSp;
-        if (p11019Allowed() && !isEditing("qP11019") && q > 0.05) {
-          rememberFlowSetpoint("qP11019", q);
-          commitFlow("qP11019", q, { setpoint: q });
-        }
         if (!deviceIsManual("osmosi") && !isEditingOsmosi() && q > 0.05) {
           const ids = ["qOsmosiA", "qOsmosiB", "qOsmosiC"];
           const each = ids.length ? round1(q / ids.length) : 0;
@@ -9555,7 +9646,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt77", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt79", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
