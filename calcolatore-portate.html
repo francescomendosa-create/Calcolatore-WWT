@@ -7592,17 +7592,18 @@
         }
 
         const share = ufLineShare(L);
-        const starved = share + 0.25 < sp;
+        // In marcia: valvola MAI a 0. Se manca acqua → 100% (cerca portata); altrimenti regola sul set.
+        const starved = share + 0.35 < sp || share < 0.05;
 
         let valveTarget;
-        if (starved || share < 0.05) {
-          valveTarget = share < 0.05 ? 0 : 100;
+        if (starved) {
+          valveTarget = 100;
         } else {
           const ff = (sp / UF_VALVE_Q100) * 100;
           const err = sp - meas;
           valveTarget = ff + err * 14;
           if (meas + 0.4 < sp) valveTarget = Math.max(valveTarget, ff + 8);
-          valveTarget = Math.max(4, Math.min(100, valveTarget));
+          valveTarget = Math.max(10, Math.min(100, valveTarget));
         }
 
         valve = valve + (valveTarget - valve) * aV;
@@ -7722,17 +7723,19 @@
         }
 
         const share = osmLineShare(L);
-        const starved = share + 0.25 < sp;
+        // Pompa in marcia ⇒ valvola aperta. Manca acqua → 100%; c’è acqua → regola sul set.
+        // Mai valvola a 0 con pompa ON (prima: share≈0 chiudeva la valvola → assurdo).
+        const starved = share + 0.35 < sp || share < 0.05;
 
         let valveTarget;
-        if (starved || share < 0.05) {
-          valveTarget = share < 0.05 ? 0 : 100;
+        if (starved) {
+          valveTarget = 100;
         } else {
           const ff = (sp / OSM_VALVE_Q100) * 100;
           const err = sp - meas;
           valveTarget = ff + err * 14;
           if (meas + 0.4 < sp) valveTarget = Math.max(valveTarget, ff + 8);
-          valveTarget = Math.max(4, Math.min(100, valveTarget));
+          valveTarget = Math.max(10, Math.min(100, valveTarget));
         }
 
         valve = valve + (valveTarget - valve) * aV;
@@ -10023,7 +10026,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt90", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt91", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});

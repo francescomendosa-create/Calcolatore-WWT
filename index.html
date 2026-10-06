@@ -7592,17 +7592,18 @@
         }
 
         const share = ufLineShare(L);
-        const starved = share + 0.25 < sp;
+        // In marcia: valvola MAI a 0. Se manca acqua → 100% (cerca portata); altrimenti regola sul set.
+        const starved = share + 0.35 < sp || share < 0.05;
 
         let valveTarget;
-        if (starved || share < 0.05) {
-          valveTarget = share < 0.05 ? 0 : 100;
+        if (starved) {
+          valveTarget = 100;
         } else {
           const ff = (sp / UF_VALVE_Q100) * 100;
           const err = sp - meas;
           valveTarget = ff + err * 14;
           if (meas + 0.4 < sp) valveTarget = Math.max(valveTarget, ff + 8);
-          valveTarget = Math.max(4, Math.min(100, valveTarget));
+          valveTarget = Math.max(10, Math.min(100, valveTarget));
         }
 
         valve = valve + (valveTarget - valve) * aV;
@@ -7646,11 +7647,35 @@
       });
     }
 
-    /** Quota idraulica osmosi: permeato UF ripartito sui setpoint delle linee in marcia. */
+    /** Domanda setpoint delle sole linee osmosi in marcia. */
+    function osmDemandRunning() {
+      let d = 0;
+      OSM_LINES.forEach((L) => {
+        if (osmLineRunning(L)) d += Math.max(0, procSetpointOf("qOsmosi" + L));
+      });
+      return round1(d);
+    }
+
+    /**
+     * Capacità erogabile dal TK-11021 (inventario).
+     * Serve perché a serbatoio alto l’UF si ferma: se le osmosi dipendessero solo
+     * dall’UF istantanea, share=0 → valvole chiuse → pompe ON ma TK che non scende.
+     */
+    function osmTankFeedCapacity() {
+      const liv = numOrNull("livelloAttualeTk11021");
+      const lvl = liv !== null ? liv : 91;
+      if (lvl < 8) return 0;
+      const demand = osmDemandRunning();
+      if (demand < 0.05) return 0;
+      if (lvl >= 25) return demand;
+      return round1(demand * Math.max(0, (lvl - 8) / 17));
+    }
+
+    /** Quota idraulica osmosi: max(UF verso TK, capacità serbatoio) ripartita sui set. */
     function osmLineShare(letter) {
       const L = String(letter || "").toUpperCase();
       if (!osmLineRunning(L) || !plantIsStarted()) return 0;
-      const inlet = sumUfEffective();
+      const inlet = Math.max(sumUfEffective(), osmTankFeedCapacity());
       if (inlet < 0.05) return 0;
       let sumSp = 0;
       const spMap = {};
@@ -7698,17 +7723,19 @@
         }
 
         const share = osmLineShare(L);
-        const starved = share + 0.25 < sp;
+        // Pompa in marcia ⇒ valvola aperta. Manca acqua → 100%; c’è acqua → regola sul set.
+        // Mai valvola a 0 con pompa ON (prima: share≈0 chiudeva la valvola → assurdo).
+        const starved = share + 0.35 < sp || share < 0.05;
 
         let valveTarget;
-        if (starved || share < 0.05) {
-          valveTarget = share < 0.05 ? 0 : 100;
+        if (starved) {
+          valveTarget = 100;
         } else {
           const ff = (sp / OSM_VALVE_Q100) * 100;
           const err = sp - meas;
           valveTarget = ff + err * 14;
           if (meas + 0.4 < sp) valveTarget = Math.max(valveTarget, ff + 8);
-          valveTarget = Math.max(4, Math.min(100, valveTarget));
+          valveTarget = Math.max(10, Math.min(100, valveTarget));
         }
 
         valve = valve + (valveTarget - valve) * aV;
@@ -9999,7 +10026,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt89", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt90", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
