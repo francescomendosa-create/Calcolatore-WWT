@@ -629,6 +629,7 @@
       border: 1px solid var(--line);
       border-radius: 7px;
       padding: 3px 5px;
+      flex-shrink: 0;
     }
     .modal h3 .dev-mode button {
       appearance: none;
@@ -654,6 +655,32 @@
       border-color: #fbbf24;
       color: #fde68a;
     }
+    .uf-head-wash {
+      flex: 1 1 7rem;
+      min-width: 6.2rem;
+      max-width: 13.5rem;
+      min-height: 2.15em;
+      margin: 0;
+      padding: 3px 6px;
+      border: 1px solid #164e63;
+      border-radius: 6px;
+      background: #082f49;
+      color: #e0f2fe;
+      font-size: 0.6rem;
+      font-weight: 650;
+      line-height: 1.22;
+      letter-spacing: 0.01em;
+      font-variant-numeric: tabular-nums;
+      overflow: hidden;
+      white-space: pre-line;
+    }
+    .uf-head-wash.is-idle {
+      color: #64748b;
+      border-color: var(--line);
+      background: #0b1220;
+      font-weight: 600;
+    }
+    #popUltra .modal-title-row { flex-wrap: nowrap; }
     .osm-row, .uf-row {
       border: 1px solid var(--line);
       border-radius: 10px;
@@ -2299,6 +2326,7 @@
             <button type="button" data-dev-mode="auto" class="is-on">Automatico</button>
             <button type="button" data-dev-mode="manual">Manuale</button>
           </span>
+          <span class="uf-head-wash is-idle" id="ufHeadWash" aria-live="polite">Nessun lavaggio</span>
         </span>
         <button type="button" data-close>&times;</button>
       </h3>
@@ -6524,16 +6552,16 @@
     ];
     /** Fasi CEB. Elenco utente = 970 s; aggiunto controlavaggio basso 2 = 40 s → 1010 s. */
     const UF_CHEM_PHASES = [
-      { id: "aria1", label: "Tempo aria compressa 1", sec: 30 },
-      { id: "svuot1", label: "Tempo di svuotamento 1", sec: 30 },
-      { id: "alto1", label: "Tempo di controlavaggio alto 1", sec: 40 },
-      { id: "basso1", label: "Tempo di controlavaggio basso 1", sec: 40 },
-      { id: "ammollo", label: "Tempo di ammollo", sec: 600 },
-      { id: "aria2", label: "Tempo aria compressa 2", sec: 40 },
-      { id: "svuot2", label: "Tempo di svuotamento 2", sec: 30 },
-      { id: "alto2", label: "Tempo di controlavaggio alto 2", sec: 40 },
-      { id: "basso2", label: "Tempo di controlavaggio basso 2", sec: 40 },
-      { id: "finale", label: "Tempo di lavaggio finale", sec: 120 },
+      { id: "aria1", label: "Tempo aria compressa 1", short: "Aria 1", sec: 30 },
+      { id: "svuot1", label: "Tempo di svuotamento 1", short: "Svuot. 1", sec: 30 },
+      { id: "alto1", label: "Tempo di controlavaggio alto 1", short: "Ctrl alto 1", sec: 40 },
+      { id: "basso1", label: "Tempo di controlavaggio basso 1", short: "Ctrl basso 1", sec: 40 },
+      { id: "ammollo", label: "Tempo di ammollo", short: "Ammollo", sec: 600 },
+      { id: "aria2", label: "Tempo aria compressa 2", short: "Aria 2", sec: 40 },
+      { id: "svuot2", label: "Tempo di svuotamento 2", short: "Svuot. 2", sec: 30 },
+      { id: "alto2", label: "Tempo di controlavaggio alto 2", short: "Ctrl alto 2", sec: 40 },
+      { id: "basso2", label: "Tempo di controlavaggio basso 2", short: "Ctrl basso 2", sec: 40 },
+      { id: "finale", label: "Tempo di lavaggio finale", short: "Finale", sec: 120 },
     ];
     function ufChemWashSec() {
       return UF_CHEM_PHASES.reduce((s, p) => s + p.sec, 0);
@@ -6591,12 +6619,12 @@
       for (let i = 0; i < UF_CHEM_PHASES.length; i++) {
         const p = UF_CHEM_PHASES[i];
         if (t < p.sec - 1e-9) {
-          return { label: p.label, remainSec: Math.max(0, Math.ceil(p.sec - t)), totalSec: p.sec };
+          return { label: p.label, short: p.short || p.label, remainSec: Math.max(0, Math.ceil(p.sec - t)), totalSec: p.sec };
         }
         t -= p.sec;
       }
       const last = UF_CHEM_PHASES[UF_CHEM_PHASES.length - 1];
-      return last ? { label: last.label, remainSec: 0, totalSec: last.sec } : null;
+      return last ? { label: last.label, short: last.short || last.label, remainSec: 0, totalSec: last.sec } : null;
     }
     function tickUfChemWashes(dtMin) {
       ensureUfChem();
@@ -6813,6 +6841,43 @@
           setWaterFlow(ufRow, true, "up");
         }
       });
+      paintUfHeadWash();
+    }
+
+    function ufChemKindShort(kind) {
+      if (kind === "cev") return "CEB ipo";
+      if (kind === "ceb") return "CEB soda";
+      if (kind === "acido") return "CEB acido";
+      return "CEB";
+    }
+    function paintUfHeadWash() {
+      const box = el("ufHeadWash");
+      if (!box) return;
+      ensureUfChem();
+      const go = plantIsStarted();
+      const inletOk = ufInletAvailable();
+      const rows = [];
+      UF_LINES.forEach((L) => {
+        if (!ufLineEnabled(L)) return;
+        const ph = ufWashPhase(L);
+        if (ufChemActive(L)) {
+          const st = __ufChem[L];
+          const phs = ufChemPhaseAt(st.elapsedSec);
+          const coda = !go || !inletOk;
+          const sec = phs ? fmtRemainSec(phs.remainSec) : "0 s";
+          rows.push(`Ultra F ${L} · ${ufChemKindShort(st.kind)} · ${phs ? phs.short : "fase"} · ${coda ? "coda " : ""}${sec}`);
+        } else if (ph.wash) {
+          const coda = !go || !inletOk;
+          rows.push(`Ultra F ${L} · BW · backwash · ${coda ? "coda " : ""}${fmtRemainSec(ph.remainSec)}`);
+        }
+      });
+      if (!rows.length) {
+        box.textContent = "Nessun lavaggio";
+        box.classList.add("is-idle");
+      } else {
+        box.textContent = rows.join("\n");
+        box.classList.remove("is-idle");
+      }
     }
 
     /** Schema UF: portata viva per linea (0 in lavaggio / blocco); popup resta sul setpoint. */
@@ -8637,7 +8702,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt60", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt61", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
