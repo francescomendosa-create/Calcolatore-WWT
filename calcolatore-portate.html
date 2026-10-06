@@ -12,9 +12,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Process Managed" />
-  <link rel="manifest" href="manifest.json?v=wwt29" />
-  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt29" />
-  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt29" />
+  <link rel="manifest" href="manifest.json?v=wwt30" />
+  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt30" />
+  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt30" />
   <style>
     :root {
       --bg: #0b1220;
@@ -1696,6 +1696,12 @@
           </label>
         </div>
         <div class="row">
+          <label><strong>Fermo totale membrane in discesa (min)</strong>
+            <input type="number" id="regTk11007DnStopAllMin" min="0" max="240" step="0.1" value="1" inputmode="decimal" />
+          </label>
+          <label><strong></strong><span class="mini" style="display:block;margin-top:6px">Oltre al ciclo 7′ lavoro + 1′ pausa: minuti in cui <em>tutte</em> le membrane erano ferme insieme.</span></label>
+        </div>
+        <div class="row">
           <label><strong>Volume utile TK-11007 (m³)</strong>
             <input type="number" id="regTk11007Vutile" min="0.5" max="5000" step="0.1" value="15.4" inputmode="decimal" />
           </label>
@@ -3050,7 +3056,7 @@
     /**
      * Calibrazione TK-11007 da prova REGOLAZIONI §5.
      * Salita 19.65→52.89% in 4′ con IN tutte-ON 184 e OUT 84 → V utile ≈ netto×duty / tasso.
-     * Discesa 52.89→19.6% in 11′ serve a verificare il netto implicito (spesso OUT &gt; IN effettivo).
+     * Discesa 52.89→19.6% in 11′: ciclo 7′+1′ + eventuale fermo totale membrane (es. 1′).
      */
     function getTk11007Calib() {
       const qAll = Math.max(0, num("regTk11007QinRef") || 184);
@@ -3064,6 +3070,7 @@
       const dnFrom = num("regTk11007DnFrom");
       const dnTo = num("regTk11007DnTo");
       const dnMin = Math.max(0.1, num("regTk11007DnMin") || 11);
+      const dnStopAll = Math.max(0, num("regTk11007DnStopAllMin") || 0);
       const rateUp = (upTo - upFrom) / upMin;
       const rateDn = (dnTo - dnFrom) / dnMin;
       const netUp = qInEff - qOut;
@@ -3074,6 +3081,12 @@
       let V = numOrNull("regTk11007Vutile");
       if (V === null || V < 0.5) V = VfromUp != null ? VfromUp : 15.4;
       V = Math.max(0.5, V);
+
+      // Discesa: per dnStopAll minuti IN=0; nel resto duty normale 7′+1′
+      const dnRunMin = Math.max(0, dnMin - dnStopAll);
+      const qInDnModel = dnMin > 0 ? (qInEff * dnRunMin) / dnMin : qInEff;
+      const netDnModel = qInDnModel - qOut;
+      const rateDnModel = ratePctPerMinFromVolume(netDnModel, V);
       const netDnImplied = Math.abs(rateDn) > 1e-9 ? (rateDn * V * 60 / 100) : null;
       const qInDnImplied = netDnImplied != null ? (qOut + netDnImplied) : null;
 
@@ -3084,17 +3097,23 @@
         const parts = [
           `Ciclo ${round1(lavoro)}′+${round1(pausa)}′ → duty ${(duty * 100).toFixed(1)}% → IN medio ${round1(qInEff)} m³/h (da ${round1(qAll)} tutte ON)`,
           `OUT ${round1(qOut)} · netto salita ${round1(netUp)} m³/h`,
-          `Salita ${round1(rateUp)} %/min · Discesa ${round1(rateDn)} %/min`,
+          `Salita ${round1(rateUp)} %/min · Discesa osservata ${round1(rateDn)} %/min`,
           VfromUp != null ? `V da salita ≈ ${round1(VfromUp)} m³ · in uso ${round1(V)} m³` : `V in uso ${round1(V)} m³`,
+          `Discesa: ${round1(dnStopAll)}′ fermo totale + ${round1(dnRunMin)}′ con ciclo → IN medio ${round1(qInDnModel)} m³/h · netto ${round1(netDnModel)} · tasso modello ${round1(rateDnModel)} %/min`,
         ];
         if (netDnImplied != null && qInDnImplied != null) {
-          parts.push(`In discesa netto implicito ≈ ${round1(netDnImplied)} m³/h → IN effettivo ≈ ${round1(qInDnImplied)} m³/h (se OUT resta ${round1(qOut)})`);
+          parts.push(`Dal livello: netto implicito ≈ ${round1(netDnImplied)} m³/h (IN≈${round1(qInDnImplied)} se OUT=${round1(qOut)})`);
+        }
+        if (Math.abs(rateDnModel - rateDn) > 0.5) {
+          parts.push(`Nota: il fermo totale da solo non spiega tutta la discesa (modello ancora più alto dell’osservato) — verifica OUT o altre pause`);
         }
         hint.textContent = parts.join(" · ");
       }
       return {
         qAll, qOut, duty, qInEff, lavoro, pausa,
-        rateUp, rateDn, netUp, V, VfromUp, netDnImplied, qInDnImplied,
+        rateUp, rateDn, netUp, V, VfromUp,
+        dnStopAll, dnRunMin, qInDnModel, netDnModel, rateDnModel,
+        netDnImplied, qInDnImplied,
       };
     }
 
@@ -6193,7 +6212,7 @@
       "regMbrScaricoSec", "regMbrScaricoDrop",
       "regTk11007QinRef", "regTk11007QoutRef",
       "regTk11007UpFrom", "regTk11007UpTo", "regTk11007UpMin",
-      "regTk11007DnFrom", "regTk11007DnTo", "regTk11007DnMin",
+      "regTk11007DnFrom", "regTk11007DnTo", "regTk11007DnMin", "regTk11007DnStopAllMin",
       "regTk11007Vutile",
       "cicloLavoro", "cicloPausa",
     ].forEach((id) => {
@@ -6295,7 +6314,7 @@
       "regMbrScaricoSec", "regMbrScaricoDrop",
       "regTk11007QinRef", "regTk11007QoutRef",
       "regTk11007UpFrom", "regTk11007UpTo", "regTk11007UpMin",
-      "regTk11007DnFrom", "regTk11007DnTo", "regTk11007DnMin",
+      "regTk11007DnFrom", "regTk11007DnTo", "regTk11007DnMin", "regTk11007DnStopAllMin",
       "regTk11007Vutile",
       "livelloAttualeH",
       "livelloAttualeMbr",
@@ -6632,7 +6651,7 @@
       }
     } catch (_) { /* ok */ }
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt29", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt30", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
