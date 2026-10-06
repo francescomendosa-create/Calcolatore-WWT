@@ -5623,8 +5623,8 @@
       return {
         qIn: round1(qIn),
         duty: d,
-        qMemMin: round1(qIn / d),
-        qMediaMin: round1(qIn),
+        qMemMin: Math.max(0, Math.ceil(qIn / d)),
+        qMediaMin: roundMem(qIn),
       };
     }
 
@@ -8253,6 +8253,10 @@
       if (!force && isEditing(id)) return; // non sovrascrivere mentre digiti
       const x = Math.max(0, Number(v));
       if (!Number.isFinite(x)) return;
+      if (id === "qMemTotale" || id === "qMemMedia") {
+        node.value = String(roundMem(x));
+        return;
+      }
       if (digits >= 2) node.value = round2(x).toFixed(2);
       else node.value = String(round1(x));
     }
@@ -8287,7 +8291,7 @@
     function getMems() {
       return [...document.querySelectorAll(".mem-q")].map((inp) => {
         const L = String(inp.dataset.mem || "").toUpperCase();
-        const raw = Math.max(0, parseFloat(inp.value) || 0);
+        const raw = roundMem(inp.value);
         return { q: memLineEnabled(L) ? raw : 0, el: inp };
       });
     }
@@ -8651,8 +8655,8 @@
         // In sim NON riscrivere le portate membrane: restano il setpoint "tutte ON".
         // L'uscita effettiva scende da sola via sumMemsRunning (membrane in pausa = 0).
         if (deviceAutoControlled("membrane") && !editingMem && !simulating) {
-          const qPermTarget = round1(qInEff + scaricoExtra);
-          const totOnTarget = dAvg > 0 ? qPermTarget / dAvg : qPermTarget;
+          const qPermTarget = roundMem(qInEff + scaricoExtra);
+          const totOnTarget = roundMem(dAvg > 0 ? qPermTarget / dAvg : qPermTarget);
           setVal("qMemTotale", totOnTarget, { force: true });
           setMemEqual(totOnTarget);
         }
@@ -8954,8 +8958,8 @@
               ? `MBR FERME (TK11007 pieno) · ciclo@${__mbrCycleMin}′`
               : `MBR FERME (livello) · ciclo@${__mbrCycleMin}′`)
             : (offN > 0
-              ? `TOT ON ${totOn.toFixed(1)}/${maxM.toFixed(1)} (−${offN} memb.)`
-              : `TOT ON ${totOn.toFixed(1)} (tutte ON)`);
+              ? `TOT ON ${roundMem(totOn)}/${roundMem(maxM)}${offN ? ` (−${offN} memb.)` : ""}`
+              : `TOT ON ${roundMem(totOn)} (tutte ON)`);
           bar.textContent = `t=${__simMin}′ · ${outTxt} · ` + bar.textContent;
         }
         }
@@ -10880,6 +10884,13 @@
         el(field).dispatchEvent(new Event("input", { bubbles: true }));
         return;
       }
+      if (field === "qMemTotale") {
+        const tot = roundMem(v);
+        setVal("qMemTotale", tot, { force: true });
+        setMemEqual(tot);
+        applyBalance("totale");
+        return;
+      }
       if (field === "qPump") {
         // Portata non libera: snap all’Hz di tabella che la soddisfa
         const step = pumpStepForNeed(Math.max(0, v));
@@ -10989,6 +11000,13 @@
         setVal(field, v, { force: true });
         syncOsmosiSvg();
         el(field).dispatchEvent(new Event("input", { bubbles: true }));
+        return;
+      }
+      if (field === "qMemTotale") {
+        const tot = roundMem(v);
+        setVal("qMemTotale", tot, { force: true });
+        setMemEqual(tot);
+        applyBalance("totale");
         return;
       }
       if (field === "qPump") {
@@ -11405,6 +11423,7 @@
     });
     el("qMemTotale").addEventListener("blur", () => {
       if (numOrNull("qMemTotale") === null) setVal("qMemTotale", 0, { force: true });
+      else setVal("qMemTotale", roundMem(num("qMemTotale")), { force: true });
       applyBalance("totale");
     });
 
