@@ -3689,9 +3689,9 @@
     /** Applica marcia P11019 dal solo livello TK-11007 (mai dalle membrane). */
     function applyP11019RunFromLevel() {
       updateTk11007PumpInterlocks(numOrNull("livelloAttualeTk11007") ?? 91);
-      const qSet = qP11019Setpoint();
+      const qSet = Math.max(qP11019Setpoint(), qP11019SplitPumpMem());
       if (!p11019Allowed()) {
-        commitFlow("qP11019", 0, { setpoint: qSet });
+        commitFlow("qP11019", 0, { setpoint: qSet > 0.05 ? qSet : qP11019SplitPumpMem() });
       } else if (!isEditing("qP11019")) {
         commitFlow("qP11019", qSet, { setpoint: qSet });
       }
@@ -8056,7 +8056,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt49", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt50", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
