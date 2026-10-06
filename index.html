@@ -4427,12 +4427,13 @@
 
         const r20 = rateA10620PctPerMin(qIn, qPump, qRec);
         const r11 = estimateA10611RatePctPerMin(qPump, qMand);
-        const rMbr = estimateMbrRatePctPerMin(qMand, qPerm);
+        const rMbr = estimateMbrRatePctPerMin(qMand, qPerm, livMbr);
         liv20 = Math.max(0, Math.min(100, liv20 + r20 * dt));
         liv11 = Math.max(0, Math.min(100, liv11 + r11 * dt));
         livMbr = Math.max(0, Math.min(100, livMbr + rMbr * dt));
-        if (run11036 && qMand > 0.5 && livMbr > stopMbrFill - 0.05) {
+        if (livMbr >= stopMbrFill - 0.05) {
           livMbr = Math.min(livMbr, stopMbrFill);
+          allow11036ByMbr = false;
         }
 
         if (chimicoOn && qInSp > 0.5 && liv20 >= stop - 0.05) {
@@ -5559,53 +5560,82 @@
     }
 
     /**
+     * Volume utile vaschette MBR (stima da prova scarico REGOLAZIONI §4):
+     * in scaricoSec il livello cala di `drop`% → V ≈ q_scarico_rif × Δt / (Δ%/100).
+     * Usiamo qRef come ordine di grandezza dello scarico di prova.
+     */
+    function getMbrTrayVolume() {
+      const cal = getMbrLivCalib();
+      const dtH = Math.max(1, cal.scaricoSec) / 3600;
+      const dFrac = Math.max(0.001, cal.drop / 100);
+      // V tale che qRef per dtH muove il livello di `drop`%
+      const V = Math.max(2, (cal.qRef * dtH) / dFrac);
+      return { V, cal };
+    }
+
+    /**
      * Livello comune vaschette MBR A–G — bilancio di massa:
      *   IN  = mandata MP 11036
      *   OUT = permeato membrane + scarico → A11004 (poi riciclo 11014 → A10620)
      *
-     * Se permeato << mandata l’eccesso alza il MBR (verso stop riempimento / blocco 11036).
-     * Solo una frazione dell’eccesso sfiora subito verso H — non “sparisce” dal bilancio impianto.
+     * Se permeato << mandata l’eccesso DEVE alzare il MBR fino a stop riempimento (92%)
+     * e fermare le MP 11036. Vicino allo stop si riduce lo sfioro verso H.
      */
-    function estimateMbrRatePctPerMin(qMandata, qPerm) {
-      const cal = getMbrLivCalib();
+    function estimateMbrRatePctPerMin(qMandata, qPerm, livMbrOpt) {
+      const { V, cal } = getMbrTrayVolume();
       const qIn = Math.max(0, Number(qMandata) || 0);
       const qOutPerm = Math.max(0, Number(qPerm) || 0);
-      const qRef = Math.max(1, cal.qRef);
-      const k = cal.rateDrain / qRef;
+      const liv = Number.isFinite(Number(livMbrOpt))
+        ? Number(livMbrOpt)
+        : (numOrNull("livelloAttualeMbr") ?? 90);
+      const stopFill = numOrNull("stopRiempMbr") ?? 92;
+      const startFill = numOrNull("startRiempMbr") ?? 85;
       const membranesExtracting = qOutPerm > 0.5;
 
-      // Membrane FERME: riempimento puro verso start svuotamento (85%)
+      // Sfioro verso H: basso a livello alto (così si arriva allo stop 92%), più libero a metà banda
+      let overflowFrac = 0.25;
+      if (liv >= stopFill - 3) overflowFrac = 0.08;
+      else if (liv >= startFill) overflowFrac = 0.18;
+
+      // Membrane FERME: tutta la mandata (meno sfioro minimo) riempie verso start/stop
       if (!membranesExtracting) {
-        let rFill = k * qIn;
-        // Piccola comunicazione verso H (non azzera il riempimento)
-        if (qIn > 0.5) rFill -= cal.rateDrain * 0.04;
+        const qToH = qIn * 0.04;
+        const net = qIn - qToH;
+        const rFill = ratePctPerMinFromVolume(net, V);
         if (!Number.isFinite(rFill)) return 0;
-        return Math.max(-RATE_PCT_CLAMP, Math.min(RATE_PCT_CLAMP, rFill));
+        return Math.max(-RATE_PCT_CLAMP_VOL, Math.min(RATE_PCT_CLAMP_VOL, rFill));
       }
 
-      // Membrane in estrazione: netto = mandata − permeato; parte va a H, parte alza MBR
+      // In estrazione: netto = mandata − permeato − sfioro H
       const excess = Math.max(0, qIn - qOutPerm);
-      const overflowFrac = 0.35; // 35% eccesso → A11004; 65% resta e alza le vaschette
-      let r = k * excess * (1 - overflowFrac);
+      const qToH = excess * overflowFrac;
+      const net = (qIn - qOutPerm) - qToH; // = excess * (1 - overflowFrac)
+      let r = ratePctPerMinFromVolume(net, V);
 
+      // In pausa ciclo le vaschette scaricano: piccolo calo medio sul ciclo
       const cycle = Math.max(0.2, cal.lavoro + cal.pausa);
       const fracPause = Math.max(0.05, cal.pausa / cycle);
-      r -= cal.rateDrain * fracPause;
+      r -= cal.rateDrain * fracPause * 0.35;
 
       if (!Number.isFinite(r)) return 0;
-      return Math.max(-RATE_PCT_CLAMP, Math.min(RATE_PCT_CLAMP, r));
+      return Math.max(-RATE_PCT_CLAMP_VOL, Math.min(RATE_PCT_CLAMP_VOL, r));
     }
 
-    /** Scarico MBR → A11004 (m³/h): ciò che non esce come permeato. */
-    function mbrScaricoToH(qMandata, qPerm) {
+    /** Scarico MBR → A11004 (m³/h): frazione dell’eccesso (mandata − permeato). */
+    function mbrScaricoToH(qMandata, qPerm, livMbrOpt) {
       const qM = Math.max(0, Number(qMandata) || 0);
       const qP = Math.max(0, Number(qPerm) || 0);
-      if (qP < 0.5) {
-        // membrane ferme: poca comunicazione, quasi tutta la mandata resta in MBR
-        return round1(qM * 0.04);
-      }
+      const liv = Number.isFinite(Number(livMbrOpt))
+        ? Number(livMbrOpt)
+        : (numOrNull("livelloAttualeMbr") ?? 90);
+      const stopFill = numOrNull("stopRiempMbr") ?? 92;
+      const startFill = numOrNull("startRiempMbr") ?? 85;
+      if (qP < 0.5) return round1(qM * 0.04);
       const excess = Math.max(0, qM - qP);
-      return round1(excess * 0.35);
+      let overflowFrac = 0.25;
+      if (liv >= stopFill - 3) overflowFrac = 0.08;
+      else if (liv >= startFill) overflowFrac = 0.18;
+      return round1(excess * overflowFrac);
     }
 
     function paintMbrLevelUI(livMbr, rateMbr) {
@@ -7299,9 +7329,9 @@
       // Solo bilanciamento reale (niente rClimb forzato: era quello che mandava subito a 95% / blocco)
       let r20 = rateA10620PctPerMin(qIn, qPump, qRecycleDisp);
       const r11 = estimateA10611RatePctPerMin(qPump, qMandata);
-      const qScaricoH = mbrScaricoToH(qMandata, qPerm);
+      const qScaricoH = mbrScaricoToH(qMandata, qPerm, livMbr);
       const rH = estimateRicHRatePctPerMin(qScaricoH, qRecycleForH);
-      const rMbr = estimateMbrRatePctPerMin(qMandata, qPerm);
+      const rMbr = estimateMbrRatePctPerMin(qMandata, qPerm, livMbr);
       const rP = estimateTk11007RatePctPerMin(qPerm, qP19);
       const rU = estimateTk11021RatePctPerMin(qUfIn, qOsmOut);
 
@@ -7331,14 +7361,14 @@
       const stop11v = stop11 !== null ? stop11 : 80;
       if (qMandata > 0.5 && liv11 > stop11v + 0.05 && n11 < stop11v) n11 = round2(stop11v);
 
-      // Non superare lo stop riempimento MBR (A11003): a quel livello MP 11036 si fermano
+      // Stop riempimento MBR (A11003): livello arriva allo stop → MP 11036 FERMANO
       const stopRiempMbr = numOrNull("stopRiempMbr");
       const stopRiempMbrV = stopRiempMbr !== null ? stopRiempMbr : 92;
-      if (__run11036 && qMandata > 0.5 && livMbr > stopRiempMbrV + 0.05 && nMbr > stopRiempMbrV - 0.05) {
+      if (nMbr >= stopRiempMbrV - 0.05) {
         nMbr = round2(Math.min(nMbr, stopRiempMbrV));
-      }
-      if (__run11036 && qMandata > 0.5 && nMbr >= stopRiempMbrV - 0.05) {
-        nMbr = round2(stopRiempMbrV);
+        // Scatto immediato: non aspettare il giro successivo di applyBalance
+        __allow11036ByMbr = false;
+        syncRun11036();
       }
 
       // Non scendere sotto stop svuotamento MBR se le membrane stanno svuotando
@@ -7951,7 +7981,10 @@
 
       // A11004 / riciclo fanghi (11014) — setpoints PROCESSO + calibrazione
       const calH = getRicicloHCalib();
-      const rateH = estimateRicHRatePctPerMin(mbrScaricoToH(qMandata, totAvg), qRecycle);
+      const rateH = estimateRicHRatePctPerMin(
+        mbrScaricoToH(qMandata, totAvg, numOrNull("livelloAttualeMbr") ?? 90),
+        qRecycle
+      );
       let livH = numOrNull("livelloAttualeH");
       if (livH === null) livH = 90;
       const startH = numOrNull("startSvuotA11004");
@@ -8004,7 +8037,7 @@
       if (livMbrUi === null) livMbrUi = 90;
       updateMbrLevelInterlocks(livMbrUi);
       updateMbrFillFor11036(livMbrUi);
-      const rateMbrUi = estimateMbrRatePctPerMin(qMandata, totAvg);
+      const rateMbrUi = estimateMbrRatePctPerMin(qMandata, totAvg, livMbrUi);
       paintMbrLevelUI(livMbrUi, rateMbrUi);
       paintMembraneCycleUI(__mbrCycleMin);
       getMbrLivCalib();
