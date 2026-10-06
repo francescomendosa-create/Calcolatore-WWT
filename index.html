@@ -12,9 +12,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Process Managed" />
-  <link rel="manifest" href="manifest.json?v=wwt30" />
-  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt30" />
-  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt30" />
+  <link rel="manifest" href="manifest.json?v=wwt31" />
+  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt31" />
+  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt31" />
   <style>
     :root {
       --bg: #0b1220;
@@ -1435,7 +1435,7 @@
                 <input type="number" id="stopSvuotTk11007" min="0" max="100" step="0.1" value="30" inputmode="decimal" />
               </label>
             </div>
-            <p class="mini">Riempimento: ≥97% membrane FERME, ≤90% ripartono. Svuotamento/aspirazione: ≤30% P11019 FERME, ≥60% ripartono. Livello iniziale tipico 91%.</p>
+            <p class="mini">Riempimento: ≥97% membrane FERME, ≤ start ripartono. Svuotamento: ≤30% P11019 FERME, ≥60% ripartono. Se start riempimento resta alto (es. 90), il TK oscilla in alto e <strong>non scende</strong> fino allo stop pompe: abbassa lo start riempimento (es. 55–60) se vuoi svuotare con P11019 prima che le membrane ripartano.</p>
             <h4 style="margin-top:12px">Gestione — TK 11021 permeato UF</h4>
             <p class="mini">Serbatoio permeato ultrafiltrazione (momentaneo). Start/stop riempimento sul livello UF.</p>
             <div class="row">
@@ -4506,7 +4506,14 @@
         const pumpTxt = __runP11019By07
           ? `P11019 ON (stop aspiraz. ≤${fmtPct(stopS)})`
           : `P11019 FERME ≤${fmtPct(stopS)} (ripartono ≥${fmtPct(startS)})`;
-        permHint.textContent = `TK 11007 · ${memTxt} · ${pumpTxt}`;
+        const netP = round1(qPermUi - qP19Ui);
+        const trendTxt = netP > 0.5 ? "livello SALE" : (netP < -0.5 ? "livello SCENDE" : "livello STABILE");
+        // Se start riempimento è alto (es. 90), dopo lo stop a 97 le membrane ripartono subito:
+        // il TK oscilla in fascia alta e non arriva allo stop pompe (30%).
+        const bandTxt = (__allowMbrByPermeate || livPUi > startR + 0.05)
+          ? ` · fascia membrane ${fmtPct(startR)}–${fmtPct(stopR)} (sotto ${fmtPct(startR)} ripartono: non si svuota fino a ${fmtPct(stopS)})`
+          : "";
+        permHint.textContent = `TK 11007 · ${memTxt} · ${pumpTxt} · IN ${round1(qPermUi)} / OUT ${round1(qP19Ui)} → netto ${netP} m³/h · ${trendTxt}${bandTxt}`;
         permHint.style.color = (__allowMbrByPermeate && __runP11019By07) ? "var(--ok)" : "var(--danger)";
       }
 
@@ -6651,7 +6658,7 @@
       }
     } catch (_) { /* ok */ }
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt30", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt31", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
