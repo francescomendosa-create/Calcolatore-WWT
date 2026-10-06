@@ -1432,10 +1432,10 @@
         <g aria-label="Ultrafiltrazione A B C D">
           <text x="568" y="300" text-anchor="middle" fill="#bae6fd" font-size="9" font-weight="700">ULTRA FILTRAZIONE</text>
           <g class="flow-edit" data-field="qUfTotale" data-source="uf-totale">
-            <rect class="badge" x="518" y="306" width="100" height="28" rx="5" stroke="#7dd3fc" />
-            <text class="badge-label" x="568" y="317" text-anchor="middle">TOTALE</text>
-            <text class="badge-val" x="552" y="329" text-anchor="middle" id="svgQUf" font-size="12">0.0</text>
-            <text class="badge-unit" x="588" y="329" text-anchor="middle">m³/h</text>
+            <rect class="badge" x="489" y="306" width="100" height="28" rx="5" stroke="#7dd3fc" />
+            <text class="badge-label" x="539" y="317" text-anchor="middle">TOTALE</text>
+            <text class="badge-val" x="523" y="329" text-anchor="middle" id="svgQUf" font-size="12">0.0</text>
+            <text class="badge-unit" x="559" y="329" text-anchor="middle">m³/h</text>
           </g>
 
           <!-- Collettore ingresso (da carbone) + 4 misuratori → testata UF -->
@@ -1451,8 +1451,8 @@
             <rect id="svgUfValveA" class="uf-valve-fill" x="613" y="381" width="0" height="4" rx="1" />
             <text id="svgUfValvePctA" class="uf-valve-pct" x="686" y="385" text-anchor="middle">0%</text>
           </g>
-          <path class="pipe pipe-main" d="M620 372 H538" />
-          <path class="pipe pipe-main" d="M538 372 V365" />
+          <path class="pipe pipe-main" d="M620 372 H506" />
+          <path class="pipe pipe-main" d="M506 372 V365" />
 
           <path class="pipe pipe-main" d="M688 415 H612" />
           <g class="flow-edit" data-field="qUfB" data-source="uf-linea">
@@ -1464,8 +1464,8 @@
             <rect id="svgUfValveB" class="uf-valve-fill" x="613" y="424" width="0" height="4" rx="1" />
             <text id="svgUfValvePctB" class="uf-valve-pct" x="686" y="428" text-anchor="middle">0%</text>
           </g>
-          <path class="pipe pipe-main" d="M620 415 H560" />
-          <path class="pipe pipe-main" d="M560 415 V365" />
+          <path class="pipe pipe-main" d="M620 415 H528" />
+          <path class="pipe pipe-main" d="M528 415 V365" />
 
           <path class="pipe pipe-main" d="M688 458 H612" />
           <g class="flow-edit" data-field="qUfC" data-source="uf-linea">
@@ -1477,8 +1477,8 @@
             <rect id="svgUfValveC" class="uf-valve-fill" x="613" y="467" width="0" height="4" rx="1" />
             <text id="svgUfValvePctC" class="uf-valve-pct" x="686" y="471" text-anchor="middle">0%</text>
           </g>
-          <path class="pipe pipe-main" d="M620 458 H582" />
-          <path class="pipe pipe-main" d="M582 458 V365" />
+          <path class="pipe pipe-main" d="M620 458 H550" />
+          <path class="pipe pipe-main" d="M550 458 V365" />
 
           <path class="pipe pipe-main" d="M688 500 H612" />
           <g class="flow-edit" data-field="qUfD" data-source="uf-linea">
@@ -1490,11 +1490,11 @@
             <rect id="svgUfValveD" class="uf-valve-fill" x="613" y="510" width="0" height="4" rx="1" />
             <text id="svgUfValvePctD" class="uf-valve-pct" x="686" y="514" text-anchor="middle">0%</text>
           </g>
-          <path class="pipe pipe-main" d="M620 500 H604" />
-          <path class="pipe pipe-main" d="M604 500 V365" />
+          <path class="pipe pipe-main" d="M620 500 H572" />
+          <path class="pipe pipe-main" d="M572 500 V365" />
 
-          <!-- Colonne UF A–D sopra i tubi, così click e hold arrivano alla linea -->
-          <g class="node" tabindex="0" data-popup="ultra" data-uf-line="A" role="button" aria-label="Ultrafiltrazione A" transform="translate(530,365)">
+          <!-- Colonne UF A–D: a sinistra dei badge portata, centrate nello spazio verso TK-11021 -->
+          <g class="node" tabindex="0" data-popup="ultra" data-uf-line="A" role="button" aria-label="Ultrafiltrazione A" transform="translate(498,365)">
             <rect x="-6" y="-14" width="28" height="110" fill="#000" opacity="0.001" pointer-events="all" />
             <rect id="svgUfBodyA" class="uf-mini-body" x="0" y="0" width="16" height="90" rx="3" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
             <rect id="svgUfFillA" class="uf-mini-fill" x="3" y="22" width="10" height="58" rx="1" fill="#0ea5e9" opacity="0.55" />
@@ -1506,7 +1506,7 @@
             </g>
             <text id="svgUfLabA" class="uf-mini-lab" x="8" y="-4" text-anchor="middle" fill="#7dd3fc" font-size="8" font-weight="700">A</text>
           </g>
-          <g class="node" tabindex="0" data-popup="ultra" data-uf-line="B" role="button" aria-label="Ultrafiltrazione B" transform="translate(552,365)">
+          <g class="node" tabindex="0" data-popup="ultra" data-uf-line="B" role="button" aria-label="Ultrafiltrazione B" transform="translate(520,365)">
             <rect x="-6" y="-14" width="28" height="110" fill="#000" opacity="0.001" pointer-events="all" />
             <rect id="svgUfBodyB" class="uf-mini-body" x="0" y="0" width="16" height="90" rx="3" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
             <rect id="svgUfFillB" class="uf-mini-fill" x="3" y="22" width="10" height="58" rx="1" fill="#0ea5e9" opacity="0.55" />
@@ -1518,7 +1518,7 @@
             </g>
             <text id="svgUfLabB" class="uf-mini-lab" x="8" y="-4" text-anchor="middle" fill="#7dd3fc" font-size="8" font-weight="700">B</text>
           </g>
-          <g class="node" tabindex="0" data-popup="ultra" data-uf-line="C" role="button" aria-label="Ultrafiltrazione C" transform="translate(574,365)">
+          <g class="node" tabindex="0" data-popup="ultra" data-uf-line="C" role="button" aria-label="Ultrafiltrazione C" transform="translate(542,365)">
             <rect x="-6" y="-14" width="28" height="110" fill="#000" opacity="0.001" pointer-events="all" />
             <rect id="svgUfBodyC" class="uf-mini-body" x="0" y="0" width="16" height="90" rx="3" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
             <rect id="svgUfFillC" class="uf-mini-fill" x="3" y="22" width="10" height="58" rx="1" fill="#0ea5e9" opacity="0.55" />
@@ -1530,7 +1530,7 @@
             </g>
             <text id="svgUfLabC" class="uf-mini-lab" x="8" y="-4" text-anchor="middle" fill="#7dd3fc" font-size="8" font-weight="700">C</text>
           </g>
-          <g class="node" tabindex="0" data-popup="ultra" data-uf-line="D" role="button" aria-label="Ultrafiltrazione D" transform="translate(596,365)">
+          <g class="node" tabindex="0" data-popup="ultra" data-uf-line="D" role="button" aria-label="Ultrafiltrazione D" transform="translate(564,365)">
             <rect x="-6" y="-14" width="28" height="110" fill="#000" opacity="0.001" pointer-events="all" />
             <rect id="svgUfBodyD" class="uf-mini-body" x="0" y="0" width="16" height="90" rx="3" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
             <rect id="svgUfFillD" class="uf-mini-fill" x="3" y="22" width="10" height="58" rx="1" fill="#0ea5e9" opacity="0.55" />
@@ -1545,7 +1545,7 @@
         </g>
 
         <!-- Uscita UF → TK-11021 -->
-        <path class="pipe pipe-main" d="M530 415 H484" />
+        <path class="pipe pipe-main" d="M498 415 H484" />
 
         <!-- TK-11021 permeato UF — click → popup livello + setpoints -->
         <g class="node" tabindex="0" data-popup="tk11021" role="button" aria-label="TK 11021 permeato UF">
@@ -2945,6 +2945,13 @@
     let __carbWash = null;       // filtri carbone A/B: remain + phase ctrl/lav
     const UF_VALVE_Q100 = 60;    // m³/h a valvola 100% (apertura di progetto per linea)
     const __ufValvePct = { A: 0, B: 0, C: 0, D: 0 };
+    const __ufMeas = { A: 0, B: 0, C: 0, D: 0 }; // portata misurata (non il setpoint)
+    const __ufWobble = {
+      A: { phase: Math.random() * Math.PI * 2, bias: 0 },
+      B: { phase: Math.random() * Math.PI * 2, bias: 0 },
+      C: { phase: Math.random() * Math.PI * 2, bias: 0 },
+      D: { phase: Math.random() * Math.PI * 2, bias: 0 },
+    };
     let __startupPumpHold = false; // dopo Reset: pompe ON finché non parti con +1′
     let __simMin = 0;
     let __simSnap = null;
@@ -4757,15 +4764,16 @@
       return sumMemsRunning(cycleMin) / tot;
     }
 
-    /** Colora ogni membrana: verde in lavoro, grigia in pausa/blocco, rossa se disabilitata. */
+    /** Colora ogni membrana: verde in lavoro (solo con Start), grigia se Stop/pausa/blocco, rossa se disabilitata. */
     function paintMembraneCycleUI(cycleMin) {
       const clk = cycleMin != null ? cycleMin : __mbrCycleMin;
       const processGo = membranesProcessAllowed();
+      const go = plantIsStarted();
       MBR_ALL_IDS.forEach((letter) => {
         const node = el("svgMem" + letter);
         if (!node) return;
         const disabled = !memLineEnabled(letter);
-        const run = !disabled && processGo && !membraneIsPaused(clk, letter);
+        const run = go && !disabled && processGo && !membraneIsPaused(clk, letter);
         const c = deviceCol(disabled, run);
         node.setAttribute("fill", c.fill);
         node.setAttribute("stroke", c.stroke);
@@ -5151,6 +5159,7 @@
       __simPlaying = true;
       try { keepScreenAwake(); } catch (_) { /* ok */ }
       advanceQInWobble(1);
+      tickUfRegulation(1);
       try { applyBalance("sim"); } catch (_) { /* ignore */ }
       updateSimTimeUI();
       if (__simPlayTimer) clearInterval(__simPlayTimer);
@@ -5272,6 +5281,8 @@
       // Timer lavaggi UF / carbone: scorrono sempre; lavaggio carbone consuma portata verso UF
       tickUfWashes(dtMin);
       tickCarbWashes(dtMin);
+      // Valvole UF + portata misurata (insegue il set con lag/oscillazione)
+      tickUfRegulation(dtMin);
       // IN UF effettivo: linee non in lavaggio (sfalsati); 0 se P11019/TK11021 bloccano
       if (!p11019Allowed()) paintUfPopupSetpoints();
       const qUfIn = sumUfEffective();
@@ -7345,16 +7356,14 @@
       return round1(inlet * (spMap[L] / sumSp));
     }
 
-    /** Portata viva linea: min(setpoint, quota disponibile). Setpoint popup non scende. */
+    /** Portata viva (misurata) in schema / bilancio — non è il setpoint popup. */
     function ufLineEffective(letter) {
       const L = String(letter || "").toUpperCase();
       if (!ufLineEnabled(L)) return 0;
       if (!p11019Allowed() || !__allowUfByTk11021) return 0;
       if (ufLineInWash(L)) return 0;
       if (!plantIsStarted()) return 0;
-      const sp = Math.max(0, procSetpointOf("qUf" + L));
-      if (sp < 0.05) return 0;
-      return round1(Math.min(sp, ufLineShare(L)));
+      return round1(Math.max(0, Number(__ufMeas[L]) || 0));
     }
 
     function sumUfEffective() {
@@ -7362,28 +7371,80 @@
     }
 
     /**
-     * Apertura valvola 0–100%: cerca il setpoint.
-     * Se l’acqua basta → apertura proporzionale al set; se manca → va al 100%.
+     * Regolazione UF realistica:
+     * - portata misurata segue l’apertura valvola (e l’acqua disponibile), non salta al set
+     * - valvola apre/chiude per portare la misura al setpoint
+     * - vicino al set: micro-oscillazioni ±~1 e lievi correzioni valvola
      */
-    function tickUfValves() {
+    function tickUfRegulation(dtMin) {
+      const total = Math.max(0.05, Number(dtMin) || 1);
+      const n = Math.max(1, Math.min(10, Math.round(total)));
+      const dt = total / n;
+      for (let i = 0; i < n; i++) tickUfRegulationOnce(dt);
+      paintUfValveUI();
+    }
+
+    function tickUfRegulationOnce(dt) {
+      const aV = 1 - Math.exp(-dt / 2.2);   // valvola più lenta
+      const aQ = 1 - Math.exp(-dt / 1.1);   // portata un po’ più reattiva
       UF_LINES.forEach((L) => {
-        let target = 0;
         const enabled = ufLineEnabled(L);
         const washing = ufLineInWash(L);
         const sp = Math.max(0, procSetpointOf("qUf" + L));
-        if (plantIsStarted() && enabled && !washing && sp > 0.05 && p11019Allowed() && __allowUfByTk11021) {
-          const share = ufLineShare(L);
-          const actual = Math.min(sp, share);
-          if (actual + 0.2 < sp - 1e-6) {
-            target = 100; // sete non raggiunto: valvola tutta aperta
-          } else {
-            target = Math.max(8, Math.min(100, (sp / UF_VALVE_Q100) * 100));
-          }
+        const run = plantIsStarted() && enabled && !washing && sp > 0.05
+          && p11019Allowed() && __allowUfByTk11021;
+
+        let valve = Number(__ufValvePct[L]) || 0;
+        let meas = Number(__ufMeas[L]) || 0;
+        const w = __ufWobble[L];
+
+        if (!run) {
+          valve = Math.max(0, valve + (0 - valve) * Math.min(1, aV * 1.6));
+          meas = Math.max(0, meas + (0 - meas) * Math.min(1, aQ * 1.6));
+          __ufValvePct[L] = round1(valve);
+          __ufMeas[L] = round1(meas);
+          return;
         }
-        const cur = Number(__ufValvePct[L]) || 0;
-        __ufValvePct[L] = round1(cur + (target - cur) * 0.28);
+
+        const share = ufLineShare(L);
+        const starved = share + 0.25 < sp;
+
+        let valveTarget;
+        if (starved || share < 0.05) {
+          valveTarget = share < 0.05 ? 0 : 100;
+        } else {
+          const ff = (sp / UF_VALVE_Q100) * 100;
+          const err = sp - meas;
+          valveTarget = ff + err * 14;
+          if (meas + 0.4 < sp) valveTarget = Math.max(valveTarget, ff + 8);
+          valveTarget = Math.max(4, Math.min(100, valveTarget));
+        }
+
+        valve = valve + (valveTarget - valve) * aV;
+
+        const qHyd = Math.min(share, UF_VALVE_Q100 * (Math.max(0, valve) / 100));
+
+        const regulating = !starved && qHyd > 0.05 && Math.abs(meas - sp) < 3.5;
+        let qAim = qHyd;
+        if (regulating) {
+          w.phase += dt * (0.42 + Math.random() * 0.35);
+          w.bias += (Math.random() - 0.5) * 0.55 * dt;
+          w.bias = Math.max(-1.2, Math.min(1.2, w.bias));
+          const osc = Math.sin(w.phase) * 0.85
+            + Math.sin(w.phase * 0.37 + 0.9) * 0.4;
+          if (Math.random() < 0.08 * dt) w.bias *= 0.35;
+          const wob = osc + w.bias;
+          qAim = Math.max(0, Math.min(share, sp + wob));
+          qAim = Math.min(qAim, qHyd + 0.8);
+          qAim = Math.max(qAim, Math.min(qHyd, sp) - 0.8);
+        }
+
+        meas = meas + (qAim - meas) * aQ;
+        meas = Math.max(0, Math.min(Math.max(share, 0), meas));
+
+        __ufValvePct[L] = round1(Math.max(0, Math.min(100, valve)));
+        __ufMeas[L] = round1(meas);
       });
-      paintUfValveUI();
     }
 
     function paintUfValveUI() {
@@ -7593,7 +7654,7 @@
       tot = round1(tot);
       const svg = el("svgQUf");
       if (svg) svg.textContent = tot.toFixed(1);
-      tickUfValves();
+      paintUfValveUI();
       paintUfWashUI();
       return tot;
     }
@@ -9643,7 +9704,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt80", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt82", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
