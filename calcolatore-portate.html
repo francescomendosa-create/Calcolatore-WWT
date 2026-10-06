@@ -291,13 +291,11 @@
     .mem-hit {
       fill: none;
       stroke: transparent;
-      stroke-width: 2.5;
+      stroke-width: 2.6;
       pointer-events: none;
     }
-    .mem-cell.is-press .mem-hit,
-    .mem-cell:hover .mem-hit {
-      stroke: #fde047;
-    }
+    .mem-cell.is-press-off .mem-hit { stroke: #f87171; }
+    .mem-cell.is-press-on .mem-hit { stroke: #4ade80; }
     .badge {
       fill: #0b1220;
       stroke: var(--line);
@@ -7246,6 +7244,8 @@
       const holdOnNode = !!(osmLine || ufLine || isMemNode);
       let holdTimer = null;
       let holdFired = false;
+      let holdMemL = "";
+      let holdCommitted = false;
       const clearHold = () => {
         if (holdTimer != null) {
           clearTimeout(holdTimer);
@@ -7264,22 +7264,28 @@
         return "";
       };
       const clearMemPress = () => {
-        node.querySelectorAll(".mem-cell.is-press").forEach((c) => c.classList.remove("is-press"));
+        node.querySelectorAll(".mem-cell.is-press-off, .mem-cell.is-press-on").forEach((c) => {
+          c.classList.remove("is-press-off", "is-press-on");
+        });
       };
       const pressMemCell = (letter) => {
         clearMemPress();
         if (!letter) return;
         const cell = node.querySelector(`.mem-cell[data-mem-line="${letter}"]`);
-        if (cell) cell.classList.add("is-press");
+        if (!cell) return;
+        cell.classList.add(memLineEnabled(letter) ? "is-press-off" : "is-press-on");
       };
       if (holdOnNode) {
         node.addEventListener("pointerdown", (e) => {
           if (e.pointerType === "mouse" && e.button !== 0) return;
           holdFired = false;
+          holdCommitted = false;
+          holdMemL = "";
           clearHold();
+          clearMemPress();
           const memL = isMemNode ? memLetterFromEvent(e) : "";
+          holdMemL = memL;
           if (isMemNode) {
-            pressMemCell(memL);
             try { node.blur(); } catch (_) { /* ignore */ }
           }
           if (isMemNode && !memL) return;
@@ -7288,14 +7294,28 @@
             holdFired = true;
             if (osmLine) toggleOsmLineEnabled(osmLine);
             else if (ufLine) toggleUfLineEnabled(ufLine);
-            else if (memL) toggleMemLineEnabled(memL);
-            try { if (navigator.vibrate) navigator.vibrate(18); } catch (_) { /* ok */ }
+            else if (memL) {
+              pressMemCell(memL);
+              try { if (navigator.vibrate) navigator.vibrate(18); } catch (_) { /* ok */ }
+            }
+            if (!memL) {
+              try { if (navigator.vibrate) navigator.vibrate(18); } catch (_) { /* ok */ }
+            }
           }, 500);
         });
-        ["pointerup", "pointercancel", "pointerleave", "lostpointercapture"].forEach((ev) => {
+        node.addEventListener("pointerup", () => {
+          clearHold();
+          if (isMemNode && holdFired && holdMemL && !holdCommitted) {
+            holdCommitted = true;
+            toggleMemLineEnabled(holdMemL);
+          }
+          clearMemPress();
+        });
+        ["pointercancel", "pointerleave", "lostpointercapture"].forEach((ev) => {
           node.addEventListener(ev, () => {
             clearHold();
-            if (isMemNode) clearMemPress();
+            clearMemPress();
+            if (isMemNode && !holdCommitted) holdFired = false;
           });
         });
         node.addEventListener("contextmenu", (e) => {
