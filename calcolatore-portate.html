@@ -3911,6 +3911,7 @@
         } else if (dev === "riciclo") {
           const qr = Math.max(0, num("qRecycle"), flowSetpointOf("qRecycle"));
           if (qr > 0.05) rememberFlowSetpoint("qRecycle", Math.round(qr));
+          paintRecycleEditableUI();
         } else if (dev === "pompa") {
           const qp = Math.max(0, num("qPump"), flowSetpointOf("qPump"), lastQPump);
           if (qp > 0.05) rememberFlowSetpoint("qPump", qp);
@@ -3933,6 +3934,7 @@
       }
       const balSrc = ({ membrane: "membrana", ultra: "ultra", osmosi: "osmosi", riciclo: "pompa", pompa: "pompa", mandata: "mandata", ingresso: "ingresso" })[dev] || "pompa";
       applyBalance(balSrc);
+      try { paintRegPreviewBar(); } catch (_) { /* ok */ }
       try { schedulePersist(); } catch (_) { /* persist può non essere ancora definito in teoria */ }
     }
 
@@ -8785,15 +8787,20 @@
           }
           qRecycle = Math.max(0, num("qRecycle"));
         } else {
-          const qRecSet = flowSetpointOf("qRecycle");
+          // Manuale locale: setpoint libero — non ricalcolare da P11011 − ingresso
+          let qRecSet = Math.max(0, Math.round(flowSetpointOf("qRecycle")));
           const qRecKeep = numOrNull("qRecycle");
-          if (isEditing("qRecycle") && qRecKeep !== null) {
-            rememberFlowSetpoint("qRecycle", Math.max(0, Math.round(qRecKeep)));
+          if (qRecKeep !== null) {
+            qRecSet = Math.max(0, Math.round(qRecKeep));
+            rememberFlowSetpoint("qRecycle", qRecSet);
           }
           if (!isEditing("qRecycle")) {
             commitFlow("qRecycle", run14Bal.running ? qRecSet : 0, { setpoint: qRecSet });
+            if (run14Bal.running && !isEditing("qRecycle")) {
+              setVal("qRecycle", qRecSet, { force: true });
+            }
           }
-          qRecycle = run14Bal.running ? Math.max(0, num("qRecycle")) : 0;
+          qRecycle = run14Bal.running ? qRecSet : 0;
         }
         setVal("qInView", qInSet);
         setVal("qPumpView", qMandata);
@@ -8842,7 +8849,8 @@
             hintRec.textContent = `Automatico · riciclo = P11011 (${pumpLabel}) − ingresso (${inLabel}) = ${qRecycleWanted.toFixed(0)} m³/h${runNote}`;
             hintRec.style.color = run14Bal.running ? "var(--ok)" : "var(--warn)";
           } else {
-            hintRec.textContent = `Manuale · riciclo libero = ${Math.max(0, numOrNull("qRecycle") ?? 0).toFixed(0)} m³/h · scollegato da P11011 (Auto = P11011 − ingresso)`;
+            hintRec.textContent = `Manuale · riciclo libero = ${Math.max(0, flowSetpointOf("qRecycle")).toFixed(0)} m³/h · scollegato da P11011 · lo stato barra dice se è regolato bene/male`;
+            hintRec.style.color = "var(--warn)";
             hintRec.style.color = "var(--warn)";
           }
         }
@@ -8948,7 +8956,9 @@
           bar.textContent = `Permeato ${totAvg.toFixed(1)} · UF ${qUf.toFixed(1)} · Demi ${qDemi.toFixed(1)} — allinea`;
         } else {
           bar.className = "status";
-          bar.textContent = `Stabile · riciclo ${qRecycle.toFixed(1)} (=P11011−in) · P11011 ${round1(qPumpEff2).toFixed(1)} @ ${Math.round(num("freqHz"))} Hz`;
+          bar.textContent = ricicloAutoControlled()
+            ? `Stabile · riciclo ${qRecycle.toFixed(0)} (=P11011−in) · P11011 ${round1(qPumpEff2).toFixed(0)} @ ${Math.round(num("freqHz"))} Hz`
+            : `Stabile · riciclo MAN ${qRecycle.toFixed(0)} · P11011 ${round1(qPumpEff2).toFixed(0)} @ ${Math.round(num("freqHz"))} Hz`;
         }
         if (__simMin > 0 && bar) {
           const maxM = round1(sumMemsAllOn());
@@ -11572,8 +11582,23 @@
     });
     el("livelloAttualeH")?.addEventListener("input", () => applyBalance("livello"));
     el("qRecycle")?.addEventListener("input", () => {
-      if (isAutoMode()) return; // in auto il valore è ricalcolato
+      // Manuale locale riciclo (anche con impianto in Automatico): libera la portata
+      if (!deviceIsManual("riciclo")) return;
+      const q = Math.max(0, Math.round(numOrNull("qRecycle") ?? 0));
+      rememberFlowSetpoint("qRecycle", q);
       applyBalance("livello");
+      try { paintRegPreviewBar(); } catch (_) { /* ok */ }
+    });
+    el("qRecycle")?.addEventListener("blur", () => {
+      if (!deviceIsManual("riciclo")) {
+        paintRecycleEditableUI();
+        return;
+      }
+      const q = Math.max(0, Math.round(numOrNull("qRecycle") ?? flowSetpointOf("qRecycle")));
+      rememberFlowSetpoint("qRecycle", q);
+      setVal("qRecycle", q, { force: true });
+      applyBalance("livello");
+      try { paintRegPreviewBar(); } catch (_) { /* ok */ }
     });
     el("livelloAttualeMbr")?.addEventListener("input", () => applyBalance("livello"));
     el("livelloAttualeMbr")?.addEventListener("blur", () => {
