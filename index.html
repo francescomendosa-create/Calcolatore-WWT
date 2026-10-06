@@ -1842,17 +1842,26 @@
   <!-- POPUP RICICLO (sull'MBR) -->
   <div class="modal-back" id="popRiciclo" role="dialog" aria-modal="true">
     <div class="modal">
-      <h3><span>MBR · riciclo</span><button type="button" data-close>&times;</button></h3>
+      <h3>
+        <span class="modal-title-row">
+          <span>MBR · riciclo</span>
+          <span class="dev-mode" data-dev="riciclo" title="Automatico: riciclo = P11011 − ingresso sediflottatore. Manuale: portata libera.">
+            <button type="button" data-dev-mode="auto" class="is-on">Automatico</button>
+            <button type="button" data-dev-mode="manual">Manuale</button>
+          </span>
+        </span>
+        <button type="button" data-close>&times;</button>
+      </h3>
       <button type="button" class="proc-label" disabled style="cursor:default;opacity:.95">
         <span>PROCESSO — A11004 · 11014 A/B</span>
         <small>riciclo fanghi → A10620</small>
       </button>
+      <p class="mini" id="devModeHintRiciclo">Automatico: riciclo = P11011 − ingresso sediflottatore (si aggiorna variando le pompe).</p>
       <p class="mini">Pompa <strong style="color:var(--recycle)">11014 A/B</strong> aspira dalla vaschetta <strong>A11004</strong> (nona cella MBR) e manda a A10620. Membrane in servizio A–G; H fuori uso.</p>
       <label><strong>Riciclo 11014 A/B (m³/h)</strong>
         <input type="number" id="qRecycle" min="0" max="500" step="1" value="171" inputmode="numeric" />
       </label>
-      <p class="mini">In <strong>Automatico</strong>: P11011 ≥ ingresso + <strong>100</strong> m³/h (riciclo fanghi minimo 100). In <strong>Manuale</strong>: lo imposti tu.</p>
-      <p class="mini" id="ricicloCalcHint">Riciclo = P11011 − ingresso</p>
+      <p class="mini" id="ricicloCalcHint">Riciclo = P11011 − ingresso sediflottatore</p>
       <label><strong>Livello A11004 %</strong>
         <input type="number" id="livelloAttualeH" min="0" max="100" step="0.1" value="90.0" inputmode="decimal" />
       </label>
@@ -2567,8 +2576,8 @@
       return __flowMode !== "manual";
     }
 
-    /** Override locale per dispositivo (membrane / ultra / osmosi). Manuale vince sul modo generale. */
-    const __devMode = { membrane: "auto", ultra: "auto", osmosi: "auto" };
+    /** Override locale per dispositivo (membrane / ultra / osmosi / riciclo). Manuale vince sul modo generale. */
+    const __devMode = { membrane: "auto", ultra: "auto", osmosi: "auto", riciclo: "auto" };
 
     function deviceIsManual(dev) {
       return __devMode[dev] === "manual";
@@ -2577,6 +2586,11 @@
     /** true = l’auto di impianto può scrivere le portate di quel dispositivo */
     function deviceAutoControlled(dev) {
       return isAutoMode() && !deviceIsManual(dev);
+    }
+
+    /** Riciclo: Automatico locale = sempre P11011 − ingresso (anche se l’impianto è Manuale). */
+    function ricicloAutoControlled() {
+      return !deviceIsManual("riciclo");
     }
 
     function paintDevModeUI(dev) {
@@ -2590,10 +2604,23 @@
         btn.classList.toggle("is-manual", on && mode === "manual");
         btn.setAttribute("aria-pressed", on ? "true" : "false");
       });
-      const hintId = { membrane: "devModeHintMembrane", ultra: "devModeHintUltra", osmosi: "devModeHintOsmosi" }[dev];
+      const hintId = {
+        membrane: "devModeHintMembrane",
+        ultra: "devModeHintUltra",
+        osmosi: "devModeHintOsmosi",
+        riciclo: "devModeHintRiciclo",
+      }[dev];
       const hint = hintId ? el(hintId) : null;
       if (hint) {
-        if (manual) {
+        if (dev === "riciclo") {
+          if (manual) {
+            hint.textContent = "Manuale: riciclo scollegato dal calcolo — lo imposti tu. Variando P11011 il riciclo non si muove.";
+            hint.style.color = "var(--warn)";
+          } else {
+            hint.textContent = "Automatico: riciclo = P11011 − ingresso sediflottatore (si aggiorna variando le pompe). Minimo 100 m³/h se 11014 in marcia.";
+            hint.style.color = "var(--muted)";
+          }
+        } else if (manual) {
           hint.textContent = `Manuale locale: portate tue su questo dispositivo. Il resto dell’impianto resta in ${isAutoMode() ? "Automatico" : "Manuale"} e si adatta.`;
           hint.style.color = "var(--warn)";
         } else if (isAutoMode()) {
@@ -2604,10 +2631,11 @@
           hint.style.color = "var(--muted)";
         }
       }
+      if (dev === "riciclo") paintRecycleEditableUI();
     }
 
     function paintAllDevModeUI() {
-      ["membrane", "ultra", "osmosi"].forEach(paintDevModeUI);
+      ["membrane", "ultra", "osmosi", "riciclo"].forEach(paintDevModeUI);
     }
 
     function setDevMode(dev, mode) {
@@ -2630,9 +2658,13 @@
         } else if (dev === "osmosi") {
           // tiene qOsmosiA/B/C già impostati
           try { syncOsmosiSvg(); } catch (_) { /* ok */ }
+        } else if (dev === "riciclo") {
+          const qr = Math.max(0, num("qRecycle"), flowSetpointOf("qRecycle"));
+          if (qr > 0.05) rememberFlowSetpoint("qRecycle", Math.round(qr));
         }
       }
-      applyBalance(dev === "membrane" ? "membrana" : (dev === "ultra" ? "ultra" : "osmosi"));
+      const balSrc = ({ membrane: "membrana", ultra: "ultra", osmosi: "osmosi", riciclo: "pompa" })[dev] || "pompa";
+      applyBalance(balSrc);
       try { schedulePersist(); } catch (_) { /* persist può non essere ancora definito in teoria */ }
     }
 
@@ -2656,15 +2688,15 @@
       }
     }
 
-    /** Aggiorna readonly del campo riciclo: libero in Manuale, calcolato in Automatico. */
+    /** Campo riciclo: editabile solo in Manuale locale; in Automatico = P11011 − ingresso. */
     function paintRecycleEditableUI() {
       const node = el("qRecycle");
       if (!node) return;
-      const free = !isAutoMode();
+      const free = deviceIsManual("riciclo");
       node.readOnly = !free;
       node.title = free
-        ? "Manuale: imposta tu la portata riciclo 11014 A/B"
-        : "Automatico: P11011 ≥ ingresso + 100 → riciclo ≥ 100 m³/h";
+        ? "Manuale: imposta tu la portata riciclo 11014 A/B (scollegata da P11011)"
+        : "Automatico: riciclo = P11011 − ingresso sediflottatore (min 100 se 11014 ON)";
     }
 
     /** Congela i setpoint attuali (max tra memoria, last, viva) — usato entrando in Manuale. */
@@ -3914,11 +3946,11 @@
       try { paintOsmosiRunUI(); } catch (_) { /* ignore */ }
     }
 
-    /** Riciclo effettivo 11014: ferme → 0; in marcia (Auto) → almeno Q_RECYCLE_MIN. */
+    /** Riciclo effettivo 11014: ferme → 0; in marcia + riciclo Auto → almeno Q_RECYCLE_MIN. */
     function qRecycleEffective(running14, qWanted) {
       if (!running14) return 0;
       const w = Math.max(0, Number(qWanted) || 0);
-      if (isAutoMode()) return round1(Math.max(Q_RECYCLE_MIN, w));
+      if (ricicloAutoControlled()) return round1(Math.max(Q_RECYCLE_MIN, w));
       return round1(w);
     }
 
@@ -4104,10 +4136,10 @@
       let livU = numOrNull("livelloAttualeTk11021");
       if (livU === null) livU = 91;
       const run14 = assess11014RunState(livH, liv20);
-      // Riciclo voluto = P11011 − SETPOINT chimico (mai l’effettivo a 0 in blocco)
-      const qRecycleWanted = isAutoMode()
-        ? Math.max(0, round1(qPump - qInSet))
-        : Math.max(0, numOrNull("qRecycle") ?? round1(qPump - qInSet));
+      // Riciclo: Auto locale = P11011 − ingresso; Manuale locale = setpoint libero
+      const qRecycleWanted = ricicloAutoControlled()
+        ? Math.max(0, Math.round(flowSetpointOf("qPump") - qInSet))
+        : Math.max(0, Math.round(flowSetpointOf("qRecycle")));
       // Consenso 11014 → portata; ferme → 0
       const qRecycleDisp = qRecycleEffective(run14.running, qRecycleWanted);
       const qRecycleForH = qRecycleDisp;
@@ -5502,28 +5534,28 @@
         setVal("qInFromMem", round1(qIn));
 
         // Riciclo 11014:
-        //  Automatico → P11011 − SETPOINT ingresso (non l’effettivo!).
-        //  Se usassimo qInEff=0 a chimico bloccato, riciclo=P11011 e A10620 resterebbe
-        //  forever bilanciato (non scende mai dallo stop riempimento).
-        //  Se 11014 ferma (A11004 basso / A10620 altissimo) → portata riciclo effettiva 0.
+        //  Automatico (locale) → P11011 − SETPOINT ingresso sediflottatore.
+        //  Manuale (locale) → setpoint libero, scollegato dal calcolo.
+        //  Se 11014 ferma → portata riciclo effettiva 0.
         const livHBal = numOrNull("livelloAttualeH");
         const run14Bal = assess11014RunState(
           livHBal !== null ? livHBal : 90,
           livAtt
         );
-        // Riciclo: Auto = P11011_set − ingresso; Manuale = setpoint libero congelato
         const qPumpForRec = Math.max(0, qPumpSet);
-        const qRecycleWanted = Math.max(0, round1(qPumpForRec - qInSet));
+        const qRecycleWanted = Math.max(0, Math.round(qPumpForRec - qInSet));
         let qRecycle = qRecycleWanted;
-        if (auto) {
+        if (ricicloAutoControlled()) {
           const qRecTgt = qRecycleEffective(run14Bal.running, qRecycleWanted);
-          commitFlow("qRecycle", qRecTgt, { setpoint: qRecycleWanted });
+          if (!isEditing("qRecycle")) {
+            commitFlow("qRecycle", qRecTgt, { setpoint: qRecycleWanted });
+          }
           qRecycle = Math.max(0, num("qRecycle"));
         } else {
           const qRecSet = flowSetpointOf("qRecycle");
           const qRecKeep = numOrNull("qRecycle");
-          if (isEditing("qRecycle") && qRecKeep !== null && qRecKeep > 0.05) {
-            rememberFlowSetpoint("qRecycle", qRecKeep);
+          if (isEditing("qRecycle") && qRecKeep !== null) {
+            rememberFlowSetpoint("qRecycle", Math.max(0, Math.round(qRecKeep)));
           }
           if (!isEditing("qRecycle")) {
             commitFlow("qRecycle", run14Bal.running ? qRecSet : 0, { setpoint: qRecSet });
@@ -5570,15 +5602,15 @@
 
         const hintRec = el("ricicloCalcHint");
         if (hintRec) {
-          if (auto) {
+          if (ricicloAutoControlled()) {
             const inLabel = round1(qInSet).toFixed(1);
-            const effNote = __chimicoAllowFill ? "" : " · chimico BLOCCATO (ingresso effettivo 0)";
+            const pumpLabel = round1(qPumpForRec).toFixed(1);
             const runNote = run14Bal.running ? "" : " · 11014 FERMA → riciclo effettivo 0";
-            hintRec.textContent = `Automatico · P11011 (${round1(qPumpEff2)}) = set ingresso (${inLabel}) + ≥${Q_RECYCLE_MIN} → riciclo ${qRecycleWanted.toFixed(1)} m³/h${effNote}${runNote}`;
-            hintRec.style.color = (__chimicoAllowFill && run14Bal.running) ? "" : "var(--warn)";
+            hintRec.textContent = `Automatico · riciclo = P11011 (${pumpLabel}) − ingresso (${inLabel}) = ${qRecycleWanted.toFixed(0)} m³/h${runNote}`;
+            hintRec.style.color = run14Bal.running ? "var(--ok)" : "var(--warn)";
           } else {
-            hintRec.textContent = `Manuale · riciclo libero = ${Math.max(0, numOrNull("qRecycle") ?? 0).toFixed(1)} m³/h (in Automatico = P11011 − set ingresso)`;
-            hintRec.style.color = "var(--accent)";
+            hintRec.textContent = `Manuale · riciclo libero = ${Math.max(0, numOrNull("qRecycle") ?? 0).toFixed(0)} m³/h · scollegato da P11011 (Auto = P11011 − ingresso)`;
+            hintRec.style.color = "var(--warn)";
           }
         }
 
@@ -5597,7 +5629,7 @@
         }
         const svgQRec = el("svgQRec");
         if (svgQRec && !isEditing("qRecycle")) {
-          svgQRec.textContent = round1(auto ? __flowLive.qRecycle : qRecycle).toFixed(1);
+          svgQRec.textContent = round1(__flowLive.qRecycle != null ? __flowLive.qRecycle : qRecycle).toFixed(0);
         }
         const svgQMem = el("svgQMem");
         if (svgQMem) svgQMem.textContent = totOn.toFixed(1);
@@ -6213,6 +6245,10 @@
       }
       syncScrollLock();
       if (name === "pompe" || name === "mandata" || name === "processo" || name === "riciclo" || name === "membrane" || name === "permeato" || name === "p11019" || name === "tk11021" || name === "ultra") refreshProcViews();
+      if (name === "riciclo") {
+        paintDevModeUI("riciclo");
+        paintRecycleEditableUI();
+      }
       if (name === "p11019") {
         if (!isEditing("qP11019")) setVal("qP11019", flowSetpointOf("qP11019"), { force: true });
         paintP11019SplitUI();
@@ -6400,20 +6436,21 @@
       if (!Number.isFinite(v)) return;
 
       if (field === "qRecycle") {
-        if (!isAutoMode()) {
-          // Manuale: portata riciclo libera (setpoint)
-          rememberFlowSetpoint("qRecycle", Math.max(0, v));
-          setVal("qRecycle", Math.max(0, v), { force: true });
+        if (deviceIsManual("riciclo")) {
+          // Manuale locale: portata riciclo libera (scollegata da P11011)
+          const qRec = Math.max(0, Math.round(v));
+          rememberFlowSetpoint("qRecycle", qRec);
+          setVal("qRecycle", qRec, { force: true });
           const svgQRec = el("svgQRec");
-          if (svgQRec) svgQRec.textContent = round1(Math.max(0, v)).toFixed(1);
+          if (svgQRec) svgQRec.textContent = String(qRec);
           applyBalance("livello");
           return;
         }
-        // Automatico: riciclo desiderato → alza P11011 = ingresso + max(riciclo, 100)
+        // Automatico riciclo: desiderata → alza P11011 = ingresso + max(riciclo, 100)
         const qInNow = Math.max(0, num("qIn"));
-        const qRecNeed = Math.max(Q_RECYCLE_MIN, Math.max(0, v));
+        const qRecNeed = Math.max(Q_RECYCLE_MIN, Math.max(0, Math.round(v)));
         const qPumpNeed = clampPump(Math.max(getPumpMin(), qInNow + qRecNeed));
-        const qRecSet = Math.max(0, round1(qPumpNeed - qInNow));
+        const qRecSet = Math.max(0, Math.round(qPumpNeed - qInNow));
         rememberFlowSetpoint("qPump", qPumpNeed);
         rememberFlowSetpoint("qRecycle", qRecSet);
         if (el("equiparaMandata")?.checked) rememberFlowSetpoint("qMandata", qPumpNeed);
@@ -6506,20 +6543,21 @@
         return;
       }
       if (field === "qRecycle") {
-        if (!isAutoMode()) {
-          // Manuale: portata riciclo libera (setpoint)
-          rememberFlowSetpoint("qRecycle", Math.max(0, v));
-          setVal("qRecycle", Math.max(0, v), { force: true });
+        if (deviceIsManual("riciclo")) {
+          // Manuale locale: portata riciclo libera (scollegata da P11011)
+          const qRec = Math.max(0, Math.round(v));
+          rememberFlowSetpoint("qRecycle", qRec);
+          setVal("qRecycle", qRec, { force: true });
           const svgQRec = el("svgQRec");
-          if (svgQRec) svgQRec.textContent = round1(Math.max(0, v)).toFixed(1);
+          if (svgQRec) svgQRec.textContent = String(qRec);
           applyBalance("livello");
           return;
         }
-        // Automatico: riciclo desiderato → alza P11011 = ingresso + max(riciclo, 100)
+        // Automatico riciclo: desiderata → alza P11011 = ingresso + max(riciclo, 100)
         const qInNow = Math.max(0, num("qIn"));
-        const qRecNeed = Math.max(Q_RECYCLE_MIN, Math.max(0, v));
+        const qRecNeed = Math.max(Q_RECYCLE_MIN, Math.max(0, Math.round(v)));
         const qPumpNeed = clampPump(Math.max(getPumpMin(), qInNow + qRecNeed));
-        const qRecSet = Math.max(0, round1(qPumpNeed - qInNow));
+        const qRecSet = Math.max(0, Math.round(qPumpNeed - qInNow));
         rememberFlowSetpoint("qPump", qPumpNeed);
         rememberFlowSetpoint("qRecycle", qRecSet);
         if (el("equiparaMandata")?.checked) rememberFlowSetpoint("qMandata", qPumpNeed);
@@ -7106,6 +7144,7 @@
         membrane: __devMode.membrane === "manual" ? "manual" : "auto",
         ultra: __devMode.ultra === "manual" ? "manual" : "auto",
         osmosi: __devMode.osmosi === "manual" ? "manual" : "auto",
+        riciclo: __devMode.riciclo === "manual" ? "manual" : "auto",
       };
       data.memQs = Array.from(document.querySelectorAll(".mem-q")).map((inp) => inp.value);
       data.ufQs = Array.from(document.querySelectorAll(".uf-q")).map((inp) => inp.value);
@@ -7153,7 +7192,7 @@
           paintFlowModeUI();
           paintRecycleEditableUI();
           if (data.devMode && typeof data.devMode === "object") {
-            ["membrane", "ultra", "osmosi"].forEach((d) => {
+            ["membrane", "ultra", "osmosi", "riciclo"].forEach((d) => {
               if (data.devMode[d] === "manual" || data.devMode[d] === "auto") __devMode[d] = data.devMode[d];
             });
           }
@@ -7407,7 +7446,7 @@
       }
     } catch (_) { /* ok */ }
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt40", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt41", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
