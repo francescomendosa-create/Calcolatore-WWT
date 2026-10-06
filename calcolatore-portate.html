@@ -1544,12 +1544,13 @@
             <text class="badge-val" x="342" y="159" text-anchor="middle" id="svgQPump">334</text>
             <text class="badge-unit" x="372" y="159" text-anchor="middle">m³/h</text>
           </g>
-          <text id="svgManPompa" class="svg-man-mark" x="396" y="158" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
+          <text id="svgManPompa" class="svg-man-mark" x="355" y="182" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
           <g class="flow-edit" data-field="freqHz" data-source="freq">
             <rect class="badge" x="398" y="84" width="58" height="32" rx="5" stroke="#86efac" />
             <text class="badge-val" x="418" y="105" text-anchor="middle" id="svgFreqHz">50</text>
             <text class="badge-unit" x="442" y="105" text-anchor="middle">Hz</text>
           </g>
+          <text id="svgManPompaHz" class="svg-man-mark" x="427" y="128" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
         </g>
 
         <!-- TK-10608 alto — passante (geometria in REGOLAZIONI) -->
@@ -1583,7 +1584,7 @@
             <text class="badge-val" x="687" y="159" text-anchor="middle" id="svgQMand">334</text>
             <text class="badge-unit" x="717" y="159" text-anchor="middle">m³/h</text>
           </g>
-          <text id="svgManMandata" class="svg-man-mark" x="741" y="158" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
+          <text id="svgManMandata" class="svg-man-mark" x="700" y="182" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
         </g>
 
         <!-- MBR: vaschette A–G (+H fuori uso). Scarichi → A11004. Mandata/permeato dalle membrane -->
@@ -1686,7 +1687,7 @@
             <text class="badge-val" x="936" y="268" text-anchor="middle" id="svgQRec">170.8</text>
             <text class="badge-unit" x="966" y="268" text-anchor="middle">m³/h</text>
           </g>
-          <text id="svgManRiciclo" class="svg-man-mark" x="990" y="267" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
+          <text id="svgManRiciclo" class="svg-man-mark" x="949" y="290" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
         </g>
 
         <!-- TK-11007 permeato — click → popup livello + setpoints -->
@@ -3789,21 +3790,22 @@
 
     function paintDevModeMarks() {
       const map = {
-        ingresso: "svgManIngresso",
-        pompa: "svgManPompa",
-        mandata: "svgManMandata",
-        membrane: "svgManMembrane",
-        riciclo: "svgManRiciclo",
-        ultra: "svgManUltra",
-        osmosi: "svgManOsmosi",
+        ingresso: ["svgManIngresso"],
+        pompa: ["svgManPompa", "svgManPompaHz"],
+        mandata: ["svgManMandata"],
+        membrane: ["svgManMembrane"],
+        riciclo: ["svgManRiciclo"],
+        ultra: ["svgManUltra"],
+        osmosi: ["svgManOsmosi"],
       };
       Object.keys(map).forEach((dev) => {
-        const node = el(map[dev]);
-        if (!node) return;
         const on = deviceIsManual(dev);
-        node.setAttribute("opacity", on ? "1" : "0");
-        node.style.display = on ? "" : "";
-        if (on) node.setAttribute("title", "Manuale locale");
+        map[dev].forEach((id) => {
+          const node = el(id);
+          if (!node) return;
+          node.setAttribute("opacity", on ? "1" : "0");
+          if (on) node.setAttribute("title", "Manuale locale");
+        });
       });
     }
 
