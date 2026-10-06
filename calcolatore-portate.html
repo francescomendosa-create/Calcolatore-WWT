@@ -277,7 +277,9 @@
     .node:hover { filter: brightness(1.15); }
     .node:focus, .node:focus-visible { outline: none; }
     .node[data-osm-line],
-    .node[data-uf-line] { touch-action: manipulation; }
+    .node[data-uf-line],
+    .node[data-popup="membrane"] { touch-action: manipulation; }
+    .mem-cell { cursor: pointer; }
     .badge {
       fill: #0b1220;
       stroke: var(--line);
@@ -673,8 +675,27 @@
       font-weight: 800;
       font-size: 0.95rem;
       color: #e0f2fe;
-      flex: 1;
-      min-width: 4rem;
+      flex: 0 1 auto;
+      min-width: 3.2rem;
+    }
+    .uf-wash-now {
+      flex: 1 1 9rem;
+      min-width: 8rem;
+      max-width: 16rem;
+      font-size: 0.72rem;
+      line-height: 1.28;
+      color: #cbd5e1;
+    }
+    .uf-wash-now.is-idle { display: none; }
+    .uf-wash-now-title {
+      font-weight: 800;
+      color: #7dd3fc;
+      letter-spacing: 0.01em;
+    }
+    .uf-wash-now-phase {
+      margin-top: 2px;
+      color: #e2e8f0;
+      font-variant-numeric: tabular-nums;
     }
     .osm-enable, .uf-enable {
       display: inline-flex;
@@ -1066,25 +1087,41 @@
           <rect id="svgMbrLiq" x="752" y="48" width="10" height="76" fill="#22c55e" clip-path="url(#clipMbrBar)" opacity="0.95" />
           <!-- liquido di fondo nelle celle -->
           <rect id="svgMbrLiqBg" x="766" y="48" width="144" height="76" fill="#166534" clip-path="url(#clipMbrCells)" opacity="0.55" />
-          <!-- fila 1 -->
-          <rect id="svgMemA" x="766" y="48" width="34" height="36" rx="4" fill="#14532d" stroke="#4ade80" stroke-width="1.4" />
-          <text x="783" y="70" text-anchor="middle" fill="#ecfdf5" font-size="12" font-weight="700">A</text>
-          <rect id="svgMemB" x="804" y="48" width="34" height="36" rx="4" fill="#14532d" stroke="#4ade80" stroke-width="1.4" />
-          <text x="821" y="70" text-anchor="middle" fill="#ecfdf5" font-size="12" font-weight="700">B</text>
-          <rect id="svgMemC" x="842" y="48" width="34" height="36" rx="4" fill="#14532d" stroke="#4ade80" stroke-width="1.4" />
-          <text x="859" y="70" text-anchor="middle" fill="#ecfdf5" font-size="12" font-weight="700">C</text>
-          <rect id="svgMemD" x="880" y="48" width="34" height="36" rx="4" fill="#14532d" stroke="#4ade80" stroke-width="1.4" />
-          <text x="897" y="70" text-anchor="middle" fill="#ecfdf5" font-size="12" font-weight="700">D</text>
+          <!-- fila 1 — tap apre popup; tieni premuto ½ s per abilitare/disabilitare quella sola -->
+          <g class="mem-cell" data-mem-line="A">
+            <rect id="svgMemA" x="766" y="48" width="34" height="36" rx="4" fill="#14532d" stroke="#4ade80" stroke-width="1.4" />
+            <text x="783" y="70" text-anchor="middle" fill="#ecfdf5" font-size="12" font-weight="700">A</text>
+          </g>
+          <g class="mem-cell" data-mem-line="B">
+            <rect id="svgMemB" x="804" y="48" width="34" height="36" rx="4" fill="#14532d" stroke="#4ade80" stroke-width="1.4" />
+            <text x="821" y="70" text-anchor="middle" fill="#ecfdf5" font-size="12" font-weight="700">B</text>
+          </g>
+          <g class="mem-cell" data-mem-line="C">
+            <rect id="svgMemC" x="842" y="48" width="34" height="36" rx="4" fill="#14532d" stroke="#4ade80" stroke-width="1.4" />
+            <text x="859" y="70" text-anchor="middle" fill="#ecfdf5" font-size="12" font-weight="700">C</text>
+          </g>
+          <g class="mem-cell" data-mem-line="D">
+            <rect id="svgMemD" x="880" y="48" width="34" height="36" rx="4" fill="#14532d" stroke="#4ade80" stroke-width="1.4" />
+            <text x="897" y="70" text-anchor="middle" fill="#ecfdf5" font-size="12" font-weight="700">D</text>
+          </g>
           <!-- fila 2 -->
-          <rect id="svgMemE" x="766" y="88" width="34" height="36" rx="4" fill="#14532d" stroke="#4ade80" stroke-width="1.4" />
-          <text x="783" y="110" text-anchor="middle" fill="#ecfdf5" font-size="12" font-weight="700">E</text>
-          <rect id="svgMemF" x="804" y="88" width="34" height="36" rx="4" fill="#14532d" stroke="#4ade80" stroke-width="1.4" />
-          <text x="821" y="110" text-anchor="middle" fill="#ecfdf5" font-size="12" font-weight="700">F</text>
-          <rect id="svgMemG" x="842" y="88" width="34" height="36" rx="4" fill="#14532d" stroke="#4ade80" stroke-width="1.4" />
-          <text x="859" y="110" text-anchor="middle" fill="#ecfdf5" font-size="12" font-weight="700">G</text>
-          <rect id="svgMemH" x="880" y="88" width="34" height="36" rx="4" fill="#7f1d1d" stroke="#f87171" stroke-width="1.2" stroke-dasharray="3 2" />
-          <text x="897" y="105" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="700">H</text>
-          <text x="897" y="117" text-anchor="middle" fill="#64748b" font-size="6" font-weight="600">fuori uso</text>
+          <g class="mem-cell" data-mem-line="E">
+            <rect id="svgMemE" x="766" y="88" width="34" height="36" rx="4" fill="#14532d" stroke="#4ade80" stroke-width="1.4" />
+            <text x="783" y="110" text-anchor="middle" fill="#ecfdf5" font-size="12" font-weight="700">E</text>
+          </g>
+          <g class="mem-cell" data-mem-line="F">
+            <rect id="svgMemF" x="804" y="88" width="34" height="36" rx="4" fill="#14532d" stroke="#4ade80" stroke-width="1.4" />
+            <text x="821" y="110" text-anchor="middle" fill="#ecfdf5" font-size="12" font-weight="700">F</text>
+          </g>
+          <g class="mem-cell" data-mem-line="G">
+            <rect id="svgMemG" x="842" y="88" width="34" height="36" rx="4" fill="#14532d" stroke="#4ade80" stroke-width="1.4" />
+            <text x="859" y="110" text-anchor="middle" fill="#ecfdf5" font-size="12" font-weight="700">G</text>
+          </g>
+          <g class="mem-cell" data-mem-line="H">
+            <rect id="svgMemH" x="880" y="88" width="34" height="36" rx="4" fill="#7f1d1d" stroke="#f87171" stroke-width="1.2" stroke-dasharray="3 2" />
+            <text id="svgMemHLab" x="897" y="105" text-anchor="middle" fill="#fda4af" font-size="11" font-weight="700">H</text>
+            <text id="svgMemHHint" x="897" y="117" text-anchor="middle" fill="#fda4af" font-size="6" font-weight="600">off</text>
+          </g>
           <!-- collettore scarichi → A11004 (solo scarichi, non mandata) -->
           <path class="pipe pipe-rec" d="M783 128 V140 H897 V128" fill="none" stroke-width="2.2" opacity="0.9" />
           <path class="pipe pipe-rec" d="M840 140 H922" fill="none" stroke-width="2.2" />
@@ -2128,7 +2165,7 @@
       </h3>
       <button type="button" class="proc-label" disabled style="cursor:default;opacity:.95">
         <span>PROCESSO — Membrane MBR</span>
-        <small>A–G in servizio · H fuori uso · scarichi → A11004</small>
+        <small>A–G abilitate · H parte disattivata · tieni premuto una vaschetta per on/off</small>
       </button>
       <p class="mini" id="devModeHintMembrane">Modo membrane: segue l’impianto (Automatico generale).</p>
       <div class="row">
@@ -2175,7 +2212,7 @@
       <label><strong>TOTALE membrane ON (m³/h)</strong>
         <input type="number" id="qMemTotale" class="tot-mem" min="0" max="500" step="0.1" value="171.4" />
       </label>
-      <p class="mini">In servizio fino a <strong>G</strong>. Variando il totale si aggiornano A–G. <strong>H</strong> fuori uso (non si imposta).</p>
+      <p class="mini">Variando il totale si ripartisce sulle membrane <strong>abilitate</strong>. <strong>H</strong> parte disattivata (rossa): tieni premuto sullo schema per riattivarla.</p>
       <div class="mem-grid" id="memInputs"></div>
       <div class="row" style="margin-top:8px">
         <label><strong>Media effettiva (con ciclo)</strong>
@@ -2251,7 +2288,7 @@
       </label>
       <p class="mini">Quattro ingressi A–D. La somma = totale. Variando il totale si ripartiscono in modo uguale sulle <strong>abilitate</strong>; variando una linea si aggiorna il totale.</p>
       <p class="mini">Clicca una UF sullo schema: il popup si posiziona su quella linea. <strong>Disabilita</strong> la spegne (rossa). Tap sul disegno nel popup = Abilita/Disabilita. In overview: tieni premuto ½ s.</p>
-      <p class="mini">Ogni UF: <strong>tempo lavoro</strong> (default 20′) poi <strong>lavaggio</strong> (default 190 s ferma), <strong>sfalsati</strong>. Il timer avanza solo con <strong>portata verso UF</strong>; senza portata i lavaggi restano <strong>in coda</strong>. In lavaggio la viva va a 0; il setpoint resta.</p>
+      <p class="mini">Ogni UF: <strong>tempo di lavoro per lavaggio backwash</strong> (default 20′) poi backwash (default 190 s ferma), <strong>sfalsati</strong>. Poi CEV ipoclorito (21 h), CEB soda (23 h) e acido (24 h): ciascun lavaggio chimico dura <strong>1010 s (16′ 50″)</strong> a fasi. Il timer avanza solo con <strong>portata verso UF</strong>; senza portata i lavaggi restano <strong>in coda</strong>. In lavaggio la viva va a 0; il setpoint resta.</p>
       <div id="ufInputs"></div>
       <div class="settings-block show" style="margin-top:10px">
         <h4>TK 11021 — permeato UF (da PROCESSO)</h4>
@@ -2600,6 +2637,7 @@
     const __ufEnabled = { A: true, B: true, C: true, D: true };
     let __mbrCycleMin = 0;       // orologio ciclo lavoro/pausa (si congela se livello ferma tutte)
     let __ufSvcMin = 0;          // orologio lavaggi UF: avanza solo con portata verso UF
+    let __ufChem = null;         // stato lavaggi CEV/CEB/acido per linea
     let __startupPumpHold = false; // dopo Reset: pompe ON finché non parti con +1′
     let __simMin = 0;
     let __simSnap = null;
@@ -2616,14 +2654,16 @@
     const RATE_PCT_CLAMP = 2.5; // tetto %/min prove empiriche (calibrazioni vecchie)
     const RATE_PCT_CLAMP_VOL = 12; // tetto %/min da volume reale (A10620 ecc.)
     const round2 = (v) => Math.round(Number(v) * 100) / 100;
-    const MBR_MEM_IDS = ["A", "B", "C", "D", "E", "F", "G"]; // H fuori uso
+    const MBR_ALL_IDS = ["A", "B", "C", "D", "E", "F", "G", "H"];
+    const MBR_MEM_IDS = MBR_ALL_IDS;
     // Pause a coppie sfalsate: ciascuna fa 7′+1′, ma non tutte insieme
     const MBR_PAUSE_PAIRS = [
       ["A", "D"],
       ["B", "G"],
       ["C", "E"],
-      ["F"], // singola
+      ["F", "H"],
     ];
+    const __memEnabled = { A: true, B: true, C: true, D: true, E: true, F: true, G: true, H: false };
     let __flowMode = "auto"; // "auto" = bilancia portate · "manual" = portate libere
 
     function isFlowRamping() {
@@ -3968,6 +4008,49 @@
       setUfLineEnabled(letter, !ufLineEnabled(letter));
     }
 
+    function memLineEnabled(letter) {
+      const L = String(letter || "").toUpperCase();
+      if (MBR_ALL_IDS.indexOf(L) < 0) return false;
+      return __memEnabled[L] !== false;
+    }
+
+    function memIdsEnabled() {
+      return MBR_ALL_IDS.filter((L) => memLineEnabled(L));
+    }
+
+    function setMemLineEnabled(letter, enabled) {
+      const L = String(letter || "").toUpperCase();
+      if (MBR_ALL_IDS.indexOf(L) < 0) return;
+      __memEnabled[L] = !!enabled;
+      paintMemEnableUI();
+      paintMembraneCycleUI(__mbrCycleMin);
+      try { applyBalance("membrana"); } catch (_) { /* ignore */ }
+      try { schedulePersist(); } catch (_) { /* ignore */ }
+    }
+
+    function toggleMemLineEnabled(letter) {
+      setMemLineEnabled(letter, !memLineEnabled(letter));
+    }
+
+    function paintMemEnableUI() {
+      MBR_ALL_IDS.forEach((L) => {
+        const on = memLineEnabled(L);
+        const inp = document.querySelector(`.mem-q[data-mem="${L}"]`);
+        const lab = inp && inp.closest("label");
+        if (lab) lab.style.opacity = on ? "" : "0.55";
+        if (inp) inp.title = on ? "" : "Disabilitata · tieni premuto sulla vaschetta nello schema per riabilitare";
+      });
+      const hint = el("svgMemHHint");
+      const labH = el("svgMemHLab");
+      const onH = memLineEnabled("H");
+      if (hint) hint.setAttribute("opacity", onH ? "0" : "1");
+      if (labH) {
+        labH.setAttribute("y", onH ? "110" : "105");
+        labH.setAttribute("font-size", onH ? "12" : "11");
+        labH.setAttribute("fill", onH ? "#ecfdf5" : "#fda4af");
+      }
+    }
+
     function paintUfEnableUI() {
       UF_LINES.forEach((L) => {
         const on = ufLineEnabled(L);
@@ -4209,9 +4292,9 @@
 
     /** true = in pausa (rossa / portata 0). Coppie sfalsate; blocchi processo → tutte ferme. */
     function membraneIsPaused(cycleMin, letter) {
-      if (!membranesProcessAllowed()) return true;
       const L = String(letter || "").toUpperCase();
-      if (L === "H") return true;
+      if (!memLineEnabled(L)) return true;
+      if (!membranesProcessAllowed()) return true;
       const { lavoro, pausa, cycle } = membraneCycleLen();
       const lavoroR = Math.max(1, Math.round(lavoro));
       const pausaR = Math.max(0, Math.round(pausa));
@@ -4245,7 +4328,7 @@
       let s = 0;
       inputs.forEach((inp, i) => {
         const letter = String(inp.dataset.mem || MEMBRANE[i] || "").toUpperCase();
-        if (!letter || letter === "H") return;
+        if (!letter || !memLineEnabled(letter)) return;
         if (membraneIsPaused(cycleMin, letter)) return; // ferma → 0 in uscita
         const v = parseFloat(String(inp.value ?? "").replace(",", "."));
         if (Number.isFinite(v) && v > 0) s += v;
@@ -4263,28 +4346,30 @@
       const tot = sumMems();
       if (tot < 0.05) {
         let on = 0;
-        MBR_MEM_IDS.forEach((L) => { if (!membraneIsPaused(cycleMin, L)) on += 1; });
-        return MBR_MEM_IDS.length ? on / MBR_MEM_IDS.length : 0;
+        MBR_ALL_IDS.forEach((L) => { if (memLineEnabled(L) && !membraneIsPaused(cycleMin, L)) on += 1; });
+        const nEn = memIdsEnabled().length;
+        return nEn ? on / nEn : 0;
       }
       return sumMemsRunning(cycleMin) / tot;
     }
 
-    /** Colora ogni membrana: verde in lavoro, grigia in pausa/blocco. H fuori uso. */
+    /** Colora ogni membrana: verde in lavoro, grigia in pausa/blocco, rossa se disabilitata. */
     function paintMembraneCycleUI(cycleMin) {
       const clk = cycleMin != null ? cycleMin : __mbrCycleMin;
-      MBR_MEM_IDS.forEach((letter) => {
+      const processGo = membranesProcessAllowed();
+      MBR_ALL_IDS.forEach((letter) => {
         const node = el("svgMem" + letter);
         if (!node) return;
-        const pause = membraneIsPaused(clk, letter);
-        const c = deviceCol(false, !pause);
+        const disabled = !memLineEnabled(letter);
+        const run = !disabled && processGo && !membraneIsPaused(clk, letter);
+        const c = deviceCol(disabled, run);
         node.setAttribute("fill", c.fill);
         node.setAttribute("stroke", c.stroke);
+        node.setAttribute("stroke-width", disabled ? "1.2" : "1.4");
+        if (disabled) node.setAttribute("stroke-dasharray", "3 2");
+        else node.removeAttribute("stroke-dasharray");
       });
-      const h = el("svgMemH");
-      if (h) {
-        h.setAttribute("fill", DEV_COL.off.fill);
-        h.setAttribute("stroke", DEV_COL.off.stroke);
-      }
+      paintMemEnableUI();
     }
 
     /**
@@ -4579,6 +4664,7 @@
         runOsmC: __runOsmC,
         mbrCycleMin: __mbrCycleMin,
         ufSvcMin: __ufSvcMin,
+        ufChem: __ufChem ? JSON.parse(JSON.stringify(__ufChem)) : null,
         startupPumpHold: __startupPumpHold,
       };
     }
@@ -4612,6 +4698,9 @@
       __runOsmC = __simSnap.runOsmC !== false;
       __mbrCycleMin = Math.max(0, Number(__simSnap.mbrCycleMin) || 0);
       __ufSvcMin = Math.max(0, Number(__simSnap.ufSvcMin) || 0);
+      if (__simSnap.ufChem && typeof __simSnap.ufChem === "object") {
+        __ufChem = JSON.parse(JSON.stringify(__simSnap.ufChem));
+      }
       __startupPumpHold = __simSnap.startupPumpHold !== false;
       // Riallinea isteresi 11014 ai livelli ripristinati
       assess11014RunState(
@@ -4763,6 +4852,7 @@
       }
       // Timer lavaggi UF: avanza solo con portata verso UF (altrimenti lavaggi in coda)
       advanceUfServiceClock(dtMin);
+      tickUfChemWashes(dtMin);
       // IN UF effettivo: linee non in lavaggio (sfalsati); 0 se P11019/TK11021 bloccano
       if (!p11019Allowed()) paintUfPopupSetpoints();
       const qUfIn = sumUfEffective();
@@ -5100,6 +5190,7 @@
       __simMin = 0;
       __mbrCycleMin = 0;
       __ufSvcMin = 0;
+      resetUfChem();
       resetQInWobble();
       __runMbrByLevel = true;
       __allowMbrByPermeate = true;
@@ -5673,16 +5764,21 @@
     }
 
     function getMems() {
-      return [...document.querySelectorAll(".mem-q")].map((inp) => ({
-        q: Math.max(0, parseFloat(inp.value) || 0),
-        el: inp,
-      }));
+      return [...document.querySelectorAll(".mem-q")].map((inp) => {
+        const L = String(inp.dataset.mem || "").toUpperCase();
+        const raw = Math.max(0, parseFloat(inp.value) || 0);
+        return { q: memLineEnabled(L) ? raw : 0, el: inp };
+      });
     }
 
     function setMemEqual(totale) {
-      const each = MEMBRANE.length ? totale / MEMBRANE.length : 0;
+      const enabled = memIdsEnabled();
+      const n = enabled.length || 1;
+      const each = n ? totale / n : 0;
       document.querySelectorAll(".mem-q").forEach((inp) => {
         if (document.activeElement === inp) return;
+        const L = String(inp.dataset.mem || "").toUpperCase();
+        if (!memLineEnabled(L)) return;
         inp.value = round1(each);
       });
     }
@@ -6302,7 +6398,7 @@
         }
         if (__simMin > 0 && bar) {
           const maxM = round1(sumMemsAllOn());
-          const offN = MBR_MEM_IDS.filter((L) => membraneIsPaused(__mbrCycleMin, L)).length;
+          const offN = memIdsEnabled().filter((L) => membraneIsPaused(__mbrCycleMin, L)).length;
           const outTxt = !membranesProcessAllowed()
             ? (!__allowMbrByPermeate
               ? `MBR FERME (TK11007 pieno) · ciclo@${__mbrCycleMin}′`
@@ -6321,8 +6417,10 @@
     function buildMemInputs() {
       const wrap = el("memInputs");
       wrap.innerHTML = "";
-      const startEach = round1(num("qMemTotale") / MEMBRANE.length);
-      MEMBRANE.forEach((m) => {
+      const enabled = memIdsEnabled();
+      const n = enabled.length || MBR_ALL_IDS.length;
+      const startEach = round1(num("qMemTotale") / n);
+      MBR_ALL_IDS.forEach((m) => {
         const lab = document.createElement("label");
         lab.innerHTML = `<strong>MBR ${m}</strong>`;
         const inp = document.createElement("input");
@@ -6330,26 +6428,14 @@
         inp.min = "0";
         inp.max = "80";
         inp.step = "0.1";
-        inp.value = startEach;
+        inp.value = memLineEnabled(m) ? startEach : "0";
         inp.className = "mem-q";
         inp.dataset.mem = m;
         inp.addEventListener("input", () => applyBalance("membrana"));
         lab.appendChild(inp);
         wrap.appendChild(lab);
       });
-      // H presente in PROCESSO ma fuori uso: non impostabile
-      const labH = document.createElement("label");
-      labH.innerHTML = `<strong>MBR H</strong>`;
-      labH.style.opacity = "0.55";
-      const inpH = document.createElement("input");
-      inpH.type = "text";
-      inpH.value = "fuori uso";
-      inpH.readOnly = true;
-      inpH.tabIndex = -1;
-      inpH.style.cursor = "not-allowed";
-      inpH.title = "Membrane H fuori servizio — non impostabile";
-      labH.appendChild(inpH);
-      wrap.appendChild(labH);
+      paintMemEnableUI();
     }
 
     function getUfs() {
@@ -6407,6 +6493,118 @@
       return Math.max(1, num("ufLavaggioSec" + letter) || 190);
     }
 
+    const UF_CHEM_KINDS = [
+      { id: "cev", title: "Lavaggio ipoclorito in corso", oreId: "ufCevOre", defH: 21 },
+      { id: "ceb", title: "Lavaggio soda in corso", oreId: "ufCebOre", defH: 23 },
+      { id: "acido", title: "Lavaggio acido in corso", oreId: "ufAcidoOre", defH: 24 },
+    ];
+    /** Fasi CEV/CEB/acido. Elenco utente = 970 s; aggiunto controlavaggio basso 2 = 40 s → 1010 s. */
+    const UF_CHEM_PHASES = [
+      { id: "aria1", label: "Tempo aria compressa 1", sec: 30 },
+      { id: "svuot1", label: "Tempo di svuotamento 1", sec: 30 },
+      { id: "alto1", label: "Tempo di controlavaggio alto 1", sec: 40 },
+      { id: "basso1", label: "Tempo di controlavaggio basso 1", sec: 40 },
+      { id: "ammollo", label: "Tempo di ammollo", sec: 600 },
+      { id: "aria2", label: "Tempo aria compressa 2", sec: 40 },
+      { id: "svuot2", label: "Tempo di svuotamento 2", sec: 30 },
+      { id: "alto2", label: "Tempo di controlavaggio alto 2", sec: 40 },
+      { id: "basso2", label: "Tempo di controlavaggio basso 2", sec: 40 },
+      { id: "finale", label: "Tempo di lavaggio finale", sec: 120 },
+    ];
+    function ufChemWashSec() {
+      return UF_CHEM_PHASES.reduce((s, p) => s + p.sec, 0);
+    }
+    function ufChemKindMeta(kind) {
+      return UF_CHEM_KINDS.find((k) => k.id === kind) || null;
+    }
+    function ufChemLavoroMin(letter, kind) {
+      const meta = ufChemKindMeta(kind);
+      if (!meta) return 21 * 60;
+      const raw = num(meta.oreId + letter);
+      const h = Number.isFinite(raw) && raw > 0 ? raw : meta.defH;
+      return Math.max(0.1, h) * 60;
+    }
+    function resetUfChem() {
+      const off = ufChemWashSec() / 60;
+      __ufChem = {};
+      UF_LINES.forEach((L, idx) => {
+        __ufChem[L] = {
+          work: { cev: -idx * off, ceb: -idx * off, acido: -idx * off },
+          kind: null,
+          elapsedSec: 0,
+        };
+      });
+    }
+    function ensureUfChem() {
+      if (!__ufChem) resetUfChem();
+      UF_LINES.forEach((L, idx) => {
+        if (!__ufChem[L]) {
+          const off = ufChemWashSec() / 60;
+          __ufChem[L] = {
+            work: { cev: -idx * off, ceb: -idx * off, acido: -idx * off },
+            kind: null,
+            elapsedSec: 0,
+          };
+        }
+      });
+    }
+    function ufChemActive(letter) {
+      ensureUfChem();
+      const st = __ufChem[String(letter || "").toUpperCase()];
+      return !!(st && st.kind);
+    }
+    function fmtRemainSec(sec) {
+      const s = Math.max(0, Math.ceil(Number(sec) || 0));
+      if (s >= 60) {
+        const m = Math.floor(s / 60);
+        const r = s % 60;
+        return r ? `${m}′ ${r}″` : `${m}′`;
+      }
+      return `${s} s`;
+    }
+    function ufChemPhaseAt(elapsedSec) {
+      let t = Math.max(0, Number(elapsedSec) || 0);
+      for (let i = 0; i < UF_CHEM_PHASES.length; i++) {
+        const p = UF_CHEM_PHASES[i];
+        if (t < p.sec - 1e-9) {
+          return { label: p.label, remainSec: Math.max(0, Math.ceil(p.sec - t)), totalSec: p.sec };
+        }
+        t -= p.sec;
+      }
+      const last = UF_CHEM_PHASES[UF_CHEM_PHASES.length - 1];
+      return last ? { label: last.label, remainSec: 0, totalSec: last.sec } : null;
+    }
+    function tickUfChemWashes(dtMin) {
+      ensureUfChem();
+      const dt = Math.max(0, Number(dtMin) || 0);
+      if (dt < 1e-9) return;
+      const inlet = ufInletAvailable();
+      UF_LINES.forEach((L) => {
+        const st = __ufChem[L];
+        if (!ufLineEnabled(L)) return;
+        if (st.kind) {
+          if (!inlet) return;
+          st.elapsedSec += dt * 60;
+          if (st.elapsedSec >= ufChemWashSec() - 1e-6) {
+            st.kind = null;
+            st.elapsedSec = 0;
+          }
+          return;
+        }
+        if (!inlet) return;
+        if (ufWashPhase(L).wash) return;
+        st.work.cev += dt;
+        st.work.ceb += dt;
+        st.work.acido += dt;
+        const due = UF_CHEM_KINDS.find((k) => st.work[k.id] >= ufChemLavoroMin(L, k.id) - 1e-9);
+        if (due) {
+          st.kind = due.id;
+          st.elapsedSec = 0;
+          st.work[due.id] = 0;
+        }
+      });
+    }
+
     /** Portata verso UF (Impianto/carboni), indipendente dai lavaggi. */
     function ufInletAvailable() {
       if (!__allowUfByTk11021) return false;
@@ -6451,12 +6649,14 @@
     function ufLineInWash(letter) {
       if (!ufLineEnabled(letter)) return false;
       if (!ufInletAvailable()) return false;
+      if (ufChemActive(letter)) return true;
       return !!ufWashPhase(letter).wash;
     }
 
     function ufLineQueuedWash(letter) {
       if (!ufLineEnabled(letter)) return false;
       if (ufInletAvailable()) return false;
+      if (ufChemActive(letter)) return true;
       return !!ufWashPhase(letter).wash;
     }
 
@@ -6479,8 +6679,10 @@
       UF_LINES.forEach((L) => {
         const enabled = ufLineEnabled(L);
         const ph = ufWashPhase(L);
-        const wash = go && enabled && inletOk && ph.wash;
-        const queued = enabled && !inletOk && ph.wash;
+        const washBw = go && enabled && inletOk && ph.wash && !ufChemActive(L);
+        const washChem = go && enabled && inletOk && ufChemActive(L);
+        const wash = washBw || washChem;
+        const queued = enabled && !inletOk && (ph.wash || ufChemActive(L));
         const off = !enabled;
         const runUf = go && enabled && !wash && !queued && inletOk;
         const body = el("svgUfBody" + L);
@@ -6503,6 +6705,42 @@
         };
         paint(body, fill, lab);
         paint(popBody, popFill, popLab);
+        const nowBox = el("ufWashNow" + L);
+        const nowTitle = el("ufWashNowTitle" + L);
+        const nowPhase = el("ufWashNowPhase" + L);
+        if (nowBox) {
+          let show = false;
+          let titleTxt = "";
+          let phaseTxt = "";
+          if (go && enabled && washChem) {
+            ensureUfChem();
+            const st = __ufChem[L];
+            const meta = ufChemKindMeta(st.kind);
+            const phs = ufChemPhaseAt(st.elapsedSec);
+            titleTxt = meta ? meta.title : "Lavaggio in corso";
+            phaseTxt = phs ? `${phs.label} · restano ${fmtRemainSec(phs.remainSec)}` : "";
+            show = true;
+          } else if (go && enabled && washBw) {
+            titleTxt = "Lavaggio backwash";
+            phaseTxt = `in corso · restano ${fmtRemainSec(ph.remainSec)}`;
+            show = true;
+          } else if (go && enabled && queued && ufChemActive(L)) {
+            ensureUfChem();
+            const st = __ufChem[L];
+            const meta = ufChemKindMeta(st.kind);
+            const phs = ufChemPhaseAt(st.elapsedSec);
+            titleTxt = meta ? `${meta.title.replace(" in corso", "")} in coda` : "Lavaggio in coda";
+            phaseTxt = phs ? `${phs.label} · in pausa · ${fmtRemainSec(phs.remainSec)}` : "in coda";
+            show = true;
+          } else if (go && enabled && queued && ph.wash) {
+            titleTxt = "Lavaggio backwash in coda";
+            phaseTxt = `parte al ritorno portata · ${fmtRemainSec(ph.remainSec)}`;
+            show = true;
+          }
+          nowBox.classList.toggle("is-idle", !show);
+          if (nowTitle) nowTitle.textContent = titleTxt;
+          if (nowPhase) nowPhase.textContent = phaseTxt;
+        }
         const st = el("ufStatus" + L);
         if (st) {
           if (off) {
@@ -6520,12 +6758,19 @@
               st.textContent = `Senza portata UF · ferma (grigia) · timer in pausa · prox lavaggio tra ~${minLeft}′ di servizio`;
               st.style.color = "var(--muted)";
             }
+          } else if (washChem) {
+            ensureUfChem();
+            const cst = __ufChem[L];
+            const meta = ufChemKindMeta(cst.kind);
+            const phs = ufChemPhaseAt(cst.elapsedSec);
+            st.textContent = `${meta ? meta.title : "Lavaggio chimico"} · ${phs ? phs.label + " · " + fmtRemainSec(phs.remainSec) : fmtRemainSec(ufChemWashSec() - cst.elapsedSec)}`;
+            st.style.color = "var(--muted)";
           } else if (wash) {
-            st.textContent = `LAVAGGIO · ferma (grigia) ancora ~${ph.remainSec} s (su ${Math.round(ufLavaggioSec(L))} s)`;
+            st.textContent = `LAVAGGIO BACKWASH · ferma (grigia) ancora ~${ph.remainSec} s (su ${Math.round(ufLavaggioSec(L))} s)`;
             st.style.color = "var(--muted)";
           } else {
             const minLeft = Math.max(0, Math.round(ph.toWashSec / 60));
-            st.textContent = `In marcia (verde) · prox lavaggio tra ~${minLeft}′ (ciclo ${round1(ufLavoroMin(L))}′ + ${Math.round(ufLavaggioSec(L))} s, sfalsato)`;
+            st.textContent = `In marcia (verde) · prox backwash tra ~${minLeft}′ (ciclo ${round1(ufLavoroMin(L))}′ + ${Math.round(ufLavaggioSec(L))} s, sfalsato)`;
             st.style.color = "var(--ok)";
           }
         }
@@ -6945,7 +7190,8 @@
     document.querySelectorAll(".node[data-popup]").forEach((node) => {
       const osmLine = node.getAttribute("data-osm-line") || node.dataset.osmLine;
       const ufLine = node.getAttribute("data-uf-line") || node.dataset.ufLine;
-      const holdLetter = osmLine || ufLine;
+      const isMemNode = (node.getAttribute("data-popup") || node.dataset.popup) === "membrane";
+      const holdOnNode = !!(osmLine || ufLine || isMemNode);
       let holdTimer = null;
       let holdFired = false;
       const clearHold = () => {
@@ -6954,23 +7200,39 @@
           holdTimer = null;
         }
       };
-      if (holdLetter) {
+      const memLetterFromEvent = (e) => {
+        let n = e && e.target;
+        while (n && n !== node) {
+          if (n.getAttribute) {
+            const L = n.getAttribute("data-mem-line");
+            if (L) return String(L).toUpperCase();
+          }
+          n = n.parentNode || n.parentElement;
+        }
+        return "";
+      };
+      if (holdOnNode) {
         node.addEventListener("pointerdown", (e) => {
           if (e.pointerType === "mouse" && e.button !== 0) return;
           holdFired = false;
           clearHold();
+          const memL = isMemNode ? memLetterFromEvent(e) : "";
+          if (isMemNode && !memL) return;
           holdTimer = setTimeout(() => {
             holdTimer = null;
             holdFired = true;
             if (osmLine) toggleOsmLineEnabled(osmLine);
-            else toggleUfLineEnabled(ufLine);
+            else if (ufLine) toggleUfLineEnabled(ufLine);
+            else if (memL) toggleMemLineEnabled(memL);
             try { if (navigator.vibrate) navigator.vibrate(18); } catch (_) { /* ok */ }
           }, 500);
         });
         ["pointerup", "pointercancel", "pointerleave", "lostpointercapture"].forEach((ev) => {
           node.addEventListener(ev, clearHold);
         });
-        node.addEventListener("contextmenu", (e) => { e.preventDefault(); });
+        node.addEventListener("contextmenu", (e) => {
+          if (!isMemNode || memLetterFromEvent(e)) e.preventDefault();
+        });
       }
       const popupOpts = () => {
         if (osmLine) return { osmLine };
@@ -6982,7 +7244,7 @@
           const t = e.target;
           if (t && t.closest && t.closest(".flow-edit")) return;
         } catch (_) { /* SVG senza closest su target rari */ }
-        if (holdLetter && holdFired) {
+        if (holdOnNode && holdFired) {
           holdFired = false;
           e.preventDefault();
           e.stopPropagation();
@@ -7890,6 +8152,16 @@
       };
       data.memQs = Array.from(document.querySelectorAll(".mem-q")).map((inp) => inp.value);
       data.ufQs = Array.from(document.querySelectorAll(".uf-q")).map((inp) => inp.value);
+      data.memEnabled = {
+        A: __memEnabled.A !== false,
+        B: __memEnabled.B !== false,
+        C: __memEnabled.C !== false,
+        D: __memEnabled.D !== false,
+        E: __memEnabled.E !== false,
+        F: __memEnabled.F !== false,
+        G: __memEnabled.G !== false,
+        H: __memEnabled.H === true,
+      };
       data.osmEnabled = {
         A: __osmEnabled.A !== false,
         B: __osmEnabled.B !== false,
@@ -7947,6 +8219,12 @@
           if (data.devMode && typeof data.devMode === "object") {
             ["membrane", "ultra", "osmosi", "riciclo"].forEach((d) => {
               if (data.devMode[d] === "manual" || data.devMode[d] === "auto") __devMode[d] = data.devMode[d];
+            });
+          }
+          if (data.memEnabled && typeof data.memEnabled === "object") {
+            MBR_ALL_IDS.forEach((L) => {
+              if (data.memEnabled[L] === false) __memEnabled[L] = false;
+              else if (data.memEnabled[L] === true) __memEnabled[L] = true;
             });
           }
           if (data.osmEnabled && typeof data.osmEnabled === "object") {
@@ -8273,7 +8551,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt55", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt56", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
