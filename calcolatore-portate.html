@@ -7861,6 +7861,7 @@
       }
       if (name === "p11019") {
         if (!isEditing("qP11019")) setVal("qP11019", flowSetpointOf("qP11019"), { force: true });
+        sanitizeP11019SplitMem();
         paintP11019SplitUI();
       }
       if (name === "carbone") {
@@ -9240,12 +9241,12 @@
           if (qm > 0.05) rememberFlowSetpoint("qMandata", qm);
           const qp19 = Math.max(0, num("qP11019") || __flowSetpoint.qP11019 || 0);
           if (qp19 > 0.05 && qp19 <= 500) rememberFlowSetpoint("qP11019", qp19);
-          let ias = Math.max(0, num("qP11019Ias") || 0);
+          let ias = Math.max(0, num("qP11019Ias") || Number(data.qP11019Ias) || 0);
           if (ias > 500) ias = 0;
-          if (ias > 0.05) rememberFlowSetpoint("qP11019Ias", ias);
-          else rememberFlowSetpoint("qP11019Ias", 0, { allowZero: true });
-          const imp = round1(Math.max(0, qp19 - ias));
-          if (imp > 0.05) rememberFlowSetpoint("qP11019Impianto", imp);
+          rememberFlowSetpoint("qP11019Ias", ias, { allowZero: true });
+          const imp = round1(Math.max(0, (qp19 > 0.05 ? qp19 : 0) - ias));
+          rememberFlowSetpoint("qP11019Impianto", imp, { allowZero: true });
+          sanitizeP11019SplitMem();
         }
         if (data.carbWash && typeof data.carbWash === "object") {
           __carbWash = JSON.parse(JSON.stringify(data.carbWash));
