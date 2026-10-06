@@ -395,29 +395,31 @@
     }
     .flow-edit-panel h3 {
       margin: 0 0 10px;
-      font-size: 0.98rem;
+      font-size: 0.95rem;
       font-weight: 800;
       color: var(--text);
       display: flex;
-      flex-direction: column;
-      align-items: stretch;
-      justify-content: flex-start;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
       gap: 8px;
-      text-align: center;
+      text-align: left;
     }
     .flow-edit-panel h3 #flowEditTitle {
       display: block;
-      width: 100%;
-      font-size: 0.98rem;
+      flex: 1 1 auto;
+      font-size: 0.95rem;
       font-weight: 800;
       line-height: 1.25;
       min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+      text-align: left;
     }
     .flow-edit-panel .dev-mode {
-      align-self: center;
+      flex-shrink: 0;
+      margin-left: auto;
     }
     .flow-edit-panel .flow-edit-unit,
     .flow-edit-unit-in { display: none !important; }
@@ -664,28 +666,45 @@
       font-size: 1.05rem;
       display: flex;
       justify-content: space-between;
-      align-items: flex-start;
+      align-items: center;
       gap: 8px;
     }
     .modal h3 .modal-title-row {
       display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 6px;
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
       min-width: 0;
       flex: 1;
     }
     .modal h3 .modal-title-name {
       display: block;
+      flex: 1 1 auto;
+      min-width: 0;
       max-width: 100%;
       font-size: 1.05rem;
       font-weight: 800;
       line-height: 1.25;
       overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      text-align: left;
+    }
+    .modal h3 .modal-title-row .dev-mode {
+      flex-shrink: 0;
+      margin-left: auto;
     }
     .modal h3 > [data-close] {
       flex-shrink: 0;
-      margin-top: -2px;
+    }
+    /* Chimico-fisico: popup al centro dello schermo */
+    #popIngresso.modal-back.show {
+      align-items: center;
+    }
+    #popIngresso .modal {
+      margin: auto;
     }
     .dev-mode {
       display: inline-flex;
@@ -750,6 +769,10 @@
       font-weight: 600;
     }
     #popUltra .modal-title-row { flex-wrap: wrap; }
+    #popUltra .uf-head-wash {
+      flex-basis: 100%;
+      margin-left: 0;
+    }
     .osm-row, .uf-row {
       border: 1px solid var(--line);
       border-radius: 10px;
@@ -9042,7 +9065,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt66", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt67", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
