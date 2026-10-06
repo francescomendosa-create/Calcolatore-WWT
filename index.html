@@ -601,6 +601,74 @@
       border-color: #fbbf24;
       color: #fde68a;
     }
+    .osm-row {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 12px 12px;
+      margin: 0 0 10px;
+      background: #0b1220;
+      scroll-margin-top: 12px;
+    }
+    .osm-row.is-focus {
+      border-color: #7dd3fc;
+      box-shadow: 0 0 0 2px rgba(125, 211, 252, 0.28);
+    }
+    .osm-row.is-off {
+      border-color: #7f1d1d;
+    }
+    .osm-row-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+    .osm-mini {
+      width: 92px;
+      height: 28px;
+      flex-shrink: 0;
+      display: block;
+    }
+    .osm-row-name {
+      font-weight: 800;
+      font-size: 0.95rem;
+      color: #e0f2fe;
+      flex: 1;
+      min-width: 4rem;
+    }
+    .osm-enable {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #0b1220;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 3px 5px;
+    }
+    .osm-enable button {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      color: var(--text);
+      width: auto;
+      height: auto;
+      border-radius: 5px;
+      padding: 4px 9px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      cursor: pointer;
+      line-height: 1.2;
+    }
+    .osm-enable button.is-on[data-osm-en="1"] {
+      background: #14532d;
+      border-color: #4ade80;
+      color: #bbf7d0;
+    }
+    .osm-enable button.is-on[data-osm-en="0"] {
+      background: #7f1d1d;
+      border-color: #f87171;
+      color: #fecaca;
+    }
     .modal h3 button[data-close] {
       border: 0;
       background: var(--panel-2);
@@ -1213,10 +1281,11 @@
             <text class="badge-unit" x="258" y="357" text-anchor="middle">m³/h</text>
           </g>
           <path class="pipe pipe-main" d="M194 348 H190" />
-          <g class="node" tabindex="0" data-popup="osmosi" role="button" aria-label="Osmosi A" transform="translate(90,340)">
-            <rect x="0" y="0" width="100" height="16" rx="8" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
-            <rect x="10" y="3" width="80" height="10" rx="4" fill="#0ea5e9" opacity="0.55" />
-            <text x="50" y="-6" text-anchor="middle" fill="#7dd3fc" font-size="9" font-weight="700">Osmosi A</text>
+          <g class="node" tabindex="0" data-popup="osmosi" data-osm-line="A" role="button" aria-label="Osmosi A" transform="translate(90,340)">
+            <rect x="-4" y="-18" width="108" height="42" fill="#000" opacity="0.001" pointer-events="all" />
+            <rect class="osm-mini-body" x="0" y="0" width="100" height="16" rx="8" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
+            <rect class="osm-mini-fill" x="10" y="3" width="80" height="10" rx="4" fill="#0ea5e9" opacity="0.55" />
+            <text class="osm-mini-lab" x="50" y="-6" text-anchor="middle" fill="#7dd3fc" font-size="9" font-weight="700">Osmosi A</text>
           </g>
 
           <!-- B: linea → IN → Osmosi -->
@@ -1228,10 +1297,11 @@
             <text class="badge-unit" x="258" y="424" text-anchor="middle">m³/h</text>
           </g>
           <path class="pipe pipe-main" d="M194 415 H190" />
-          <g class="node" tabindex="0" data-popup="osmosi" role="button" aria-label="Osmosi B" transform="translate(90,407)">
-            <rect x="0" y="0" width="100" height="16" rx="8" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
-            <rect x="10" y="3" width="80" height="10" rx="4" fill="#0ea5e9" opacity="0.55" />
-            <text x="50" y="-6" text-anchor="middle" fill="#7dd3fc" font-size="9" font-weight="700">Osmosi B</text>
+          <g class="node" tabindex="0" data-popup="osmosi" data-osm-line="B" role="button" aria-label="Osmosi B" transform="translate(90,407)">
+            <rect x="-4" y="-18" width="108" height="42" fill="#000" opacity="0.001" pointer-events="all" />
+            <rect class="osm-mini-body" x="0" y="0" width="100" height="16" rx="8" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
+            <rect class="osm-mini-fill" x="10" y="3" width="80" height="10" rx="4" fill="#0ea5e9" opacity="0.55" />
+            <text class="osm-mini-lab" x="50" y="-6" text-anchor="middle" fill="#7dd3fc" font-size="9" font-weight="700">Osmosi B</text>
           </g>
 
           <!-- C: linea → IN → Osmosi -->
@@ -1243,10 +1313,11 @@
             <text class="badge-unit" x="258" y="491" text-anchor="middle">m³/h</text>
           </g>
           <path class="pipe pipe-main" d="M194 482 H190" />
-          <g class="node" tabindex="0" data-popup="osmosi" role="button" aria-label="Osmosi C" transform="translate(90,474)">
-            <rect x="0" y="0" width="100" height="16" rx="8" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
-            <rect x="10" y="3" width="80" height="10" rx="4" fill="#0ea5e9" opacity="0.55" />
-            <text x="50" y="-6" text-anchor="middle" fill="#7dd3fc" font-size="9" font-weight="700">Osmosi C</text>
+          <g class="node" tabindex="0" data-popup="osmosi" data-osm-line="C" role="button" aria-label="Osmosi C" transform="translate(90,474)">
+            <rect x="-4" y="-18" width="108" height="42" fill="#000" opacity="0.001" pointer-events="all" />
+            <rect class="osm-mini-body" x="0" y="0" width="100" height="16" rx="8" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
+            <rect class="osm-mini-fill" x="10" y="3" width="80" height="10" rx="4" fill="#0ea5e9" opacity="0.55" />
+            <text class="osm-mini-lab" x="50" y="-6" text-anchor="middle" fill="#7dd3fc" font-size="9" font-weight="700">Osmosi C</text>
           </g>
 
           <path class="pipe pipe-main" d="M90 415 H40" stroke-dasharray="6 5" opacity="0.65" />
@@ -2137,6 +2208,7 @@
         </label>
       </div>
       <p class="mini">Demi = somma ingressi. Concentrato fisso 15 m³/h per ogni osmosi in servizio (IN &gt; 0). Totale = Demi + Concentrato.</p>
+      <p class="mini">Clicca una linea sullo schema: il popup si posiziona su quella osmosi. <strong>Disabilita</strong> la spegne (rossa, non parte); <strong>Abilita</strong> la rimette in servizio (verde se il livello TK 11021 lo consente).</p>
       <div class="settings-block show">
         <h4>Svuotamento TK-11021 · P-11040 (da PROCESSO)</h4>
         <p class="mini" id="osmosiRunHint">Ogni linea parte/ferma sul livello serbatoio (start/stop modificabili in PROCESSO).</p>
@@ -2165,8 +2237,20 @@
           </label>
         </div>
       </div>
-      <div class="settings-block show">
-        <h4>Osmosi A</h4>
+      <div class="osm-row" id="osmRowA" data-osm-line="A">
+        <div class="osm-row-head">
+          <svg class="osm-mini" viewBox="0 0 100 28" aria-hidden="true">
+            <rect class="osm-mini-body" x="0" y="10" width="100" height="16" rx="8" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
+            <rect class="osm-mini-fill" x="10" y="13" width="80" height="10" rx="4" fill="#0ea5e9" opacity="0.55" />
+            <text class="osm-mini-lab" x="50" y="8" text-anchor="middle" fill="#7dd3fc" font-size="9" font-weight="700">Osmosi A</text>
+          </svg>
+          <span class="osm-row-name">Osmosi A</span>
+          <span class="osm-enable" role="group" aria-label="Abilita o disabilita Osmosi A">
+            <button type="button" data-osm-line="A" data-osm-en="1">Abilita</button>
+            <button type="button" data-osm-line="A" data-osm-en="0">Disabilita</button>
+          </span>
+        </div>
+        <p class="mini" id="osmEnableHintA">Abilitata · segue livello TK 11021.</p>
         <div class="row">
           <label><strong>Ingresso IN (m³/h)</strong>
             <input type="number" id="qOsmosiA" min="0" max="500" step="0.1" value="0" inputmode="decimal" />
@@ -2176,8 +2260,20 @@
           </label>
         </div>
       </div>
-      <div class="settings-block show">
-        <h4>Osmosi B</h4>
+      <div class="osm-row" id="osmRowB" data-osm-line="B">
+        <div class="osm-row-head">
+          <svg class="osm-mini" viewBox="0 0 100 28" aria-hidden="true">
+            <rect class="osm-mini-body" x="0" y="10" width="100" height="16" rx="8" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
+            <rect class="osm-mini-fill" x="10" y="13" width="80" height="10" rx="4" fill="#0ea5e9" opacity="0.55" />
+            <text class="osm-mini-lab" x="50" y="8" text-anchor="middle" fill="#7dd3fc" font-size="9" font-weight="700">Osmosi B</text>
+          </svg>
+          <span class="osm-row-name">Osmosi B</span>
+          <span class="osm-enable" role="group" aria-label="Abilita o disabilita Osmosi B">
+            <button type="button" data-osm-line="B" data-osm-en="1">Abilita</button>
+            <button type="button" data-osm-line="B" data-osm-en="0">Disabilita</button>
+          </span>
+        </div>
+        <p class="mini" id="osmEnableHintB">Abilitata · segue livello TK 11021.</p>
         <div class="row">
           <label><strong>Ingresso IN (m³/h)</strong>
             <input type="number" id="qOsmosiB" min="0" max="500" step="0.1" value="0" inputmode="decimal" />
@@ -2187,8 +2283,20 @@
           </label>
         </div>
       </div>
-      <div class="settings-block show">
-        <h4>Osmosi C</h4>
+      <div class="osm-row" id="osmRowC" data-osm-line="C">
+        <div class="osm-row-head">
+          <svg class="osm-mini" viewBox="0 0 100 28" aria-hidden="true">
+            <rect class="osm-mini-body" x="0" y="10" width="100" height="16" rx="8" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
+            <rect class="osm-mini-fill" x="10" y="13" width="80" height="10" rx="4" fill="#0ea5e9" opacity="0.55" />
+            <text class="osm-mini-lab" x="50" y="8" text-anchor="middle" fill="#7dd3fc" font-size="9" font-weight="700">Osmosi C</text>
+          </svg>
+          <span class="osm-row-name">Osmosi C</span>
+          <span class="osm-enable" role="group" aria-label="Abilita o disabilita Osmosi C">
+            <button type="button" data-osm-line="C" data-osm-en="1">Abilita</button>
+            <button type="button" data-osm-line="C" data-osm-en="0">Disabilita</button>
+          </span>
+        </div>
+        <p class="mini" id="osmEnableHintC">Abilitata · segue livello TK 11021.</p>
         <div class="row">
           <label><strong>Ingresso IN (m³/h)</strong>
             <input type="number" id="qOsmosiC" min="0" max="500" step="0.1" value="0" inputmode="decimal" />
@@ -2320,6 +2428,7 @@
     let __runOsmA = true;
     let __runOsmB = true;
     let __runOsmC = true;
+    const __osmEnabled = { A: true, B: true, C: true };
     let __mbrCycleMin = 0;       // orologio ciclo lavoro/pausa (si congela se livello ferma tutte)
     let __ufSvcMin = 0;          // orologio lavaggi UF: avanza solo con portata verso UF
     let __startupPumpHold = false; // dopo Reset: pompe ON finché non parti con +1′
@@ -3592,12 +3701,28 @@
         if (d.runKey === "A") __runOsmA = flag;
         else if (d.runKey === "B") __runOsmB = flag;
         else __runOsmC = flag;
-        out[d.runKey] = { running: flag, startS: startV, stopS: stopV };
+        out[d.runKey] = { running: flag && osmLineEnabled(d.runKey), startS: startV, stopS: stopV };
       });
       return out;
     }
 
+    function osmLineEnabled(letter) {
+      const L = String(letter || "").toUpperCase();
+      return __osmEnabled[L] !== false;
+    }
+
+    function setOsmLineEnabled(letter, enabled) {
+      const L = String(letter || "").toUpperCase();
+      if (L !== "A" && L !== "B" && L !== "C") return;
+      __osmEnabled[L] = !!enabled;
+      paintOsmosiEnableUI();
+      paintOsmosiRunUI();
+      try { applyBalance("osmosi"); } catch (_) { /* ignore */ }
+      try { schedulePersist(); } catch (_) { /* ignore */ }
+    }
+
     function osmLineRunning(letter) {
+      if (!osmLineEnabled(letter)) return false;
       if (letter === "A") return !!__runOsmA;
       if (letter === "B") return !!__runOsmB;
       if (letter === "C") return !!__runOsmC;
@@ -3637,36 +3762,69 @@
       return { each, nRun, qDemand };
     }
 
+    function paintOsmosiEnableUI() {
+      ["A", "B", "C"].forEach((L) => {
+        const on = osmLineEnabled(L);
+        const row = el("osmRow" + L);
+        if (row) row.classList.toggle("is-off", !on);
+        const hint = el("osmEnableHint" + L);
+        if (hint) {
+          hint.textContent = on
+            ? "Abilitata · segue livello TK 11021 (verde = in marcia)."
+            : "Disabilitata · spenta (rossa) · non parte finché non la riabiliti.";
+          hint.style.color = on ? "var(--ok)" : "var(--danger)";
+        }
+        document.querySelectorAll(`.osm-enable button[data-osm-line="${L}"]`).forEach((btn) => {
+          const wantOn = btn.getAttribute("data-osm-en") === "1";
+          btn.classList.toggle("is-on", wantOn === on);
+        });
+      });
+    }
+
+    function paintOsmMiniSketch(root, run) {
+      if (!root) return;
+      const outer = root.querySelector(".osm-mini-body");
+      const inner = root.querySelector(".osm-mini-fill");
+      const lab = root.querySelector(".osm-mini-lab");
+      if (outer) {
+        outer.setAttribute("stroke", run ? "#4ade80" : "#f87171");
+        outer.setAttribute("fill", run ? "#14532d" : "#7f1d1d");
+      }
+      if (inner) {
+        inner.setAttribute("fill", run ? "#22c55e" : "#991b1b");
+        inner.setAttribute("opacity", run ? "0.65" : "0.75");
+      }
+      if (lab) lab.setAttribute("fill", run ? "#86efac" : "#fda4af");
+    }
+
+    function focusOsmosiRow(letter) {
+      const L = String(letter || "").toUpperCase();
+      document.querySelectorAll(".osm-row").forEach((row) => {
+        row.classList.toggle("is-focus", row.getAttribute("data-osm-line") === L);
+      });
+      const row = el("osmRow" + L);
+      if (!row) return;
+      try { row.scrollIntoView({ block: "nearest", behavior: "smooth" }); } catch (_) {
+        try { row.scrollIntoView(); } catch (__) { /* ignore */ }
+      }
+    }
+
     function paintOsmosiRunUI() {
       updateOsmosiTk11021Interlocks(numOrNull("livelloAttualeTk11021") ?? 91);
+      paintOsmosiEnableUI();
       ["A", "B", "C"].forEach((L) => {
         const run = osmLineRunning(L);
-        // Blocco osmosi: verde in marcia, rosso ferma
         const node = document.querySelector(`g.node[aria-label="Osmosi ${L}"]`);
-        if (node) {
-          const rects = node.querySelectorAll("rect");
-          const outer = rects[0];
-          const inner = rects[1];
-          const lab = node.querySelector("text");
-          if (outer) {
-            outer.setAttribute("stroke", run ? "#4ade80" : "#f87171");
-            outer.setAttribute("fill", run ? "#14532d" : "#7f1d1d");
-          }
-          if (inner) {
-            inner.setAttribute("fill", run ? "#22c55e" : "#991b1b");
-            inner.setAttribute("opacity", run ? "0.65" : "0.75");
-          }
-          if (lab) lab.setAttribute("fill", run ? "#86efac" : "#fda4af");
-        }
+        if (node) paintOsmMiniSketch(node, run);
+        const popMini = el("osmRow" + L)?.querySelector(".osm-mini");
+        if (popMini) paintOsmMiniSketch(popMini, run);
         const svgQ = el({ A: "svgQOsmA", B: "svgQOsmB", C: "svgQOsmC" }[L]);
         if (svgQ) {
           const badge = svgQ.closest("g")?.querySelector("rect.badge");
           if (badge) badge.setAttribute("stroke", run ? "#4ade80" : "#f87171");
         }
-        // Pompa P-11040 relativa: stessa marcia dell’osmosi
         paintOnePump("svgPump11040" + L, "svgPump11040" + L + "Arrow", "svgPump11040" + L + "Label", run);
       });
-      // P-11040 D: sempre ferma (fuori servizio momentaneo)
       paintOnePump("svgPump11040D", "svgPump11040DArrow", "svgPump11040DLabel", false);
       const labGroup = el("svgPump11040Label");
       if (labGroup) {
@@ -3674,7 +3832,10 @@
         labGroup.setAttribute("fill", any ? "#86efac" : "#fda4af");
       }
       const liv = numOrNull("livelloAttualeTk11021") ?? 91;
-      const parts = ["A", "B", "C"].map((L) => `${L} ${osmLineRunning(L) ? "ON" : "OFF"}`);
+      const parts = ["A", "B", "C"].map((L) => {
+        if (!osmLineEnabled(L)) return `${L} DIS`;
+        return `${L} ${osmLineRunning(L) ? "ON" : "OFF"}`;
+      });
       const txt = `TK 11021 ${round1(liv).toFixed(1)}% · P11040/Osmosi ${parts.join(" · ")} · D OFF`;
       const col = osmRunningCount() > 0 ? "var(--ok)" : "var(--warn)";
       ["tk11021OsmHint", "osmosiRunHint"].forEach((id) => {
@@ -6237,7 +6398,7 @@
       else unlockPageScroll();
     }
 
-    function openPopup(name) {
+    function openPopup(name, opts) {
       Object.values(popups).forEach((p) => { if (p) p.classList.remove("show"); });
       if (popups[name]) {
         popups[name].classList.add("show");
@@ -6260,6 +6421,13 @@
       if (name === "osmosi") {
         ["A", "B", "C"].forEach((L) => paintProcSetpointField("qOsmosi" + L));
         syncOsmosiSvg();
+        paintOsmosiRunUI();
+        const line = opts && opts.osmLine;
+        if (line) {
+          setTimeout(() => focusOsmosiRow(line), 40);
+        } else {
+          document.querySelectorAll(".osm-row").forEach((row) => row.classList.remove("is-focus"));
+        }
       }
       if (name === "regolazioni") {
         refreshTankGeomHints();
@@ -6287,7 +6455,8 @@
           if (t && t.closest && t.closest(".flow-edit")) return;
         } catch (_) { /* SVG senza closest su target rari */ }
         const name = node.getAttribute("data-popup") || node.dataset.popup;
-        if (name) openPopup(name);
+        const osmLine = node.getAttribute("data-osm-line") || node.dataset.osmLine;
+        if (name) openPopup(name, osmLine ? { osmLine } : undefined);
         if (node.blur) node.blur();
       };
       node.addEventListener("click", open);
@@ -6295,7 +6464,8 @@
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           const name = node.getAttribute("data-popup") || node.dataset.popup;
-          if (name) openPopup(name);
+          const osmLine = node.getAttribute("data-osm-line") || node.dataset.osmLine;
+          if (name) openPopup(name, osmLine ? { osmLine } : undefined);
         }
       });
     });
@@ -7057,6 +7227,16 @@
         node.addEventListener("input", () => syncOsmosiSvg());
         node.addEventListener("change", () => syncOsmosiSvg());
       });
+      document.querySelectorAll(".osm-enable button[data-osm-line]").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const L = btn.getAttribute("data-osm-line");
+          const en = btn.getAttribute("data-osm-en") !== "0";
+          setOsmLineEnabled(L, en);
+          focusOsmosiRow(L);
+        });
+      });
       syncOsmosiSvg();
       applyBalance("ingresso");
       refreshTankGeomHints();
@@ -7148,6 +7328,11 @@
       };
       data.memQs = Array.from(document.querySelectorAll(".mem-q")).map((inp) => inp.value);
       data.ufQs = Array.from(document.querySelectorAll(".uf-q")).map((inp) => inp.value);
+      data.osmEnabled = {
+        A: __osmEnabled.A !== false,
+        B: __osmEnabled.B !== false,
+        C: __osmEnabled.C !== false,
+      };
       data.regFreqQs = {};
       document.querySelectorAll(".reg-q").forEach((inp) => {
         const hz = String(inp.dataset.hz || "");
@@ -7194,6 +7379,12 @@
           if (data.devMode && typeof data.devMode === "object") {
             ["membrane", "ultra", "osmosi", "riciclo"].forEach((d) => {
               if (data.devMode[d] === "manual" || data.devMode[d] === "auto") __devMode[d] = data.devMode[d];
+            });
+          }
+          if (data.osmEnabled && typeof data.osmEnabled === "object") {
+            ["A", "B", "C"].forEach((L) => {
+              if (data.osmEnabled[L] === false) __osmEnabled[L] = false;
+              else if (data.osmEnabled[L] === true) __osmEnabled[L] = true;
             });
           }
           paintAllDevModeUI();
@@ -7446,7 +7637,7 @@
       }
     } catch (_) { /* ok */ }
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt41", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt42", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
