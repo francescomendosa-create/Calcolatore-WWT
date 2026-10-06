@@ -243,7 +243,8 @@
     }
     .node:hover { filter: brightness(1.15); }
     .node:focus, .node:focus-visible { outline: none; }
-    .node[data-osm-line] { touch-action: manipulation; }
+    .node[data-osm-line],
+    .node[data-uf-line] { touch-action: manipulation; }
     .badge {
       fill: #0b1220;
       stroke: var(--line);
@@ -602,7 +603,7 @@
       border-color: #fbbf24;
       color: #fde68a;
     }
-    .osm-row {
+    .osm-row, .uf-row {
       border: 1px solid var(--line);
       border-radius: 10px;
       padding: 10px 12px 12px;
@@ -610,35 +611,39 @@
       background: #0b1220;
       scroll-margin-top: 12px;
     }
-    .osm-row.is-focus {
+    .osm-row.is-focus, .uf-row.is-focus {
       border-color: #7dd3fc;
       box-shadow: 0 0 0 2px rgba(125, 211, 252, 0.28);
     }
-    .osm-row.is-off {
+    .osm-row.is-off, .uf-row.is-off {
       border-color: #7f1d1d;
     }
-    .osm-row-head {
+    .osm-row-head, .uf-row-head {
       display: flex;
       align-items: center;
       gap: 10px;
       flex-wrap: wrap;
       margin-bottom: 8px;
     }
-    .osm-mini {
+    .osm-mini, .uf-mini {
       width: 92px;
       height: 28px;
       flex-shrink: 0;
       display: block;
       cursor: pointer;
     }
-    .osm-row-name {
+    .uf-mini {
+      width: 28px;
+      height: 72px;
+    }
+    .osm-row-name, .uf-row-name {
       font-weight: 800;
       font-size: 0.95rem;
       color: #e0f2fe;
       flex: 1;
       min-width: 4rem;
     }
-    .osm-enable {
+    .osm-enable, .uf-enable {
       display: inline-flex;
       align-items: center;
       gap: 4px;
@@ -647,7 +652,7 @@
       border-radius: 7px;
       padding: 3px 5px;
     }
-    .osm-enable button {
+    .osm-enable button, .uf-enable button {
       appearance: none;
       border: 1px solid var(--line);
       background: var(--panel-2);
@@ -661,12 +666,14 @@
       cursor: pointer;
       line-height: 1.2;
     }
-    .osm-enable button.is-on[data-osm-en="1"] {
+    .osm-enable button.is-on[data-osm-en="1"],
+    .uf-enable button.is-on[data-uf-en="1"] {
       background: #14532d;
       border-color: #4ade80;
       color: #bbf7d0;
     }
-    .osm-enable button.is-on[data-osm-en="0"] {
+    .osm-enable button.is-on[data-osm-en="0"],
+    .uf-enable button.is-on[data-uf-en="0"] {
       background: #7f1d1d;
       border-color: #f87171;
       color: #fecaca;
@@ -1147,28 +1154,6 @@
             <text class="badge-unit" x="595" y="329" text-anchor="middle">m³/h</text>
           </g>
 
-          <!-- Colonne UF A–D -->
-          <g class="node" tabindex="0" data-popup="ultra" role="button" aria-label="Ultrafiltrazione A" transform="translate(530,365)">
-            <rect id="svgUfBodyA" x="0" y="0" width="16" height="90" rx="3" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
-            <rect id="svgUfFillA" x="3" y="22" width="10" height="58" rx="1" fill="#0ea5e9" opacity="0.55" />
-            <text id="svgUfLabA" x="8" y="-4" text-anchor="middle" fill="#7dd3fc" font-size="8" font-weight="700">A</text>
-          </g>
-          <g class="node" tabindex="0" data-popup="ultra" role="button" aria-label="Ultrafiltrazione B" transform="translate(552,365)">
-            <rect id="svgUfBodyB" x="0" y="0" width="16" height="90" rx="3" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
-            <rect id="svgUfFillB" x="3" y="22" width="10" height="58" rx="1" fill="#0ea5e9" opacity="0.55" />
-            <text id="svgUfLabB" x="8" y="-4" text-anchor="middle" fill="#7dd3fc" font-size="8" font-weight="700">B</text>
-          </g>
-          <g class="node" tabindex="0" data-popup="ultra" role="button" aria-label="Ultrafiltrazione C" transform="translate(574,365)">
-            <rect id="svgUfBodyC" x="0" y="0" width="16" height="90" rx="3" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
-            <rect id="svgUfFillC" x="3" y="22" width="10" height="58" rx="1" fill="#0ea5e9" opacity="0.55" />
-            <text id="svgUfLabC" x="8" y="-4" text-anchor="middle" fill="#7dd3fc" font-size="8" font-weight="700">C</text>
-          </g>
-          <g class="node" tabindex="0" data-popup="ultra" role="button" aria-label="Ultrafiltrazione D" transform="translate(596,365)">
-            <rect id="svgUfBodyD" x="0" y="0" width="16" height="90" rx="3" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
-            <rect id="svgUfFillD" x="3" y="22" width="10" height="58" rx="1" fill="#0ea5e9" opacity="0.55" />
-            <text id="svgUfLabD" x="8" y="-4" text-anchor="middle" fill="#7dd3fc" font-size="8" font-weight="700">D</text>
-          </g>
-
           <!-- Collettore ingresso (da carbone) + 4 misuratori → testata UF -->
           <path class="pipe pipe-main" d="M700 360 V500" />
 
@@ -1211,6 +1196,32 @@
           </g>
           <path class="pipe pipe-main" d="M620 500 H604" />
           <path class="pipe pipe-main" d="M604 500 V365" />
+
+          <!-- Colonne UF A–D sopra i tubi, così click e hold arrivano alla linea -->
+          <g class="node" tabindex="0" data-popup="ultra" data-uf-line="A" role="button" aria-label="Ultrafiltrazione A" transform="translate(530,365)">
+            <rect x="-6" y="-14" width="28" height="110" fill="#000" opacity="0.001" pointer-events="all" />
+            <rect id="svgUfBodyA" class="uf-mini-body" x="0" y="0" width="16" height="90" rx="3" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
+            <rect id="svgUfFillA" class="uf-mini-fill" x="3" y="22" width="10" height="58" rx="1" fill="#0ea5e9" opacity="0.55" />
+            <text id="svgUfLabA" class="uf-mini-lab" x="8" y="-4" text-anchor="middle" fill="#7dd3fc" font-size="8" font-weight="700">A</text>
+          </g>
+          <g class="node" tabindex="0" data-popup="ultra" data-uf-line="B" role="button" aria-label="Ultrafiltrazione B" transform="translate(552,365)">
+            <rect x="-6" y="-14" width="28" height="110" fill="#000" opacity="0.001" pointer-events="all" />
+            <rect id="svgUfBodyB" class="uf-mini-body" x="0" y="0" width="16" height="90" rx="3" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
+            <rect id="svgUfFillB" class="uf-mini-fill" x="3" y="22" width="10" height="58" rx="1" fill="#0ea5e9" opacity="0.55" />
+            <text id="svgUfLabB" class="uf-mini-lab" x="8" y="-4" text-anchor="middle" fill="#7dd3fc" font-size="8" font-weight="700">B</text>
+          </g>
+          <g class="node" tabindex="0" data-popup="ultra" data-uf-line="C" role="button" aria-label="Ultrafiltrazione C" transform="translate(574,365)">
+            <rect x="-6" y="-14" width="28" height="110" fill="#000" opacity="0.001" pointer-events="all" />
+            <rect id="svgUfBodyC" class="uf-mini-body" x="0" y="0" width="16" height="90" rx="3" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
+            <rect id="svgUfFillC" class="uf-mini-fill" x="3" y="22" width="10" height="58" rx="1" fill="#0ea5e9" opacity="0.55" />
+            <text id="svgUfLabC" class="uf-mini-lab" x="8" y="-4" text-anchor="middle" fill="#7dd3fc" font-size="8" font-weight="700">C</text>
+          </g>
+          <g class="node" tabindex="0" data-popup="ultra" data-uf-line="D" role="button" aria-label="Ultrafiltrazione D" transform="translate(596,365)">
+            <rect x="-6" y="-14" width="28" height="110" fill="#000" opacity="0.001" pointer-events="all" />
+            <rect id="svgUfBodyD" class="uf-mini-body" x="0" y="0" width="16" height="90" rx="3" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
+            <rect id="svgUfFillD" class="uf-mini-fill" x="3" y="22" width="10" height="58" rx="1" fill="#0ea5e9" opacity="0.55" />
+            <text id="svgUfLabD" class="uf-mini-lab" x="8" y="-4" text-anchor="middle" fill="#7dd3fc" font-size="8" font-weight="700">D</text>
+          </g>
         </g>
 
         <!-- Uscita UF → TK-11021 -->
@@ -2127,8 +2138,9 @@
       <label><strong>TOTALE UF (m³/h)</strong>
         <input type="number" id="qUfTotale" class="tot-mem" min="0" max="500" step="0.1" value="0" />
       </label>
-      <p class="mini">Quattro ingressi A–D. La somma = totale. Variando il totale si ripartiscono in modo uguale; variando una linea si aggiorna il totale.</p>
-      <p class="mini">Ogni UF: <strong>tempo lavoro</strong> (default 20′) poi <strong>lavaggio</strong> (default 190 s ferma), <strong>sfalsati</strong>. Il timer avanza solo con <strong>portata verso UF</strong>; senza portata i lavaggi restano <strong>in coda</strong> e partono al ritorno del flusso. In lavaggio la viva va a 0; il setpoint resta.</p>
+      <p class="mini">Quattro ingressi A–D. La somma = totale. Variando il totale si ripartiscono in modo uguale sulle <strong>abilitate</strong>; variando una linea si aggiorna il totale.</p>
+      <p class="mini">Clicca una UF sullo schema: il popup si posiziona su quella linea. <strong>Disabilita</strong> la spegne (rossa). Tap sul disegno nel popup = Abilita/Disabilita. In overview: tieni premuto ½ s.</p>
+      <p class="mini">Ogni UF: <strong>tempo lavoro</strong> (default 20′) poi <strong>lavaggio</strong> (default 190 s ferma), <strong>sfalsati</strong>. Il timer avanza solo con <strong>portata verso UF</strong>; senza portata i lavaggi restano <strong>in coda</strong>. In lavaggio la viva va a 0; il setpoint resta.</p>
       <div id="ufInputs"></div>
       <div class="settings-block show" style="margin-top:10px">
         <h4>TK 11021 — permeato UF (da PROCESSO)</h4>
@@ -2455,6 +2467,7 @@
     let __runOsmB = true;
     let __runOsmC = true;
     const __osmEnabled = { A: true, B: true, C: true };
+    const __ufEnabled = { A: true, B: true, C: true, D: true };
     let __mbrCycleMin = 0;       // orologio ciclo lavoro/pausa (si congela se livello ferma tutte)
     let __ufSvcMin = 0;          // orologio lavaggi UF: avanza solo con portata verso UF
     let __startupPumpHold = false; // dopo Reset: pompe ON finché non parti con +1′
@@ -3778,6 +3791,81 @@
 
     function toggleOsmLineEnabled(letter) {
       setOsmLineEnabled(letter, !osmLineEnabled(letter));
+    }
+
+    function ufLineEnabled(letter) {
+      const L = String(letter || "").toUpperCase();
+      return __ufEnabled[L] !== false;
+    }
+
+    function setUfLineEnabled(letter, enabled) {
+      const L = String(letter || "").toUpperCase();
+      if (UF_LINES.indexOf(L) < 0) return;
+      __ufEnabled[L] = !!enabled;
+      paintUfEnableUI();
+      paintUfSvgLive();
+      try { applyBalance("ultra"); } catch (_) { /* ignore */ }
+      try { schedulePersist(); } catch (_) { /* ignore */ }
+    }
+
+    function toggleUfLineEnabled(letter) {
+      setUfLineEnabled(letter, !ufLineEnabled(letter));
+    }
+
+    function paintUfEnableUI() {
+      UF_LINES.forEach((L) => {
+        const on = ufLineEnabled(L);
+        const row = el("ufRow" + L);
+        if (row) row.classList.toggle("is-off", !on);
+        document.querySelectorAll(`.uf-enable button[data-uf-line="${L}"]`).forEach((btn) => {
+          const wantOn = btn.getAttribute("data-uf-en") === "1";
+          btn.classList.toggle("is-on", wantOn === on);
+        });
+        const hint = el("ufEnableHint" + L);
+        if (hint && !el("ufStatus" + L)) {
+          hint.textContent = on ? "Abilitata." : "Disabilitata · spenta (rossa).";
+          hint.style.color = on ? "var(--ok)" : "var(--danger)";
+        }
+      });
+    }
+
+    function focusUfRow(letter) {
+      const L = String(letter || "").toUpperCase();
+      document.querySelectorAll(".uf-row").forEach((row) => {
+        row.classList.toggle("is-focus", row.getAttribute("data-uf-line") === L);
+      });
+      const row = el("ufRow" + L);
+      if (!row) return;
+      try { row.scrollIntoView({ block: "nearest", behavior: "smooth" }); } catch (_) {
+        try { row.scrollIntoView(); } catch (__) { /* ignore */ }
+      }
+    }
+
+    function bindUfEnableUi() {
+      document.querySelectorAll(".uf-enable button[data-uf-line]").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const L = btn.getAttribute("data-uf-line");
+          setUfLineEnabled(L, btn.getAttribute("data-uf-en") !== "0");
+          focusUfRow(L);
+        });
+      });
+      document.querySelectorAll(".uf-row .uf-mini").forEach((svg) => {
+        const toggle = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const L = svg.closest(".uf-row")?.getAttribute("data-uf-line");
+          if (!L) return;
+          toggleUfLineEnabled(L);
+          focusUfRow(L);
+        };
+        svg.addEventListener("click", toggle);
+        svg.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") toggle(e);
+        });
+      });
+      paintUfEnableUI();
     }
 
     function osmLineRunning(letter) {
@@ -5370,7 +5458,6 @@
           rememberProcSetpoint("qUfTotale", qUfSet);
           setVal("qUfTotale", qUfSet, { force: true });
           setUfEqual(qUfSet);
-          UF_LINES.forEach((L) => rememberProcSetpoint("qUf" + L, round1(qUfSet / UF_LINES.length)));
           syncUf("uf-totale");
         }
       }
@@ -5983,25 +6070,33 @@
     }
 
     function getUfs() {
-      return Array.from(document.querySelectorAll(".uf-q")).map((inp) => ({
-        q: parseFloat(inp.value) || 0,
-        el: inp,
-      }));
+      return Array.from(document.querySelectorAll(".uf-q")).map((inp) => {
+        const L = String(inp.id || "").replace(/^qUf/, "");
+        return {
+          q: ufLineEnabled(L) ? (parseFloat(inp.value) || 0) : 0,
+          el: inp,
+        };
+      });
     }
     function setUfEqual(totale) {
       const tot = Math.max(0, round1(Number(totale) || 0));
-      const each = UF_LINES.length ? round1(tot / UF_LINES.length) : 0;
+      const enabled = UF_LINES.filter((L) => ufLineEnabled(L));
+      const n = enabled.length || UF_LINES.length;
+      const each = round1(tot / n);
       if (tot > 0.05) {
         rememberProcSetpoint("qUfTotale", tot);
-        UF_LINES.forEach((L) => rememberProcSetpoint("qUf" + L, each));
+        UF_LINES.forEach((L) => {
+          rememberProcSetpoint("qUf" + L, ufLineEnabled(L) ? each : procSetpointOf("qUf" + L));
+        });
       }
-      // Non azzerare i campi popup se tot=0 (stop): resta il setpoint
       if (tot < 0.05) {
         paintUfPopupSetpoints();
         return;
       }
       document.querySelectorAll(".uf-q").forEach((inp) => {
         if (document.activeElement === inp) return;
+        const L = String(inp.id || "").replace(/^qUf/, "");
+        if (!ufLineEnabled(L)) return;
         inp.value = String(each);
       });
       if (!isEditing("qUfTotale")) setVal("qUfTotale", tot, { force: true });
@@ -6071,17 +6166,20 @@
 
     /** Lavaggio attivo solo con portata verso UF; senza portata resta in coda (non parte). */
     function ufLineInWash(letter) {
+      if (!ufLineEnabled(letter)) return false;
       if (!ufInletAvailable()) return false;
       return !!ufWashPhase(letter).wash;
     }
 
     function ufLineQueuedWash(letter) {
+      if (!ufLineEnabled(letter)) return false;
       if (ufInletAvailable()) return false;
       return !!ufWashPhase(letter).wash;
     }
 
     function ufLineEffective(letter) {
       const L = String(letter || "").toUpperCase();
+      if (!ufLineEnabled(L)) return 0;
       if (!p11019Allowed() || !__allowUfByTk11021) return 0;
       if (ufLineInWash(L)) return 0;
       return procSetpointOf("qUf" + L);
@@ -6093,25 +6191,38 @@
 
     function paintUfWashUI() {
       const inletOk = ufInletAvailable();
+      paintUfEnableUI();
       UF_LINES.forEach((L) => {
+        const enabled = ufLineEnabled(L);
         const ph = ufWashPhase(L);
-        const wash = inletOk && ph.wash;
-        const queued = !inletOk && ph.wash;
+        const wash = enabled && inletOk && ph.wash;
+        const queued = enabled && !inletOk && ph.wash;
+        const off = !enabled;
         const body = el("svgUfBody" + L);
         const fill = el("svgUfFill" + L);
         const lab = el("svgUfLab" + L);
-        if (body) {
-          body.setAttribute("stroke", wash ? "#f87171" : (queued ? "#fbbf24" : "#7dd3fc"));
-          body.setAttribute("fill", wash ? "#7f1d1d" : (queued ? "#422006" : "#334155"));
-        }
-        if (fill) {
-          fill.setAttribute("fill", wash ? "#991b1b" : (queued ? "#92400e" : "#0ea5e9"));
-          fill.setAttribute("opacity", wash || queued ? "0.7" : "0.55");
-        }
-        if (lab) lab.setAttribute("fill", wash ? "#fda4af" : (queued ? "#fde68a" : "#7dd3fc"));
+        const popBody = el("ufRow" + L)?.querySelector(".uf-mini-body");
+        const popFill = el("ufRow" + L)?.querySelector(".uf-mini-fill");
+        const popLab = el("ufRow" + L)?.querySelector(".uf-mini-lab");
+        const paint = (b, f, t) => {
+          if (b) {
+            b.setAttribute("stroke", off || wash ? "#f87171" : (queued ? "#fbbf24" : "#7dd3fc"));
+            b.setAttribute("fill", off || wash ? "#7f1d1d" : (queued ? "#422006" : "#334155"));
+          }
+          if (f) {
+            f.setAttribute("fill", off || wash ? "#991b1b" : (queued ? "#92400e" : "#0ea5e9"));
+            f.setAttribute("opacity", off || wash || queued ? "0.7" : "0.55");
+          }
+          if (t) t.setAttribute("fill", off || wash ? "#fda4af" : (queued ? "#fde68a" : "#7dd3fc"));
+        };
+        paint(body, fill, lab);
+        paint(popBody, popFill, popLab);
         const st = el("ufStatus" + L);
         if (st) {
-          if (!inletOk) {
+          if (off) {
+            st.textContent = "DISABILITATA · spenta (rossa) · tap sul disegno o tieni premuto sullo schema per riabilitare";
+            st.style.color = "var(--danger)";
+          } else if (!inletOk) {
             if (queued) {
               st.textContent = `IN CODA · lavaggio pronto (~${ph.remainSec} s) — parte al ritorno portata UF`;
               st.style.color = "var(--warn)";
@@ -6130,7 +6241,7 @@
           }
         }
         const badge = el("svgQUf" + L)?.closest("g")?.querySelector("rect.badge");
-        if (badge) badge.setAttribute("stroke", wash ? "#f87171" : (queued ? "#fbbf24" : "#7dd3fc"));
+        if (badge) badge.setAttribute("stroke", off || wash ? "#f87171" : (queued ? "#fbbf24" : "#7dd3fc"));
       });
     }
 
@@ -6201,12 +6312,24 @@
       const startEach = round1(num("qUfTotale") / UF_LINES.length);
       UF_LINES.forEach((m) => {
         const box = document.createElement("div");
-        box.className = "settings-block";
-        box.style.margin = "0.55rem 0";
-        const title = document.createElement("div");
-        title.className = "settings-title";
-        title.textContent = `UF ${m}`;
-        box.appendChild(title);
+        box.className = "uf-row";
+        box.id = "ufRow" + m;
+        box.setAttribute("data-uf-line", m);
+
+        const head = document.createElement("div");
+        head.className = "uf-row-head";
+        head.innerHTML = `
+          <svg class="uf-mini" viewBox="0 0 28 90" role="button" tabindex="0" title="Tocca per Abilita / Disabilita">
+            <rect class="uf-mini-body" x="6" y="12" width="16" height="72" rx="3" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
+            <rect class="uf-mini-fill" x="9" y="30" width="10" height="48" rx="1" fill="#0ea5e9" opacity="0.55" />
+            <text class="uf-mini-lab" x="14" y="9" text-anchor="middle" fill="#7dd3fc" font-size="9" font-weight="700">${m}</text>
+          </svg>
+          <span class="uf-row-name">UF ${m}</span>
+          <span class="uf-enable" role="group" aria-label="Abilita o disabilita UF ${m}">
+            <button type="button" data-uf-line="${m}" data-uf-en="1">Abilita</button>
+            <button type="button" data-uf-line="${m}" data-uf-en="0">Disabilita</button>
+          </span>`;
+        box.appendChild(head);
 
         const labQ = document.createElement("label");
         labQ.innerHTML = `<strong>Ingresso (m³/h)</strong>`;
@@ -6266,6 +6389,7 @@
 
         wrap.appendChild(box);
       });
+      bindUfEnableUi();
     }
 
     const OSM_CONC_FISSO = 15;
@@ -6473,6 +6597,13 @@
       if (name === "ultra") {
         paintUfPopupSetpoints();
         syncUf("uf-totale");
+        paintUfSvgLive();
+        const line = opts && opts.ufLine;
+        if (line) {
+          setTimeout(() => focusUfRow(line), 40);
+        } else {
+          document.querySelectorAll(".uf-row").forEach((row) => row.classList.remove("is-focus"));
+        }
       }
       if (name === "osmosi") {
         ["A", "B", "C"].forEach((L) => paintProcSetpointField("qOsmosi" + L));
@@ -6506,6 +6637,8 @@
 
     document.querySelectorAll(".node[data-popup]").forEach((node) => {
       const osmLine = node.getAttribute("data-osm-line") || node.dataset.osmLine;
+      const ufLine = node.getAttribute("data-uf-line") || node.dataset.ufLine;
+      const holdLetter = osmLine || ufLine;
       let holdTimer = null;
       let holdFired = false;
       const clearHold = () => {
@@ -6514,7 +6647,7 @@
           holdTimer = null;
         }
       };
-      if (osmLine) {
+      if (holdLetter) {
         node.addEventListener("pointerdown", (e) => {
           if (e.pointerType === "mouse" && e.button !== 0) return;
           holdFired = false;
@@ -6522,7 +6655,8 @@
           holdTimer = setTimeout(() => {
             holdTimer = null;
             holdFired = true;
-            toggleOsmLineEnabled(osmLine);
+            if (osmLine) toggleOsmLineEnabled(osmLine);
+            else toggleUfLineEnabled(ufLine);
             try { if (navigator.vibrate) navigator.vibrate(18); } catch (_) { /* ok */ }
           }, 500);
         });
@@ -6531,19 +6665,24 @@
         });
         node.addEventListener("contextmenu", (e) => { e.preventDefault(); });
       }
+      const popupOpts = () => {
+        if (osmLine) return { osmLine };
+        if (ufLine) return { ufLine };
+        return undefined;
+      };
       const open = (e) => {
         try {
           const t = e.target;
           if (t && t.closest && t.closest(".flow-edit")) return;
         } catch (_) { /* SVG senza closest su target rari */ }
-        if (osmLine && holdFired) {
+        if (holdLetter && holdFired) {
           holdFired = false;
           e.preventDefault();
           e.stopPropagation();
           return;
         }
         const name = node.getAttribute("data-popup") || node.dataset.popup;
-        if (name) openPopup(name, osmLine ? { osmLine } : undefined);
+        if (name) openPopup(name, popupOpts());
         if (node.blur) node.blur();
       };
       node.addEventListener("click", open);
@@ -6551,7 +6690,7 @@
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           const name = node.getAttribute("data-popup") || node.dataset.popup;
-          if (name) openPopup(name, osmLine ? { osmLine } : undefined);
+          if (name) openPopup(name, popupOpts());
         }
       });
     });
@@ -7435,6 +7574,12 @@
         B: __osmEnabled.B !== false,
         C: __osmEnabled.C !== false,
       };
+      data.ufEnabled = {
+        A: __ufEnabled.A !== false,
+        B: __ufEnabled.B !== false,
+        C: __ufEnabled.C !== false,
+        D: __ufEnabled.D !== false,
+      };
       data.regFreqQs = {};
       document.querySelectorAll(".reg-q").forEach((inp) => {
         const hz = String(inp.dataset.hz || "");
@@ -7489,6 +7634,12 @@
               else if (data.osmEnabled[L] === true) __osmEnabled[L] = true;
             });
           }
+          if (data.ufEnabled && typeof data.ufEnabled === "object") {
+            UF_LINES.forEach((L) => {
+              if (data.ufEnabled[L] === false) __ufEnabled[L] = false;
+              else if (data.ufEnabled[L] === true) __ufEnabled[L] = true;
+            });
+          }
           paintAllDevModeUI();
           if (!isAutoMode() && el("equiparaMandata") && el("qMandata")) {
             el("equiparaMandata").checked = false;
@@ -7526,6 +7677,7 @@
           if (qm > 0.05) rememberFlowSetpoint("qMandata", qm);
         }
         syncUf("uf-linea");
+        paintUfSvgLive();
         syncOsmosiSvg();
         applyBalance("ingresso");
         refreshProcViews();
