@@ -367,7 +367,7 @@
       display: none;
       align-items: center;
       justify-content: center;
-      background: rgba(2, 8, 20, 0.72);
+      background: transparent;
       padding: 12px;
       /* niente menu copia/incolla di sistema */
       -webkit-touch-callout: none;
@@ -9163,7 +9163,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt68", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt69", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
