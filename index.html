@@ -1849,7 +1849,7 @@
       </button>
       <p class="mini">Pompa <strong style="color:var(--recycle)">11014 A/B</strong> aspira dalla vaschetta <strong>A11004</strong> (nona cella MBR) e manda a A10620. Membrane in servizio A–G; H fuori uso.</p>
       <label><strong>Riciclo 11014 A/B (m³/h)</strong>
-        <input type="number" id="qRecycle" min="0" max="500" step="0.1" value="170.8" inputmode="decimal" />
+        <input type="number" id="qRecycle" min="0" max="500" step="1" value="171" inputmode="numeric" />
       </label>
       <p class="mini">In <strong>Automatico</strong>: P11011 ≥ ingresso + <strong>100</strong> m³/h (riciclo fanghi minimo 100). In <strong>Manuale</strong>: lo imposti tu.</p>
       <p class="mini" id="ricicloCalcHint">Riciclo = P11011 − ingresso</p>
@@ -6310,7 +6310,7 @@
     syncTouchUiClass();
 
     function flowEditStep(field) {
-      if (field === "freqHz" || field === "qIn") return 1;
+      if (field === "freqHz" || field === "qIn" || field === "qRecycle") return 1;
       return 0.1;
     }
 
@@ -7407,7 +7407,7 @@
       }
     } catch (_) { /* ok */ }
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt39", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt40", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
