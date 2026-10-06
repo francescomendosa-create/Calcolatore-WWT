@@ -3686,46 +3686,6 @@
       }
     }
 
-    function paintP11019SplitUI() {
-      const pumpSp = qP11019Setpoint();
-      const iasSp = qP11019IasSetpoint();
-      const impSp = round1(Math.max(0, pumpSp - iasSp));
-      const pumpL = qP11019PumpLive();
-      const iasL = qP11019IasLive();
-      const impL = qP11019ImpiantoLive();
-
-      if (!isEditing("qP11019Ias")) {
-        const iasNode = el("qP11019Ias");
-        if (iasNode && Math.abs((parseFloat(iasNode.value) || 0) - iasSp) > 0.05) {
-          iasNode.value = String(iasSp);
-        }
-      }
-      if (!isEditing("qP11019Impianto")) {
-        const impNode = el("qP11019Impianto");
-        if (impNode && Math.abs((parseFloat(impNode.value) || 0) - impSp) > 0.05) {
-          impNode.value = String(impSp);
-        }
-      }
-
-      const popPump = el("svgPopP11019Pump");
-      if (popPump) popPump.textContent = pumpL.toFixed(1);
-      const popIas = el("svgPopP11019Ias");
-      if (popIas) popIas.textContent = iasL.toFixed(1);
-      const popImp = el("svgPopP11019Imp");
-      if (popImp) popImp.textContent = impL.toFixed(1);
-
-      const ov = el("svgQP11019");
-      if (ov && !isEditing("qP11019")) ov.textContent = impL.toFixed(1);
-
-      const hint = el("p11019SplitHint");
-      if (hint) {
-        hint.textContent = p11019Allowed()
-          ? `Pompe ${pumpL.toFixed(1)} = Impianto ${impL.toFixed(1)} + IAS ${iasL.toFixed(1)} m³/h · overview = solo Impianto`
-          : `P11019 FERME (TK 11007) · set pompe ${pumpSp.toFixed(1)} · IAS ${iasSp.toFixed(1)} · Impianto ${impSp.toFixed(1)}`;
-        hint.style.color = p11019Allowed() ? "var(--ok)" : "var(--danger)";
-      }
-    }
-
     /** Applica marcia P11019 dal solo livello TK-11007 (mai dalle membrane). */
     function applyP11019RunFromLevel() {
       updateTk11007PumpInterlocks(numOrNull("livelloAttualeTk11007") ?? 91);
@@ -7160,28 +7120,15 @@
       applyBalance(source);
     }
 
-    /** Setpoint memorizzato IAS/Impianto (> 0). Ignora 0 di default HTML e la viva a pompe ferme. */
+    /** Setpoint memorizzato IAS/Impianto. Mai la viva a pompe ferme. */
     function readP11019SplitEditVal(field) {
       const id = String(field || "");
-      const pumpMem = Math.max(0, flowSetpointOf("qP11019"));
-      const pick = (...cands) => {
-        for (let i = 0; i < cands.length; i += 1) {
-          const n = Number(cands[i]);
-          if (Number.isFinite(n) && n > 0.05) return round1(n);
-        }
-        return null;
-      };
       if (id === "qP11019Ias") {
-        return pick(__flowSetpoint.qP11019Ias, numOrNull("qP11019Ias"), qP11019IasSetpoint());
+        const ias = qP11019IasSetpoint();
+        return ias > 0.05 ? ias : null;
       }
-      const ias = pick(__flowSetpoint.qP11019Ias, numOrNull("qP11019Ias")) || 0;
-      return pick(
-        __flowSetpoint.qP11019Impianto,
-        numOrNull("qP11019Impianto"),
-        pumpMem - ias,
-        qP11019ImpiantoSetpoint(),
-        qP11019ImpiantoLive()
-      );
+      const imp = qP11019ImpiantoSetpoint();
+      return imp > 0.05 ? imp : null;
     }
 
     function formatFlowEditSeed(val, step) {
