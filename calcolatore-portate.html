@@ -7294,13 +7294,8 @@
             holdFired = true;
             if (osmLine) toggleOsmLineEnabled(osmLine);
             else if (ufLine) toggleUfLineEnabled(ufLine);
-            else if (memL) {
-              pressMemCell(memL);
-              try { if (navigator.vibrate) navigator.vibrate(18); } catch (_) { /* ok */ }
-            }
-            if (!memL) {
-              try { if (navigator.vibrate) navigator.vibrate(18); } catch (_) { /* ok */ }
-            }
+            else if (memL) pressMemCell(memL);
+            try { if (navigator.vibrate) navigator.vibrate(18); } catch (_) { /* ok */ }
           }, 500);
         });
         node.addEventListener("pointerup", () => {
@@ -8642,7 +8637,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt59", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt60", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
