@@ -2988,10 +2988,10 @@
       qUfTotale: 0, qUfA: 0, qUfB: 0, qUfC: 0, qUfD: 0,
       qOsmosiA: 0, qOsmosiB: 0, qOsmosiC: 0,
     };
-    /** Rampa portata viva: lenta e visibile (non a scatto al massimo). */
-    const FLOW_RAMP_MS = 3200;
-    const FLOW_RAMP_MS_MIN = 1800;
-    const FLOW_RAMP_MS_MAX = 4800;
+    /** Rampa portata viva: breve (parte lenta → subito a regime). */
+    const FLOW_RAMP_MS = 850;
+    const FLOW_RAMP_MS_MIN = 650;
+    const FLOW_RAMP_MS_MAX = 1100;
     let __flowStepBase = null;
     let __flowStepDepth = 0;
     let __flowAnimRaf = null;
@@ -3224,7 +3224,7 @@
     function tickFlowTween(ts) {
       const dur = Math.max(FLOW_RAMP_MS_MIN, Number(__flowAnimDurMs) || FLOW_RAMP_MS);
       const t = Math.min(1, (ts - __flowAnimStart) / dur);
-      const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      const e = 1 - Math.pow(1 - t, 3); // ease-out: parte lenta, arriva subito
       for (let i = 0; i < FLOW_IDS.length; i++) {
         const id = FLOW_IDS[i];
         const from = Number(__flowAnimFrom[id]) || 0;
@@ -3256,7 +3256,7 @@
         __flowAnimTo[id] = __flowDesire[id] != null ? __flowDesire[id] : __flowAnimFrom[id];
         maxDelta = Math.max(maxDelta, Math.abs(__flowAnimTo[id] - __flowAnimFrom[id]));
       }
-      __flowAnimDurMs = Math.max(FLOW_RAMP_MS_MIN, Math.min(FLOW_RAMP_MS_MAX, 1600 + maxDelta * 7));
+      __flowAnimDurMs = Math.max(FLOW_RAMP_MS_MIN, Math.min(FLOW_RAMP_MS_MAX, 550 + maxDelta * 1.2));
       __flowAnimStart = now;
       if (!__flowAnimating) {
         __flowAnimating = true;
@@ -10097,7 +10097,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt96", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt97", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
