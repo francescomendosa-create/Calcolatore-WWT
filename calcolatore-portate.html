@@ -376,6 +376,7 @@
     }
     .flow-edit-back.show { display: flex; }
     .flow-edit-panel {
+      position: relative;
       width: min(300px, 100%);
       max-width: 100%;
       overflow: hidden;
@@ -389,6 +390,11 @@
       -webkit-touch-callout: none;
       -webkit-user-select: none;
       user-select: none;
+      touch-action: none;
+    }
+    .flow-edit-panel.is-dragging {
+      z-index: 2;
+      box-shadow: 0 22px 56px rgba(0,0,0,.55);
     }
     .flow-edit-panel.has-numpad {
       width: min(300px, 100%);
@@ -404,6 +410,12 @@
       justify-content: space-between;
       gap: 8px;
       text-align: left;
+      cursor: grab;
+      touch-action: none;
+      padding: 2px 0 4px;
+    }
+    .flow-edit-panel.is-dragging h3 {
+      cursor: grabbing;
     }
     .flow-edit-panel h3 #flowEditTitle {
       display: block;
@@ -699,12 +711,27 @@
     .modal h3 > [data-close] {
       flex-shrink: 0;
     }
-    /* Chimico-fisico: popup al centro dello schermo */
+    /* Chimico-fisico: popup al centro, più ampio anche con poco contenuto */
     #popIngresso.modal-back.show {
       align-items: center;
     }
     #popIngresso .modal {
       margin: auto;
+      width: min(480px, 100%);
+      min-height: min(420px, 78vh);
+      padding: 18px 20px 16px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+    }
+    #popIngresso .modal .actions {
+      margin-top: auto;
+      padding-top: 16px;
+    }
+    #popIngresso .modal label input {
+      font-size: 1.25rem;
+      min-height: 48px;
+      padding: 10px 12px;
     }
     .dev-mode {
       display: inline-flex;
@@ -7787,8 +7814,19 @@
       __flowNumpadFresh = true;
     }
 
+    function resetFlowEditPanelPos() {
+      const panel = flowEditBack?.querySelector(".flow-edit-panel");
+      if (!panel) return;
+      panel.classList.remove("is-dragging");
+      panel.style.position = "";
+      panel.style.left = "";
+      panel.style.top = "";
+      panel.style.margin = "";
+      panel.style.transform = "";
+    }
     function hideInline() {
       hideFlowNumpad();
+      resetFlowEditPanelPos();
       if (flowEditBack) flowEditBack.classList.remove("show");
       inlineCtx = null;
       __inlineSuppressLive = false;
@@ -7797,6 +7835,65 @@
       try { if (inlineInp) inlineInp.blur(); } catch (_) { /* ignore */ }
       syncScrollLock();
     }
+
+    /** Trascina il numpad dalla barra titolo (sigla in alto). */
+    (function bindFlowEditDrag() {
+      const panel = flowEditBack?.querySelector(".flow-edit-panel");
+      const handle = panel?.querySelector("h3");
+      if (!panel || !handle) return;
+      let drag = null;
+      const onMove = (e) => {
+        if (!drag) return;
+        e.preventDefault();
+        const x = e.clientX ?? e.touches?.[0]?.clientX;
+        const y = e.clientY ?? e.touches?.[0]?.clientY;
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+        let nx = x - drag.ox;
+        let ny = y - drag.oy;
+        const pad = 8;
+        const maxX = Math.max(pad, window.innerWidth - panel.offsetWidth - pad);
+        const maxY = Math.max(pad, window.innerHeight - panel.offsetHeight - pad);
+        nx = Math.max(pad, Math.min(maxX, nx));
+        ny = Math.max(pad, Math.min(maxY, ny));
+        panel.style.left = nx + "px";
+        panel.style.top = ny + "px";
+      };
+      const onUp = () => {
+        if (!drag) return;
+        drag = null;
+        panel.classList.remove("is-dragging");
+        window.removeEventListener("pointermove", onMove, true);
+        window.removeEventListener("pointerup", onUp, true);
+        window.removeEventListener("pointercancel", onUp, true);
+        window.removeEventListener("touchmove", onMove, true);
+        window.removeEventListener("touchend", onUp, true);
+        window.removeEventListener("touchcancel", onUp, true);
+      };
+      const onDown = (e) => {
+        if (e.target.closest?.(".dev-mode") || e.target.closest?.("button")) return;
+        if (e.button != null && e.button !== 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const rect = panel.getBoundingClientRect();
+        panel.style.position = "fixed";
+        panel.style.left = rect.left + "px";
+        panel.style.top = rect.top + "px";
+        panel.style.margin = "0";
+        panel.style.transform = "none";
+        panel.classList.add("is-dragging");
+        const x = e.clientX ?? e.touches?.[0]?.clientX;
+        const y = e.clientY ?? e.touches?.[0]?.clientY;
+        drag = { ox: x - rect.left, oy: y - rect.top };
+        window.addEventListener("pointermove", onMove, true);
+        window.addEventListener("pointerup", onUp, true);
+        window.addEventListener("pointercancel", onUp, true);
+        window.addEventListener("touchmove", onMove, { capture: true, passive: false });
+        window.addEventListener("touchend", onUp, true);
+        window.addEventListener("touchcancel", onUp, true);
+      };
+      handle.addEventListener("pointerdown", onDown);
+      handle.addEventListener("touchstart", onDown, { passive: false });
+    })();
 
     function nudgeFlowEdit(dir) {
       if (!inlineCtx || !inlineInp) return;
@@ -8101,6 +8198,7 @@
     }
 
     function startInlineEdit(flowGroup) {
+      resetFlowEditPanelPos();
       let field = flowGroup.dataset?.field || flowGroup.getAttribute?.("data-field") || "";
       let source = flowGroup.dataset?.source || flowGroup.getAttribute?.("data-source") || "";
       // P11011: portata e frequenza aprono lo stesso popup (si regola solo in Hz)
@@ -9065,7 +9163,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt67", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt68", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
