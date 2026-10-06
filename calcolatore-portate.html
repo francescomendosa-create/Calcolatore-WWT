@@ -12,9 +12,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Process Managed" />
-  <link rel="manifest" href="manifest.json?v=wwt28" />
-  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt28" />
-  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt28" />
+  <link rel="manifest" href="manifest.json?v=wwt29" />
+  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt29" />
+  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt29" />
   <style>
     :root {
       --bg: #0b1220;
@@ -1659,6 +1659,53 @@
         <p class="mini" id="regMbrCalibHint">Con pausa ciclo e questi valori si stima %/min del livello membrane.</p>
       </div>
 
+      <!-- 5. Calibrazione TK-11007 permeato (prova reale) -->
+      <div class="settings-block show" id="regTk11007Calib">
+        <h4>5 · TK-11007 permeato — prova riempimento / svuotamento</h4>
+        <p class="mini">Portate di prova e livelli osservati. L’ingresso membrane è quello a <strong>tutte ON</strong>; il simulatore applica il ciclo lavoro/pausa (default 7′+1′ → duty 7/8) per il netto medio. Il volume utile deriva dalla salita e scala i tassi a ogni altra portata.</p>
+        <div class="row">
+          <label><strong>IN membrane tutte ON (m³/h)</strong>
+            <input type="number" id="regTk11007QinRef" min="0" max="500" step="0.1" value="184" inputmode="decimal" />
+          </label>
+          <label><strong>OUT P11019 in prova (m³/h)</strong>
+            <input type="number" id="regTk11007QoutRef" min="0" max="500" step="0.1" value="84" inputmode="decimal" />
+          </label>
+        </div>
+        <h4 style="margin-top:10px">Salita livello (IN &gt; OUT)</h4>
+        <div class="row" style="grid-template-columns:1fr 1fr 1fr">
+          <label><strong>Da %</strong>
+            <input type="number" id="regTk11007UpFrom" min="0" max="100" step="0.01" value="19.65" inputmode="decimal" />
+          </label>
+          <label><strong>A %</strong>
+            <input type="number" id="regTk11007UpTo" min="0" max="100" step="0.01" value="52.89" inputmode="decimal" />
+          </label>
+          <label><strong>Durata (min)</strong>
+            <input type="number" id="regTk11007UpMin" min="0.1" max="240" step="0.1" value="4" inputmode="decimal" />
+          </label>
+        </div>
+        <h4 style="margin-top:10px">Discesa livello</h4>
+        <div class="row" style="grid-template-columns:1fr 1fr 1fr">
+          <label><strong>Da %</strong>
+            <input type="number" id="regTk11007DnFrom" min="0" max="100" step="0.01" value="52.89" inputmode="decimal" />
+          </label>
+          <label><strong>A %</strong>
+            <input type="number" id="regTk11007DnTo" min="0" max="100" step="0.01" value="19.6" inputmode="decimal" />
+          </label>
+          <label><strong>Durata (min)</strong>
+            <input type="number" id="regTk11007DnMin" min="0.1" max="240" step="0.1" value="11" inputmode="decimal" />
+          </label>
+        </div>
+        <div class="row">
+          <label><strong>Volume utile TK-11007 (m³)</strong>
+            <input type="number" id="regTk11007Vutile" min="0.5" max="5000" step="0.1" value="15.4" inputmode="decimal" />
+          </label>
+          <label><strong>V stimato da salita (m³)</strong>
+            <input type="number" id="viewTk11007VfromUp" readonly tabindex="-1" placeholder="—" />
+          </label>
+        </div>
+        <p class="mini" id="regTk11007CalibHint">Calcolo da prova: tassi e volume utile.</p>
+      </div>
+
       <div class="actions"><button type="button" data-close>Chiudi</button></div>
     </div>
   </div>
@@ -3000,15 +3047,63 @@
       return qP11019Setpoint();
     }
 
-    /** Stima %/min TK 11007: IN = permeato membrane (istantaneo), OUT = P11019 effettiva. */
+    /**
+     * Calibrazione TK-11007 da prova REGOLAZIONI §5.
+     * Salita 19.65→52.89% in 4′ con IN tutte-ON 184 e OUT 84 → V utile ≈ netto×duty / tasso.
+     * Discesa 52.89→19.6% in 11′ serve a verificare il netto implicito (spesso OUT &gt; IN effettivo).
+     */
+    function getTk11007Calib() {
+      const qAll = Math.max(0, num("regTk11007QinRef") || 184);
+      const qOut = Math.max(0, num("regTk11007QoutRef") || 84);
+      const { lavoro, pausa, cycle } = membraneCycleLen();
+      const duty = cycle > 0 ? lavoro / cycle : 1;
+      const qInEff = qAll * duty;
+      const upFrom = num("regTk11007UpFrom");
+      const upTo = num("regTk11007UpTo");
+      const upMin = Math.max(0.1, num("regTk11007UpMin") || 4);
+      const dnFrom = num("regTk11007DnFrom");
+      const dnTo = num("regTk11007DnTo");
+      const dnMin = Math.max(0.1, num("regTk11007DnMin") || 11);
+      const rateUp = (upTo - upFrom) / upMin;
+      const rateDn = (dnTo - dnFrom) / dnMin;
+      const netUp = qInEff - qOut;
+      let VfromUp = null;
+      if (Math.abs(rateUp) > 1e-6 && Math.abs(netUp) > 0.05) {
+        VfromUp = Math.abs(netUp * 100 / (rateUp * 60));
+      }
+      let V = numOrNull("regTk11007Vutile");
+      if (V === null || V < 0.5) V = VfromUp != null ? VfromUp : 15.4;
+      V = Math.max(0.5, V);
+      const netDnImplied = Math.abs(rateDn) > 1e-9 ? (rateDn * V * 60 / 100) : null;
+      const qInDnImplied = netDnImplied != null ? (qOut + netDnImplied) : null;
+
+      const vView = el("viewTk11007VfromUp");
+      if (vView) vView.value = VfromUp != null ? String(round1(VfromUp)) : "";
+      const hint = el("regTk11007CalibHint");
+      if (hint) {
+        const parts = [
+          `Ciclo ${round1(lavoro)}′+${round1(pausa)}′ → duty ${(duty * 100).toFixed(1)}% → IN medio ${round1(qInEff)} m³/h (da ${round1(qAll)} tutte ON)`,
+          `OUT ${round1(qOut)} · netto salita ${round1(netUp)} m³/h`,
+          `Salita ${round1(rateUp)} %/min · Discesa ${round1(rateDn)} %/min`,
+          VfromUp != null ? `V da salita ≈ ${round1(VfromUp)} m³ · in uso ${round1(V)} m³` : `V in uso ${round1(V)} m³`,
+        ];
+        if (netDnImplied != null && qInDnImplied != null) {
+          parts.push(`In discesa netto implicito ≈ ${round1(netDnImplied)} m³/h → IN effettivo ≈ ${round1(qInDnImplied)} m³/h (se OUT resta ${round1(qOut)})`);
+        }
+        hint.textContent = parts.join(" · ");
+      }
+      return {
+        qAll, qOut, duty, qInEff, lavoro, pausa,
+        rateUp, rateDn, netUp, V, VfromUp, netDnImplied, qInDnImplied,
+      };
+    }
+
+    /** Stima %/min TK 11007: volume utile da prova §5 · IN permeato − OUT P11019. */
     function estimateTk11007RatePctPerMin(qPerm, qP11019) {
+      const cal = getTk11007Calib();
       const qIn = Math.max(0, Number(qPerm) || 0);
       const qOut = Math.max(0, Number(qP11019) || 0);
-      const qRef = Math.max(1, num("regA10611QinRef") || 160);
-      const k = 2.0 / qRef;
-      let r = k * (qIn - qOut);
-      if (!Number.isFinite(r)) return 0;
-      return Math.max(-RATE_PCT_CLAMP, Math.min(RATE_PCT_CLAMP, r));
+      return ratePctPerMinFromVolume(qIn - qOut, cal.V);
     }
 
     /** Domanda valle permeato ≈ setpoint ingresso (catena P11019 / UF / osmosi). */
@@ -5494,6 +5589,7 @@
         getA10611Calib();
         getRicicloHCalib();
         getMbrLivCalib();
+        getTk11007Calib();
       }
     }
     function closePopups() {
@@ -6095,6 +6191,11 @@
       "regA10611OnFrom", "regA10611OnTo", "regA10611OffFrom", "regA10611OffTo",
       "regRicHMin", "regRicHStopLiv", "regRicHOnFrom", "regRicHOnTo", "regRicHOffFrom", "regRicHOffTo",
       "regMbrScaricoSec", "regMbrScaricoDrop",
+      "regTk11007QinRef", "regTk11007QoutRef",
+      "regTk11007UpFrom", "regTk11007UpTo", "regTk11007UpMin",
+      "regTk11007DnFrom", "regTk11007DnTo", "regTk11007DnMin",
+      "regTk11007Vutile",
+      "cicloLavoro", "cicloPausa",
     ].forEach((id) => {
       const node = el(id);
       if (!node) return;
@@ -6103,6 +6204,7 @@
         getA10611Calib();
         getRicicloHCalib();
         getMbrLivCalib();
+        getTk11007Calib();
         applyBalance("livello");
       });
     });
@@ -6158,6 +6260,7 @@
       syncOsmosiSvg();
       applyBalance("ingresso");
       refreshTankGeomHints();
+      getTk11007Calib();
       paintTk10608Passante();
     } catch (e) {
       console.warn("[calcolatore] init balance", e);
@@ -6190,6 +6293,10 @@
       "regA10611OnFrom", "regA10611OnTo", "regA10611OffFrom", "regA10611OffTo",
       "regRicHMin", "regRicHStopLiv", "regRicHOnFrom", "regRicHOnTo", "regRicHOffFrom", "regRicHOffTo",
       "regMbrScaricoSec", "regMbrScaricoDrop",
+      "regTk11007QinRef", "regTk11007QoutRef",
+      "regTk11007UpFrom", "regTk11007UpTo", "regTk11007UpMin",
+      "regTk11007DnFrom", "regTk11007DnTo", "regTk11007DnMin",
+      "regTk11007Vutile",
       "livelloAttualeH",
       "livelloAttualeMbr",
       "livelloAttualeTk11007",
@@ -6525,7 +6632,7 @@
       }
     } catch (_) { /* ok */ }
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt28", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt29", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
