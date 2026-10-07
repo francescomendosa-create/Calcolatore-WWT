@@ -4737,12 +4737,19 @@
           else if (ricicloAutoControlled()) qRec = Math.max(Q_RECYCLE_MIN, round1(Math.max(0, qPumpSp - qInSp)));
         }
         const qPerm = (runMbrByLevel && allowMbrByPerm) ? qPermAvg : 0;
-        let qP19 = 0;
+        // P11019: OUT dal 11007 = pompe intere (IAS + carboni).
+        // Verso impianto/UF = solo Impianto (carboni); IAS esce altrove e non entra in valle.
+        let qP19Out = 0;
+        let qUf = 0;
         if (runP19By07) {
-          if (allowUf) qP19 = qP19Sp;
-          else qP19 = Math.min(qP19Sp, qIasSp);
+          if (allowUf) {
+            qP19Out = qP19Sp;
+            qUf = qImpSp;
+          } else {
+            qP19Out = Math.min(qP19Sp, qIasSp);
+            qUf = 0;
+          }
         }
-        const qUf = allowUf ? qP19 : 0;
         const qOsm = livU > 8 ? qOsmCap : 0;
 
         const qScarico = mbrScaricoToH(qMand, qPerm, livMbr);
@@ -4752,7 +4759,7 @@
         const r11 = estimateA10611RatePctPerMin(qPump, qMand);
         const rH = estimateRicHRatePctPerMin(qScarico, qRec);
         const rMbr = estimateMbrRatePctPerMin(qMand, qPerm, livMbr, { backedUp: hBackedUp, qRecycle: qRec });
-        const rP = estimateTk11007RatePctPerMin(qPerm, qP19);
+        const rP = estimateTk11007RatePctPerMin(qPerm, qP19Out);
         let rU = 0;
         try {
           const V21 = getTk11021Geom().V;
