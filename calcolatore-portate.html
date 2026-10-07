@@ -3046,7 +3046,8 @@
         <input type="number" id="qUfTotale" class="tot-mem" min="0" max="500" step="0.1" value="0" />
       </label>
       <p class="mini">Quattro ingressi A–D. La somma = totale. Variando il totale si ripartiscono in modo uguale sulle <strong>abilitate</strong>; variando una linea si aggiorna il totale.</p>
-      <p class="mini">Apertura valvola da REGOLAZIONI: % ≈ set ÷ Q@100% (default <strong>65 m³/h</strong> a 100%). Se l'ingresso &lt; set, la valvola va al 100% e non raggiunge la portata desiderata.</p>
+      <p class="mini">Apertura valvola da REGOLAZIONI: % ≈ set ÷ Q@100% (default <strong>65 m³/h</strong> a 100%). Schema = portata <strong>misurata</strong> (non il set): se dai carboni arriva meno del totale set, valvola → 100% e la misura resta sulla quota d’acqua.</p>
+      <p class="mini" id="ufInletHint">Ingresso carboni→UF vs set linee…</p>
       <p class="mini">Clicca una UF sullo schema: il popup si posiziona su quella linea. <strong>Disabilita</strong> la spegne (rossa). Tap sul disegno nel popup = Abilita/Disabilita. In overview: tieni premuto ½ s.</p>
       <p class="mini">Ogni UF: <strong>tempo di lavoro per lavaggio backwash</strong> (default 20′) poi backwash (default 190 s ferma), <strong>sfalsati</strong>. Poi i grandi lavaggi <strong>CEB</strong> (ipoclorito 21 h, soda 23 h, acido 24 h): ciascuno dura <strong>1010 s (16′ 50″)</strong> a fasi e <strong>quella UF resta ferma</strong>. I timer <strong>scorrono sempre</strong> (anche senza acqua) e possono andare <strong>in negativo</strong>: al ritorno della portata si lava prima chi è in ritardo da più tempo, poi le altre in sequenza. In lavaggio la viva va a 0; il setpoint resta.</p>
       <div id="ufInputs"></div>
@@ -4041,9 +4042,14 @@
           if (el("qMandata")) el("qMandata").disabled = true;
         }
       }
+      if (next === "auto" && isAutoMode() && (dev === "pompa" || dev === "mandata" || dev === "riciclo" || dev === "membrane")) {
+        try { ensurePumpsFlowing({ instant: true }); } catch (_) { /* ok */ }
+        try { ensureMembranesAutoMin(); } catch (_) { /* ok */ }
+      }
       const balSrc = ({ membrane: "membrana", ultra: "ultra", osmosi: "osmosi", riciclo: "pompa", pompa: "pompa", mandata: "mandata", ingresso: "ingresso" })[dev] || "pompa";
       applyBalance(balSrc);
       try { paintRegPreviewBar(); } catch (_) { /* ok */ }
+      try { scheduleRegPreview({ delay: 100 }); } catch (_) { /* ok */ }
       try { schedulePersist(); } catch (_) { /* persist può non essere ancora definito in teoria */ }
     }
 
@@ -4108,8 +4114,9 @@
       paintRecycleEditableUI();
       paintAllDevModeUI();
       if (isAutoMode()) {
-        // Torna in Automatico: cervello regola per restare in marcia
-        if (el("equiparaMandata") && !deviceIsManual("mandata")) {
+        // Torna in Automatico: riprendi il controllo (niente Manuale locale residuo su pompe)
+        ["pompa", "mandata", "riciclo", "membrane"].forEach((d) => { __devMode[d] = "auto"; });
+        if (el("equiparaMandata")) {
           el("equiparaMandata").checked = true;
           if (el("qMandata")) el("qMandata").disabled = true;
         }
@@ -4121,17 +4128,15 @@
           if (!isEditing("qP11019")) setVal("qP11019", q19, { force: true });
           try { syncP11019SplitKeepIas(); } catch (_) { /* ok */ }
         }
-        ensurePumpsFlowing();
+        ensurePumpsFlowing({ instant: true });
         try { ensureMembranesAutoMin(); } catch (_) { /* ok */ }
+        try { ensureCarboniMeetsUfDemand(); } catch (_) { /* ok */ }
         applyBalance("ingresso");
         paintPumpColors();
         paintA10608Passante();
-        const bar = el("statusBar");
-        if (bar) {
-          bar.className = "status";
-          bar.textContent = "Automatico · P11011 = ingresso + ≥100 · riciclo fanghi ≥ 100 m³/h";
-        }
+        paintAllDevModeUI();
         try { paintRegPreviewBar(); } catch (_) { /* ok */ }
+        try { scheduleRegPreview({ delay: 120 }); } catch (_) { /* ok */ }
       } else {
         // Manuale: tieni le portate già impostate dall’auto (setpoint), sblocca edit
         freezeFlowSetpointsFromCurrent();
@@ -4329,7 +4334,7 @@
       try { scheduleRegPreview({ delay: 40 }); } catch (_) { /* ok */ }
     }
 
-    /** Bene/Male: sempre in evidenza (impianto fermo o in marcia), a ogni variazione. */
+    /** Bene/Male: lucido sul set reale (Hz/portate), non sulla sola rampa o su livelli già alti. */
     function paintRegPreviewBar() {
       const bar = el("statusBar");
       if (!bar) return;
@@ -4341,10 +4346,17 @@
         const adv = buildHorizonAdvice(fc);
         let text;
         let cls;
-        if (fc.ok) {
+        const regOk = !!(adv && (adv.ok || adv.regOk));
+        if (fc.ok && regOk) {
           cls = "status is-ok";
           text = "Regolato bene · 8 h OK";
           bar.title = "Nessun blocco previsto nelle prossime 8 ore — clic per dettaglio";
+        } else if (regOk && !fc.ok) {
+          // Set giusti (Auto/Hz): non dire “regolato male” — avvisa solo i livelli
+          cls = "status warn";
+          const when = fmtForecastWhen(fc.firstBlockMin);
+          text = `Regolazione OK · attenzione livelli ~${when}`;
+          bar.title = (adv.verdict || "Portate a set · rischio livelli") + " — clic per dettaglio";
         } else {
           cls = "status danger is-bad";
           text = shortRegPreviewBad(adv, fc);
@@ -4355,11 +4367,13 @@
         bar.textContent = text;
         const badge = el("chimicoBlockCount");
         if (badge) {
-          badge.setAttribute("data-warn", fc.ok ? "0" : "1");
+          badge.setAttribute("data-warn", (fc.ok && regOk) ? "0" : "1");
           if (__chimicoBlockCount === 0) {
-            badge.title = fc.ok
+            badge.title = (fc.ok && regOk)
               ? "Nessun blocco — previsione 8 ore OK — clic"
-              : `Previsto blocco entro 8 ore (~${fmtForecastWhen(fc.firstBlockMin)}) — clic`;
+              : regOk
+                ? `Regolazione OK · rischio livelli (~${fmtForecastWhen(fc.firstBlockMin)}) — clic`
+                : `Previsto blocco entro 8 ore (~${fmtForecastWhen(fc.firstBlockMin)}) — clic`;
           }
         }
       } catch (_) {
@@ -4389,6 +4403,9 @@
       }
       if (focus === "p11") {
         return `Male · ripristina P11011 (Hz) · o chimico ≤ ${qSafe} · ~${when}`;
+      }
+      if (focus === "levels") {
+        return `Regolazione OK · attenzione livelli ~${when}`;
       }
       if (focus === "osm") {
         const qExp = fc && fc.qSiteExport != null ? fmtQ(fc.qSiteExport)
@@ -4892,7 +4909,11 @@
       // Un solo target = portata di tabella (es. 345 @ 45 Hz), non il minimo grezzo 280
       const qPumpTarget = pumpAdv.q;
       const hzBit = pumpAdv.bit;
-      const qMandTarget = round1(Math.max(qPumpTarget, liveFlowHave(fc.qPumpSp, "qPump")));
+      // Mandata = set Auto / setpoint pompa — NON max col live in rampa (altrimenti
+      // dopo aver abbassato Hz e rimesso Auto resta “Male” finché il live non scende).
+      let qPumpCmd = qPumpTarget;
+      try { qPumpCmd = round1(Math.max(qPumpTarget, flowSetpointOf("qPump") || 0)); } catch (_) { /* ok */ }
+      const qMandTarget = qPumpCmd;
       const memMinInfo = qMemMinTotaleForQin(qInSp);
       const dutyAvg = memMinInfo.duty;
       // Solo minimo tecnico vs chimico (ceil(qIn/duty)) — mai legare a mandata×0.85
@@ -4931,6 +4952,7 @@
       if (fc.ok) {
         return {
           ok: true,
+          regOk: true,
           focus: "",
           forecastHtml: `<div class="block-forecast is-ok"><strong>Tutto OK — prossime 8 ore</strong><br>`
             + `Impianto in marcia: chimico <strong>${fmtQ(qInSp)}</strong> · P11011 <strong>${pumpHaveLabel(qHavePump)}</strong>`
@@ -4959,11 +4981,22 @@
         if (isAutoMode() && deviceAutoControlled("pompa")) {
           const hzNeed = pumpAdv && pumpAdv.hz != null ? Number(pumpAdv.hz) : null;
           const hzOk = hzNeed == null || (hzHave != null && hzHave + 0.05 >= hzNeed);
-          if (hzOk) pumpRegBad = false;
+          let qSpOk = false;
+          try { qSpOk = flowMeetsNeed(flowSetpointOf("qPump"), qPumpTarget); } catch (_) { /* ok */ }
+          // Auto ha già il comando giusto (Hz o setpoint): non “Male” per la sola rampa viva
+          if (hzOk || qSpOk) pumpRegBad = false;
         }
       } catch (_) { /* ok */ }
-      const recBad = !flowMeetsNeed(qHaveRec, qRecNeed) && (fc.qScaricoNeed != null && fc.qScaricoNeed > 2);
-      const mandRegBad = !flowMeetsNeed(qHaveMand, qMandTarget);
+      let recBad = !flowMeetsNeed(qHaveRec, qRecNeed) && (fc.qScaricoNeed != null && fc.qScaricoNeed > 2);
+      let mandRegBad = !flowMeetsNeed(qHaveMand, qMandTarget);
+      try {
+        // In Auto mandata/riciclo seguono il cervello: non allarmare sulla rampa
+        if (isAutoMode() && deviceAutoControlled("mandata") && el("equiparaMandata")?.checked && !pumpRegBad) {
+          mandRegBad = false;
+        }
+        if (ricicloAutoControlled() && !pumpRegBad) recBad = false;
+      } catch (_) { /* ok */ }
+      const regOk = !pumpRegBad && !mandRegBad && !recBad && memOk;
 
       let device = "P11011 A/B";
       let target = qPumpTarget;
@@ -5137,14 +5170,20 @@
 
       return {
         ok: false,
-        forecastHtml: `<div class="block-forecast is-bad"><strong>Blocco entro 8 ore</strong><br>${verdict}</div>`,
-        verdict,
-        action,
-        ask,
-        fault,
-        alt: forceAlt ? noHtml : "",
-        forceAlt,
-        focus,
+        regOk: !!regOk,
+        forecastHtml: regOk
+          ? `<div class="block-forecast is-ok"><strong>Regolazione OK</strong> — P11011/mandata/riciclo/membrane a set.<br>`
+            + `Attenzione livelli: possibile blocco tra <strong>${when}</strong> (non è un errore di Hz/portate).</div>`
+          : `<div class="block-forecast is-bad"><strong>Blocco entro 8 ore</strong><br>${verdict}</div>`,
+        verdict: regOk
+          ? `Regolazione OK (P11011 ${havePumpLbl}) · rischio livelli tra <strong>${when}</strong>.`
+          : verdict,
+        action: regOk ? `Portate già a set Automatico. Controlla livelli / valle se serve.` : action,
+        ask: regOk ? null : ask,
+        fault: regOk ? "" : fault,
+        alt: forceAlt && !regOk ? noHtml : "",
+        forceAlt: regOk ? false : forceAlt,
+        focus: regOk ? "levels" : focus,
         qSafeSamePumps,
         qPumpTarget,
         qMandTarget,
@@ -8028,6 +8067,7 @@
       // Timer lavaggi UF / carbone: scorrono sempre; lavaggio carbone consuma portata verso UF
       tickUfWashes(dtMin);
       tickCarbWashes(dtMin);
+      try { ensureCarboniMeetsUfDemand(); } catch (_) { /* ok */ }
       // Valvole UF + osmosi (misura insegue set)
       tickUfRegulation(dtMin);
       tickOsmRegulation(dtMin);
@@ -8246,7 +8286,9 @@
       if (tankH) tankH.setAttribute("stroke", "#86efac");
     }
 
-    function ensurePumpsFlowing() {
+    function ensurePumpsFlowing(opts) {
+      opts = opts || {};
+      const snap = !!opts.instant;
       // Solo in Automatico: allinea P11011 / mandata al chimico
       if (!isAutoMode()) return 0;
       // Prima i setpoints PROCESSO, poi le portate (niente bypass)
@@ -8257,8 +8299,8 @@
       // Durante un passo TIME già aperto: solo target (flush nel passo).
       // Se __simBusy ma passo non ancora iniziato: solo desire — simulateOneStep fa la rampa.
       const nested = __flowStepDepth > 0;
-      const deferToStep = __simBusy && !nested;
-      if (!nested && !deferToStep) beginFlowStep();
+      const deferToStep = !snap && __simBusy && !nested;
+      if (!nested && !deferToStep && !snap) beginFlowStep();
       try {
       const step = pumpStepForNeed(pumpFloorForIngresso(num("qIn")));
       const q = step.q;
@@ -8271,11 +8313,11 @@
           if (svgHz) svgHz.textContent = String(step.hz);
         }
         if (deferToStep) __flowDesire.qPump = q;
-        else commitFlow("qPump", q, { setpoint: q });
+        else commitFlow("qPump", q, { setpoint: q, instant: snap });
       } else if (deviceAutoControlled("pompa")) {
         // Pompe ferme: viva → 0, setpoint resta (popup)
         if (deferToStep) __flowDesire.qPump = 0;
-        else commitFlow("qPump", 0);
+        else commitFlow("qPump", 0, { instant: snap });
         if (!isEditing("freqHz")) {
           const hzNode = el("freqHz");
           if (hzNode) hzNode.value = "0";
@@ -8292,16 +8334,22 @@
           const qM = p11011Allowed() ? Math.max(q, getPumpMin()) : clampPump(Math.max(getPumpMin(), q));
           rememberFlowSetpoint("qMandata", round1(qM));
           if (deferToStep) __flowDesire.qMandata = round1(qM);
-          else commitFlow("qMandata", round1(qM));
+          else commitFlow("qMandata", round1(qM), { instant: snap });
         } else {
           if (deferToStep) __flowDesire.qMandata = 0;
-          else commitFlow("qMandata", 0);
+          else commitFlow("qMandata", 0, { instant: snap });
         }
+      }
+      if (ricicloAutoControlled() && p11011Allowed()) {
+        const qRec = Math.max(Q_RECYCLE_MIN, round1(Math.max(0, q - num("qIn"))));
+        rememberFlowSetpoint("qRecycle", qRec);
+        if (deferToStep) __flowDesire.qRecycle = qRec;
+        else commitFlow("qRecycle", qRec, { setpoint: qRec, instant: snap });
       }
       try { ensureMembranesAutoMin(); } catch (_) { /* ok */ }
       return q;
       } finally {
-        if (!nested && !deferToStep) endFlowStep();
+        if (!nested && !deferToStep && !snap) endFlowStep();
       }
     }
 
@@ -9038,6 +9086,7 @@
         return;
       }
       const qP19Pump = qP11019Effective();
+      try { ensureCarboniMeetsUfDemand(); } catch (_) { /* ok */ }
       const qP19Plant = qCarbToUfProcess(); // valle carboni/UF = Impianto − lavaggio carbone
 
       // TK 11021: IN = UF, OUT = osmosi ≈ ingresso (non forzare IN=OUT in TIME)
@@ -10105,6 +10154,63 @@
       return ufAnyDue(letter) && !ufInletAvailable();
     }
 
+    /** Somma setpoint UF linee abilitate (non in lavaggio). */
+    function ufDemandSetpointTotal() {
+      let s = 0;
+      UF_LINES.forEach((L) => {
+        if (!ufLineEnabled(L)) return;
+        if (ufLineInWash(L)) return;
+        s += Math.max(0, procSetpointOf("qUf" + L));
+      });
+      return round1(s);
+    }
+
+    /**
+     * I set UF vanno rispettati: se chiedono più acqua di Impianto→carboni,
+     * alza le P11019 (Impianto) fino al bisogno (IAS resta; max pompe 140).
+     */
+    function ensureCarboniMeetsUfDemand() {
+      if (!plantIsStarted()) return;
+      if (!p11019ValleyOpen() || !p11019Allowed()) return;
+      const need = ufDemandSetpointTotal();
+      if (need < 0.05) return;
+      const ias = Math.max(0, qP11019IasSetpoint());
+      let pump = qP11019SplitPumpMem();
+      const impNow = Math.max(0, pump - ias);
+      if (impNow + 0.55 >= need) return;
+      const wantPump = Math.min(Q_P11019_MAX, Math.max(pump, round1(need + ias)));
+      const wantImp = Math.max(0, wantPump - ias);
+      if (wantImp + 0.05 < need) return; // IAS troppo alto: non si può saturare il set UF
+      if (Math.abs(wantPump - pump) < 0.05) return;
+      rememberFlowSetpoint("qP11019", wantPump);
+      if (!isEditing("qP11019")) setVal("qP11019", wantPump, { force: true });
+      rememberFlowSetpoint("qP11019Impianto", wantImp, { allowZero: true });
+      syncP11019SplitKeepIas();
+      if (p11019Allowed()) commitFlow("qP11019", qP11019LiveTargetFromValley(), { setpoint: wantPump });
+      try { paintP11019SplitUI(); } catch (_) { /* ok */ }
+    }
+
+    function paintUfInletHint() {
+      const hint = el("ufInletHint");
+      if (!hint) return;
+      const need = ufDemandSetpointTotal();
+      const inlet = qCarbToUfLive();
+      const nOn = UF_LINES.filter((L) => ufLineEnabled(L) && !ufLineInWash(L) && procSetpointOf("qUf" + L) > 0.05).length || 1;
+      if (need < 0.05) {
+        hint.textContent = "Nessun set UF: imposta totale o linee A–D.";
+        hint.style.color = "var(--muted)";
+        return;
+      }
+      if (inlet + 0.55 < need) {
+        const each = round1(inlet / nOn);
+        hint.style.color = "var(--danger)";
+        hint.textContent = `Carboni→UF ${fmtQ(inlet)} < set ${fmtQ(need)} · valvole al 100%, segnale ≈ ${fmtQ(each)}/linea (quota acqua, non il set). Alza Impianto/carboni o scendi i set / IAS.`;
+      } else {
+        hint.style.color = "var(--ok)";
+        hint.textContent = `Carboni→UF ${fmtQ(inlet)} ≥ set ${fmtQ(need)} · le misure devono stare al setpoint.`;
+      }
+    }
+
     /** Quota idraulica disponibile per linea (ingresso carbone→UF ripartito sui setpoint). */
     function ufLineShare(letter) {
       const L = String(letter || "").toUpperCase();
@@ -10124,6 +10230,8 @@
         sumSp += sp;
       });
       if (sumSp < 0.05) return 0;
+      // Se c’è abbastanza acqua per tutti i set, ogni linea prende il proprio set (non una quota ridotta).
+      if (inlet + 0.55 >= sumSp) return round1(spMap[L]);
       return round1(inlet * (spMap[L] / sumSp));
     }
 
@@ -10261,22 +10369,21 @@
         } else {
           const ff = valveOpenPctForSet(sp, q100);
           const err = sp - measNow;
-          // Sul set: valvola fissa, portata = set (niente apri/chiudi).
+          // Acqua ok → misura = setpoint (rispetta il set fissato).
+          qAim = sp;
           if (Math.abs(err) <= 0.6) {
             valveTarget = Math.max(1, Math.min(100, Math.round(ff)));
-            qAim = Math.min(share, sp);
           } else {
-            // Solo in avvicinamento: correzione mite verso il set.
             valveTarget = ff + err * 4;
             if (measNow + 0.4 < sp) valveTarget = Math.max(valveTarget, ff + 4);
             valveTarget = Math.max(5, Math.min(100, valveTarget));
-            qAim = Math.min(share, sp);
           }
         }
 
         __ufValveTarget[L] = Math.max(0, Math.min(100, valveTarget));
-        __ufMeasTarget[L] = Math.max(0, Math.min(Math.max(share, 0), qAim));
+        __ufMeasTarget[L] = Math.max(0, starved ? Math.max(0, share) : sp);
       });
+      try { paintUfInletHint(); } catch (_) { /* ok */ }
     }
 
     function paintUfValveUI() {
@@ -10638,7 +10745,10 @@
       // Popup = setpoint; schema = viva per linea (0 in lavaggio / blocco)
       paintUfPopupSetpoints();
       const totSp = procSetpointOf("qUfTotale");
+      try { ensureCarboniMeetsUfDemand(); } catch (_) { /* ok */ }
+      try { tickUfRegulationOnce(0.05); kickValveSmoothLoop(); } catch (_) { /* ok */ }
       paintUfSvgLive();
+      try { paintUfInletHint(); } catch (_) { /* ok */ }
       // UF in manuale locale: allinea solo osmosi a valle (P11019 resta sul suo set ≥140, non prende il totale UF)
       if ((source === "uf-linea" || source === "uf-totale") && deviceIsManual("ultra")) {
         const q = totSp;
