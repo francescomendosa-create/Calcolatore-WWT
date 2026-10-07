@@ -8563,9 +8563,13 @@
       const qInSet = num("qIn");
       const qIn = qInEffective(qInSet);
       // Marcia/arresto SEMPRE da livelli (auto e manuale). In manuale il setpoint digitato resta nel campo.
-      // Portate VIVE (rampa) per i bilanci di livello — non il target a scatto.
-      const qPump = p11011Allowed() ? Math.max(0, num("qPump")) : 0;
-      const qMandata = __run11036 ? Math.max(0, num("qMandata")) : 0;
+      // Portate VIVE: __flowLive (dopo snap a Start), fallback campo — non il solo num a 0.
+      const qPump = p11011Allowed()
+        ? Math.max(0, Number(__flowLive.qPump) || num("qPump") || 0)
+        : 0;
+      const qMandata = __run11036
+        ? Math.max(0, Number(__flowLive.qMandata) || num("qMandata") || 0)
+        : 0;
       const liv20 = num("livelloAttuale");
       const liv11 = num("livelloAttualeA10611");
       let livH = numOrNull("livelloAttualeH");
@@ -8591,16 +8595,17 @@
       updateTk11021Interlocks(livU);
       updateTk11007PumpInterlocks(livP);
       applyP11019RunFromLevel();
-      const qP19 = Math.max(0, num("qP11019")); // viva (rampa) per bilanci TK
+      const qP19 = Math.max(0, Number(__flowLive.qP11019) || num("qP11019") || 0);
       // OUT osmosi da TK 11021: solo linee in marcia (isteresi P-11040 sul livello)
       updateOsmosiTk11021Interlocks(livU);
-      if (deviceAutoControlled("osmosi")) {
+      // In TIME: non riallineare osmosi a qIn ogni minuto (set già seminati) — evita IN=OUT artificiale su 11021
+      if (deviceAutoControlled("osmosi") && !(__simBusy || __simPlaying || __simMin > 0)) {
         let qDemand = permeateDemandOut();
         if (!__allowUfByTk11021 || !membranesProcessAllowed()) {
           qDemand = Math.max(qDemand, linePermeateCapacity());
         }
         applyOsmosiAutoFlows(qDemand);
-      } else {
+      } else if (!deviceAutoControlled("osmosi")) {
         // Osmosi manuale / impianto manuale: setpoint in popup; viva da regolazione valvole
         ["A", "B", "C"].forEach((L, i) => {
           const id = ["qOsmosiA", "qOsmosiB", "qOsmosiC"][i];
@@ -8710,6 +8715,12 @@
       if (el("livelloAttualeMbr")) setVal("livelloAttualeMbr", nMbr, { force: true, digits: 2 });
       if (el("livelloAttualeTk11007")) setVal("livelloAttualeTk11007", nP, { force: true, digits: 2 });
       if (el("livelloAttualeTk11021")) setVal("livelloAttualeTk11021", nU, { force: true, digits: 2 });
+      // Paint immediato (non solo via 2° applyBalance) così SVG segue i campi
+      try {
+        paintTk11007UI(nP, rP, !__allowMbrByPermeate);
+        paintTk11021UI(nU, rU, !__allowUfByTk11021);
+        paintMbrLevelUI(nMbr, rMbr);
+      } catch (_) { /* ok */ }
 
       updateA10620RiempInterlocks(n20);
       updateA10620PumpInterlocks(n20);
@@ -9657,7 +9668,9 @@
       }
 
       const srcOsm = source === "osmosi";
-      if (!isEditingOsmosi() && !srcOsm && deviceAutoControlled("osmosi")) {
+      // In TIME non riallineare ogni tick osmosi≈qIn (11021 resterebbe piatto)
+      const skipOsmReseed = source === "sim" || __simBusy || __simPlaying || __simMin > 0;
+      if (!isEditingOsmosi() && !srcOsm && deviceAutoControlled("osmosi") && !skipOsmReseed) {
         const qDemand = permeateDemandOut();
         let qOsm = qDemand;
         if (p11019Allowed() && (!__allowUfByTk11021 || qP19Plant < 0.05 || qP19Pump < 0.05)) {
@@ -9723,7 +9736,7 @@
         // dAvg = duty medio di ciclo (per settare capacità "tutte ON").
         // MAI usare de.d istantaneo per alzare le portate quando qualcuno è in pausa.
         const dAvg = de.dAvg != null ? de.dAvg : duty().d;
-        const simulating = __simBusy || __simMin > 0;
+        const simulating = __simBusy || __simMin > 0 || __simPlaying;
 
         // Durante digitatura: se vuoto, non forzare il ricalcolo sul campo in edit
         const qInRaw = numOrNull("qIn");
@@ -10982,6 +10995,7 @@
      * Niente oscillazioni artificiali / caccia valvola.
      */
     function tickUfRegulationOnce(dt) {
+      const dtSec = Math.max(0, Number(dt) || 0) * 60; // passo TIME in secondi di rampa misura
       UF_LINES.forEach((L) => {
         const enabled = ufLineEnabled(L);
         const washing = ufLineInWash(L);
@@ -10993,35 +11007,39 @@
         if (!run) {
           __ufValveTarget[L] = 0;
           __ufMeasTarget[L] = 0;
-          return;
-        }
-
-        const share = ufLineShare(L);
-        const q100 = ufValveQ100();
-        const starved = share + 0.35 < sp || share < 0.05;
-        let valveTarget;
-        let qAim;
-
-        if (starved) {
-          // Ingresso linea < set: valvola al massimo, portata = acqua disponibile.
-          valveTarget = 100;
-          qAim = Math.max(0, share);
         } else {
-          const ff = valveOpenPctForSet(sp, q100);
-          const err = sp - measNow;
-          // Acqua ok → misura = setpoint (rispetta il set fissato).
-          qAim = sp;
-          if (Math.abs(err) <= 0.6) {
-            valveTarget = Math.max(1, Math.min(100, Math.round(ff)));
-          } else {
-            valveTarget = ff + err * 4;
-            if (measNow + 0.4 < sp) valveTarget = Math.max(valveTarget, ff + 4);
-            valveTarget = Math.max(5, Math.min(100, valveTarget));
-          }
-        }
+          const share = ufLineShare(L);
+          const q100 = ufValveQ100();
+          const starved = share + 0.35 < sp || share < 0.05;
+          let valveTarget;
+          let qAim;
 
-        __ufValveTarget[L] = Math.max(0, Math.min(100, valveTarget));
-        __ufMeasTarget[L] = Math.max(0, starved ? Math.max(0, share) : sp);
+          if (starved) {
+            // Ingresso linea < set: valvola al massimo, portata = acqua disponibile.
+            valveTarget = 100;
+            qAim = Math.max(0, share);
+          } else {
+            const ff = valveOpenPctForSet(sp, q100);
+            const err = sp - measNow;
+            // Acqua ok → misura = setpoint (rispetta il set fissato).
+            qAim = sp;
+            if (Math.abs(err) <= 0.6) {
+              valveTarget = Math.max(1, Math.min(100, Math.round(ff)));
+            } else {
+              valveTarget = ff + err * 4;
+              if (measNow + 0.4 < sp) valveTarget = Math.max(valveTarget, ff + 4);
+              valveTarget = Math.max(5, Math.min(100, valveTarget));
+            }
+          }
+
+          __ufValveTarget[L] = Math.max(0, Math.min(100, valveTarget));
+          __ufMeasTarget[L] = Math.max(0, starved ? Math.max(0, share) : sp);
+        }
+        // Integra misura/valvola sul tempo SIM (non solo RAF): altrimenti bilanci TIME vedono sempre 0
+        if (dtSec > 0) {
+          __ufValvePct[L] = approachLinear(Number(__ufValvePct[L]) || 0, Number(__ufValveTarget[L]) || 0, VALVE_SMOOTH_PCT_S, dtSec);
+          __ufMeas[L] = approachLinear(Number(__ufMeas[L]) || 0, Number(__ufMeasTarget[L]) || 0, MEAS_SMOOTH_Q_S, dtSec);
+        }
       });
       try { paintUfInletHint(); } catch (_) { /* ok */ }
     }
