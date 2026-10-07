@@ -11113,6 +11113,7 @@
     }
 
     function tickOsmRegulationOnce(dt) {
+      const dtSec = Math.max(0, Number(dt) || 0) * 60;
       OSM_LINES.forEach((L) => {
         const enabled = osmLineEnabled(L);
         const feeding = osmLineFeeding(L);
@@ -11124,38 +11125,41 @@
         if (!run) {
           __osmValveTarget[L] = 0;
           __osmMeasTarget[L] = 0;
-          return;
-        }
-
-        const share = osmLineShare(L);
-        const q100 = osmValveQ100();
-        const starved = share + 0.35 < sp || share < 0.05;
-        let valveTarget;
-        let qAim;
-
-        if (starved) {
-          // Ingresso < set: valvola al 100%, portata = acqua disponibile (mostra il reale).
-          valveTarget = 100;
-          qAim = Math.max(0, share);
         } else {
-          const ff = valveOpenPctForSet(sp, q100);
-          const err = sp - measNow;
-          // Vicino al set: valvola fissa sul % di progetto, portata = set (niente oscillazioni).
-          if (Math.abs(err) <= 0.6) {
-            valveTarget = Math.max(1, Math.min(100, Math.round(ff)));
-            qAim = Math.min(share, sp);
-            w.bias = 0;
-          } else {
-            valveTarget = ff + err * 10;
-            if (measNow + 0.4 < sp) valveTarget = Math.max(valveTarget, ff + 6);
-            valveTarget = Math.max(10, Math.min(100, valveTarget));
-            const qHyd = Math.min(share, q100 * (Math.max(0, valveTarget) / 100));
-            qAim = qHyd;
-          }
-        }
+          const share = osmLineShare(L);
+          const q100 = osmValveQ100();
+          const starved = share + 0.35 < sp || share < 0.05;
+          let valveTarget;
+          let qAim;
 
-        __osmValveTarget[L] = Math.max(0, Math.min(100, valveTarget));
-        __osmMeasTarget[L] = Math.max(0, Math.min(Math.max(share, 0), qAim));
+          if (starved) {
+            // Ingresso < set: valvola al 100%, portata = acqua disponibile (mostra il reale).
+            valveTarget = 100;
+            qAim = Math.max(0, share);
+          } else {
+            const ff = valveOpenPctForSet(sp, q100);
+            const err = sp - measNow;
+            // Vicino al set: valvola fissa sul % di progetto, portata = set (niente oscillazioni).
+            if (Math.abs(err) <= 0.6) {
+              valveTarget = Math.max(1, Math.min(100, Math.round(ff)));
+              qAim = Math.min(share, sp);
+              w.bias = 0;
+            } else {
+              valveTarget = ff + err * 10;
+              if (measNow + 0.4 < sp) valveTarget = Math.max(valveTarget, ff + 6);
+              valveTarget = Math.max(10, Math.min(100, valveTarget));
+              const qHyd = Math.min(share, q100 * (Math.max(0, valveTarget) / 100));
+              qAim = qHyd;
+            }
+          }
+
+          __osmValveTarget[L] = Math.max(0, Math.min(100, valveTarget));
+          __osmMeasTarget[L] = Math.max(0, Math.min(Math.max(share, 0), qAim));
+        }
+        if (dtSec > 0) {
+          __osmValvePct[L] = approachLinear(Number(__osmValvePct[L]) || 0, Number(__osmValveTarget[L]) || 0, VALVE_SMOOTH_PCT_S, dtSec);
+          __osmMeas[L] = approachLinear(Number(__osmMeas[L]) || 0, Number(__osmMeasTarget[L]) || 0, MEAS_SMOOTH_Q_S, dtSec);
+        }
       });
     }
 
