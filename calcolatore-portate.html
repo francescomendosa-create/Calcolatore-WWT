@@ -3376,9 +3376,9 @@
         <small>da TK 11007 · verso carboni / IAS</small>
       </button>
       <label><strong>Set portata pompe P11019 (m³/h)</strong>
-        <input type="number" id="qP11019" min="0" max="140" step="1" value="140" inputmode="decimal" />
+        <input type="number" id="qP11019" min="0" max="165" step="1" value="140" inputmode="decimal" />
       </label>
-      <p class="mini">Set pompe: <strong>0–140 m³/h</strong> (max 140). Puoi scendere a piacere (es. 60) <strong>senza aprire IAS</strong>: Impianto = set pompe. IAS si apre solo se lo imposti tu e si sottrae dal set (Impianto = set − IAS). Overview = portata <strong>→ carboni</strong> + badge <strong>IAS</strong> a destra (non il totale pompe).</p>
+      <p class="mini">Set pompe: <strong>0–165 m³/h</strong> (max 165). Puoi scendere a piacere (es. 60) <strong>senza aprire IAS</strong>: Impianto = set pompe. IAS si apre solo se lo imposti tu e si sottrae dal set (Impianto = set − IAS). Overview = portata <strong>→ carboni</strong> + badge <strong>IAS</strong> a destra (non il totale pompe).</p>
 
       <svg class="p11019-split" viewBox="0 0 400 150" aria-label="Schizzo split Impianto / IAS">
         <text x="200" y="16" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="700">P11019 → destinazioni · tocca per modificare</text>
@@ -3411,10 +3411,10 @@
 
       <div class="row">
         <label><strong>Verso IAS (m³/h)</strong>
-          <input type="number" id="qP11019Ias" min="0" max="140" step="0.1" value="" placeholder="" inputmode="decimal" />
+          <input type="number" id="qP11019Ias" min="0" max="165" step="0.1" value="" placeholder="" inputmode="decimal" />
         </label>
         <label><strong>Verso Impianto / carboni (m³/h)</strong>
-          <input type="number" id="qP11019Impianto" min="0" max="140" step="0.1" value="" placeholder="" inputmode="decimal" />
+          <input type="number" id="qP11019Impianto" min="0" max="165" step="0.1" value="" placeholder="" inputmode="decimal" />
         </label>
       </div>
       <p class="mini" id="p11019SplitHint">Abbassa il set pompe liberamente (IAS chiuso → tutto a Impianto/carboni). Tocca IAS solo se vuoi aprirlo: sottrae dal set. Overview = carboni + IAS.</p>
@@ -3441,7 +3441,7 @@
     const Q_FREQ_ABS_MIN = 0; // Manuale: puoi impostare anche sotto 42 Hz
     const Q_RECYCLE_MIN = 100; // Automatico: riciclo fanghi minimo (P11011 − ingresso)
     const Q_P11019_DEFAULT = 140; // avvio / set vuoto
-    const Q_P11019_MAX = 140;     // tetto set pompe (non si supera)
+    const Q_P11019_MAX = 165;     // tetto set pompe (non si supera)
     /** @deprecated alias di Q_P11019_DEFAULT (retrocompat) */
     const Q_P11019_MIN = Q_P11019_DEFAULT;
 
@@ -3450,7 +3450,7 @@
       return 0;
     }
 
-    /** Clamp set pompe P11019: 0 … 140. */
+    /** Clamp set pompe P11019: 0 … 165. */
     function clampP11019Set(v) {
       const n = Math.round(Number(v) || 0);
       if (!Number.isFinite(n) || n < 0) return 0;
@@ -4967,14 +4967,19 @@
       // OK se ≥ bisogno grezzo OPPURE già sul passo Hz consigliato (345 ≥ 280)
       const pumpOk = !pumpBelowAutoSet(qHavePump, pumpAdv);
       const mandOk = flowMeetsNeed(qHaveMand, qMandTarget);
-      // Membrane: confronto su set × duty medio (non sull’istantaneo in pausa ciclo → niente sfarfallio)
+      // Membrane: confronto su set × duty medio (non sull’istantaneo in pausa ciclo → niente sfarfallio).
+      // Se il live è chiaramente sotto il minimo tecnico (regolazione istantanea), NON soft-OK: priorità membrane.
       let memOk = flowMeetsNeed(qHaveMem, qMemTarget) && !(qInSp > 0.5 && qPermHave + 1 < qInSp);
       try {
         if (isAutoMode() && deviceAutoControlled("membrane")) {
-          let sp = qHaveMem;
-          try { sp = Math.max(sp, flowSetpointOf("qMemTotale") || 0); } catch (_) { /* ok */ }
-          const media = round1(sp * dutyAvg);
-          memOk = flowMeetsNeed(sp, qMemTarget) && !(qInSp > 0.5 && media + 1 < qInSp);
+          const liveLow = (qHaveMem + 0.5 < qMemTarget)
+            || (qInSp > 0.5 && qPermHave + 1 < qInSp);
+          if (!liveLow) {
+            let sp = qHaveMem;
+            try { sp = Math.max(sp, flowSetpointOf("qMemTotale") || 0); } catch (_) { /* ok */ }
+            const media = round1(sp * dutyAvg);
+            memOk = flowMeetsNeed(sp, qMemTarget) && !(qInSp > 0.5 && media + 1 < qInSp);
+          }
         }
       } catch (_) { /* ok */ }
       const anomalyPump = isAnomalousLowFlow(qHavePump, qPumpTarget, qInSp);
@@ -4997,29 +5002,6 @@
       ));
       const qHaveRec = liveFlowHave(fc.qRecSp, "qRecycle");
 
-      if (fc.ok) {
-        return {
-          ok: true,
-          regOk: true,
-          focus: "",
-          forecastHtml: `<div class="block-forecast is-ok"><strong>Tutto OK — prossime 8 ore</strong><br>`
-            + `Impianto in marcia: chimico <strong>${fmtQ(qInSp)}</strong> · P11011 <strong>${pumpHaveLabel(qHavePump)}</strong>`
-            + ` · MP 11036 <strong>${fmtQ(qHaveMand)}</strong> · membrane <strong>${fmtQ(qHaveMem)}</strong>`
-            + ` (uscita media ≈ <strong>${fmtQ(qPermHave)}</strong>)`
-            + ` · riciclo <strong>${fmtQ(qHaveRec)}</strong> (≥ scarico MBR ≈ ${fmtQ(fc.qScaricoNeed)}). `
-            + `Nessun blocco previsto — nessuna regolazione.</div>`,
-          verdict: "",
-          action: "",
-          ask: null,
-          fault: "",
-          alt: "",
-          forceAlt: false,
-          qSafeSamePumps: qInSp,
-          qRecNeed,
-        };
-      }
-
-      const when = fmtForecastWhen(fc.firstBlockMin);
       const hzHave = livePumpHz();
       const havePumpLbl = pumpHaveLabel(qHavePump, hzHave);
       // Sotto il set Automatico? In Automatico con pompa Auto non chiedere “ripristina le 11”:
@@ -5046,6 +5028,34 @@
       } catch (_) { /* ok */ }
       const regOk = !pumpRegBad && !mandRegBad && !recBad && memOk;
 
+      // “8 h OK” solo se anche la regolazione istantanea è a posto (membrane/pompe…).
+      // Altrimenti: Male subito (es. membrane abbassate) anche se i serbatoi tamponano ancora.
+      if (fc.ok && regOk) {
+        return {
+          ok: true,
+          regOk: true,
+          focus: "",
+          forecastHtml: `<div class="block-forecast is-ok"><strong>Tutto OK — prossime 8 ore</strong><br>`
+            + `Impianto in marcia: chimico <strong>${fmtQ(qInSp)}</strong> · P11011 <strong>${havePumpLbl}</strong>`
+            + ` · MP 11036 <strong>${fmtQ(qHaveMand)}</strong> · membrane <strong>${fmtQ(qHaveMem)}</strong>`
+            + ` (uscita media ≈ <strong>${fmtQ(qPermHave)}</strong>)`
+            + ` · riciclo <strong>${fmtQ(qHaveRec)}</strong> (≥ scarico MBR ≈ ${fmtQ(fc.qScaricoNeed)}). `
+            + `Nessun blocco previsto — nessuna regolazione.</div>`,
+          verdict: "",
+          action: "",
+          ask: null,
+          fault: "",
+          alt: "",
+          forceAlt: false,
+          qSafeSamePumps: qInSp,
+          qRecNeed,
+        };
+      }
+
+      const when = fc.firstBlockMin != null
+        ? fmtForecastWhen(fc.firstBlockMin)
+        : "presto (regolazione già sotto)";
+
       let device = "P11011 A/B";
       let target = qPumpTarget;
       let haveNow = qHavePump;
@@ -5065,8 +5075,9 @@
        * 1) P11011 Hz + m³/h rispetto al set Auto
        * 2) MP 11036 allineata a P11011
        * 3) riciclo vs scarico MBR
-       * 4) membrane (solo se pompe già a set Auto)
-       * 5) chimico — ultima spiaggia
+       * 4) membrane (prima della valle: meno membrane → meno acqua a osmosi)
+       * 5) valle / export osmosi+IAS (solo se membrane già ok)
+       * 6) chimico — ultima spiaggia
        */
       if (pumpRegBad) {
         focus = "p11";
@@ -5111,8 +5122,30 @@
         askQ = `È possibile aumentare il <strong>riciclo 11014</strong> a <strong class="flow-val">${fmtQ(qRecNeed)} m³/h</strong>?`;
         yesHtml = `Ok: riciclo → <strong class="flow-val">${fmtQ(qRecNeed)} m³/h</strong>.`;
         noHtml = cfLowerNoHtml(qSafeSamePumps, "riciclo 11014", qHaveRec);
+      } else if (!memOk) {
+        // PRIMA della valle: se membrane sotto minimo, meno permeato → meno UF/osmosi.
+        // Non chiedere di alzare l’osmosi quando il collo di bottiglia sono le membrane.
+        focus = "mem";
+        device = "membrane";
+        target = qMemTarget;
+        haveNow = qHaveMem;
+        anomaly = true;
+        near = nearMem;
+        verdict = `Male: regolazione pompe ok (<strong>P11011 ${havePumpLbl}</strong>), ma `
+          + `<strong>membrane a ${fmtQ(qHaveMem)}</strong> (uscita ≈ ${fmtQ(qPermHave)}) &lt; chimico <strong>${fmtQ(qInSp)}</strong>`
+          + ` (minimo tecnico <strong class="flow-val">${fmtQ(qMemTarget)}</strong>). `
+          + (fc.firstBlockMin != null
+            ? `Blocco previsto tra <strong>${when}</strong>.`
+            : `Con membrane così basse arriva meno acqua a UF/osmosi — correggi ora.`);
+        action = `Membrane → <span class="flow-val">${fmtQ(qMemTarget)} m³/h</span> `
+          + `(minimo tecnico vs chimico ${fmtQ(qInSp)}; P11011 resta ${havePumpLbl}).`;
+        askQ = `È possibile portare le <strong>membrane</strong> al minimo tecnico `
+          + `<strong class="flow-val">${fmtQ(qMemTarget)} m³/h</strong> `
+          + `(ora ${fmtQ(qHaveMem)})?`;
+        yesHtml = `Ok: membrane → <strong class="flow-val">${fmtQ(qMemTarget)} m³/h</strong> (minimo tecnico).`;
+        noHtml = cfLowerNoHtml(qSafeSamePumps, "membrane", qHaveMem);
       } else if (fc.reason === "valley") {
-        // Solo se il loop ha davvero bloccato A10620 per valle — non per flag export 120 vs 160.
+        // Solo se membrane già ok e il loop ha bloccato A10620 per valle — non per flag export 120 vs 160.
         focus = "osm";
         device = "osmosi / IAS";
         const qOsmHave = fc.qOsmCap != null ? fc.qOsmCap : 0;
@@ -5133,22 +5166,6 @@
           + `(ora ${fmtQ(qExpHave)})?`;
         yesHtml = `Ok: export sito ≥ <strong class="flow-val">${fmtQ(qInSp)} m³/h</strong>.`;
         noHtml = cfLowerNoHtml(qSafeSamePumps, "osmosi / IAS", qExpHave);
-      } else if (!memOk) {
-        focus = "mem";
-        device = "membrane";
-        target = qMemTarget;
-        haveNow = qHaveMem;
-        anomaly = true;
-        near = nearMem;
-        verdict = `Male: regolazione pompe ok (<strong>P11011 ${havePumpLbl}</strong>), ma `
-          + `<strong>membrane a ${fmtQ(qHaveMem)}</strong> (uscita ≈ ${fmtQ(qPermHave)}) &lt; chimico <strong>${fmtQ(qInSp)}</strong>. `
-          + `Blocco previsto tra <strong>${when}</strong>.`;
-        action = `Membrane → <span class="flow-val">${fmtQ(qMemTarget)} m³/h</span> `
-          + `(minimo tecnico vs chimico ${fmtQ(qInSp)}; P11011 resta ${havePumpLbl}).`;
-        askQ = `È possibile portare le <strong>membrane</strong> al minimo tecnico `
-          + `<strong class="flow-val">${fmtQ(qMemTarget)} m³/h</strong>?`;
-        yesHtml = `Ok: membrane → <strong class="flow-val">${fmtQ(qMemTarget)} m³/h</strong> (minimo tecnico).`;
-        noHtml = cfLowerNoHtml(qSafeSamePumps, "membrane", qHaveMem);
       } else if (qPumpTarget > qMax + 0.05) {
         forceAlt = true;
         focus = "cf";
@@ -5222,7 +5239,7 @@
         forecastHtml: regOk
           ? `<div class="block-forecast is-ok"><strong>Regolazione OK</strong> — P11011/mandata/riciclo/membrane a set.<br>`
             + `Attenzione livelli: possibile blocco tra <strong>${when}</strong> (non è un errore di Hz/portate).</div>`
-          : `<div class="block-forecast is-bad"><strong>Blocco entro 8 ore</strong><br>${verdict}</div>`,
+          : `<div class="block-forecast is-bad"><strong>${fc.firstBlockMin != null ? "Blocco entro 8 ore" : "Regolazione insufficiente"}</strong><br>${verdict}</div>`,
         verdict: regOk
           ? `Regolazione OK (P11011 ${havePumpLbl}) · rischio livelli tra <strong>${when}</strong>.`
           : verdict,
@@ -11984,8 +12001,15 @@
           const step = pumpStepForNeed(Math.max(flowSetpointOf("qPump"), lastQPump, pumpFloorForIngresso(num("qIn"))));
           val = step.hz;
         }
-      } else if (field === "qMandata" || field === "qRecycle" || field === "qP11019") {
+      } else if (field === "qMandata" || field === "qRecycle") {
         val = flowSetpointOf(field);
+      } else if (field === "qP11019") {
+        // Seed = valore già in display (setpoint; se 0 resta 0)
+        val = flowSetpointOf("qP11019");
+        if (!(val > 0.05)) {
+          const live = numOrNull("qP11019");
+          if (live !== null) val = live;
+        }
       } else if (field === "qP11019Ias" || field === "qP11019Impianto") {
         paintP11019SplitUI();
         val = readP11019SplitEditVal(field);
@@ -13106,7 +13130,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt105", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt140", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
