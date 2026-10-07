@@ -1603,8 +1603,8 @@
         <path class="pipe pipe-main" d="M520 52 H555" />
         <path class="pipe pipe-main" d="M555 52 V100 H580" />
         <path class="pipe pipe-main" d="M720 100 H748" />
-        <!-- permeato: parte dalle membrane (lato destro vaschette) → TK-1107 -->
-        <path class="pipe pipe-main" d="M912 68 H1008 V415 H1004" />
+        <!-- permeato: membrane → destra fino sotto SET → scende → sinistra in TK-11007 -->
+        <path class="pipe pipe-main" d="M912 68 H1070 V415 H1004" />
         <!-- riciclo: da 11014 (sotto A11004) verso A10620 -->
         <path class="pipe pipe-rec" d="M949 220 H248 V135" fill="none" />
         <polygon points="242,145 248,128 254,145" fill="#fb7185" />
@@ -13549,7 +13549,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt150", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt151", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
