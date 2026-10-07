@@ -776,26 +776,26 @@
     .pipe-water-core.pipe-water-rec { stroke: #ffe4e6; }
     .pipe-water-core[data-flow-water="scar"] { stroke-width: 1.55; }
     .pipe-water-core.is-flowing {
-      opacity: 0.5;
-      animation: pipe-water-glow 2s ease-in-out infinite;
+      opacity: 0.72;
+      animation: pipe-water-glow 1.6s ease-in-out infinite;
     }
     /* Riflesso: banda luminosa sfocata che scorre (sembra liquido, non tratti) */
     .pipe-water-sheen {
-      stroke-width: 2.6;
+      stroke-width: 2.8;
       filter: url(#pipeWaterBlur);
     }
     .pipe-water-sheen.pipe-water-main { stroke: #f8fafc; }
     .pipe-water-sheen.pipe-water-rec { stroke: #fff5f5; }
     .pipe-water-sheen[data-flow-water="scar"] { stroke-width: 1.9; }
     .pipe-water-sheen.is-flowing {
-      opacity: 0.85;
-      stroke-dasharray: 70 200;
-      animation: pipe-water-sheen 1.4s linear infinite;
+      opacity: 1;
+      stroke-dasharray: 48 100;
+      animation: pipe-water-sheen 0.85s linear infinite;
     }
-    @keyframes pipe-water-sheen { to { stroke-dashoffset: -270; } }
+    @keyframes pipe-water-sheen { to { stroke-dashoffset: -148; } }
     @keyframes pipe-water-glow {
-      0%, 100% { opacity: 0.38; }
-      50% { opacity: 0.62; }
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 0.85; }
     }
     @media (prefers-reduced-motion: reduce) {
       .pipe-water-core.is-flowing {
@@ -1626,7 +1626,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v188</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v189</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -2038,8 +2038,9 @@
             <text x="809" y="408" text-anchor="middle" fill="#e2e8f0" font-size="7" font-weight="700" pointer-events="none">FILTRI</text>
             <text x="809" y="419" text-anchor="middle" fill="#e2e8f0" font-size="7" font-weight="700" pointer-events="none">CARB B</text>
           </g>
-          <!-- Spine P11019 → carboni → UF (tubo continuo: acqua animata come il resto) -->
-          <path class="pipe pipe-main" data-flow="carb" d="M834 415 H688" />
+          <!-- Solo tratti fuori dai carboni (niente tubo che li taglia) -->
+          <path class="pipe pipe-main" data-flow="carb" d="M784 415 H774" />
+          <path class="pipe pipe-main" data-flow="carb" d="M724 415 H688" />
         </g>
 
         <!-- ULTRAFILTRAZIONE — IN A–D in ingresso · totale sopra -->
@@ -8247,12 +8248,11 @@
       try { paintPipeFlowUI(vis11011, vis11036, vis11014, run11019); } catch (_) { /* ignore */ }
     }
 
-    /** Layer acqua: corpo + riflesso in #pipeWaterLayer (sopra i casing, leggibile anche laggiù). */
+    /** Layer acqua: corpo + riflesso in #pipeWaterLayer (sopra i casing). Ogni pezzo di tubo ha la sua copia. */
     function ensurePipeWaterLayers() {
       const layer = el("pipeWaterLayer");
       if (!layer) return;
-      const READY = "6";
-      // Rebuild se cambiano i path (spine carboni / osmosi continue)
+      const READY = "7";
       if (layer.getAttribute("data-water-ver") !== READY) {
         while (layer.firstChild) layer.removeChild(layer.firstChild);
         layer.setAttribute("data-water-ver", READY);
@@ -8272,6 +8272,7 @@
         const key = p.getAttribute("data-flow") || "";
         const kind = p.classList.contains("pipe-rec") ? "pipe-water-rec" : "pipe-water-main";
         const d = p.getAttribute("d") || "";
+        if (!d) return;
         const mk = (extra) => {
           const w = document.createElementNS("http://www.w3.org/2000/svg", "path");
           w.setAttribute("d", d);
@@ -8279,6 +8280,12 @@
           w.setAttribute("data-flow-water", key);
           w.setAttribute("pointer-events", "none");
           w.setAttribute("fill", "none");
+          w.setAttribute("stroke-linecap", "round");
+          w.setAttribute("stroke-linejoin", "round");
+          // stroke inline: alcuni webview non applicano bene solo il CSS sulle path create a runtime
+          if (kind === "pipe-water-rec") w.setAttribute("stroke", extra.includes("sheen") ? "#fff5f5" : "#ffe4e6");
+          else w.setAttribute("stroke", extra.includes("sheen") ? "#f8fafc" : "#e0f2fe");
+          w.setAttribute("stroke-width", extra.includes("sheen") ? "2.8" : "2.2");
           return w;
         };
         layer.appendChild(mk("pipe-water-core"));
@@ -8286,7 +8293,7 @@
       });
     }
 
-    /** Tubo sempre visibile; acqua interna animata se portata / pompe in marcia. */
+    /** Tubo sempre visibile; acqua interna animata pezzo-per-pezzo se pompe/linea in marcia. */
     function paintPipeFlowUI(vis11011, vis11036, vis11014, run11019) {
       ensurePipeWaterLayers();
       const go = plantIsStarted();
@@ -8298,7 +8305,6 @@
       } catch (_) {
         flowPerm = go && num("qMemTotale") > 0.5;
       }
-      // Scarichi → A11004: continuano anche a membrane ferme (stesso modo, se c’è mandata)
       const qMandLivePipe = Math.max(0, Number(__flowLive.qMandata) || num("qMandata") || 0);
       const qPermLivePipe = flowPerm
         ? Math.max(0, Number(__flowLive.qMemTotale) || num("qMemTotale") || 0)
@@ -8310,18 +8316,22 @@
         flowScar = go && (flowPerm || (!!vis11036 && qMandLivePipe > 0.5));
       }
       const q19LivePipe = Math.max(0, Number(__flowLive.qP11019) || num("qP11019") || 0);
-      let flowUf = false;
-      try {
-        const qUfLive = typeof sumUfEffective === "function" ? sumUfEffective() : 0;
-        flowUf = go && (
-          qUfLive > 0.5
-          || num("qUfTotale") > 0.5
-          || procSetpointOf("qUfTotale") > 0.5
-          || qCarbToUfLive() > 0.5
-          || q19LivePipe > 0.5
-        );
-      } catch (_) {
-        flowUf = go && (num("qUfTotale") > 0.5 || procSetpointOf("qUfTotale") > 0.5 || q19LivePipe > 0.5);
+      // Valle: stessi criteri delle pompe verdi P11019 (param + ricalcolo locale)
+      let valleyRun = !!run11019;
+      if (!valleyRun && go) {
+        try { valleyRun = p11019Allowed() && q19LivePipe > 0.5; } catch (_) {
+          valleyRun = q19LivePipe > 0.5;
+        }
+      }
+      const flowValley = go && valleyRun;
+      let flowUf = flowValley;
+      if (!flowUf && go) {
+        try {
+          const qUfLive = typeof sumUfEffective === "function" ? sumUfEffective() : 0;
+          flowUf = qUfLive > 0.5 || num("qUfTotale") > 0.5 || procSetpointOf("qUfTotale") > 0.5 || qCarbToUfLive() > 0.5;
+        } catch (_) {
+          flowUf = num("qUfTotale") > 0.5;
+        }
       }
       let flowOsmA = false;
       let flowOsmB = false;
@@ -8335,8 +8345,7 @@
         flowOsmB = go && num("qOsmosiB") > 0.5;
         flowOsmC = go && num("qOsmosiC") > 0.5;
       }
-      // Valle TK-11007 → carboni → UF → osmosi: P11019 in marcia O portata viva
-      const flowValley = go && (!!run11019 || q19LivePipe > 0.5);
+      // Con P11019 in marcia: anima TUTTI i pezzi valle (anche spezzati), uno per uno
       const flowOsm = flowOsmA || flowOsmB || flowOsmC || flowValley;
       const map = {
         in: flowIn,
@@ -8359,7 +8368,8 @@
           p.classList.remove("is-wet", "is-flowing", "is-flowing-rev");
         });
         document.querySelectorAll(`[data-flow-water="${key}"]`).forEach((w) => {
-          w.classList.toggle("is-flowing", on);
+          if (on) w.classList.add("is-flowing");
+          else w.classList.remove("is-flowing");
         });
       });
     }
@@ -8511,6 +8521,7 @@
       tickOsmRegulation(1);
       try { applyBalance("sim"); } catch (_) { /* ignore */ }
       try { paintCarbWashUI(); } catch (_) { /* ignore */ }
+      try { paintPumpColors(); } catch (_) { /* ignore */ }
       updateSimTimeUI();
       if (__simPlayTimer) clearInterval(__simPlayTimer);
       __simPlayTimer = setInterval(() => {
