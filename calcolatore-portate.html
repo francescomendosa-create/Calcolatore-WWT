@@ -1567,7 +1567,7 @@
     </div>
 
     <div class="sketch" id="sketch">
-      <svg viewBox="0 0 1020 620" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-label="Schema linea MBR">
+      <svg viewBox="0 0 1060 620" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-label="Schema linea MBR">
         <defs>
           <clipPath id="clipTank20"><ellipse cx="285" cy="100" rx="50" ry="26"/></clipPath>
           <clipPath id="clipTank11"><ellipse cx="630" cy="100" rx="48" ry="25"/></clipPath>
@@ -1829,11 +1829,22 @@
             </g>
           </g>
           <text id="svgPump11019Label" x="910" y="485" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700" pointer-events="none">P11019 A/B/C</text>
-          <text id="svgP11019IasOpen" x="908" y="490" text-anchor="middle" fill="#fbbf24" font-size="8" font-weight="800" opacity="0" pointer-events="none">Aperto IAS</text>
+          <text id="svgP11019IasOpen" x="888" y="490" text-anchor="middle" fill="#fbbf24" font-size="8" font-weight="800" opacity="0" pointer-events="none">Aperto IAS</text>
+          <!-- Overview: portata verso carboni (non il totale pompe) -->
           <g pointer-events="none">
-            <rect class="badge" id="svgQP11019Badge" x="860" y="494" width="96" height="32" rx="5" stroke="#4ade80" />
-            <text class="badge-val" x="888" y="515" text-anchor="middle" id="svgQP11019" font-size="12">140.0</text>
-            <text class="badge-unit" x="922" y="515" text-anchor="middle">m³/h</text>
+            <rect class="badge" id="svgQP11019Badge" x="848" y="494" width="88" height="36" rx="5" stroke="#4ade80" />
+            <text x="892" y="506" text-anchor="middle" fill="#86efac" font-size="7" font-weight="700">→ carboni</text>
+            <text class="badge-val" x="880" y="522" text-anchor="middle" id="svgQP11019" font-size="12">140.0</text>
+            <text class="badge-unit" x="914" y="522" text-anchor="middle">m³/h</text>
+          </g>
+          <!-- Freccia + strumento IAS a destra della portata carboni -->
+          <g id="svgP11019IasBranch" pointer-events="none" aria-label="Portata verso IAS">
+            <path d="M938 512 H958" stroke="#fbbf24" stroke-width="2.2" fill="none" stroke-linecap="round" />
+            <polygon points="958,506 970,512 958,518" fill="#fbbf24" />
+            <rect class="badge" id="svgQP11019IasBadge" x="972" y="494" width="72" height="36" rx="5" stroke="#fbbf24" fill="#1e293b" />
+            <text x="1008" y="506" text-anchor="middle" fill="#fde68a" font-size="8" font-weight="800">IAS</text>
+            <text class="badge-val" x="998" y="522" text-anchor="middle" id="svgQP11019Ias" font-size="11" fill="#fef3c7">0.0</text>
+            <text class="badge-unit" x="1028" y="522" text-anchor="middle" fill="#fde68a" font-size="8">m³/h</text>
           </g>
           <path class="pipe pipe-main" d="M870 415 H834" pointer-events="none" />
         </g>
@@ -3367,7 +3378,7 @@
       <label><strong>Set portata pompe P11019 (m³/h)</strong>
         <input type="number" id="qP11019" min="0" max="140" step="1" value="140" inputmode="decimal" />
       </label>
-      <p class="mini">Set pompe: <strong>0–140 m³/h</strong> (max 140). Puoi scendere a piacere (es. 60) <strong>senza aprire IAS</strong>: Impianto = set pompe. IAS si apre solo se lo imposti tu e si sottrae dal set (Impianto = set − IAS). Overview = set pompe.</p>
+      <p class="mini">Set pompe: <strong>0–140 m³/h</strong> (max 140). Puoi scendere a piacere (es. 60) <strong>senza aprire IAS</strong>: Impianto = set pompe. IAS si apre solo se lo imposti tu e si sottrae dal set (Impianto = set − IAS). Overview = portata <strong>→ carboni</strong> + badge <strong>IAS</strong> a destra (non il totale pompe).</p>
 
       <svg class="p11019-split" viewBox="0 0 400 150" aria-label="Schizzo split Impianto / IAS">
         <text x="200" y="16" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="700">P11019 → destinazioni · tocca per modificare</text>
@@ -3406,7 +3417,7 @@
           <input type="number" id="qP11019Impianto" min="0" max="140" step="0.1" value="" placeholder="" inputmode="decimal" />
         </label>
       </div>
-      <p class="mini" id="p11019SplitHint">Abbassa il set pompe liberamente (IAS chiuso → tutto a Impianto/carboni). Tocca IAS solo se vuoi aprirlo: sottrae dal set. Overview = set pompe.</p>
+      <p class="mini" id="p11019SplitHint">Abbassa il set pompe liberamente (IAS chiuso → tutto a Impianto/carboni). Tocca IAS solo se vuoi aprirlo: sottrae dal set. Overview = carboni + IAS.</p>
       <div class="settings-block show">
         <h4>TK 11007 — consenso (da PROCESSO)</h4>
         <div class="row">
@@ -4381,9 +4392,10 @@
         return `Male · ripristina P11011 (Hz) · o chimico ≤ ${qSafe} · ~${when}`;
       }
       if (focus === "osm") {
-        const qOsm = fc && fc.qOsmCap != null ? fmtQ(fc.qOsmCap) : "—";
+        const qExp = fc && fc.qSiteExport != null ? fmtQ(fc.qSiteExport)
+          : (fc && fc.qOsmCap != null ? fmtQ(fc.qOsmCap) : "—");
         const qIn = fc && fc.qInSp != null ? fmtQ(fc.qInSp) : "—";
-        return `Male · valle corta (osmosi ${qOsm} < chimico ${qIn}) · ~${when}`;
+        return `Male · valle corta (export ${qExp} < chimico ${qIn}) · ~${when}`;
       }
       return `Male · regola impianto · o chimico ≤ ${qSafe} · ~${when}`;
     }
@@ -4614,11 +4626,13 @@
       try { qP19Sp = Math.max(0, flowSetpointOf("qP11019") || Q_P11019_MIN || 140); } catch (_) { /* ok */ }
       let qIasSp = 0;
       try { qIasSp = Math.max(0, Number(__flowSetpoint.qP11019Ias) || 0); } catch (_) { /* ok */ }
+      if (opts.qIas != null) qIasSp = Math.max(0, Number(opts.qIas) || 0);
       let qOsmCap = 0;
       try { qOsmCap = osmExportForForecast(); } catch (_) {
         try { qOsmCap = osmExportSetpointTotal(); } catch (__) { qOsmCap = 0; }
       }
       if (opts.qOsm != null) qOsmCap = Math.max(0, Number(opts.qOsm) || 0);
+      const qImpSp = Math.max(0, round1(qP19Sp - qIasSp));
 
       let chimicoOn = opts.chimicoOn != null ? !!opts.chimicoOn : (__chimicoAllowFill !== false);
       let pumpBy20 = opts.pumpBy20 != null ? !!opts.pumpBy20 : (__runP11011By20 !== false);
@@ -4630,9 +4644,17 @@
       let runP19By07 = opts.runP19 != null ? !!opts.runP19 : (__runP11019By07 !== false);
       let runMbrByLevel = opts.runMbrByLevel != null ? !!opts.runMbrByLevel : (__runMbrByLevel !== false);
       const startupHold = opts.startupHold != null ? !!opts.startupHold : (__startupPumpHold !== false);
-      // Valle corta: export osmosi (solo linee vive) < chimico — es. 44 vs 160
-      const valleyClosed = qOsmCap < 0.05;
-      const valleyShort = qInSp > 0.5 && qOsmCap + 0.5 < qInSp;
+      // Export sito = (osmosi ∨ portata → carboni se valle aperta) + IAS.
+      // IAS esce senza carboni; Impianto→carboni è ciò che la valle deve smaltire.
+      // TK-11021 quasi vuoto ⇒ sta scaricando: non allarmare “valle corta” per lettura osmosi bassa.
+      const tk21Draining = livU <= 35 || livU + 0.5 < startUV - 25;
+      let qValleyOut = qOsmCap;
+      if (allowUf && qImpSp > 0.5) qValleyOut = Math.max(qValleyOut, qImpSp);
+      if (tk21Draining && qImpSp > 0.5) qValleyOut = Math.max(qValleyOut, qImpSp);
+      const qSiteExport = round1(qValleyOut + qIasSp);
+      const valleyClosed = qSiteExport < 0.05;
+      let valleyShort = qInSp > 0.5 && qSiteExport + 0.5 < qInSp;
+      if (tk21Draining && qSiteExport + 0.5 >= Math.min(qInSp, qP19Sp) - 0.5) valleyShort = false;
       const memLow = qInSp > 0.5 && qPermAvg + 1 < qInSp;
       const qScaricoNeed = mbrScaricoToH(qMandSp, qPermAvg, livMbr);
       const recStarve = qScaricoNeed > qRecSp + 2;
@@ -4792,8 +4814,8 @@
       }
 
       if (firstBlockMin == null && (valleyClosed || valleyShort || memLow) && qInSp > 0.5) {
-        // Deficit di prodotto = chimico − export osmosi (non le membrane: restano in sito)
-        const deficit = Math.max(0, qInSp - ((valleyClosed || valleyShort) ? qOsmCap : qPermAvg));
+        // Deficit = chimico − export sito (osmosi + IAS); membrane restano in sito
+        const deficit = Math.max(0, qInSp - ((valleyClosed || valleyShort) ? qSiteExport : qPermAvg));
         let V20 = 450;
         let V21 = 11.7;
         let V07 = 30;
@@ -4855,6 +4877,9 @@
         qPermAvg: round1(qPermAvg),
         qScaricoNeed: round1(qScaricoNeed),
         qOsmCap: round1(qOsmCap),
+        qIasSp: round1(qIasSp),
+        qImpSp: round1(qImpSp),
+        qSiteExport: round1(qSiteExport),
         valleyClosed: !!valleyClosed,
         valleyShort: !!valleyShort,
         endLiv20: round2(liv20),
@@ -4966,8 +4991,16 @@
       const when = fmtForecastWhen(fc.firstBlockMin);
       const hzHave = livePumpHz();
       const havePumpLbl = pumpHaveLabel(qHavePump, hzHave);
-      // Sotto il set Automatico? (portata O Hz) — priorità sulla regolazione pompe
-      const pumpRegBad = pumpBelowAutoSet(qHavePump, pumpAdv) || qHavePump < 0.5;
+      // Sotto il set Automatico? In Automatico con pompa Auto non chiedere “ripristina le 11”:
+      // le regola già da sola (salvo Hz davvero sotto set).
+      let pumpRegBad = pumpBelowAutoSet(qHavePump, pumpAdv) || qHavePump < 0.5;
+      try {
+        if (isAutoMode() && deviceAutoControlled("pompa")) {
+          const hzNeed = pumpAdv && pumpAdv.hz != null ? Number(pumpAdv.hz) : null;
+          const hzOk = hzNeed == null || (hzHave != null && hzHave + 0.05 >= hzNeed);
+          if (hzOk) pumpRegBad = false;
+        }
+      } catch (_) { /* ok */ }
       const recBad = !flowMeetsNeed(qHaveRec, qRecNeed) && (fc.qScaricoNeed != null && fc.qScaricoNeed > 2);
       const mandRegBad = !flowMeetsNeed(qHaveMand, qMandTarget);
 
@@ -5037,26 +5070,27 @@
         yesHtml = `Ok: riciclo → <strong class="flow-val">${fmtQ(qRecNeed)} m³/h</strong>.`;
         noHtml = cfLowerNoHtml(qSafeSamePumps, "riciclo 11014", qHaveRec);
       } else if (fc.reason === "valley" || fc.valleyClosed || fc.valleyShort) {
-        // Export osmosi < chimico (es. 44 vs 160): i serbatoi assorbono poco, poi blocco
-        // Non è un fallimento di Auto su P11011: Automatico regola pompe/mandata, non accende linee osmosi.
+        // Export sito (osmosi + IAS) < chimico — non è un fallimento Auto su P11011.
         focus = "osm";
-        device = "osmosi";
+        device = "osmosi / IAS";
         const qOsmHave = fc.qOsmCap != null ? fc.qOsmCap : 0;
+        const qIasHave = fc.qIasSp != null ? fc.qIasSp : 0;
+        const qExpHave = fc.qSiteExport != null ? fc.qSiteExport : round1(qOsmHave + qIasHave);
         target = Math.max(qInSp, 1);
-        haveNow = qOsmHave;
+        haveNow = qExpHave;
         anomaly = true;
         near = false;
         verdict = `Male: <strong>valle corta</strong> — P11011 già a set (<strong>${havePumpLbl}</strong>), ma `
-          + `osmosi esportano <strong class="flow-val">${fmtQ(qOsmHave)} m³/h</strong> `
-          + `vs chimico <strong>${fmtQ(qInSp)}</strong> (manca ≈ <strong class="flow-val">${fmtQ(Math.max(0, qInSp - qOsmHave))}</strong>). `
-          + `Automatico non avvia linee osmosi: TK-11021/11007 si riempiono → blocco a monte. `
+          + `export sito <strong class="flow-val">${fmtQ(qExpHave)} m³/h</strong> `
+          + `(osmosi ${fmtQ(qOsmHave)} + IAS ${fmtQ(qIasHave)}) `
+          + `vs chimico <strong>${fmtQ(qInSp)}</strong> (manca ≈ <strong class="flow-val">${fmtQ(Math.max(0, qInSp - qExpHave))}</strong>). `
           + `Previsto tra <strong>${when}</strong>.`;
-        action = `Porta l’export osmosi a ≥ <span class="flow-val">${fmtQ(qInSp)} m³/h</span> `
-          + `(più linee in marcia), oppure scendi il chimico. Non toccare P11011/Hz: sono già a posto.`;
-        askQ = `Puoi aumentare le <strong>osmosi</strong> a ≥ <strong class="flow-val">${fmtQ(qInSp)} m³/h</strong> `
-          + `(ora ${fmtQ(qOsmHave)})?`;
-        yesHtml = `Ok: export valle ≥ <strong class="flow-val">${fmtQ(qInSp)} m³/h</strong>.`;
-        noHtml = cfLowerNoHtml(qSafeSamePumps, "osmosi", qOsmHave);
+        action = `Alza export sito (osmosi e/o IAS) a ≥ <span class="flow-val">${fmtQ(qInSp)} m³/h</span>, `
+          + `oppure scendi il chimico. Non toccare P11011/Hz se già in Automatico.`;
+        askQ = `Puoi portare l’export (osmosi + IAS) a ≥ <strong class="flow-val">${fmtQ(qInSp)} m³/h</strong> `
+          + `(ora ${fmtQ(qExpHave)})?`;
+        yesHtml = `Ok: export sito ≥ <strong class="flow-val">${fmtQ(qInSp)} m³/h</strong>.`;
+        noHtml = cfLowerNoHtml(qSafeSamePumps, "osmosi / IAS", qExpHave);
       } else if (!memOk) {
         focus = "mem";
         device = "membrane";
@@ -6550,9 +6584,15 @@
       const popImp = el("svgPopP11019Imp");
       if (popImp) popImp.textContent = fmtSet(impSp);
 
-      // Overview: sempre il SET pompe (massimo); non azzerare a pompe ferme.
+      // Overview: portata verso carboni (Impianto), non il totale pompe.
       const ov = el("svgQP11019");
-      if (ov) ov.textContent = round1(pumpSp).toFixed(1);
+      if (ov) ov.textContent = round1(impSp).toFixed(1);
+      const ovIas = el("svgQP11019Ias");
+      if (ovIas) ovIas.textContent = round1(iasSp).toFixed(1);
+      const iasBranch = el("svgP11019IasBranch");
+      if (iasBranch) iasBranch.setAttribute("opacity", iasSp > 0.05 ? "1" : "0.55");
+      const iasBadge = el("svgQP11019IasBadge");
+      if (iasBadge) iasBadge.setAttribute("stroke", iasSp > 0.05 ? "#fbbf24" : "#64748b");
 
       const iasOpen = el("svgP11019IasOpen");
       if (iasOpen) {
@@ -6565,8 +6605,8 @@
       if (hint) {
         const running = plantIsStarted() && p11019Allowed();
         hint.textContent = running
-          ? `Set pompe ${pumpSp} = Impianto ${impSp} + IAS ${iasSp} m³/h · viva Impianto ${impL.toFixed(1)}`
-          : `P11019 FERME · overview = set ${pumpSp} · IAS ${iasSp} · Impianto ${impSp}`;
+          ? `Set pompe ${pumpSp} = carboni ${impSp} + IAS ${iasSp} · overview carboni ${impL.toFixed(1)}`
+          : `P11019 FERME · overview carboni ${impSp} · IAS ${iasSp} (set pompe ${pumpSp})`;
         hint.style.color = running ? "var(--ok)" : "var(--danger)";
       }
     }
