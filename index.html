@@ -725,6 +725,16 @@
     }
     .mem-cell.is-press-off .mem-hit { stroke: #f87171; }
     .mem-cell.is-press-on .mem-hit { stroke: #4ade80; }
+    /* A/M overview: tap per commutare Aut ↔ Man locale */
+    .svg-man-mark {
+      cursor: pointer;
+      pointer-events: all;
+      font: 800 13px "Segoe UI", sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .svg-man-mark.is-manual { fill: #fbbf24; opacity: 1; }
+    .svg-man-mark.is-auto { fill: #67e8f9; opacity: 0.9; }
     .badge {
       fill: #0b1220;
       stroke: var(--line);
@@ -1616,7 +1626,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v186</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v188</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -1685,7 +1695,7 @@
             <text class="badge-val" x="50" y="133" text-anchor="middle" id="svgQIn">150</text>
             <text class="badge-unit" x="78" y="133" text-anchor="middle">m³/h</text>
           </g>
-          <text id="svgManIngresso" class="svg-man-mark" x="124" y="128" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
+          <text id="svgManIngresso" class="svg-man-mark" data-dev="ingresso" x="124" y="128" text-anchor="start" role="button" tabindex="0" aria-label="Modo ingresso">M</text>
         </g>
 
         <!-- Tasto PROCESSO (sotto chimico fisico, distaccato) -->
@@ -1739,7 +1749,7 @@
             <text class="badge-sp" x="342" y="195" text-anchor="middle" id="svgQPumpSp">345</text>
             <text class="badge-unit badge-unit-set" x="372" y="195" text-anchor="middle">set</text>
           </g>
-          <text id="svgManPompa" class="svg-man-mark" x="396" y="195" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
+          <text id="svgManPompa" class="svg-man-mark" data-dev="pompa" x="396" y="195" text-anchor="start" role="button" tabindex="0" aria-label="Modo P11011">M</text>
         </g>
 
         <!-- TK-10608 alto — passante (geometria in REGOLAZIONI) -->
@@ -1786,7 +1796,7 @@
             <text class="badge-sp" x="687" y="195" text-anchor="middle" id="svgQMandSp">345</text>
             <text class="badge-unit badge-unit-set" x="717" y="195" text-anchor="middle">set</text>
           </g>
-          <text id="svgManMandata" class="svg-man-mark" x="741" y="195" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
+          <text id="svgManMandata" class="svg-man-mark" data-dev="mandata" x="741" y="195" text-anchor="start" role="button" tabindex="0" aria-label="Modo mandata">M</text>
         </g>
 
         <!-- MBR: vaschette A–G (+H fuori uso). Scarichi → A11004. Mandata/permeato dalle membrane -->
@@ -1877,7 +1887,7 @@
           <text class="badge-sp" x="1024" y="34" text-anchor="middle" id="svgQMemSp">171</text>
           <text class="badge-unit badge-unit-set" x="1054" y="34" text-anchor="middle">set</text>
         </g>
-        <text id="svgManMembrane" class="svg-man-mark" x="1078" y="30" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
+        <text id="svgManMembrane" class="svg-man-mark" data-dev="membrane" x="1078" y="30" text-anchor="start" role="button" tabindex="0" aria-label="Modo membrane">M</text>
 
         <!-- aspirazione A11004 → 11014 -->
         <path class="pipe pipe-rec" data-flow="rec" d="M949 176 V200" fill="none" />
@@ -1906,7 +1916,7 @@
             <text class="badge-sp" x="936" y="305" text-anchor="middle" id="svgQRecSp">171</text>
             <text class="badge-unit badge-unit-set" x="966" y="305" text-anchor="middle">set</text>
           </g>
-          <text id="svgManRiciclo" class="svg-man-mark" x="990" y="305" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
+          <text id="svgManRiciclo" class="svg-man-mark" data-dev="riciclo" x="990" y="305" text-anchor="start" role="button" tabindex="0" aria-label="Modo riciclo">M</text>
         </g>
 
         <!-- TK-11007 permeato — click → popup livello + setpoints -->
@@ -2028,9 +2038,8 @@
             <text x="809" y="408" text-anchor="middle" fill="#e2e8f0" font-size="7" font-weight="700" pointer-events="none">FILTRI</text>
             <text x="809" y="419" text-anchor="middle" fill="#e2e8f0" font-size="7" font-weight="700" pointer-events="none">CARB B</text>
           </g>
-          <!-- Ponte tra i filtri / verso UF — NON attraversa i carboni (acqua nel dispositivo) -->
-          <path class="pipe pipe-main" data-flow="carb" d="M784 415 H774" />
-          <path class="pipe pipe-main" data-flow="carb" d="M724 415 H688" />
+          <!-- Spine P11019 → carboni → UF (tubo continuo: acqua animata come il resto) -->
+          <path class="pipe pipe-main" data-flow="carb" d="M834 415 H688" />
         </g>
 
         <!-- ULTRAFILTRAZIONE — IN A–D in ingresso · totale sopra -->
@@ -2048,7 +2057,7 @@
             <text class="badge-sp" x="570" y="326" text-anchor="middle" id="svgQUfSp">0.0</text>
             <text class="badge-unit badge-unit-set" x="600" y="326" text-anchor="middle">set</text>
           </g>
-          <text id="svgManUltra" class="svg-man-mark" x="624" y="322" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
+          <text id="svgManUltra" class="svg-man-mark" data-dev="ultra" x="624" y="322" text-anchor="start" role="button" tabindex="0" aria-label="Modo UF">M</text>
 
           <!-- Collettore ingresso (da carbone) + 4 misuratori → testata UF -->
           <path class="pipe pipe-main" data-flow="uf" d="M688 360 V500" />
@@ -2235,13 +2244,13 @@
             <text class="badge-sp" x="190" y="318" text-anchor="middle" id="svgQOsmTotaleSp">0.0</text>
             <text class="badge-unit badge-unit-set" x="220" y="318" text-anchor="middle">set</text>
           </g>
-          <text id="svgManOsmosi" class="svg-man-mark" x="244" y="314" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
+          <text id="svgManOsmosi" class="svg-man-mark" data-dev="osmosi" x="244" y="314" text-anchor="start" role="button" tabindex="0" aria-label="Modo osmosi">M</text>
 
           <path class="pipe pipe-main" data-flow="osm" d="M310 415 H300" />
           <path class="pipe pipe-main" data-flow="osm" d="M300 348 V482" />
 
-          <!-- A: linea → IN → Osmosi -->
-          <path class="pipe pipe-main" data-flow="osmA" d="M300 348 H278" />
+          <!-- A: linea → IN → Osmosi (tubo continuo fino al modulo) -->
+          <path class="pipe pipe-main" data-flow="osmA" d="M300 348 H190" />
           <g class="flow-edit" data-field="qOsmosiA" data-source="osmosi">
             <rect class="badge" x="188" y="329" width="96" height="40" rx="5" stroke="#7dd3fc" />
             <text class="badge-label" x="236" y="340" text-anchor="middle">IN A</text>
@@ -2251,7 +2260,6 @@
             <rect id="svgOsmValveA" class="osm-valve-fill" x="193" y="360" width="0" height="4" rx="1" />
             <text id="svgOsmValvePctA" class="osm-valve-pct" x="266" y="364" text-anchor="middle">0%</text>
           </g>
-          <path class="pipe pipe-main" data-flow="osmA" d="M188 348 H190" />
           <g class="node" tabindex="0" data-popup="osmosi" data-osm-line="A" role="button" aria-label="Osmosi A" transform="translate(90,340)">
             <rect x="-4" y="-18" width="108" height="42" fill="#000" opacity="0.001" pointer-events="all" />
             <rect class="osm-mini-body" x="0" y="0" width="100" height="16" rx="8" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
@@ -2265,8 +2273,8 @@
             <text class="osm-mini-lab" x="50" y="-6" text-anchor="middle" fill="#7dd3fc" font-size="9" font-weight="700">Osmosi A</text>
           </g>
 
-          <!-- B: linea → IN → Osmosi -->
-          <path class="pipe pipe-main" data-flow="osmB" d="M300 415 H278" />
+          <!-- B: linea → IN → Osmosi (tubo continuo fino al modulo) -->
+          <path class="pipe pipe-main" data-flow="osmB" d="M300 415 H190" />
           <g class="flow-edit" data-field="qOsmosiB" data-source="osmosi">
             <rect class="badge" x="188" y="396" width="96" height="40" rx="5" stroke="#7dd3fc" />
             <text class="badge-label" x="236" y="407" text-anchor="middle">IN B</text>
@@ -2276,7 +2284,6 @@
             <rect id="svgOsmValveB" class="osm-valve-fill" x="193" y="427" width="0" height="4" rx="1" />
             <text id="svgOsmValvePctB" class="osm-valve-pct" x="266" y="431" text-anchor="middle">0%</text>
           </g>
-          <path class="pipe pipe-main" data-flow="osmB" d="M188 415 H190" />
           <g class="node" tabindex="0" data-popup="osmosi" data-osm-line="B" role="button" aria-label="Osmosi B" transform="translate(90,407)">
             <rect x="-4" y="-18" width="108" height="42" fill="#000" opacity="0.001" pointer-events="all" />
             <rect class="osm-mini-body" x="0" y="0" width="100" height="16" rx="8" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
@@ -2290,8 +2297,8 @@
             <text class="osm-mini-lab" x="50" y="-6" text-anchor="middle" fill="#7dd3fc" font-size="9" font-weight="700">Osmosi B</text>
           </g>
 
-          <!-- C: linea → IN → Osmosi -->
-          <path class="pipe pipe-main" data-flow="osmC" d="M300 482 H278" />
+          <!-- C: linea → IN → Osmosi (tubo continuo fino al modulo) -->
+          <path class="pipe pipe-main" data-flow="osmC" d="M300 482 H190" />
           <g class="flow-edit" data-field="qOsmosiC" data-source="osmosi">
             <rect class="badge" x="188" y="463" width="96" height="40" rx="5" stroke="#7dd3fc" />
             <text class="badge-label" x="236" y="474" text-anchor="middle">IN C</text>
@@ -2301,7 +2308,6 @@
             <rect id="svgOsmValveC" class="osm-valve-fill" x="193" y="494" width="0" height="4" rx="1" />
             <text id="svgOsmValvePctC" class="osm-valve-pct" x="266" y="498" text-anchor="middle">0%</text>
           </g>
-          <path class="pipe pipe-main" data-flow="osmC" d="M188 482 H190" />
           <g class="node" tabindex="0" data-popup="osmosi" data-osm-line="C" role="button" aria-label="Osmosi C" transform="translate(90,474)">
             <rect x="-4" y="-18" width="108" height="42" fill="#000" opacity="0.001" pointer-events="all" />
             <rect class="osm-mini-body" x="0" y="0" width="100" height="16" rx="8" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
@@ -4183,12 +4189,21 @@
         osmosi: ["svgManOsmosi"],
       };
       Object.keys(map).forEach((dev) => {
-        const on = deviceIsManual(dev);
+        const man = deviceIsManual(dev);
         map[dev].forEach((id) => {
           const node = el(id);
           if (!node) return;
-          node.setAttribute("opacity", on ? "1" : "0");
-          if (on) node.setAttribute("title", "Manuale locale");
+          node.setAttribute("data-dev", dev);
+          node.textContent = man ? "M" : "A";
+          node.setAttribute("opacity", "1");
+          node.classList.toggle("is-manual", man);
+          node.classList.toggle("is-auto", !man);
+          node.setAttribute("title", man
+            ? "Manuale · clic = Automatico"
+            : "Automatico · clic = Manuale");
+          node.setAttribute("aria-label", man
+            ? `${dev}: Manuale — clic per Automatico`
+            : `${dev}: Automatico — clic per Manuale`);
         });
       });
     }
@@ -8236,8 +8251,8 @@
     function ensurePipeWaterLayers() {
       const layer = el("pipeWaterLayer");
       if (!layer) return;
-      const READY = "5";
-      // Una sola volta: ripulisci layer se nuova versione (path carboni senza attraversare i filtri)
+      const READY = "6";
+      // Rebuild se cambiano i path (spine carboni / osmosi continue)
       if (layer.getAttribute("data-water-ver") !== READY) {
         while (layer.firstChild) layer.removeChild(layer.firstChild);
         layer.setAttribute("data-water-ver", READY);
@@ -8294,6 +8309,7 @@
       } catch (_) {
         flowScar = go && (flowPerm || (!!vis11036 && qMandLivePipe > 0.5));
       }
+      const q19LivePipe = Math.max(0, Number(__flowLive.qP11019) || num("qP11019") || 0);
       let flowUf = false;
       try {
         const qUfLive = typeof sumUfEffective === "function" ? sumUfEffective() : 0;
@@ -8302,9 +8318,10 @@
           || num("qUfTotale") > 0.5
           || procSetpointOf("qUfTotale") > 0.5
           || qCarbToUfLive() > 0.5
+          || q19LivePipe > 0.5
         );
       } catch (_) {
-        flowUf = go && (num("qUfTotale") > 0.5 || procSetpointOf("qUfTotale") > 0.5);
+        flowUf = go && (num("qUfTotale") > 0.5 || procSetpointOf("qUfTotale") > 0.5 || q19LivePipe > 0.5);
       }
       let flowOsmA = false;
       let flowOsmB = false;
@@ -8318,9 +8335,8 @@
         flowOsmB = go && num("qOsmosiB") > 0.5;
         flowOsmC = go && num("qOsmosiC") > 0.5;
       }
-      // Valle TK-11007 → carboni → UF → osmosi: come le linee alte — se P11019 in marcia
-      // anima tutto il tratto (non pezzi spenti per set/misura a 0).
-      const flowValley = go && !!run11019;
+      // Valle TK-11007 → carboni → UF → osmosi: P11019 in marcia O portata viva
+      const flowValley = go && (!!run11019 || q19LivePipe > 0.5);
       const flowOsm = flowOsmA || flowOsmB || flowOsmC || flowValley;
       const map = {
         in: flowIn,
@@ -12533,6 +12549,11 @@
         applyBalance(source === "riciclo-inline" ? "pompa" : source);
         return;
       }
+      // OK su set in Automatico locale → passa in Manuale (M in overview)
+      const editDev = typeof devForFlowField === "function" ? devForFlowField(field) : "";
+      if (editDev && !deviceIsManual(editDev)) {
+        setDevMode(editDev, "manual");
+      }
       if (field === "qRecycle") {
         if (deviceIsManual("riciclo")) {
           // Manuale locale: portata riciclo libera (scollegata da P11011)
@@ -13246,6 +13267,26 @@
         e.stopPropagation();
         const dev = el("flowEditDevMode")?.getAttribute("data-dev");
         if (dev) setDevMode(dev, btn.getAttribute("data-dev-mode"));
+      });
+    });
+
+    // Overview A/M: tap sulla lettera → Aut ↔ Man locale (quante volte vuoi)
+    function toggleDevModeFromMark(node, e) {
+      if (!node || !node.classList || !node.classList.contains("svg-man-mark")) return false;
+      const dev = node.getAttribute("data-dev");
+      if (!dev || !__devMode.hasOwnProperty(dev)) return false;
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
+      }
+      setDevMode(dev, deviceIsManual(dev) ? "auto" : "manual");
+      return true;
+    }
+    document.querySelectorAll(".svg-man-mark[data-dev]").forEach((node) => {
+      node.addEventListener("click", (e) => { toggleDevModeFromMark(node, e); });
+      node.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") toggleDevModeFromMark(node, e);
       });
     });
 
