@@ -4048,8 +4048,7 @@
       }
       const balSrc = ({ membrane: "membrana", ultra: "ultra", osmosi: "osmosi", riciclo: "pompa", pompa: "pompa", mandata: "mandata", ingresso: "ingresso" })[dev] || "pompa";
       applyBalance(balSrc);
-      try { paintRegPreviewBar(); } catch (_) { /* ok */ }
-      try { scheduleRegPreview({ delay: 100 }); } catch (_) { /* ok */ }
+      try { scheduleRegPreview({ immediate: true, userChange: true }); } catch (_) { /* ok */ }
       try { schedulePersist(); } catch (_) { /* persist può non essere ancora definito in teoria */ }
     }
 
@@ -4135,8 +4134,7 @@
         paintPumpColors();
         paintA10608Passante();
         paintAllDevModeUI();
-        try { paintRegPreviewBar(); } catch (_) { /* ok */ }
-        try { scheduleRegPreview({ delay: 120 }); } catch (_) { /* ok */ }
+        try { scheduleRegPreview({ immediate: true, userChange: true }); } catch (_) { /* ok */ }
       } else {
         // Manuale: tieni le portate già impostate dall’auto (setpoint), sblocca edit
         freezeFlowSetpointsFromCurrent();
@@ -4172,7 +4170,7 @@
           bar.className = "status";
           bar.textContent = "Manuale · portate congelate dall’auto · libere da variare · marcia/arresto sui livelli";
         }
-        try { paintRegPreviewBar(); } catch (_) { /* ok */ }
+        try { scheduleRegPreview({ immediate: true, userChange: true }); } catch (_) { /* ok */ }
       }
       schedulePersist();
     }
@@ -4297,11 +4295,23 @@
     let __regPreviewTimer = 0;
     let __blocchiRefreshTimer = 0;
     let __regPreviewSeq = 0;
+    /** Timestamp ultimo cambio operatore (set/Hz/modo): preview immediata, niente isteresi. */
+    let __regUserBumpAt = 0;
+    /** Stato mostrato in barra (anti-sfarfallio bene↔male su pause/lavaggi). */
+    let __regBarShown = { key: "", cls: "", text: "", title: "", warn: "0" };
+    let __regBarPending = { key: "", since: 0 };
+    const REG_BAR_HOLD_MS = 2800;
+
+    function bumpRegUserChange() {
+      __regUserBumpAt = Date.now();
+      __regBarPending = { key: "", since: 0 };
+    }
 
     /** Aggiorna subito (o quasi) bene/male + popup previsioni se aperto. */
     function scheduleRegPreview(opts) {
       opts = opts || {};
-      const delay = opts.immediate ? 0 : (opts.delay != null ? opts.delay : 70);
+      if (opts.userChange) bumpRegUserChange();
+      const delay = opts.immediate || opts.userChange ? 0 : (opts.delay != null ? opts.delay : 70);
       if (__regPreviewTimer) clearTimeout(__regPreviewTimer);
       __regPreviewTimer = setTimeout(() => {
         __regPreviewTimer = 0;
@@ -4334,7 +4344,7 @@
       try { scheduleRegPreview({ delay: 40 }); } catch (_) { /* ok */ }
     }
 
-    /** Bene/Male: lucido sul set reale (Hz/portate), non sulla sola rampa o su livelli già alti. */
+    /** Bene/Male: coerente e stabile (niente sfarfallio su pause/lavaggi); immediato se cambi tu. */
     function paintRegPreviewBar() {
       const bar = el("statusBar");
       if (!bar) return;
@@ -4347,12 +4357,13 @@
         let text;
         let cls;
         const regOk = !!(adv && (adv.ok || adv.regOk));
+        let warnBadge = "1";
         if (fc.ok && regOk) {
           cls = "status is-ok";
           text = "Regolato bene · 8 h OK";
           bar.title = "Nessun blocco previsto nelle prossime 8 ore — clic per dettaglio";
+          warnBadge = "0";
         } else if (regOk && !fc.ok) {
-          // Set giusti (Auto/Hz): non dire “regolato male” — avvisa solo i livelli
           cls = "status warn";
           const when = fmtForecastWhen(fc.firstBlockMin);
           text = `Regolazione OK · attenzione livelli ~${when}`;
@@ -4362,14 +4373,39 @@
           text = shortRegPreviewBad(adv, fc);
           bar.title = (adv.verdict || "Regolazione da correggere") + " — clic per dettaglio / Sì-No";
         }
-        if (__simPlaying || __simMin > 0) text = `t=${__simMin}′ · ` + text;
+        const stateKey = (fc.ok && regOk)
+          ? "ok"
+          : (regOk ? `warn:${Math.floor((fc.firstBlockMin || 0) / 30)}` : `bad:${(adv && adv.focus) || "x"}`);
+        const now = Date.now();
+        const userJustChanged = __regUserBumpAt > 0 && (now - __regUserBumpAt) < 900;
+        let apply = false;
+        if (userJustChanged || !__regBarShown.key || stateKey === __regBarShown.key) {
+          apply = true;
+          __regBarPending = { key: stateKey, since: now };
+        } else if (__regBarPending.key === stateKey) {
+          if (now - __regBarPending.since >= REG_BAR_HOLD_MS) apply = true;
+        } else {
+          __regBarPending = { key: stateKey, since: now };
+        }
+        if (!apply) {
+          cls = __regBarShown.cls;
+          text = __regBarShown.text;
+          bar.title = __regBarShown.title;
+          warnBadge = __regBarShown.warn;
+        } else {
+          __regBarShown = { key: stateKey, cls, text, title: bar.title, warn: warnBadge };
+        }
+        if (__simPlaying || __simMin > 0) {
+          const base = apply ? text : __regBarShown.text;
+          text = `t=${__simMin}′ · ` + String(base || text).replace(/^t=\d+′ · /, "");
+        }
         bar.className = cls;
         bar.textContent = text;
         const badge = el("chimicoBlockCount");
         if (badge) {
-          badge.setAttribute("data-warn", (fc.ok && regOk) ? "0" : "1");
+          badge.setAttribute("data-warn", warnBadge);
           if (__chimicoBlockCount === 0) {
-            badge.title = (fc.ok && regOk)
+            badge.title = warnBadge === "0"
               ? "Nessun blocco — previsione 8 ore OK — clic"
               : regOk
                 ? `Regolazione OK · rischio livelli (~${fmtForecastWhen(fc.firstBlockMin)}) — clic`
@@ -4758,15 +4794,18 @@
         // Verso impianto/UF = solo Impianto (carboni); IAS esce altrove e non entra in valle.
         let qP19Out = 0;
         let qUf = 0;
+        // Duty lavaggi UF medi (~backwash): non azzerare la valle a ogni istante di wash
+        const UF_WASH_DUTY_AVG = 0.88;
         if (runP19By07) {
           if (allowUf) {
             qP19Out = qP19Sp;
-            qUf = qImpSp;
+            qUf = round1(qImpSp * UF_WASH_DUTY_AVG);
           } else {
             qP19Out = Math.min(qP19Sp, qIasSp);
             qUf = 0;
           }
         }
+        // Osmosi: capacità stabile anche con UF in pausa isteresi — svuota 11021 e riapre la valle
         const qOsm = livU > 8 ? qOsmCap : 0;
 
         const qScarico = mbrScaricoToH(qMand, qPerm, livMbr);
@@ -4928,7 +4967,16 @@
       // OK se ≥ bisogno grezzo OPPURE già sul passo Hz consigliato (345 ≥ 280)
       const pumpOk = !pumpBelowAutoSet(qHavePump, pumpAdv);
       const mandOk = flowMeetsNeed(qHaveMand, qMandTarget);
-      const memOk = flowMeetsNeed(qHaveMem, qMemTarget) && !(qInSp > 0.5 && qPermHave + 1 < qInSp);
+      // Membrane: confronto su set × duty medio (non sull’istantaneo in pausa ciclo → niente sfarfallio)
+      let memOk = flowMeetsNeed(qHaveMem, qMemTarget) && !(qInSp > 0.5 && qPermHave + 1 < qInSp);
+      try {
+        if (isAutoMode() && deviceAutoControlled("membrane")) {
+          let sp = qHaveMem;
+          try { sp = Math.max(sp, flowSetpointOf("qMemTotale") || 0); } catch (_) { /* ok */ }
+          const media = round1(sp * dutyAvg);
+          memOk = flowMeetsNeed(sp, qMemTarget) && !(qInSp > 0.5 && media + 1 < qInSp);
+        }
+      } catch (_) { /* ok */ }
       const anomalyPump = isAnomalousLowFlow(qHavePump, qPumpTarget, qInSp);
       const anomalyMand = isAnomalousLowFlow(qHaveMand, qMandTarget, qInSp);
       const anomalyMem = isAnomalousLowFlow(qHaveMem, qMemTarget, qInSp)
@@ -7422,12 +7470,30 @@
       return round1(q);
     }
 
-    /** Export da usare in previsioni: preferisci viva se >0, senno setpoint linee in marcia. */
+    /**
+     * Capacità osmosi STABILE per previsioni: somma setpoint linee abilitate (SP>0).
+     * Non dipende da feeding/misura istantanea (altrimenti bene↔male a ogni oscillazione valvola).
+     */
+    function osmExportCapacityStable() {
+      let q = 0;
+      try {
+        ["A", "B", "C"].forEach((L) => {
+          if (!osmLineEnabled(L)) return;
+          const id = "qOsmosi" + L;
+          let sp = Math.max(0, procSetpointOf(id) || 0);
+          if (sp < 0.05) sp = Math.max(0, num(id) || 0);
+          if (sp > 0.05) q += sp;
+        });
+      } catch (_) { /* ok */ }
+      return round1(q);
+    }
+
+    /** Export previsioni: capacità di set (stabile); la viva alza solo se maggiore, mai abbassa. */
     function osmExportForForecast() {
-      const live = osmExportLiveTotal();
-      const sp = osmExportSetpointTotal();
-      if (live > 0.05) return live;
-      return sp;
+      const cap = osmExportCapacityStable();
+      let live = 0;
+      try { live = osmExportLiveTotal(); } catch (_) { live = 0; }
+      return round1(Math.max(cap, live));
     }
 
     function paintTk11021UI(livU, rateU, blocked) {
@@ -9622,8 +9688,15 @@
         refreshProcViews();
 
         updateLevelRangeUI(qInEff, qPumpEff2, qMandata, qRecycle, totAvg);
-        // Sempre bene/male in evidenza (anche in marcia); popup previsioni se aperto si aggiorna
-        try { scheduleRegPreview({ delay: __simPlaying ? 120 : 40 }); } catch (_) { /* ok */ }
+        // Tick sim/livelli: preview con isteresi. Cambio operatore: immediato (userChange).
+        const autoTick = source === "sim" || source === "livello";
+        try {
+          scheduleRegPreview({
+            delay: autoTick ? (__simPlaying ? 150 : 80) : 0,
+            userChange: !autoTick,
+            immediate: !autoTick,
+          });
+        } catch (_) { /* ok */ }
       } finally {
         endFlowStep();
         lock = false;
