@@ -2029,8 +2029,8 @@
             <text x="809" y="419" text-anchor="middle" fill="#e2e8f0" font-size="7" font-weight="700" pointer-events="none">CARB B</text>
           </g>
           <!-- Ponte: B ↔ A · A → collettore UF (P11019 arriva già a 834) -->
-          <path class="pipe pipe-main" data-flow="p19" d="M784 415 H774" />
-          <path class="pipe pipe-main" data-flow="p19" d="M724 415 H688" />
+          <path class="pipe pipe-main" data-flow="carb" d="M784 415 H774" />
+          <path class="pipe pipe-main" data-flow="carb" d="M724 415 H688" />
         </g>
 
         <!-- ULTRAFILTRAZIONE — IN A–D in ingresso · totale sopra -->
@@ -2042,7 +2042,7 @@
             <text class="badge-val" x="492" y="326" text-anchor="middle" id="svgQUf">0.0</text>
             <text class="badge-unit" x="522" y="326" text-anchor="middle">m³/h</text>
           </g>
-          <g class="flow-edit" data-field="qUfTotale" data-source="uf-totale" aria-label="Setpoint UF">
+          <g class="flow-edit" data-field="qUfTotale" data-source="uf-totale" data-role="setpoint" aria-label="Setpoint UF">
             <rect class="badge" x="546" y="300" width="74" height="34" rx="5" stroke="#fbbf24" />
             <text class="badge-label" x="583" y="312" text-anchor="middle" fill="#fde68a">SET</text>
             <text class="badge-sp" x="570" y="326" text-anchor="middle" id="svgQUfSp">0.0</text>
@@ -2241,7 +2241,7 @@
           <path class="pipe pipe-main" data-flow="osm" d="M300 348 V482" />
 
           <!-- A: linea → IN → Osmosi -->
-          <path class="pipe pipe-main" d="M300 348 H278" />
+          <path class="pipe pipe-main" data-flow="osmA" d="M300 348 H278" />
           <g class="flow-edit" data-field="qOsmosiA" data-source="osmosi">
             <rect class="badge" x="188" y="329" width="96" height="40" rx="5" stroke="#7dd3fc" />
             <text class="badge-label" x="236" y="340" text-anchor="middle">IN A</text>
@@ -2251,7 +2251,7 @@
             <rect id="svgOsmValveA" class="osm-valve-fill" x="193" y="360" width="0" height="4" rx="1" />
             <text id="svgOsmValvePctA" class="osm-valve-pct" x="266" y="364" text-anchor="middle">0%</text>
           </g>
-          <path class="pipe pipe-main" d="M188 348 H190" />
+          <path class="pipe pipe-main" data-flow="osmA" d="M188 348 H190" />
           <g class="node" tabindex="0" data-popup="osmosi" data-osm-line="A" role="button" aria-label="Osmosi A" transform="translate(90,340)">
             <rect x="-4" y="-18" width="108" height="42" fill="#000" opacity="0.001" pointer-events="all" />
             <rect class="osm-mini-body" x="0" y="0" width="100" height="16" rx="8" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
@@ -2266,7 +2266,7 @@
           </g>
 
           <!-- B: linea → IN → Osmosi -->
-          <path class="pipe pipe-main" d="M300 415 H278" />
+          <path class="pipe pipe-main" data-flow="osmB" d="M300 415 H278" />
           <g class="flow-edit" data-field="qOsmosiB" data-source="osmosi">
             <rect class="badge" x="188" y="396" width="96" height="40" rx="5" stroke="#7dd3fc" />
             <text class="badge-label" x="236" y="407" text-anchor="middle">IN B</text>
@@ -2276,7 +2276,7 @@
             <rect id="svgOsmValveB" class="osm-valve-fill" x="193" y="427" width="0" height="4" rx="1" />
             <text id="svgOsmValvePctB" class="osm-valve-pct" x="266" y="431" text-anchor="middle">0%</text>
           </g>
-          <path class="pipe pipe-main" d="M188 415 H190" />
+          <path class="pipe pipe-main" data-flow="osmB" d="M188 415 H190" />
           <g class="node" tabindex="0" data-popup="osmosi" data-osm-line="B" role="button" aria-label="Osmosi B" transform="translate(90,407)">
             <rect x="-4" y="-18" width="108" height="42" fill="#000" opacity="0.001" pointer-events="all" />
             <rect class="osm-mini-body" x="0" y="0" width="100" height="16" rx="8" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
@@ -2291,7 +2291,7 @@
           </g>
 
           <!-- C: linea → IN → Osmosi -->
-          <path class="pipe pipe-main" d="M300 482 H278" />
+          <path class="pipe pipe-main" data-flow="osmC" d="M300 482 H278" />
           <g class="flow-edit" data-field="qOsmosiC" data-source="osmosi">
             <rect class="badge" x="188" y="463" width="96" height="40" rx="5" stroke="#7dd3fc" />
             <text class="badge-label" x="236" y="474" text-anchor="middle">IN C</text>
@@ -2301,7 +2301,7 @@
             <rect id="svgOsmValveC" class="osm-valve-fill" x="193" y="494" width="0" height="4" rx="1" />
             <text id="svgOsmValvePctC" class="osm-valve-pct" x="266" y="498" text-anchor="middle">0%</text>
           </g>
-          <path class="pipe pipe-main" d="M188 482 H190" />
+          <path class="pipe pipe-main" data-flow="osmC" d="M188 482 H190" />
           <g class="node" tabindex="0" data-popup="osmosi" data-osm-line="C" role="button" aria-label="Osmosi C" transform="translate(90,474)">
             <rect x="-4" y="-18" width="108" height="42" fill="#000" opacity="0.001" pointer-events="all" />
             <rect class="osm-mini-body" x="0" y="0" width="100" height="16" rx="8" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
@@ -2315,8 +2315,11 @@
             <text class="osm-mini-lab" x="50" y="-6" text-anchor="middle" fill="#7dd3fc" font-size="9" font-weight="700">Osmosi C</text>
           </g>
 
-          <path class="pipe pipe-main" d="M90 415 H40" stroke-dasharray="6 5" opacity="0.65" />
+          <path class="pipe pipe-main" data-flow="osm" d="M90 415 H40" stroke-dasharray="6 5" opacity="0.65" />
         </g>
+
+        <!-- Acqua tubazioni: sopra i casing (non sotto serbatoi/badge) -->
+        <g id="pipeWaterLayer" pointer-events="none" aria-hidden="true"></g>
 
       </svg>
     </div>
@@ -3618,6 +3621,8 @@
       press: { gap: 80, vol: 0.05, notes: [{ f: 980, d: 0.038 }] },           // inizio long-press
       off: { gap: 120, vol: 0.08, notes: [{ f: 760, d: 0.045 }, { f: 420, d: 0.07, wait: 0.048 }] }, // → rosso
       on: { gap: 120, vol: 0.075, notes: [{ f: 1320, d: 0.04 }, { f: 2050, d: 0.065, wait: 0.042 }] }, // → verde
+      stop: { gap: 100, vol: 0.065, notes: [{ f: 1480, d: 0.028 }, { f: 990, d: 0.04, wait: 0.032 }] }, // Stop sim: Casio corto
+      reset: { gap: 90, vol: 0.04, notes: [{ f: 1350, d: 0.018 }] },          // Reset: ticchettio semplice
       key: { gap: 22, vol: 0.055, notes: [{ f: 1580, d: 0.032 }] },            // tasti numpad
       arrowUp: { gap: 28, vol: 0.06, notes: [{ f: 1750, d: 0.038 }] },
       arrowDown: { gap: 28, vol: 0.06, notes: [{ f: 1180, d: 0.038 }] },
@@ -3657,6 +3662,8 @@
     function playCasioPress() { playCasioTone("press"); }
     function playCasioOn() { playCasioTone("on"); }
     function playCasioOff() { playCasioTone("off"); }
+    function playCasioStop() { playCasioTone("stop"); }
+    function playCasioReset() { playCasioTone("reset"); }
     function playCasioKey() { playCasioTone("key"); }
     function playCasioArrow(dir) { playCasioTone(dir < 0 ? "arrowDown" : "arrowUp"); }
     function playCasioEnable(on) { if (on) playCasioOn(); else playCasioOff(); }
@@ -3876,6 +3883,49 @@
       let s = Math.max(0, Number(__procSetpoint[id]) || 0);
       if (s < 0.05) s = Math.max(0, num(id));
       return round1(s);
+    }
+
+    /** Seed numpad UF/osmosi: memoria + campo + badge SET (mai la viva a 0). */
+    function readProcEditSeed(field) {
+      const f = String(field || "");
+      let best = Math.max(0, Number(__procSetpoint[f]) || 0);
+      const fld = numOrNull(f);
+      if (fld != null && fld > 0.05) best = Math.max(best, fld);
+      if (f === "qUfTotale") {
+        const spTxt = parseFloat(String(el("svgQUfSp")?.textContent || "").replace(",", "."));
+        if (Number.isFinite(spTxt) && spTxt > 0.05) best = Math.max(best, round1(spTxt));
+        let sumL = 0;
+        UF_LINES.forEach((L) => {
+          const mem = Math.max(0, Number(__procSetpoint["qUf" + L]) || 0);
+          const lv = numOrNull("qUf" + L);
+          sumL += Math.max(mem, lv != null ? Math.max(0, lv) : 0);
+        });
+        if (sumL > 0.05) best = Math.max(best, round1(sumL));
+      } else if (/^qUf[A-D]$/.test(f)) {
+        if (best < 0.05) {
+          let tot = Math.max(0, Number(__procSetpoint.qUfTotale) || 0);
+          if (tot < 0.05) {
+            const spTxt = parseFloat(String(el("svgQUfSp")?.textContent || "").replace(",", "."));
+            if (Number.isFinite(spTxt) && spTxt > 0.05) tot = round1(spTxt);
+          }
+          if (tot < 0.05) {
+            const tFld = numOrNull("qUfTotale");
+            if (tFld != null && tFld > 0.05) tot = tFld;
+          }
+          if (tot > 0.05) {
+            const nOn = UF_LINES.filter((L) => ufLineEnabled(L)).length || UF_LINES.length;
+            best = round1(tot / nOn);
+          }
+        }
+      } else if (/^qOsmosi[ABC]$/.test(f)) {
+        const live = numOrNull(f);
+        if (live != null && live > 0.05) best = Math.max(best, live);
+      }
+      best = round1(Math.max(0, best));
+      if (best > 0.05 && Object.prototype.hasOwnProperty.call(__procSetpoint, f)) {
+        rememberProcSetpoint(f, best);
+      }
+      return best;
     }
 
     function paintProcSetpointField(id) {
@@ -4222,6 +4272,7 @@
         paintDevModeUI(dev);
         return;
       }
+      playCasioClick();
       __devMode[dev] = next;
       paintDevModeUI(dev);
       if (next === "manual") {
@@ -4230,8 +4281,11 @@
           const tot = Math.max(0, sumMemsAllOn());
           if (tot > 0.05) setVal("qMemTotale", tot, { force: true });
         } else if (dev === "ultra") {
-          const tot = Math.max(0, sumUfs());
-          if (el("qUfTotale")) setVal("qUfTotale", tot, { force: true });
+          const tot = Math.max(0, procSetpointOf("qUfTotale"), sumUfs());
+          if (tot > 0.05) {
+            rememberProcSetpoint("qUfTotale", tot);
+            if (el("qUfTotale")) setVal("qUfTotale", tot, { force: true });
+          }
         } else if (dev === "osmosi") {
           // tiene qOsmosiA/B/C già impostati
           try { syncOsmosiSvg(); } catch (_) { /* ok */ }
@@ -4336,6 +4390,7 @@
         paintRecycleEditableUI();
         return;
       }
+      playCasioClick();
       __flowMode = next;
       paintFlowModeUI();
       paintRecycleEditableUI();
@@ -4586,24 +4641,17 @@
         let cls;
         const regOk = !!(adv && (adv.ok || adv.regOk));
         let warnBadge = "1";
-        if (fc.ok && regOk) {
+        if (regOk) {
           cls = "status is-ok";
-          text = "Regolato bene · 8 h OK";
-          bar.title = "Nessun blocco previsto nelle prossime 8 ore — clic per dettaglio";
+          text = "Regolato bene · Automatico OK";
+          bar.title = "Portate a set Automatico — nessun intervento (clic per dettaglio)";
           warnBadge = "0";
-        } else if (regOk && !fc.ok) {
-          cls = "status warn";
-          const when = fmtForecastWhen(fc.firstBlockMin);
-          text = `Regolazione OK · attenzione livelli ~${when}`;
-          bar.title = (adv.verdict || "Portate a set · rischio livelli") + " — clic per dettaglio";
         } else {
           cls = "status danger is-bad";
           text = shortRegPreviewBad(adv, fc);
           bar.title = (adv.verdict || "Regolazione da correggere") + " — clic per dettaglio / Sì-No";
         }
-        const stateKey = (fc.ok && regOk)
-          ? "ok"
-          : (regOk ? `warn:${Math.floor((fc.firstBlockMin || 0) / 30)}` : `bad:${(adv && adv.focus) || "x"}`);
+        const stateKey = regOk ? "ok" : `bad:${(adv && adv.focus) || "x"}`;
         const now = Date.now();
         const userJustChanged = __regUserBumpAt > 0 && (now - __regUserBumpAt) < 900;
         let apply = false;
@@ -4634,10 +4682,8 @@
           badge.setAttribute("data-warn", warnBadge);
           if (__chimicoBlockCount === 0) {
             badge.title = warnBadge === "0"
-              ? "Nessun blocco — previsione 8 ore OK — clic"
-              : regOk
-                ? `Regolazione OK · rischio livelli (~${fmtForecastWhen(fc.firstBlockMin)}) — clic`
-                : `Previsto blocco entro 8 ore (~${fmtForecastWhen(fc.firstBlockMin)}) — clic`;
+              ? "Nessun blocco chimico-fisico — regolato bene — clic"
+              : `Regolazione da correggere (~${fmtForecastWhen(fc.firstBlockMin)}) — clic`;
           }
         }
       } catch (_) {
@@ -5256,19 +5302,20 @@
       } catch (_) { /* ok */ }
       const regOk = !pumpRegBad && !mandRegBad && !recBad && memOk;
 
-      // “8 h OK” solo se anche la regolazione istantanea è a posto (membrane/pompe…).
-      // Altrimenti: Male subito (es. membrane abbassate) anche se i serbatoi tamponano ancora.
-      if (fc.ok && regOk) {
+      // Automatico a set (pompe/mandata/riciclo/membrane) = tutto a posto → verde.
+      // Non spaventare con “possibile blocco tra N′” sul chimico: se la regolazione è OK
+      // non c’è intervento da fare (il blocco chimico reale si conta solo se avviene).
+      if (regOk) {
         return {
           ok: true,
           regOk: true,
           focus: "",
-          forecastHtml: `<div class="block-forecast is-ok"><strong>Tutto OK — prossime 8 ore</strong><br>`
+          forecastHtml: `<div class="block-forecast is-ok"><strong>Regolato bene — Automatico a set</strong><br>`
             + `Impianto in marcia: chimico <strong>${fmtQ(qInSp)}</strong> · P11011 <strong>${havePumpLbl}</strong>`
             + ` · MP 11036 <strong>${fmtQ(qHaveMand)}</strong> · membrane <strong>${fmtQ(qHaveMem)}</strong>`
             + ` (uscita media ≈ <strong>${fmtQ(qPermHave)}</strong>)`
             + ` · riciclo <strong>${fmtQ(qHaveRec)}</strong> (≥ scarico MBR ≈ ${fmtQ(fc.qScaricoNeed)}). `
-            + `Nessun blocco previsto — nessuna regolazione.</div>`,
+            + `Nessuna regolazione — nessun blocco chimico-fisico da prevedere.</div>`,
           verdict: "",
           action: "",
           ask: null,
@@ -8212,17 +8259,20 @@
       try { paintPipeFlowUI(vis11011, vis11036, vis11014, run11019); } catch (_) { /* ignore */ }
     }
 
-    /** Layer acqua: corpo continuo + riflesso sfumato (v2, sostituisce il vecchio tratteggio). */
+    /** Layer acqua: corpo + riflesso in #pipeWaterLayer (sopra i casing, leggibile anche laggiù). */
     function ensurePipeWaterLayers() {
+      const layer = el("pipeWaterLayer");
+      if (!layer) return;
       document.querySelectorAll("path.pipe[data-flow]").forEach((p) => {
-        if (p.dataset.waterReady === "2") return;
+        if (p.getAttribute("data-water-ready") === "3") return;
+        // rimuovi eventuali layer vecchi (v2 accanto al path)
         let n = p.nextElementSibling;
         while (n && n.classList && n.classList.contains("pipe-water")) {
           const rem = n;
           n = n.nextElementSibling;
           rem.remove();
         }
-        p.dataset.waterReady = "2";
+        p.setAttribute("data-water-ready", "3");
         const key = p.getAttribute("data-flow") || "";
         const kind = p.classList.contains("pipe-rec") ? "pipe-water-rec" : "pipe-water-main";
         const d = p.getAttribute("d") || "";
@@ -8235,10 +8285,8 @@
           w.setAttribute("fill", "none");
           return w;
         };
-        const core = mk("pipe-water-core");
-        const sheen = mk("pipe-water-sheen");
-        p.insertAdjacentElement("afterend", core);
-        core.insertAdjacentElement("afterend", sheen);
+        layer.appendChild(mk("pipe-water-core"));
+        layer.appendChild(mk("pipe-water-sheen"));
       });
     }
 
@@ -8267,16 +8315,32 @@
       }
       let flowUf = false;
       try {
-        flowUf = go && (num("qUfTotale") > 0.5 || qCarbToUfLive() > 0.5);
+        const qUfLive = typeof sumUfEffective === "function" ? sumUfEffective() : 0;
+        flowUf = go && (
+          qUfLive > 0.5
+          || num("qUfTotale") > 0.5
+          || procSetpointOf("qUfTotale") > 0.5
+          || qCarbToUfLive() > 0.5
+        );
       } catch (_) {
-        flowUf = go && num("qUfTotale") > 0.5;
+        flowUf = go && (num("qUfTotale") > 0.5 || procSetpointOf("qUfTotale") > 0.5);
       }
       let flowOsm = false;
+      let flowOsmA = false;
+      let flowOsmB = false;
+      let flowOsmC = false;
       try {
-        flowOsm = go && osmFeedingCount() > 0;
+        flowOsmA = go && osmLineFeeding("A");
+        flowOsmB = go && osmLineFeeding("B");
+        flowOsmC = go && osmLineFeeding("C");
+        flowOsm = flowOsmA || flowOsmB || flowOsmC || osmFeedingCount() > 0;
       } catch (_) {
-        flowOsm = go && (num("qOsmosiA") + num("qOsmosiB") + num("qOsmosiC")) > 0.5;
+        flowOsmA = go && num("qOsmosiA") > 0.5;
+        flowOsmB = go && num("qOsmosiB") > 0.5;
+        flowOsmC = go && num("qOsmosiC") > 0.5;
+        flowOsm = flowOsmA || flowOsmB || flowOsmC;
       }
+      const flowCarb = !!run11019; // filtri carbone = tratto P11019 → UF
       const map = {
         in: flowIn,
         p11: !!vis11011,
@@ -8285,8 +8349,12 @@
         scar: flowScar,
         perm: flowPerm,
         p19: !!run11019,
+        carb: flowCarb,
         uf: flowUf,
         osm: flowOsm,
+        osmA: flowOsmA,
+        osmB: flowOsmB,
+        osmC: flowOsmC,
       };
       Object.keys(map).forEach((key) => {
         const on = !!map[key];
@@ -8426,7 +8494,7 @@
     /** Avvia conteggio automatico: 1 secondo reale = 1 minuto sim. */
     function simStart() {
       if (__simBusy || __simPlaying) return;
-      playCasioEnable(true);
+      playCasioClick();
       __simPlaying = true;
       try { keepScreenAwake(); } catch (_) { /* ok */ }
       softStartPlantFlows();
@@ -8444,8 +8512,8 @@
     }
 
     /** Ferma il conteggio automatico (il tempo resta dove è). */
-    function simStop() {
-      playCasioEnable(false);
+    function simStop({ silent = false } = {}) {
+      if (!silent && __simPlaying) playCasioStop();
       __simPlaying = false;
       if (__simPlayTimer) {
         clearInterval(__simPlayTimer);
@@ -8912,8 +8980,9 @@
     }
 
     /** Reset: tempo 0′ e livelli A10620 / A10611 / A11004 / MBR = 90% (riparte la simulazione) */
-    function simReset() {
-      simStop();
+    function simReset({ silent = false } = {}) {
+      simStop({ silent: true });
+      if (!silent) playCasioReset();
       __simBusy = false;
       lock = false;
       __simMin = 0;
@@ -9242,7 +9311,6 @@
       const qPermLiv = (totAvg != null && Number.isFinite(Number(totAvg)))
         ? Math.max(0, Number(totAvg))
         : qMemPermeateForLevels(__simBusy || __simMin > 0);
-      const calH = getRicicloHCalib();
       const rateH = estimateRicHRatePctPerMin(
         mbrScaricoToH(qMandata, qPermLiv, numOrNull("livelloAttualeMbr") ?? 90),
         qRecycle
@@ -9253,12 +9321,13 @@
       const stopH = numOrNull("stopSvuotA11004");
       const loH = stopH !== null ? stopH : 77;
       const hiH = startH !== null ? startH : 80;
-      const projH = round1(Math.max(0, Math.min(100, livH + rateH * calH.min)));
       const run14 = assess11014RunState(livH, liv20);
-      const hEmpty = run14.lowStop || projH <= loH + 0.05;
-      const hBlocked = hEmpty || run14.blockAlto20;
+      // Colori A11004 = solo livello (non la pompa 11014):
+      // alto (≥94%, backup collettore) → rosso; sotto → verde / ok
+      const A11004_HIGH = 94;
+      const hHigh = livH >= A11004_HIGH - 0.05;
 
-      setRectLiquid("svgTankHliq", 922, 118, 54, 58, livH, hBlocked);
+      setRectLiquid("svgTankHliq", 922, 118, 54, 58, livH, hHigh);
 
       const loEl = el("svgRangeLoH");
       const hiEl = el("svgRangeHiH");
@@ -9266,24 +9335,25 @@
       if (loEl) { loEl.textContent = fmtPct(loH); loEl.setAttribute("fill", "#4ade80"); }
       if (hiEl) {
         hiEl.textContent = fmtPct(hiH);
-        hiEl.setAttribute("fill", hEmpty ? "#f87171" : "#4ade80");
+        hiEl.setAttribute("fill", "#4ade80");
       }
       if (workEl) {
         workEl.textContent = fmtPct(livH);
-        workEl.setAttribute("fill", hBlocked ? "#f87171" : "#4ade80");
+        workEl.setAttribute("fill", hHigh ? "#f87171" : "#4ade80");
       }
 
       const tankH = el("svgTankH");
       if (tankH) {
-        tankH.setAttribute("stroke", hBlocked ? "#f87171" : "#86efac");
+        tankH.setAttribute("stroke", hHigh ? "#f87171" : "#86efac");
       }
       const svgLivH = el("svgLivH");
       if (svgLivH) {
         svgLivH.textContent = fmtLivTrend(livH, rateH);
-        svgLivH.setAttribute("fill", hBlocked ? "#fecaca" : "#e2e8f0");
+        svgLivH.setAttribute("fill", hHigh ? "#fecaca" : "#e2e8f0");
       }
       const svgRateH = el("svgRateH");
       if (svgRateH) {
+        // Rate / STOP pompa: info marcia 11014 (indipendente dai colori vasca)
         if (!run14.running) {
           svgRateH.textContent = run14.blockAlto20 ? "STOP→20" : "STOP";
           svgRateH.setAttribute("fill", "#f87171");
@@ -10276,16 +10346,22 @@
     }
 
     function paintUfPopupSetpoints() {
-      const totSp = procSetpointOf("qUfTotale");
-      if (totSp > 0.05 && !isEditing("qUfTotale")) setVal("qUfTotale", totSp, { force: true });
+      let totSp = procSetpointOf("qUfTotale");
+      if (totSp > 0.05) {
+        rememberProcSetpoint("qUfTotale", totSp);
+        if (!isEditing("qUfTotale")) setVal("qUfTotale", totSp, { force: true });
+      }
       UF_LINES.forEach((L) => {
         const id = "qUf" + L;
         let sp = procSetpointOf(id);
-        if (sp < 0.05 && totSp > 0.05) sp = round1(totSp / UF_LINES.length);
+        if (sp < 0.05 && totSp > 0.05) {
+          const nOn = UF_LINES.filter((x) => ufLineEnabled(x)).length || UF_LINES.length;
+          sp = round1(totSp / nOn);
+        }
         if (sp > 0.05) {
           rememberProcSetpoint(id, sp);
           const node = el(id);
-          if (node && document.activeElement !== node) node.value = String(sp);
+          if (node && document.activeElement !== node && !isEditing(id)) node.value = String(sp);
         }
       });
     }
@@ -12228,7 +12304,7 @@
 
     function nudgeFlowEdit(dir) {
       if (!inlineCtx || !inlineInp) return;
-      playCasioArrow(dir);
+      playCasioClick();
       // frecce: cambiano valore, numpad resta se già aperto
       const step = flowEditStep(inlineCtx.field);
       const raw = String(inlineInp.value ?? "").trim().replace(",", ".");
@@ -12322,11 +12398,13 @@
         return;
       }
       if (field === "qUfTotale") {
+        if (v > 0.05) rememberProcSetpoint("qUfTotale", v);
         el("qUfTotale").value = String(v);
         syncUf("uf-totale");
         return;
       }
       if (field === "qUfA" || field === "qUfB" || field === "qUfC" || field === "qUfD") {
+        if (v > 0.05) rememberProcSetpoint(field, v);
         setVal(field, v, { force: true });
         syncUf("uf-linea");
         el(field).dispatchEvent(new Event("input", { bubbles: true }));
@@ -12646,15 +12724,7 @@
         || field === "qOsmosiA" || field === "qOsmosiB" || field === "qOsmosiC"
       ) {
         // SEMPRE il setpoint (mai la viva a 0 in lavaggio/blocco)
-        val = procSetpointOf(field);
-        if (!(val > 0.05) && field === "qUfTotale") {
-          const spTxt = parseFloat(String(el("svgQUfSp")?.textContent || "").replace(",", "."));
-          if (Number.isFinite(spTxt) && spTxt > 0.05) val = round1(spTxt);
-        }
-        if (!(val > 0.05) && field.startsWith("qOsmosi")) {
-          const live = numOrNull(field);
-          if (live !== null && live > 0.05) val = live;
-        }
+        val = readProcEditSeed(field);
       } else if (field === "qMemTotale") {
         val = Math.max(
           0,
@@ -13079,8 +13149,16 @@
 
     // TIME Start/Stop (unico toggle) / −1′ / +1′ / Reset  (Start: 1 s reale = 1′ sim)
     el("simPlayToggle")?.addEventListener("click", (e) => { e.preventDefault(); simTogglePlay(); });
-    el("simPlus5")?.addEventListener("click", (e) => { e.preventDefault(); simPlus5(); });
-    el("simMinus5")?.addEventListener("click", (e) => { e.preventDefault(); simMinus5(); });
+    el("simPlus5")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      playCasioArrow(1);
+      simPlus5();
+    });
+    el("simMinus5")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      playCasioArrow(-1);
+      simMinus5();
+    });
     const blockCountBtn = el("chimicoBlockCount");
     if (blockCountBtn) {
       const openBlocks = (e) => {
@@ -13404,6 +13482,16 @@
         C: __ufEnabled.C !== false,
         D: __ufEnabled.D !== false,
       };
+      data.procSetpoint = {
+        qUfTotale: __procSetpoint.qUfTotale,
+        qUfA: __procSetpoint.qUfA,
+        qUfB: __procSetpoint.qUfB,
+        qUfC: __procSetpoint.qUfC,
+        qUfD: __procSetpoint.qUfD,
+        qOsmosiA: __procSetpoint.qOsmosiA,
+        qOsmosiB: __procSetpoint.qOsmosiB,
+        qOsmosiC: __procSetpoint.qOsmosiC,
+      };
       data.regFreqQs = {};
       document.querySelectorAll(".reg-q").forEach((inp) => {
         const hz = String(inp.dataset.hz || "");
@@ -13504,6 +13592,21 @@
           document.querySelectorAll(".uf-q").forEach((inp, i) => {
             if (data.ufQs[i] != null) inp.value = String(data.ufQs[i]);
           });
+        }
+        if (data.procSetpoint && typeof data.procSetpoint === "object") {
+          Object.keys(__procSetpoint).forEach((k) => {
+            const v = Number(data.procSetpoint[k]);
+            if (Number.isFinite(v) && v > 0.05) __procSetpoint[k] = round1(v);
+          });
+        } else {
+          // Legacy: idrata memoria dai campi salvati (qUfTotale / linee / osmosi)
+          ["qUfTotale", "qUfA", "qUfB", "qUfC", "qUfD", "qOsmosiA", "qOsmosiB", "qOsmosiC"].forEach((id) => {
+            const v = numOrNull(id);
+            if (v != null && v > 0.05) rememberProcSetpoint(id, v);
+          });
+          let sumUf = 0;
+          UF_LINES.forEach((L) => { sumUf += Math.max(0, num("qUf" + L) || 0); });
+          if (sumUf > 0.05 && procSetpointOf("qUfTotale") < 0.05) rememberProcSetpoint("qUfTotale", round1(sumUf));
         }
         if (data.regFreqQs && typeof data.regFreqQs === "object") {
           const OLD_REG_FREQ = {
@@ -13696,7 +13799,7 @@
       }
     }
     // Ricomincia la simulazione a 90% (dopo il restore locale, così non viene sovrascritto)
-    try { simReset(); } catch (e) { console.warn("[calcolatore] boot reset", e); }
+    try { simReset({ silent: true }); } catch (e) { console.warn("[calcolatore] boot reset", e); }
     // Badge previsione 8 ore: aggiorna quando cambi le portate a impianto fermo
     ["qIn", "qPump", "qMandata", "qMemTotale", "qRecycle", "freqHz"].forEach((id) => {
       const node = el(id);
@@ -13853,7 +13956,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt165", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt172", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
