@@ -1626,7 +1626,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v190</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v191</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -3719,6 +3719,8 @@
       qUfTotale: 0, qUfA: 0, qUfB: 0, qUfC: 0, qUfD: 0,
       qOsmosiA: 0, qOsmosiB: 0, qOsmosiC: 0,
     };
+    /** Ultimo setpoint UF di automatismo (Impianto/carboni) — per seed numpad e ritorno Aut. */
+    let __ufAutoTotSp = 0;
     /** Rampa portata viva: breve (parte lenta → subito a regime). */
     const FLOW_RAMP_MS = 850;
     const FLOW_RAMP_MS_MIN = 650;
@@ -3895,6 +3897,66 @@
       return round1(s);
     }
 
+    /** Target UF di automatismo: Impianto→carboni / memoria auto / badge — mai 0 se c’è portata valle. */
+    function ufAutoTargetTotal() {
+      let t = Math.max(0, Number(__ufAutoTotSp) || 0);
+      t = Math.max(t, Math.max(0, Number(__procSetpoint.qUfTotale) || 0));
+      const spTxt = parseFloat(String(el("svgQUfSp")?.textContent || "").replace(",", "."));
+      if (Number.isFinite(spTxt) && spTxt > 0.05) t = Math.max(t, round1(spTxt));
+      try {
+        const plant = typeof qCarbToUfProcess === "function" ? qCarbToUfProcess() : 0;
+        if (plant > 0.05) t = Math.max(t, round1(plant));
+      } catch (_) { /* ok */ }
+      try {
+        const imp = typeof qP11019ImpiantoSetpoint === "function" ? qP11019ImpiantoSetpoint() : 0;
+        if (imp > 0.05) t = Math.max(t, round1(imp));
+      } catch (_) { /* ok */ }
+      try {
+        const pump = Math.max(0, flowSetpointOf("qP11019") || num("qP11019") || 0);
+        const ias = Math.max(0, typeof qP11019IasSetpoint === "function" ? qP11019IasSetpoint() : 0);
+        const imp2 = Math.max(0, pump - ias);
+        if (imp2 > 0.05) t = Math.max(t, round1(imp2));
+      } catch (_) { /* ok */ }
+      const liveTxt = parseFloat(String(el("svgQUf")?.textContent || "").replace(",", "."));
+      if (Number.isFinite(liveTxt) && liveTxt > 0.05) t = Math.max(t, round1(liveTxt));
+      let sumL = 0;
+      UF_LINES.forEach((L) => {
+        sumL += Math.max(0, Number(__procSetpoint["qUf" + L]) || 0);
+      });
+      if (sumL > 0.05) t = Math.max(t, round1(sumL));
+      return round1(t);
+    }
+
+    /** Se il numpad è aperto su quel campo, aggiorna subito il valore mostrato (Aut istantaneo). */
+    function syncOpenFlowEditValue(field, val) {
+      if (!inlineCtx || !inlineInp) return;
+      const f = String(field || "");
+      const cur = String(inlineCtx.field || "");
+      const ok = cur === f
+        || (f === "qPump" && cur === "freqHz")
+        || (f === "qMandata" && cur === "freqHzMand")
+        || (f === "qUfTotale" && cur.startsWith("qUf"));
+      if (!ok) return;
+      const targetField = cur;
+      const step = flowEditStep(targetField);
+      let n = Number(val);
+      if (!Number.isFinite(n)) n = 0;
+      if (targetField === "freqHz" || targetField === "freqHzMand") n = clampFreq(n);
+      else if (step >= 1) n = Math.round(n);
+      else n = round1(n);
+      // Linea UF singola: quota del totale
+      if (/^qUf[A-D]$/.test(targetField) && f === "qUfTotale") {
+        const nOn = UF_LINES.filter((L) => ufLineEnabled(L)).length || UF_LINES.length;
+        n = step >= 1 ? Math.round(n / nOn) : round1(n / nOn);
+      }
+      const seed = String(n);
+      inlineInp.value = seed;
+      inlineCtx.openVal = n;
+      inlineCtx.openSeed = seed;
+      __flowNumpadFresh = true;
+      try { updateFlowEditCorr(); } catch (_) { /* ok */ }
+    }
+
     /** Seed numpad UF/osmosi: memoria + campo + badge SET (mai la viva a 0). */
     function readProcEditSeed(field) {
       const f = String(field || "");
@@ -3902,26 +3964,12 @@
       const fld = numOrNull(f);
       if (fld != null && fld > 0.05) best = Math.max(best, fld);
       if (f === "qUfTotale") {
+        best = Math.max(best, ufAutoTargetTotal());
         const spTxt = parseFloat(String(el("svgQUfSp")?.textContent || "").replace(",", "."));
         if (Number.isFinite(spTxt) && spTxt > 0.05) best = Math.max(best, round1(spTxt));
-        let sumL = 0;
-        UF_LINES.forEach((L) => {
-          const mem = Math.max(0, Number(__procSetpoint["qUf" + L]) || 0);
-          const lv = numOrNull("qUf" + L);
-          sumL += Math.max(mem, lv != null ? Math.max(0, lv) : 0);
-        });
-        if (sumL > 0.05) best = Math.max(best, round1(sumL));
       } else if (/^qUf[A-D]$/.test(f)) {
         if (best < 0.05) {
-          let tot = Math.max(0, Number(__procSetpoint.qUfTotale) || 0);
-          if (tot < 0.05) {
-            const spTxt = parseFloat(String(el("svgQUfSp")?.textContent || "").replace(",", "."));
-            if (Number.isFinite(spTxt) && spTxt > 0.05) tot = round1(spTxt);
-          }
-          if (tot < 0.05) {
-            const tFld = numOrNull("qUfTotale");
-            if (tFld != null && tFld > 0.05) tot = tFld;
-          }
+          let tot = ufAutoTargetTotal();
           if (tot > 0.05) {
             const nOn = UF_LINES.filter((L) => ufLineEnabled(L)).length || UF_LINES.length;
             best = round1(tot / nOn);
@@ -3934,6 +3982,9 @@
       best = round1(Math.max(0, best));
       if (best > 0.05 && Object.prototype.hasOwnProperty.call(__procSetpoint, f)) {
         rememberProcSetpoint(f, best);
+        if (f === "qUfTotale" || /^qUf[A-D]$/.test(f)) {
+          if (f === "qUfTotale") __ufAutoTotSp = Math.max(__ufAutoTotSp, best);
+        }
       }
       return best;
     }
@@ -4281,10 +4332,13 @@
           const tot = Math.max(0, sumMemsAllOn());
           if (tot > 0.05) setVal("qMemTotale", tot, { force: true });
         } else if (dev === "ultra") {
-          const tot = Math.max(0, procSetpointOf("qUfTotale"), sumUfs());
+          const tot = Math.max(0, procSetpointOf("qUfTotale"), sumUfs(), ufAutoTargetTotal());
           if (tot > 0.05) {
+            if (__ufAutoTotSp < 0.05) __ufAutoTotSp = tot;
             rememberProcSetpoint("qUfTotale", tot);
+            setUfEqual(tot);
             if (el("qUfTotale")) setVal("qUfTotale", tot, { force: true });
+            try { paintUfSvgLive(); } catch (_) { /* ok */ }
           }
         } else if (dev === "osmosi") {
           // tiene qOsmosiA/B/C già impostati
@@ -4308,36 +4362,82 @@
           if (el("qIn") && qi >= 0) setVal("qIn", qi, { force: true });
         }
       } else if (next === "auto") {
-        // Ripristina il valore di automatismo (non lasciare il set manuale)
+        // Ripristina SUBITO il valore di automatismo (anche numpad aperto)
         if (dev === "ingresso") {
           try {
             const de = dutyEffective();
             const dAvg = de.dAvg != null ? de.dAvg : duty().d;
             const totOn = Math.max(0, typeof sumMemsAllOn === "function" ? sumMemsAllOn() : num("qMemTotale"));
             const qFromMem = round1(totOn * (dAvg > 0.05 ? dAvg : 0.875));
-            if (qFromMem > 0.05 && el("qIn") && !isEditing("qIn")) {
+            if (qFromMem > 0.05 && el("qIn")) {
               setVal("qIn", qFromMem, { force: true });
+              syncOpenFlowEditValue("qIn", qFromMem);
             }
+          } catch (_) { /* ok */ }
+        } else if (dev === "pompa") {
+          try {
+            const step = pumpStepForNeed(pumpFloorForIngresso(num("qIn")));
+            rememberFlowSetpoint("qPump", step.q);
+            const hzNode = el("freqHz");
+            if (hzNode) hzNode.value = String(step.hz);
+            const svgHz = el("svgFreqHz");
+            if (svgHz) svgHz.textContent = String(step.hz);
+            if (p11011Allowed()) commitFlow("qPump", step.q, { setpoint: step.q, instant: true });
+            else commitFlow("qPump", 0, { instant: true });
+            syncOpenFlowEditValue("freqHz", step.hz);
+            syncOpenFlowEditValue("qPump", step.q);
           } catch (_) { /* ok */ }
         } else if (dev === "riciclo") {
           const qp = flowSetpointOf("qPump");
           const qIn = Math.max(0, num("qIn"));
           const qRec = round1(Math.max(Q_RECYCLE_MIN, Math.max(0, qp - qIn)));
           rememberFlowSetpoint("qRecycle", qRec);
-          if (el("qRecycle") && !isEditing("qRecycle")) setVal("qRecycle", qRec, { force: true });
+          if (el("qRecycle")) setVal("qRecycle", qRec, { force: true });
           const svgQRec = el("svgQRec");
           if (svgQRec) svgQRec.textContent = String(Math.round(qRec));
           const svgQRecSp = el("svgQRecSp");
           if (svgQRecSp) svgQRecSp.textContent = String(Math.round(qRec));
           paintRecycleEditableUI();
+          syncOpenFlowEditValue("qRecycle", qRec);
         } else if (dev === "mandata") {
           if (el("equiparaMandata") && isAutoMode()) {
             el("equiparaMandata").checked = true;
             if (el("qMandata")) el("qMandata").disabled = true;
           }
+          try {
+            const step = pumpStepForNeed(pumpFloorForIngresso(num("qIn")));
+            const qM = round1(Math.max(step.q, getPumpMin()));
+            rememberFlowSetpoint("qMandata", qM);
+            if (el("freqHzMand")) el("freqHzMand").value = String(step.hz);
+            const svgHzM = el("svgFreqHzMand");
+            if (svgHzM) svgHzM.textContent = String(step.hz);
+            if (__run11036) commitFlow("qMandata", qM, { setpoint: qM, instant: true });
+            syncOpenFlowEditValue("freqHzMand", step.hz);
+            syncOpenFlowEditValue("qMandata", qM);
+          } catch (_) { /* ok */ }
         } else if (dev === "ultra") {
-          try { ensureCarboniMeetsUfDemand(); } catch (_) { /* ok */ }
-          try { syncUf("uf-totale"); } catch (_) { /* ok */ }
+          try {
+            let q = ufAutoTargetTotal();
+            try {
+              const plant = qCarbToUfProcess();
+              if (plant > 0.05) q = round1(plant);
+            } catch (_) { /* ok */ }
+            if (q < 0.05) {
+              try {
+                const pump = Math.max(0, flowSetpointOf("qP11019") || 0);
+                const ias = Math.max(0, qP11019IasSetpoint());
+                q = round1(Math.max(0, pump - ias));
+              } catch (_) { /* ok */ }
+            }
+            if (q > 0.05) {
+              __ufAutoTotSp = q;
+              rememberProcSetpoint("qUfTotale", q);
+              setUfEqual(q);
+              paintUfSvgLive();
+              syncOpenFlowEditValue("qUfTotale", q);
+            }
+            ensureCarboniMeetsUfDemand();
+          } catch (_) { /* ok */ }
         } else if (dev === "osmosi") {
           try {
             if (deviceAutoControlled("osmosi") || isAutoMode()) {
@@ -4348,7 +4448,7 @@
         }
       }
       if (next === "auto" && isAutoMode() && (dev === "pompa" || dev === "mandata" || dev === "riciclo" || dev === "membrane")) {
-        try { ensurePumpsFlowing({ instant: true }); } catch (_) { /* ok */ }
+        try { ensurePumpsFlowing({ instant: true, forceUi: true }); } catch (_) { /* ok */ }
         try { ensureMembranesAutoMin(); } catch (_) { /* ok */ }
       }
       const balSrc = ({ membrane: "membrana", ultra: "ultra", osmosi: "osmosi", riciclo: "pompa", pompa: "pompa", mandata: "mandata", ingresso: "ingresso" })[dev] || "pompa";
@@ -8908,6 +9008,7 @@
     function ensurePumpsFlowing(opts) {
       opts = opts || {};
       const snap = !!opts.instant;
+      const forceUi = !!(opts.forceUi || snap);
       // Solo in Automatico: allinea P11011 / mandata al chimico
       if (!isAutoMode()) return 0;
       // Prima i setpoints PROCESSO, poi le portate (niente bypass)
@@ -8925,19 +9026,21 @@
       const q = step.q;
       if (deviceAutoControlled("pompa") && p11011Allowed()) {
         rememberFlowSetpoint("qPump", q);
-        if (!isEditing("freqHz")) {
+        // forceUi: aggiorna Hz anche se numpad aperto (ritorno Aut istantaneo)
+        if (forceUi || !isEditing("freqHz")) {
           const hzNode = el("freqHz");
           if (hzNode) hzNode.value = String(step.hz);
           const svgHz = el("svgFreqHz");
           if (svgHz) svgHz.textContent = String(step.hz);
         }
+        if (forceUi) syncOpenFlowEditValue("freqHz", step.hz);
         if (deferToStep) __flowDesire.qPump = q;
         else commitFlow("qPump", q, { setpoint: q, instant: snap });
       } else if (deviceAutoControlled("pompa")) {
         // Pompe ferme: viva → 0, setpoint resta (popup)
         if (deferToStep) __flowDesire.qPump = 0;
         else commitFlow("qPump", 0, { instant: snap });
-        if (!isEditing("freqHz")) {
+        if (forceUi || !isEditing("freqHz")) {
           const hzNode = el("freqHz");
           if (hzNode) hzNode.value = "0";
           const svgHz0 = el("svgFreqHz");
@@ -9720,8 +9823,11 @@
           const totSp = procSetpointOf("qUfTotale");
           if (totSp < 0.05) {
             qUfSet = round1(qP19Plant);
+            __ufAutoTotSp = qUfSet;
             rememberProcSetpoint("qUfTotale", qUfSet);
             setUfEqual(qUfSet);
+          } else {
+            __ufAutoTotSp = Math.max(__ufAutoTotSp, totSp, round1(qP19Plant));
           }
           paintUfPopupSetpoints();
           paintUfSvgLive();
@@ -11439,7 +11545,15 @@
       const svg = el("svgQUf");
       if (svg) svg.textContent = tot.toFixed(1);
       const svgSp = el("svgQUfSp");
-      if (svgSp) svgSp.textContent = round1(procSetpointOf("qUfTotale")).toFixed(1);
+      if (svgSp) {
+        let spShow = procSetpointOf("qUfTotale");
+        if (spShow < 0.05 && !deviceIsManual("ultra")) spShow = ufAutoTargetTotal();
+        if (spShow > 0.05) {
+          rememberProcSetpoint("qUfTotale", spShow);
+          if (!deviceIsManual("ultra")) __ufAutoTotSp = Math.max(__ufAutoTotSp, spShow);
+        }
+        svgSp.textContent = round1(spShow).toFixed(1);
+      }
       // Campo popup = setpoint (non lasciare 0 se vivo in lavaggio/blocco)
       try { paintUfPopupSetpoints(); } catch (_) { /* ok */ }
       paintUfValveUI();
@@ -12820,8 +12934,20 @@
         field === "qUfTotale" || field === "qUfA" || field === "qUfB" || field === "qUfC" || field === "qUfD"
         || field === "qOsmosiA" || field === "qOsmosiB" || field === "qOsmosiC"
       ) {
-        // SEMPRE il setpoint (mai la viva a 0 in lavaggio/blocco)
+        // SEMPRE il setpoint automatico/overview (mai 0 se c’è portata valle)
         val = readProcEditSeed(field);
+        if ((field === "qUfTotale" || /^qUf[A-D]$/.test(field)) && !(val > 0.05)) {
+          val = field === "qUfTotale"
+            ? ufAutoTargetTotal()
+            : round1(ufAutoTargetTotal() / (UF_LINES.filter((L) => ufLineEnabled(L)).length || 4));
+        }
+        if (field === "qUfTotale" && val > 0.05) {
+          __ufAutoTotSp = Math.max(__ufAutoTotSp, val);
+          rememberProcSetpoint("qUfTotale", val);
+          const svgSp = el("svgQUfSp");
+          if (svgSp) svgSp.textContent = round1(val).toFixed(1);
+          if (el("qUfTotale")) setVal("qUfTotale", val, { force: true });
+        }
       } else if (field === "qMemTotale") {
         val = Math.max(
           0,
