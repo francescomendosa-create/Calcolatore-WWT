@@ -1646,15 +1646,18 @@
           <rect id="svgTank20liq" x="235" y="74" width="100" height="52" fill="#22c55e" clip-path="url(#clipTank20)" opacity="0.9" />
           <text x="285" y="78" text-anchor="middle" fill="#bbf7d0" font-size="11" font-weight="700">A10620</text>
           <text x="285" y="104" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700" id="svgLiv">63.8%</text>
-          <!-- pompa a destra verso 10608 -->
-          <g transform="translate(355,100)">
-            <g class="pump-rotor">
-              <circle id="svgPump11011" r="15" fill="#14532d" stroke="#4ade80" stroke-width="2" />
-              <circle class="pump-ring" r="9.5" fill="none" stroke="#86efac" stroke-width="1.6" stroke-dasharray="7 11" stroke-linecap="round" />
-              <path id="svgPump11011Arrow" d="M-7,-8 L11,0 L-7,8 Z" fill="#bbf7d0" />
+          <!-- pompa a destra verso 10608 — click → numpad portata (non popup serbatoio) -->
+          <g class="flow-edit" data-field="qPump" data-source="pompa" aria-label="P11011 A/B portata">
+            <g transform="translate(355,100)">
+              <circle r="22" fill="#000" opacity="0.001" />
+              <g class="pump-rotor">
+                <circle id="svgPump11011" r="15" fill="#14532d" stroke="#4ade80" stroke-width="2" />
+                <circle class="pump-ring" r="9.5" fill="none" stroke="#86efac" stroke-width="1.6" stroke-dasharray="7 11" stroke-linecap="round" />
+                <path id="svgPump11011Arrow" d="M-7,-8 L11,0 L-7,8 Z" fill="#bbf7d0" />
+              </g>
             </g>
+            <text id="svgPump11011Label" x="355" y="128" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700">P11011 A/B</text>
           </g>
-          <text id="svgPump11011Label" x="355" y="128" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700">P11011 A/B</text>
           <g class="flow-edit" data-field="qPump" data-source="pompa">
             <rect class="badge" x="318" y="138" width="74" height="32" rx="5" stroke="#4ade80" />
             <text class="badge-val" x="342" y="159" text-anchor="middle" id="svgQPump">345</text>
@@ -1665,7 +1668,6 @@
             <text class="badge-val" x="276" y="195" text-anchor="middle" id="svgFreqHz">45</text>
             <text class="badge-unit" x="300" y="195" text-anchor="middle">Hz</text>
           </g>
-          <text id="svgManPompaHz" class="svg-man-mark" x="268" y="218" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
           <g class="flow-edit" data-field="qPump" data-source="pompa" aria-label="Setpoint P11011">
             <rect class="badge" x="318" y="174" width="74" height="32" rx="5" stroke="#fbbf24" />
             <text class="badge-sp" x="342" y="195" text-anchor="middle" id="svgQPumpSp">345</text>
@@ -1692,14 +1694,17 @@
           <rect id="svgTank11liq" x="582" y="75" width="96" height="50" fill="#22c55e" clip-path="url(#clipTank11)" opacity="0.9" />
           <text x="630" y="78" text-anchor="middle" fill="#bbf7d0" font-size="11" font-weight="700">A10611/7</text>
           <text x="630" y="104" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700" id="svgLivA10611">55.0%</text>
-          <g transform="translate(700,100)">
-            <g class="pump-rotor">
-              <circle id="svgPump11036" r="15" fill="#14532d" stroke="#4ade80" stroke-width="2" />
-              <circle class="pump-ring" r="9.5" fill="none" stroke="#86efac" stroke-width="1.6" stroke-dasharray="7 11" stroke-linecap="round" />
-              <path id="svgPump11036Arrow" d="M-7,-8 L11,0 L-7,8 Z" fill="#bbf7d0" />
+          <g class="flow-edit" data-field="qMandata" data-source="mandata" aria-label="MP 11036 A/B portata">
+            <g transform="translate(700,100)">
+              <circle r="22" fill="#000" opacity="0.001" />
+              <g class="pump-rotor">
+                <circle id="svgPump11036" r="15" fill="#14532d" stroke="#4ade80" stroke-width="2" />
+                <circle class="pump-ring" r="9.5" fill="none" stroke="#86efac" stroke-width="1.6" stroke-dasharray="7 11" stroke-linecap="round" />
+                <path id="svgPump11036Arrow" d="M-7,-8 L11,0 L-7,8 Z" fill="#bbf7d0" />
+              </g>
             </g>
+            <text id="svgPump11036Label" x="700" y="128" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700">MP 11036 A/B</text>
           </g>
-          <text id="svgPump11036Label" x="700" y="128" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700">MP 11036 A/B</text>
           <g class="flow-edit" data-field="qMandata" data-source="mandata">
             <rect class="badge" x="663" y="138" width="74" height="32" rx="5" stroke="#4ade80" />
             <text class="badge-val" x="687" y="159" text-anchor="middle" id="svgQMand">345</text>
@@ -1710,7 +1715,6 @@
             <text class="badge-val" x="621" y="195" text-anchor="middle" id="svgFreqHzMand">45</text>
             <text class="badge-unit" x="645" y="195" text-anchor="middle">Hz</text>
           </g>
-          <text id="svgManMandataHz" class="svg-man-mark" x="613" y="218" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
           <g class="flow-edit" data-field="qMandata" data-source="mandata" aria-label="Setpoint MP 11036">
             <rect class="badge" x="663" y="174" width="74" height="32" rx="5" stroke="#fbbf24" />
             <text class="badge-sp" x="687" y="195" text-anchor="middle" id="svgQMandSp">345</text>
@@ -1811,16 +1815,19 @@
         <path class="pipe pipe-rec" d="M949 176 V200" fill="none" />
         <polygon points="943,192 955,192 949,204" fill="#fb7185" />
 
-        <!-- 11014 A/B -->
+        <!-- 11014 A/B — pompa → numpad; popup riciclo solo da A11004 -->
         <g class="node" tabindex="0" data-popup="riciclo" role="button" aria-label="11014 A/B riciclo fanghi da A11004">
-          <g transform="translate(949,218)">
-            <g class="pump-rotor">
-              <circle id="svgPump11014" r="14" fill="#14532d" stroke="#4ade80" stroke-width="2" />
-              <circle class="pump-ring" r="8.5" fill="none" stroke="#86efac" stroke-width="1.5" stroke-dasharray="6 10" stroke-linecap="round" />
-              <path id="svgPump11014Arrow" d="M7,-7 L-9,0 L7,7 Z" fill="#bbf7d0" />
+          <g class="flow-edit" data-field="qRecycle" data-source="riciclo-inline" aria-label="11014 A/B portata">
+            <g transform="translate(949,218)">
+              <circle r="20" fill="#000" opacity="0.001" />
+              <g class="pump-rotor">
+                <circle id="svgPump11014" r="14" fill="#14532d" stroke="#4ade80" stroke-width="2" />
+                <circle class="pump-ring" r="8.5" fill="none" stroke="#86efac" stroke-width="1.5" stroke-dasharray="6 10" stroke-linecap="round" />
+                <path id="svgPump11014Arrow" d="M7,-7 L-9,0 L7,7 Z" fill="#bbf7d0" />
+              </g>
             </g>
+            <text id="svgPump11014Label" x="949" y="242" text-anchor="middle" fill="#86efac" font-size="9" font-weight="700">11014 A/B</text>
           </g>
-          <text id="svgPump11014Label" x="949" y="242" text-anchor="middle" fill="#86efac" font-size="9" font-weight="700">11014 A/B</text>
           <g class="flow-edit" data-field="qRecycle" data-source="riciclo-inline">
             <rect class="badge" x="912" y="248" width="74" height="32" rx="5" stroke="#fb7185" />
             <text class="badge-val" x="936" y="269" text-anchor="middle" id="svgQRec">170.8</text>
@@ -2095,11 +2102,12 @@
           <text x="468" y="455" text-anchor="middle" fill="#f87171" font-size="8" font-weight="700" id="svgRangeHi11021">97</text>
         </g>
 
-        <!-- 4 pompe 11040 A–D: A/B/C con relativa osmosi; D sempre ferma (momentaneo) -->
+        <!-- 4 pompe 11040 A–D: click → numpad portata osmosi A–C; D sempre OFF (numpad a 0) -->
         <g aria-label="Pompe 11040 A B C D">
           <path class="pipe pipe-main" d="M420 415 H360" />
           <path class="pipe pipe-main" d="M360 351 V479" />
-          <g transform="translate(360,351)">
+          <g class="flow-edit" data-field="qOsmosiA" data-source="osmosi" aria-label="P11040 A portata" transform="translate(360,351)">
+            <circle r="16" fill="#000" opacity="0.001" />
             <rect x="7" y="-6" width="12" height="11" rx="1.5" fill="#334155" stroke="#94a3b8" stroke-width="1.1" />
             <g class="pump-rotor">
               <circle id="svgPump11040A" r="10" fill="#14532d" stroke="#4ade80" stroke-width="1.6" />
@@ -2108,7 +2116,8 @@
             </g>
             <text id="svgPump11040ALabel" x="-22" y="4" text-anchor="middle" fill="#86efac" font-size="9" font-weight="700">A</text>
           </g>
-          <g transform="translate(360,394)">
+          <g class="flow-edit" data-field="qOsmosiB" data-source="osmosi" aria-label="P11040 B portata" transform="translate(360,394)">
+            <circle r="16" fill="#000" opacity="0.001" />
             <rect x="7" y="-6" width="12" height="11" rx="1.5" fill="#334155" stroke="#94a3b8" stroke-width="1.1" />
             <g class="pump-rotor">
               <circle id="svgPump11040B" r="10" fill="#14532d" stroke="#4ade80" stroke-width="1.6" />
@@ -2117,7 +2126,8 @@
             </g>
             <text id="svgPump11040BLabel" x="-22" y="4" text-anchor="middle" fill="#86efac" font-size="9" font-weight="700">B</text>
           </g>
-          <g transform="translate(360,436)">
+          <g class="flow-edit" data-field="qOsmosiC" data-source="osmosi" aria-label="P11040 C portata" transform="translate(360,436)">
+            <circle r="16" fill="#000" opacity="0.001" />
             <rect x="7" y="-6" width="12" height="11" rx="1.5" fill="#334155" stroke="#94a3b8" stroke-width="1.1" />
             <g class="pump-rotor">
               <circle id="svgPump11040C" r="10" fill="#14532d" stroke="#4ade80" stroke-width="1.6" />
@@ -2126,7 +2136,8 @@
             </g>
             <text id="svgPump11040CLabel" x="-22" y="4" text-anchor="middle" fill="#86efac" font-size="9" font-weight="700">C</text>
           </g>
-          <g transform="translate(360,479)">
+          <g class="flow-edit" data-field="qOsmosiD" data-source="osmosi-d-off" aria-label="P11040 D portata" transform="translate(360,479)">
+            <circle r="16" fill="#000" opacity="0.001" />
             <rect x="7" y="-6" width="12" height="11" rx="1.5" fill="#334155" stroke="#94a3b8" stroke-width="1.1" />
             <g class="pump-rotor">
               <circle id="svgPump11040D" r="10" fill="#334155" stroke="#94a3b8" stroke-width="1.6" />
@@ -4005,8 +4016,8 @@
     function paintDevModeMarks() {
       const map = {
         ingresso: ["svgManIngresso"],
-        pompa: ["svgManPompa", "svgManPompaHz"],
-        mandata: ["svgManMandata", "svgManMandataHz"],
+        pompa: ["svgManPompa"],
+        mandata: ["svgManMandata"],
         membrane: ["svgManMembrane"],
         riciclo: ["svgManRiciclo"],
         ultra: ["svgManUltra"],
@@ -11596,7 +11607,8 @@
         if (e.pointerType === "mouse" && e.button !== 0) return;
         try {
           const t = e.target;
-          if (t && t.closest && t.closest(".flow-edit")) {
+          // flow-edit (misure/set/pompe) → numpad, non popup serbatoio
+          if (t && t.closest && (t.closest(".flow-edit") || t.closest(".pump-rotor"))) {
             ptrDown = null;
             return;
           }
@@ -11630,7 +11642,8 @@
       node.addEventListener("pointerup", (e) => {
         clearHold();
         try {
-          if (e.target && e.target.closest && e.target.closest(".flow-edit")) {
+          const t = e.target;
+          if (t && t.closest && (t.closest(".flow-edit") || t.closest(".pump-rotor"))) {
             clearMemPress();
             ptrDown = null;
             return;
@@ -11679,7 +11692,8 @@
       // click: apre se pointerup non l'ha già fatto (fallback affidabile)
       node.addEventListener("click", (e) => {
         try {
-          if (e.target && e.target.closest && e.target.closest(".flow-edit")) return;
+          const t = e.target;
+          if (t && t.closest && (t.closest(".flow-edit") || t.closest(".pump-rotor"))) return;
         } catch (_) { /* ok */ }
         e.preventDefault();
         e.stopPropagation();
@@ -11725,9 +11739,10 @@
       qUfB: "UF B",
       qUfC: "UF C",
       qUfD: "UF D",
-      qOsmosiA: "Osmosi A",
-      qOsmosiB: "Osmosi B",
-      qOsmosiC: "Osmosi C",
+      qOsmosiA: "Osmosi A · P11040 A",
+      qOsmosiB: "Osmosi B · P11040 B",
+      qOsmosiC: "Osmosi C · P11040 C",
+      qOsmosiD: "P11040 D · OFF",
     };
     function devForFlowField(field) {
       const f = String(field || "");
@@ -12044,6 +12059,10 @@
         el(field).dispatchEvent(new Event("input", { bubbles: true }));
         return;
       }
+      if (field === "qOsmosiD") {
+        if (inlineInp) inlineInp.value = "0";
+        return;
+      }
       if (field === "qOsmosiA" || field === "qOsmosiB" || field === "qOsmosiC") {
         setVal(field, v, { force: true });
         syncOsmosiSvg();
@@ -12179,6 +12198,10 @@
         setVal(field, v, { force: true });
         syncUf("uf-linea");
         el(field).dispatchEvent(new Event("input", { bubbles: true }));
+        return;
+      }
+      if (field === "qOsmosiD") {
+        // P11040 D sempre OFF — nessun write
         return;
       }
       if (field === "qOsmosiA" || field === "qOsmosiB" || field === "qOsmosiC") {
@@ -12339,6 +12362,8 @@
       } else if (field === "qP11019Ias" || field === "qP11019Impianto") {
         paintP11019SplitUI();
         val = readP11019SplitEditVal(field);
+      } else if (field === "qOsmosiD") {
+        val = 0; // P11040 D sempre ferma
       } else {
         val = num(field);
       }
@@ -13524,7 +13549,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt148", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt150", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
