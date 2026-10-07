@@ -2028,8 +2028,10 @@
             <text x="809" y="408" text-anchor="middle" fill="#e2e8f0" font-size="7" font-weight="700" pointer-events="none">FILTRI</text>
             <text x="809" y="419" text-anchor="middle" fill="#e2e8f0" font-size="7" font-weight="700" pointer-events="none">CARB B</text>
           </g>
-          <!-- Ponte: B ↔ A · A → collettore UF (P11019 arriva già a 834) -->
+          <!-- Spine orizzontale attraverso i filtri (stessa animazione valle 11007→UF) -->
+          <path class="pipe pipe-main" data-flow="carb" d="M834 415 H784" />
           <path class="pipe pipe-main" data-flow="carb" d="M784 415 H774" />
+          <path class="pipe pipe-main" data-flow="carb" d="M774 415 H724" />
           <path class="pipe pipe-main" data-flow="carb" d="M724 415 H688" />
         </g>
 
@@ -8259,16 +8261,24 @@
     function ensurePipeWaterLayers() {
       const layer = el("pipeWaterLayer");
       if (!layer) return;
+      const READY = "4";
+      // Una sola volta: ripulisci layer se nuova versione
+      if (layer.getAttribute("data-water-ver") !== READY) {
+        while (layer.firstChild) layer.removeChild(layer.firstChild);
+        layer.setAttribute("data-water-ver", READY);
+        document.querySelectorAll("path.pipe[data-flow]").forEach((p) => {
+          p.removeAttribute("data-water-ready");
+          let n = p.nextElementSibling;
+          while (n && n.classList && n.classList.contains("pipe-water")) {
+            const rem = n;
+            n = n.nextElementSibling;
+            rem.remove();
+          }
+        });
+      }
       document.querySelectorAll("path.pipe[data-flow]").forEach((p) => {
-        if (p.getAttribute("data-water-ready") === "3") return;
-        // rimuovi eventuali layer vecchi (v2 accanto al path)
-        let n = p.nextElementSibling;
-        while (n && n.classList && n.classList.contains("pipe-water")) {
-          const rem = n;
-          n = n.nextElementSibling;
-          rem.remove();
-        }
-        p.setAttribute("data-water-ready", "3");
+        if (p.getAttribute("data-water-ready") === READY) return;
+        p.setAttribute("data-water-ready", READY);
         const key = p.getAttribute("data-flow") || "";
         const kind = p.classList.contains("pipe-rec") ? "pipe-water-rec" : "pipe-water-main";
         const d = p.getAttribute("d") || "";
@@ -8321,7 +8331,6 @@
       } catch (_) {
         flowUf = go && (num("qUfTotale") > 0.5 || procSetpointOf("qUfTotale") > 0.5);
       }
-      let flowOsm = false;
       let flowOsmA = false;
       let flowOsmB = false;
       let flowOsmC = false;
@@ -8329,14 +8338,15 @@
         flowOsmA = go && osmLineFeeding("A");
         flowOsmB = go && osmLineFeeding("B");
         flowOsmC = go && osmLineFeeding("C");
-        flowOsm = flowOsmA || flowOsmB || flowOsmC || osmFeedingCount() > 0;
       } catch (_) {
         flowOsmA = go && num("qOsmosiA") > 0.5;
         flowOsmB = go && num("qOsmosiB") > 0.5;
         flowOsmC = go && num("qOsmosiC") > 0.5;
-        flowOsm = flowOsmA || flowOsmB || flowOsmC;
       }
-      const flowCarb = !!run11019; // filtri carbone = tratto P11019 → UF
+      // Valle TK-11007 → carboni → UF → osmosi: come le linee alte — se P11019 in marcia
+      // anima tutto il tratto (non pezzi spenti per set/misura a 0).
+      const flowValley = go && !!run11019;
+      const flowOsm = flowOsmA || flowOsmB || flowOsmC || flowValley;
       const map = {
         in: flowIn,
         p11: !!vis11011,
@@ -8344,13 +8354,13 @@
         rec: !!vis11014,
         scar: flowScar,
         perm: flowPerm,
-        p19: !!run11019,
-        carb: flowCarb,
-        uf: flowUf,
+        p19: flowValley,
+        carb: flowValley,
+        uf: flowValley || flowUf,
         osm: flowOsm,
-        osmA: flowOsmA,
-        osmB: flowOsmB,
-        osmC: flowOsmC,
+        osmA: flowOsmA || flowValley,
+        osmB: flowOsmB || flowValley,
+        osmC: flowOsmC || flowValley,
       };
       Object.keys(map).forEach((key) => {
         const on = !!map[key];
@@ -11971,7 +11981,7 @@
         }
         // Hold solo su linea/cella: tap sul serbatoio apre comunque il popup
         if (isMemNode && !memL) return;
-        playCasioPress();
+        // Niente suono al pointerdown: tap → solo click popup; long-press → solo enable/disable
         holdTimer = setTimeout(() => {
           holdTimer = null;
           holdFired = true;
@@ -13958,7 +13968,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt174", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt176", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
