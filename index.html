@@ -743,6 +743,29 @@
     .pipe { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
     .pipe-main { stroke: #38bdf8; }
     .pipe-rec { stroke: #fb7185; }
+    /* scorrimento acqua sulle tubazioni (pompe in marcia) */
+    .pipe.is-flowing {
+      stroke-dasharray: 14 9;
+      animation: pipe-flow 1.2s linear infinite;
+      filter: brightness(1.2);
+    }
+    .pipe.pipe-rec.is-flowing {
+      filter: brightness(1.15);
+    }
+    .pipe.is-flowing-rev {
+      stroke-dasharray: 14 9;
+      animation: pipe-flow-rev 1.2s linear infinite;
+      filter: brightness(1.2);
+    }
+    @keyframes pipe-flow { to { stroke-dashoffset: -23; } }
+    @keyframes pipe-flow-rev { to { stroke-dashoffset: 23; } }
+    @media (prefers-reduced-motion: reduce) {
+      .pipe.is-flowing, .pipe.is-flowing-rev {
+        animation: none;
+        stroke-dasharray: none;
+        filter: brightness(1.1);
+      }
+    }
     .p11019-split {
       width: 100%;
       max-width: 420px;
@@ -1596,17 +1619,17 @@
           <clipPath id="clipMbrCells"><rect x="756" y="48" width="154" height="76" rx="2"/></clipPath>
           <clipPath id="clipMbrBar"><rect x="752" y="48" width="10" height="76" rx="2"/></clipPath>
         </defs>
-        <!-- tubazioni -->
-        <path class="pipe pipe-main" d="M115 100 H230" />
-        <path class="pipe pipe-main" d="M360 100 H400" />
-        <path class="pipe pipe-main" d="M400 100 V52 H430" />
-        <path class="pipe pipe-main" d="M520 52 H555" />
-        <path class="pipe pipe-main" d="M555 52 V100 H580" />
-        <path class="pipe pipe-main" d="M720 100 H748" />
+        <!-- tubazioni (data-flow = scorrimento se pompa/linea in marcia) -->
+        <path class="pipe pipe-main" data-flow="in" d="M115 100 H230" />
+        <path class="pipe pipe-main" data-flow="p11" d="M360 100 H400" />
+        <path class="pipe pipe-main" data-flow="p11" d="M400 100 V52 H430" />
+        <path class="pipe pipe-main" data-flow="p11" d="M520 52 H555" />
+        <path class="pipe pipe-main" data-flow="p11" d="M555 52 V100 H580" />
+        <path class="pipe pipe-main" data-flow="mand" d="M720 100 H748" />
         <!-- permeato: membrane → destra fino sotto SET → scende → sinistra in TK-11007 -->
-        <path class="pipe pipe-main" d="M912 68 H1070 V415 H1004" />
+        <path class="pipe pipe-main" data-flow="perm" d="M912 68 H1070 V415 H1004" />
         <!-- riciclo: da 11014 (sotto A11004) verso A10620 -->
-        <path class="pipe pipe-rec" d="M949 220 H248 V135" fill="none" />
+        <path class="pipe pipe-rec" data-flow="rec" d="M949 220 H248 V135" fill="none" />
         <polygon points="242,145 248,128 254,145" fill="#fb7185" />
 
         <!-- Chimico fisico -->
@@ -1778,13 +1801,13 @@
             <rect class="mem-hit" x="880" y="88" width="34" height="36" rx="4" />
           </g>
           <!-- collettore scarichi → A11004 (solo scarichi, non mandata): cade da E F G H -->
-          <path class="pipe pipe-rec" d="M783 128 V140 H897 V128" fill="none" stroke-width="2.2" opacity="0.9" />
-          <path class="pipe pipe-rec" d="M821 128 V140" fill="none" stroke-width="2.2" opacity="0.9" />
-          <path class="pipe pipe-rec" d="M859 128 V140" fill="none" stroke-width="2.2" opacity="0.9" />
-          <path class="pipe pipe-rec" d="M840 140 H922" fill="none" stroke-width="2.2" />
+          <path class="pipe pipe-rec" data-flow="scar" d="M783 128 V140 H897 V128" fill="none" stroke-width="2.2" opacity="0.9" />
+          <path class="pipe pipe-rec" data-flow="scar" d="M821 128 V140" fill="none" stroke-width="2.2" opacity="0.9" />
+          <path class="pipe pipe-rec" data-flow="scar" d="M859 128 V140" fill="none" stroke-width="2.2" opacity="0.9" />
+          <path class="pipe pipe-rec" data-flow="scar" d="M840 140 H922" fill="none" stroke-width="2.2" />
           <polygon points="914,135 926,140 914,145" fill="#fb7185" />
           <!-- permeato: parte dalle membrane (lato destro) -->
-          <path class="pipe pipe-main" d="M914 68 H930" />
+          <path class="pipe pipe-main" data-flow="perm" d="M914 68 H930" />
         </g>
 
         <!-- A11004 piccolo in basso a destra (~1½ membrana): solo scarichi -->
@@ -1815,7 +1838,7 @@
         <text id="svgManMembrane" class="svg-man-mark" x="1078" y="30" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
 
         <!-- aspirazione A11004 → 11014 -->
-        <path class="pipe pipe-rec" d="M949 176 V200" fill="none" />
+        <path class="pipe pipe-rec" data-flow="rec" d="M949 176 V200" fill="none" />
         <polygon points="943,192 955,192 949,204" fill="#fb7185" />
 
         <!-- 11014 A/B — pompa → numpad; popup riciclo solo da A11004 -->
@@ -1859,8 +1882,8 @@
         <g class="node" tabindex="0" data-popup="p11019" role="button" aria-label="P11019 A/B/C verso filtri a carbone">
           <!-- hit-area: in SVG lo spazio vuoto del <g> non riceve click -->
           <rect x="848" y="352" width="120" height="186" fill="#000" opacity="0.001" pointer-events="all" />
-          <path class="pipe pipe-main" d="M940 415 H880" pointer-events="none" />
-          <path class="pipe pipe-main" d="M880 375 V455" pointer-events="none" />
+          <path class="pipe pipe-main" data-flow="p19" d="M940 415 H880" pointer-events="none" />
+          <path class="pipe pipe-main" data-flow="p19" d="M880 375 V455" pointer-events="none" />
           <g transform="translate(880,375)" pointer-events="none">
             <rect x="7" y="-6" width="12" height="11" rx="1.5" fill="#334155" stroke="#94a3b8" stroke-width="1.1" />
             <g class="pump-rotor">
@@ -1902,7 +1925,7 @@
             <text class="badge-val" x="998" y="522" text-anchor="middle" id="svgQP11019Ias" font-size="11" fill="#fef3c7">0.0</text>
             <text class="badge-unit" x="1028" y="522" text-anchor="middle" fill="#fde68a" font-size="8">m³/h</text>
           </g>
-          <path class="pipe pipe-main" d="M870 415 H834" pointer-events="none" />
+          <path class="pipe pipe-main" data-flow="p19" d="M870 415 H834" pointer-events="none" />
         </g>
 
         <!-- FILTRI CARB A · B — al centro tra collettore UF (688) e pompe P11019 (870) -->
@@ -1964,8 +1987,8 @@
             <text x="809" y="419" text-anchor="middle" fill="#e2e8f0" font-size="7" font-weight="700" pointer-events="none">CARB B</text>
           </g>
           <!-- Ponte: B ↔ A · A → collettore UF (P11019 arriva già a 834) -->
-          <path class="pipe pipe-main" d="M784 415 H774" />
-          <path class="pipe pipe-main" d="M724 415 H688" />
+          <path class="pipe pipe-main" data-flow="p19" d="M784 415 H774" />
+          <path class="pipe pipe-main" data-flow="p19" d="M724 415 H688" />
         </g>
 
         <!-- ULTRAFILTRAZIONE — IN A–D in ingresso · totale sopra -->
@@ -1986,9 +2009,9 @@
           <text id="svgManUltra" class="svg-man-mark" x="624" y="322" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
 
           <!-- Collettore ingresso (da carbone) + 4 misuratori → testata UF -->
-          <path class="pipe pipe-main" d="M688 360 V500" />
+          <path class="pipe pipe-main" data-flow="uf" d="M688 360 V500" />
 
-          <path class="pipe pipe-main" d="M688 372 H612" />
+          <path class="pipe pipe-main" data-flow="uf" d="M688 372 H612" />
           <g class="flow-edit" data-field="qUfA" data-source="uf-linea">
             <rect class="badge" x="608" y="350" width="90" height="40" rx="5" stroke="#7dd3fc" />
             <text class="badge-label" x="646" y="361" text-anchor="middle">IN A</text>
@@ -1998,10 +2021,10 @@
             <rect id="svgUfValveA" class="uf-valve-fill" x="613" y="381" width="0" height="4" rx="1" />
             <text id="svgUfValvePctA" class="uf-valve-pct" x="686" y="385" text-anchor="middle">0%</text>
           </g>
-          <path class="pipe pipe-main" d="M620 372 H506" />
-          <path class="pipe pipe-main" d="M506 372 V365" />
+          <path class="pipe pipe-main" data-flow="uf" d="M620 372 H506" />
+          <path class="pipe pipe-main" data-flow="uf" d="M506 372 V365" />
 
-          <path class="pipe pipe-main" d="M688 415 H612" />
+          <path class="pipe pipe-main" data-flow="uf" d="M688 415 H612" />
           <g class="flow-edit" data-field="qUfB" data-source="uf-linea">
             <rect class="badge" x="608" y="393" width="90" height="40" rx="5" stroke="#7dd3fc" />
             <text class="badge-label" x="646" y="404" text-anchor="middle">IN B</text>
@@ -2011,10 +2034,10 @@
             <rect id="svgUfValveB" class="uf-valve-fill" x="613" y="424" width="0" height="4" rx="1" />
             <text id="svgUfValvePctB" class="uf-valve-pct" x="686" y="428" text-anchor="middle">0%</text>
           </g>
-          <path class="pipe pipe-main" d="M620 415 H528" />
-          <path class="pipe pipe-main" d="M528 415 V365" />
+          <path class="pipe pipe-main" data-flow="uf" d="M620 415 H528" />
+          <path class="pipe pipe-main" data-flow="uf" d="M528 415 V365" />
 
-          <path class="pipe pipe-main" d="M688 458 H612" />
+          <path class="pipe pipe-main" data-flow="uf" d="M688 458 H612" />
           <g class="flow-edit" data-field="qUfC" data-source="uf-linea">
             <rect class="badge" x="608" y="436" width="90" height="40" rx="5" stroke="#7dd3fc" />
             <text class="badge-label" x="646" y="447" text-anchor="middle">IN C</text>
@@ -2024,10 +2047,10 @@
             <rect id="svgUfValveC" class="uf-valve-fill" x="613" y="467" width="0" height="4" rx="1" />
             <text id="svgUfValvePctC" class="uf-valve-pct" x="686" y="471" text-anchor="middle">0%</text>
           </g>
-          <path class="pipe pipe-main" d="M620 458 H550" />
-          <path class="pipe pipe-main" d="M550 458 V365" />
+          <path class="pipe pipe-main" data-flow="uf" d="M620 458 H550" />
+          <path class="pipe pipe-main" data-flow="uf" d="M550 458 V365" />
 
-          <path class="pipe pipe-main" d="M688 500 H612" />
+          <path class="pipe pipe-main" data-flow="uf" d="M688 500 H612" />
           <g class="flow-edit" data-field="qUfD" data-source="uf-linea">
             <rect class="badge" x="608" y="479" width="90" height="40" rx="5" stroke="#7dd3fc" />
             <text class="badge-label" x="646" y="490" text-anchor="middle">IN D</text>
@@ -2037,8 +2060,8 @@
             <rect id="svgUfValveD" class="uf-valve-fill" x="613" y="510" width="0" height="4" rx="1" />
             <text id="svgUfValvePctD" class="uf-valve-pct" x="686" y="514" text-anchor="middle">0%</text>
           </g>
-          <path class="pipe pipe-main" d="M620 500 H572" />
-          <path class="pipe pipe-main" d="M572 500 V365" />
+          <path class="pipe pipe-main" data-flow="uf" d="M620 500 H572" />
+          <path class="pipe pipe-main" data-flow="uf" d="M572 500 V365" />
 
           <!-- Colonne UF A–D: a sinistra dei badge portata, centrate nello spazio verso TK-11021 -->
           <g class="node" tabindex="0" data-popup="ultra" data-uf-line="A" role="button" aria-label="Ultrafiltrazione A" transform="translate(498,365)">
@@ -2092,7 +2115,7 @@
         </g>
 
         <!-- Uscita UF → TK-11021 -->
-        <path class="pipe pipe-main" d="M498 415 H484" />
+        <path class="pipe pipe-main" data-flow="uf" d="M498 415 H484" />
 
         <!-- TK-11021 permeato UF — click → popup livello + setpoints -->
         <g class="node" tabindex="0" data-popup="tk11021" role="button" aria-label="TK 11021 permeato UF">
@@ -2107,8 +2130,8 @@
 
         <!-- 4 pompe 11040 A–D: click → numpad portata osmosi A–C; D sempre OFF (numpad a 0) -->
         <g aria-label="Pompe 11040 A B C D">
-          <path class="pipe pipe-main" d="M420 415 H360" />
-          <path class="pipe pipe-main" d="M360 351 V479" />
+          <path class="pipe pipe-main" data-flow="osm" d="M420 415 H360" />
+          <path class="pipe pipe-main" data-flow="osm" d="M360 351 V479" />
           <g class="flow-edit" data-field="qOsmosiA" data-source="osmosi" aria-label="P11040 A portata" transform="translate(360,351)">
             <circle r="16" fill="#000" opacity="0.001" />
             <rect x="7" y="-6" width="12" height="11" rx="1.5" fill="#334155" stroke="#94a3b8" stroke-width="1.1" />
@@ -2151,7 +2174,7 @@
           </g>
           <text id="svgPump11040Label" x="360" y="508" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700">P11040 A–D</text>
           <!-- prosegue vicino alle osmosi -->
-          <path class="pipe pipe-main" d="M350 415 H310" />
+          <path class="pipe pipe-main" data-flow="osm" d="M350 415 H310" />
         </g>
 
         <!-- OSMOSI A B C — totali in alto · linea → misuratore → osmosi -->
@@ -2172,8 +2195,8 @@
           </g>
           <text id="svgManOsmosi" class="svg-man-mark" x="244" y="314" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
 
-          <path class="pipe pipe-main" d="M310 415 H300" />
-          <path class="pipe pipe-main" d="M300 348 V482" />
+          <path class="pipe pipe-main" data-flow="osm" d="M310 415 H300" />
+          <path class="pipe pipe-main" data-flow="osm" d="M300 348 V482" />
 
           <!-- A: linea → IN → Osmosi -->
           <path class="pipe pipe-main" d="M300 348 H278" />
@@ -8042,6 +8065,51 @@
       try { paintCarbWashUI(); } catch (_) { /* ignore */ }
       // P-11040 A/B/C = relativa osmosi; D sempre ferma
       try { paintOsmosiRunUI(); } catch (_) { /* ignore */ }
+      try { paintPipeFlowUI(vis11011, vis11036, vis11014, run11019); } catch (_) { /* ignore */ }
+    }
+
+    /** Scorrimento tratteggiato sulle tubazioni overview quando c’è portata / pompe in marcia. */
+    function paintPipeFlowUI(vis11011, vis11036, vis11014, run11019) {
+      const go = plantIsStarted();
+      const qInLive = Math.max(0, num("qIn") || 0);
+      const flowIn = go && qInLive > 0.5 && !!__chimicoAllowFill;
+      let flowPerm = false;
+      try {
+        flowPerm = go && sumMemsRunning(__mbrCycleMin) > 0.5;
+      } catch (_) {
+        flowPerm = go && num("qMemTotale") > 0.5;
+      }
+      const flowScar = flowPerm; // scarichi fanghi con membrane in produzione
+      let flowUf = false;
+      try {
+        flowUf = go && (num("qUfTotale") > 0.5 || qCarbToUfLive() > 0.5);
+      } catch (_) {
+        flowUf = go && num("qUfTotale") > 0.5;
+      }
+      let flowOsm = false;
+      try {
+        flowOsm = go && osmFeedingCount() > 0;
+      } catch (_) {
+        flowOsm = go && (num("qOsmosiA") + num("qOsmosiB") + num("qOsmosiC")) > 0.5;
+      }
+      const map = {
+        in: flowIn,
+        p11: !!vis11011,
+        mand: !!vis11036,
+        rec: !!vis11014,
+        scar: flowScar,
+        perm: flowPerm,
+        p19: !!run11019,
+        uf: flowUf,
+        osm: flowOsm,
+      };
+      Object.keys(map).forEach((key) => {
+        const on = !!map[key];
+        document.querySelectorAll(`[data-flow="${key}"]`).forEach((p) => {
+          p.classList.toggle("is-flowing", on);
+          p.classList.remove("is-flowing-rev");
+        });
+      });
     }
 
     /** Riciclo effettivo 11014: ferme → 0; in marcia + riciclo Auto → almeno Q_RECYCLE_MIN. */
@@ -13552,7 +13620,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt154", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt156", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
