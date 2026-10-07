@@ -1829,7 +1829,6 @@
             </g>
           </g>
           <text id="svgPump11019Label" x="910" y="485" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700" pointer-events="none">P11019 A/B/C</text>
-          <text id="svgP11019IasOpen" x="888" y="490" text-anchor="middle" fill="#fbbf24" font-size="8" font-weight="800" opacity="0" pointer-events="none">Aperto IAS</text>
           <!-- Overview: portata verso carboni (non il totale pompe) -->
           <g pointer-events="none">
             <rect class="badge" id="svgQP11019Badge" x="848" y="494" width="88" height="36" rx="5" stroke="#4ade80" />
@@ -4813,54 +4812,9 @@
         }
       }
 
-      if (firstBlockMin == null && (valleyClosed || valleyShort || memLow) && qInSp > 0.5) {
-        // Deficit = chimico − export sito (osmosi + IAS); membrane restano in sito
-        const deficit = Math.max(0, qInSp - ((valleyClosed || valleyShort) ? qSiteExport : qPermAvg));
-        let V20 = 450;
-        let V21 = 11.7;
-        let V07 = 30;
-        try { V20 = getA10620Geom().V || 450; } catch (_) { /* ok */ }
-        try { V21 = getTk11021Geom().V || 11.7; } catch (_) { /* ok */ }
-        try { V07 = getTk11007Geom().V || 30; } catch (_) { /* ok */ }
-        // Tempo grezzo: prima i piccoli serbatoi valle, poi A10620
-        const room21 = Math.max(0, (stopUV - livU) / 100) * V21;
-        const room07 = Math.max(0, (stopPV - livP) / 100) * V07;
-        const room20 = Math.max(0, (stop - liv20) / 100) * V20;
-        const tValley = deficit > 0.5 ? Math.ceil(((room21 + room07) / deficit) * 60) : 0;
-        const t20 = deficit > 0.5 ? Math.ceil((room20 / deficit) * 60) : 9999;
-        const tEst = Math.max(1, tValley + t20);
-        if (tEst <= H) {
-          firstBlockMin = Math.max(1, Math.min(H, tEst));
-          reason = (valleyClosed || valleyShort) ? "valley" : "mem";
-          blocks.push(firstBlockMin);
-          firstSnap = snapAt(firstBlockMin, qRecSp, qPumpSp, qMandSp, (valleyClosed || valleyShort) ? 0 : qPermAvg, {
-            run11036: true, pumpOn: true, pumpBy20: true, blockP11: false,
-            allowUf: !(valleyClosed || valleyShort), allowMbrByPerm: !(valleyClosed || valleyShort),
-          });
-          firstSnap.liv20 = round2(Math.min(stop, liv20 + (deficit / Math.max(1, V20)) * (100 / 60) * firstBlockMin));
-          firstSnap.deficitProd = round1(deficit);
-        }
-      }
-
-      if (firstBlockMin == null && recStarve && qMandSp > 0.5) {
-        let VH = 20;
-        try { VH = getA11004Volume().V || 20; } catch (_) { /* ok */ }
-        const netH = qScaricoNeed - qRecSp;
-        const rateH = Math.max(0.05, (netH / Math.max(1, VH)) * (100 / 60));
-        const pctRoom = Math.max(2, 97.5 - livH);
-        const tEst = Math.ceil(pctRoom / rateH);
-        if (tEst <= H) {
-          firstBlockMin = Math.max(1, Math.min(H, tEst));
-          reason = "rec";
-          blocks.push(firstBlockMin);
-          firstSnap = snapAt(firstBlockMin, qRecSp, qPumpSp, qMandSp, qPermAvg, {
-            run11036: true, pumpOn: true, pumpBy20: true, blockP11: false,
-            allowUf: true, allowMbrByPerm: true,
-          });
-          firstSnap.livH = round2(Math.min(100, livH + rateH * firstBlockMin));
-          firstSnap.deficitRec = round1(netH);
-        }
-      }
+      // Niente blocco “sintetico” su valle/mem/riciclo: se il loop al minuto (stessa
+      // fisica della simulazione TIME) non ha toccato stop A10620 / H alto, l’impianto
+      // regge — non inventare “Male tra 1 h” con una formula a deficit che la sim smentisce.
 
       return {
         ok: firstBlockMin == null,
@@ -5069,8 +5023,8 @@
         askQ = `È possibile aumentare il <strong>riciclo 11014</strong> a <strong class="flow-val">${fmtQ(qRecNeed)} m³/h</strong>?`;
         yesHtml = `Ok: riciclo → <strong class="flow-val">${fmtQ(qRecNeed)} m³/h</strong>.`;
         noHtml = cfLowerNoHtml(qSafeSamePumps, "riciclo 11014", qHaveRec);
-      } else if (fc.reason === "valley" || fc.valleyClosed || fc.valleyShort) {
-        // Export sito (osmosi + IAS) < chimico — non è un fallimento Auto su P11011.
+      } else if (fc.reason === "valley") {
+        // Solo se il loop ha davvero bloccato A10620 per valle — non per flag export 120 vs 160.
         focus = "osm";
         device = "osmosi / IAS";
         const qOsmHave = fc.qOsmCap != null ? fc.qOsmCap : 0;
@@ -6593,13 +6547,6 @@
       if (iasBranch) iasBranch.setAttribute("opacity", iasSp > 0.05 ? "1" : "0.55");
       const iasBadge = el("svgQP11019IasBadge");
       if (iasBadge) iasBadge.setAttribute("stroke", iasSp > 0.05 ? "#fbbf24" : "#64748b");
-
-      const iasOpen = el("svgP11019IasOpen");
-      if (iasOpen) {
-        const open = iasSp > 0.05;
-        iasOpen.setAttribute("opacity", open ? "1" : "0");
-        iasOpen.textContent = open ? "Aperto IAS" : "";
-      }
 
       const hint = el("p11019SplitHint");
       if (hint) {
