@@ -3610,33 +3610,56 @@
   </div>
 
   <script>
-    /** Click stile orologio Casio (breve beep quadrato). */
+    /** Suoni stile Casio (square beep) — varianti per UI / enable / numpad. */
     let __casioCtx = null;
-    let __casioLast = 0;
-    function playCasioClick() {
+    const __casioLastBy = Object.create(null);
+    const CASIO_SOUNDS = {
+      click: { gap: 45, vol: 0.07, notes: [{ f: 1850, d: 0.055 }] },
+      press: { gap: 80, vol: 0.05, notes: [{ f: 980, d: 0.038 }] },           // inizio long-press
+      off: { gap: 120, vol: 0.08, notes: [{ f: 760, d: 0.045 }, { f: 420, d: 0.07, wait: 0.048 }] }, // → rosso
+      on: { gap: 120, vol: 0.075, notes: [{ f: 1320, d: 0.04 }, { f: 2050, d: 0.065, wait: 0.042 }] }, // → verde
+      key: { gap: 22, vol: 0.055, notes: [{ f: 1580, d: 0.032 }] },            // tasti numpad
+      arrowUp: { gap: 28, vol: 0.06, notes: [{ f: 1750, d: 0.038 }] },
+      arrowDown: { gap: 28, vol: 0.06, notes: [{ f: 1180, d: 0.038 }] },
+    };
+    function playCasioTone(kind) {
       try {
+        const spec = CASIO_SOUNDS[kind] || CASIO_SOUNDS.click;
         const now = Date.now();
-        if (now - __casioLast < 45) return; // anti-doppio su pointer+click
-        __casioLast = now;
+        if (now - (__casioLastBy[kind] || 0) < (spec.gap || 40)) return;
+        __casioLastBy[kind] = now;
         const AC = window.AudioContext || window.webkitAudioContext;
         if (!AC) return;
         if (!__casioCtx) __casioCtx = new AC();
         const ctx = __casioCtx;
         if (ctx.state === "suspended") ctx.resume();
-        const t0 = ctx.currentTime;
-        const osc = ctx.createOscillator();
-        const g = ctx.createGain();
-        osc.type = "square";
-        osc.frequency.setValueAtTime(1850, t0);
-        g.gain.setValueAtTime(0.0001, t0);
-        g.gain.exponentialRampToValueAtTime(0.07, t0 + 0.004);
-        g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.055);
-        osc.connect(g);
-        g.connect(ctx.destination);
-        osc.start(t0);
-        osc.stop(t0 + 0.065);
+        const vol = spec.vol != null ? spec.vol : 0.07;
+        let t = ctx.currentTime;
+        (spec.notes || []).forEach((n) => {
+          t += Number(n.wait) || 0;
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.type = "square";
+          osc.frequency.setValueAtTime(Math.max(80, Number(n.f) || 1200), t);
+          const dur = Math.max(0.02, Number(n.d) || 0.05);
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(vol, t + 0.003);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+          osc.connect(g);
+          g.connect(ctx.destination);
+          osc.start(t);
+          osc.stop(t + dur + 0.01);
+          t += dur;
+        });
       } catch (_) { /* ok */ }
     }
+    function playCasioClick() { playCasioTone("click"); }
+    function playCasioPress() { playCasioTone("press"); }
+    function playCasioOn() { playCasioTone("on"); }
+    function playCasioOff() { playCasioTone("off"); }
+    function playCasioKey() { playCasioTone("key"); }
+    function playCasioArrow(dir) { playCasioTone(dir < 0 ? "arrowDown" : "arrowUp"); }
+    function playCasioEnable(on) { if (on) playCasioOn(); else playCasioOff(); }
 
     const MEMBRANE = ["A", "B", "C", "D", "E", "F", "G"];
     const UF_LINES = ["A", "B", "C", "D"];
@@ -7391,6 +7414,7 @@
       const L = String(letter || "").toUpperCase();
       if (L !== "A" && L !== "B" && L !== "C") return;
       __osmEnabled[L] = !!enabled;
+      playCasioEnable(!!enabled);
       paintOsmosiEnableUI();
       paintOsmosiRunUI();
       try { applyBalance("osmosi"); } catch (_) { /* ignore */ }
@@ -7410,6 +7434,7 @@
       const L = String(letter || "").toUpperCase();
       if (UF_LINES.indexOf(L) < 0) return;
       __ufEnabled[L] = !!enabled;
+      playCasioEnable(!!enabled);
       paintUfEnableUI();
       paintUfSvgLive();
       try { applyBalance("ultra"); } catch (_) { /* ignore */ }
@@ -7434,6 +7459,7 @@
       const L = String(letter || "").toUpperCase();
       if (MBR_ALL_IDS.indexOf(L) < 0) return;
       __memEnabled[L] = !!enabled;
+      playCasioEnable(!!enabled);
       paintMemEnableUI();
       paintMembraneCycleUI(__mbrCycleMin);
       // Solo aggiorna il totale = somma delle abilitate. NON ripartire le portate delle altre.
@@ -8400,6 +8426,7 @@
     /** Avvia conteggio automatico: 1 secondo reale = 1 minuto sim. */
     function simStart() {
       if (__simBusy || __simPlaying) return;
+      playCasioEnable(true);
       __simPlaying = true;
       try { keepScreenAwake(); } catch (_) { /* ok */ }
       softStartPlantFlows();
@@ -8418,6 +8445,7 @@
 
     /** Ferma il conteggio automatico (il tempo resta dove è). */
     function simStop() {
+      playCasioEnable(false);
       __simPlaying = false;
       if (__simPlayTimer) {
         clearInterval(__simPlayTimer);
@@ -11871,6 +11899,7 @@
         }
         // Hold solo su linea/cella: tap sul serbatoio apre comunque il popup
         if (isMemNode && !memL) return;
+        playCasioPress();
         holdTimer = setTimeout(() => {
           holdTimer = null;
           holdFired = true;
@@ -12199,6 +12228,7 @@
 
     function nudgeFlowEdit(dir) {
       if (!inlineCtx || !inlineInp) return;
+      playCasioArrow(dir);
       // frecce: cambiano valore, numpad resta se già aperto
       const step = flowEditStep(inlineCtx.field);
       const raw = String(inlineInp.value ?? "").trim().replace(",", ".");
@@ -12804,7 +12834,7 @@
       if (!btn) return;
       e.preventDefault();
       e.stopPropagation();
-      playCasioClick();
+      playCasioKey();
       applyNumpadKey(btn.getAttribute("data-np"));
     });
 
@@ -13823,7 +13853,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt163", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt165", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
