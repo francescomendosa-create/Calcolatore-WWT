@@ -4641,24 +4641,17 @@
         let cls;
         const regOk = !!(adv && (adv.ok || adv.regOk));
         let warnBadge = "1";
-        if (fc.ok && regOk) {
+        if (regOk) {
           cls = "status is-ok";
-          text = "Regolato bene · 8 h OK";
-          bar.title = "Nessun blocco previsto nelle prossime 8 ore — clic per dettaglio";
+          text = "Regolato bene · Automatico OK";
+          bar.title = "Portate a set Automatico — nessun intervento (clic per dettaglio)";
           warnBadge = "0";
-        } else if (regOk && !fc.ok) {
-          cls = "status warn";
-          const when = fmtForecastWhen(fc.firstBlockMin);
-          text = `Regolazione OK · attenzione livelli ~${when}`;
-          bar.title = (adv.verdict || "Portate a set · rischio livelli") + " — clic per dettaglio";
         } else {
           cls = "status danger is-bad";
           text = shortRegPreviewBad(adv, fc);
           bar.title = (adv.verdict || "Regolazione da correggere") + " — clic per dettaglio / Sì-No";
         }
-        const stateKey = (fc.ok && regOk)
-          ? "ok"
-          : (regOk ? `warn:${Math.floor((fc.firstBlockMin || 0) / 30)}` : `bad:${(adv && adv.focus) || "x"}`);
+        const stateKey = regOk ? "ok" : `bad:${(adv && adv.focus) || "x"}`;
         const now = Date.now();
         const userJustChanged = __regUserBumpAt > 0 && (now - __regUserBumpAt) < 900;
         let apply = false;
@@ -4689,10 +4682,8 @@
           badge.setAttribute("data-warn", warnBadge);
           if (__chimicoBlockCount === 0) {
             badge.title = warnBadge === "0"
-              ? "Nessun blocco — previsione 8 ore OK — clic"
-              : regOk
-                ? `Regolazione OK · rischio livelli (~${fmtForecastWhen(fc.firstBlockMin)}) — clic`
-                : `Previsto blocco entro 8 ore (~${fmtForecastWhen(fc.firstBlockMin)}) — clic`;
+              ? "Nessun blocco chimico-fisico — regolato bene — clic"
+              : `Regolazione da correggere (~${fmtForecastWhen(fc.firstBlockMin)}) — clic`;
           }
         }
       } catch (_) {
@@ -5311,19 +5302,20 @@
       } catch (_) { /* ok */ }
       const regOk = !pumpRegBad && !mandRegBad && !recBad && memOk;
 
-      // “8 h OK” solo se anche la regolazione istantanea è a posto (membrane/pompe…).
-      // Altrimenti: Male subito (es. membrane abbassate) anche se i serbatoi tamponano ancora.
-      if (fc.ok && regOk) {
+      // Automatico a set (pompe/mandata/riciclo/membrane) = tutto a posto → verde.
+      // Non spaventare con “possibile blocco tra N′” sul chimico: se la regolazione è OK
+      // non c’è intervento da fare (il blocco chimico reale si conta solo se avviene).
+      if (regOk) {
         return {
           ok: true,
           regOk: true,
           focus: "",
-          forecastHtml: `<div class="block-forecast is-ok"><strong>Tutto OK — prossime 8 ore</strong><br>`
+          forecastHtml: `<div class="block-forecast is-ok"><strong>Regolato bene — Automatico a set</strong><br>`
             + `Impianto in marcia: chimico <strong>${fmtQ(qInSp)}</strong> · P11011 <strong>${havePumpLbl}</strong>`
             + ` · MP 11036 <strong>${fmtQ(qHaveMand)}</strong> · membrane <strong>${fmtQ(qHaveMem)}</strong>`
             + ` (uscita media ≈ <strong>${fmtQ(qPermHave)}</strong>)`
             + ` · riciclo <strong>${fmtQ(qHaveRec)}</strong> (≥ scarico MBR ≈ ${fmtQ(fc.qScaricoNeed)}). `
-            + `Nessun blocco previsto — nessuna regolazione.</div>`,
+            + `Nessuna regolazione — nessun blocco chimico-fisico da prevedere.</div>`,
           verdict: "",
           action: "",
           ask: null,
@@ -5518,20 +5510,15 @@
 
       return {
         ok: false,
-        regOk: !!regOk,
-        forecastHtml: regOk
-          ? `<div class="block-forecast is-ok"><strong>Regolazione OK</strong> — P11011/mandata/riciclo/membrane a set.<br>`
-            + `Attenzione livelli: possibile blocco tra <strong>${when}</strong> (non è un errore di Hz/portate).</div>`
-          : `<div class="block-forecast is-bad"><strong>${fc.firstBlockMin != null ? "Blocco entro 8 ore" : "Regolazione insufficiente"}</strong><br>${verdict}</div>`,
-        verdict: regOk
-          ? `Regolazione OK (P11011 ${havePumpLbl}) · rischio livelli tra <strong>${when}</strong>.`
-          : verdict,
-        action: regOk ? `Portate già a set Automatico. Controlla livelli / valle se serve.` : action,
-        ask: regOk ? null : ask,
-        fault: regOk ? "" : fault,
-        alt: forceAlt && !regOk ? noHtml : "",
-        forceAlt: regOk ? false : forceAlt,
-        focus: regOk ? "levels" : focus,
+        regOk: false,
+        forecastHtml: `<div class="block-forecast is-bad"><strong>${fc.firstBlockMin != null ? "Blocco entro 8 ore" : "Regolazione insufficiente"}</strong><br>${verdict}</div>`,
+        verdict,
+        action,
+        ask,
+        fault,
+        alt: forceAlt ? noHtml : "",
+        forceAlt,
+        focus,
         qSafeSamePumps,
         qPumpTarget,
         qMandTarget,

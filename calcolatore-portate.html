@@ -5510,20 +5510,15 @@
 
       return {
         ok: false,
-        regOk: !!regOk,
-        forecastHtml: regOk
-          ? `<div class="block-forecast is-ok"><strong>Regolazione OK</strong> — P11011/mandata/riciclo/membrane a set.<br>`
-            + `Attenzione livelli: possibile blocco tra <strong>${when}</strong> (non è un errore di Hz/portate).</div>`
-          : `<div class="block-forecast is-bad"><strong>${fc.firstBlockMin != null ? "Blocco entro 8 ore" : "Regolazione insufficiente"}</strong><br>${verdict}</div>`,
-        verdict: regOk
-          ? `Regolazione OK (P11011 ${havePumpLbl}) · rischio livelli tra <strong>${when}</strong>.`
-          : verdict,
-        action: regOk ? `Portate già a set Automatico. Controlla livelli / valle se serve.` : action,
-        ask: regOk ? null : ask,
-        fault: regOk ? "" : fault,
-        alt: forceAlt && !regOk ? noHtml : "",
-        forceAlt: regOk ? false : forceAlt,
-        focus: regOk ? "levels" : focus,
+        regOk: false,
+        forecastHtml: `<div class="block-forecast is-bad"><strong>${fc.firstBlockMin != null ? "Blocco entro 8 ore" : "Regolazione insufficiente"}</strong><br>${verdict}</div>`,
+        verdict,
+        action,
+        ask,
+        fault,
+        alt: forceAlt ? noHtml : "",
+        forceAlt,
+        focus,
         qSafeSamePumps,
         qPumpTarget,
         qMandTarget,
@@ -13956,7 +13951,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt172", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt173", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
