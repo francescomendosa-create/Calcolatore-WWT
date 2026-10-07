@@ -3808,6 +3808,8 @@
     let __qInWobbleBias = 0;
     let __qInLive = null;
     let __resetGuardUntil = 0; // dopo Reset, ignora sync remoto che ripristina livelli vecchi
+    /** Timeout “reaffirm” post-Reset: NON devono sparare a sim già avviata (altrimenti livelli → 90 fissi). */
+    let __resetReaffirmTimers = [];
     const SIM_RESET_LIV = 90; // livelli stabili al Reset
     const SIM_STEP_MIN = 1;   // passo TIME (minuti) — Start: 1 s reale = 1′
     const BLOCK_FORECAST_HORIZON = 480; // previsione blocchi chimico: 8 ore
@@ -8470,10 +8472,19 @@
       else simStart();
     }
 
+    function clearResetReaffirmTimers() {
+      if (__resetReaffirmTimers && __resetReaffirmTimers.length) {
+        __resetReaffirmTimers.forEach((t) => { try { clearTimeout(t); } catch (_) { /* ok */ } });
+      }
+      __resetReaffirmTimers = [];
+    }
+
     /** Avvia conteggio automatico: 1 secondo reale = 1 minuto sim. */
     function simStart() {
       if (__simBusy || __simPlaying) return;
       playCasioClick();
+      // Annulla i reaffirm del Reset/boot: altrimenti forzano di nuovo tutti i livelli a 90/91
+      clearResetReaffirmTimers();
       __simPlaying = true;
       try { keepScreenAwake(); } catch (_) { /* ok */ }
       softStartPlantFlows(); // no-op (non azzerare lo stato processo)
@@ -8927,6 +8938,8 @@
 
     function simPlus5() {
       if (__simBusy) return;
+      // Qualsiasi avanzamento TIME: stop ai reaffirm che riportano i livelli a 90
+      clearResetReaffirmTimers();
       __simBusy = true;
       updateSimTimeUI();
       try {
@@ -9036,18 +9049,19 @@
         console.warn("[calcolatore] reset persist", e);
       }
 
+      clearResetReaffirmTimers();
       const reaffirm = () => {
+        // Se Start / TIME è già partito, NON riscrivere i livelli (era il bug: tutto fermo a 90/91)
+        if (__simPlaying || __simBusy || __simMin > 0) return;
         forcePlantRunningBaseline();
         paintResetLevelsUI(L);
         paintPumpColors();
         paintA10608Passante();
         try { paintRegPreviewBar(); } catch (_) { /* ok */ }
       };
-      setTimeout(reaffirm, 30);
-      setTimeout(reaffirm, 200);
-      setTimeout(reaffirm, 600);
-      setTimeout(reaffirm, 1500);
-      setTimeout(reaffirm, 3000);
+      [30, 200, 600, 1500, 3000].forEach((ms) => {
+        __resetReaffirmTimers.push(setTimeout(reaffirm, ms));
+      });
     }
 
     /** Se l’utente cambia i livelli di partenza, azzera la simulazione */
@@ -13500,8 +13514,18 @@
       if (!data || typeof data !== "object") return;
       // Dopo Reset: ignora del tutto i payload remoti (evita livelli vecchi da Firestore)
       if (fromRemote && Date.now() < __resetGuardUntil) return;
-      // Anche da locale: forza i tre livelli a 90% durante la guardia
-      if (Date.now() < __resetGuardUntil) {
+      // Durante Start / TIME: il cloud NON deve sovrascrivere i livelli della simulazione
+      if (fromRemote && (__simPlaying || __simBusy || __simMin > 0)) {
+        data = { ...data };
+        delete data.livelloAttuale;
+        delete data.livelloAttualeA10611;
+        delete data.livelloAttualeH;
+        delete data.livelloAttualeMbr;
+        delete data.livelloAttualeTk11007;
+        delete data.livelloAttualeTk11021;
+      }
+      // Anche da locale: forza i tre livelli a 90% durante la guardia (solo se sim ferma)
+      if (Date.now() < __resetGuardUntil && !__simPlaying && __simMin <= 0) {
         data = { ...data };
         const txt = Number(SIM_RESET_LIV).toFixed(1);
         data.livelloAttuale = txt;
@@ -13854,6 +13878,8 @@
           if (!docSnap.exists()) return;
           // Durante Reset non applicare né salvare livelli remoti vecchi
           if (Date.now() < __resetGuardUntil) return;
+          // Durante Start non far rientrare livelli/portate da un altro client
+          if (__simPlaying || __simBusy) return;
           const remote = docSnap.data();
           const rev = Number(remote.syncRevision) || 0;
           if (rev <= __appliedCalcSyncRevision) return;
@@ -13943,7 +13969,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt182", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt183", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
