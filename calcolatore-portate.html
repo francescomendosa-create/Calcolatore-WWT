@@ -1626,7 +1626,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v192</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v193</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -8380,11 +8380,14 @@
       try { paintPipeFlowUI(vis11011, vis11036, vis11014, run11019); } catch (_) { /* ignore */ }
     }
 
-    /** Layer acqua: corpo + riflesso in #pipeWaterLayer (sopra i casing). Ogni pezzo di tubo ha la sua copia. */
+    /** Chiavi valle (UF/carboni/osmosi): NESSUN overlay acqua — erano linee fantasma che comparivano/scomparivano. */
+    const PIPE_WATER_SKIP = { p19: 1, carb: 1, uf: 1, osm: 1, osmA: 1, osmB: 1, osmC: 1 };
+
+    /** Layer acqua: solo tubi alti (ingresso/pompe/mandata/riciclo/permeato/scarico). */
     function ensurePipeWaterLayers() {
       const layer = el("pipeWaterLayer");
       if (!layer) return;
-      const READY = "8";
+      const READY = "9";
       if (layer.getAttribute("data-water-ver") !== READY) {
         while (layer.firstChild) layer.removeChild(layer.firstChild);
         layer.setAttribute("data-water-ver", READY);
@@ -8402,6 +8405,7 @@
         if (p.getAttribute("data-water-ready") === READY) return;
         p.setAttribute("data-water-ready", READY);
         const key = p.getAttribute("data-flow") || "";
+        if (PIPE_WATER_SKIP[key]) return; // niente cloni su UF / valle
         const kind = p.classList.contains("pipe-rec") ? "pipe-water-rec" : "pipe-water-main";
         const d = p.getAttribute("d") || "";
         if (!d) return;
@@ -8414,7 +8418,6 @@
           w.setAttribute("fill", "none");
           w.setAttribute("stroke-linecap", "round");
           w.setAttribute("stroke-linejoin", "round");
-          // stroke inline: alcuni webview non applicano bene solo il CSS sulle path create a runtime
           if (kind === "pipe-water-rec") w.setAttribute("stroke", extra.includes("sheen") ? "#fff5f5" : "#ffe4e6");
           else w.setAttribute("stroke", extra.includes("sheen") ? "#f8fafc" : "#e0f2fe");
           w.setAttribute("stroke-width", extra.includes("sheen") ? "2.8" : "2.2");
@@ -8425,7 +8428,7 @@
       });
     }
 
-    /** Tubo sempre visibile; acqua interna animata pezzo-per-pezzo se pompe/linea in marcia. */
+    /** Tubo sempre visibile; acqua animata solo sulle linee alte (non UF/valle). */
     function paintPipeFlowUI(vis11011, vis11036, vis11014, run11019) {
       ensurePipeWaterLayers();
       const go = plantIsStarted();
@@ -8447,38 +8450,6 @@
       } catch (_) {
         flowScar = go && (flowPerm || (!!vis11036 && qMandLivePipe > 0.5));
       }
-      const q19LivePipe = Math.max(0, Number(__flowLive.qP11019) || num("qP11019") || 0);
-      // Valle: stessi criteri delle pompe verdi P11019 (param + ricalcolo locale)
-      let valleyRun = !!run11019;
-      if (!valleyRun && go) {
-        try { valleyRun = p11019Allowed() && q19LivePipe > 0.5; } catch (_) {
-          valleyRun = q19LivePipe > 0.5;
-        }
-      }
-      const flowValley = go && valleyRun;
-      let flowUf = flowValley;
-      if (!flowUf && go) {
-        try {
-          const qUfLive = typeof sumUfEffective === "function" ? sumUfEffective() : 0;
-          flowUf = qUfLive > 0.5 || num("qUfTotale") > 0.5 || procSetpointOf("qUfTotale") > 0.5 || qCarbToUfLive() > 0.5;
-        } catch (_) {
-          flowUf = num("qUfTotale") > 0.5;
-        }
-      }
-      let flowOsmA = false;
-      let flowOsmB = false;
-      let flowOsmC = false;
-      try {
-        flowOsmA = go && osmLineFeeding("A");
-        flowOsmB = go && osmLineFeeding("B");
-        flowOsmC = go && osmLineFeeding("C");
-      } catch (_) {
-        flowOsmA = go && num("qOsmosiA") > 0.5;
-        flowOsmB = go && num("qOsmosiB") > 0.5;
-        flowOsmC = go && num("qOsmosiC") > 0.5;
-      }
-      // Con P11019 in marcia: anima TUTTI i pezzi valle (anche spezzati), uno per uno
-      const flowOsm = flowOsmA || flowOsmB || flowOsmC || flowValley;
       const map = {
         in: flowIn,
         p11: !!vis11011,
@@ -8486,13 +8457,14 @@
         rec: !!vis11014,
         scar: flowScar,
         perm: flowPerm,
-        p19: flowValley,
-        carb: flowValley,
-        uf: flowValley || flowUf,
-        osm: flowOsm,
-        osmA: flowOsmA || flowValley,
-        osmB: flowOsmB || flowValley,
-        osmC: flowOsmC || flowValley,
+        // valle: nessun overlay (restano solo i tubi originali blu)
+        p19: false,
+        carb: false,
+        uf: false,
+        osm: false,
+        osmA: false,
+        osmB: false,
+        osmC: false,
       };
       Object.keys(map).forEach((key) => {
         const on = !!map[key];
