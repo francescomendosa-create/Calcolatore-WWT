@@ -2240,7 +2240,7 @@
         <span>PROCESSO — portata ingresso</span>
         <small>sediflottatore · TOT OUT</small>
       </button>
-      <p class="mini" id="devModeHintIngresso">Automatico: l’ingresso segue il bilanciamento. Manuale: lo imposti tu, il resto può restare in automatico.</p>
+      <p class="mini" id="devModeHintIngresso">Di default Manuale: digiti tu i m³/h del chimico. Solo in Automatico l’impianto può adeguare l’ingresso (es. alle membrane); il resto può restare in automatico.</p>
       <label><strong>Portata ingresso (m³/h)</strong>
         <input type="number" id="qIn" min="0" max="500" step="1" value="150" />
       </label>
@@ -3877,7 +3877,8 @@
     }
 
     /** Override locale per dispositivo (membrane / ultra / osmosi / riciclo). Manuale vince sul modo generale. */
-    const __devMode = { membrane: "auto", ultra: "auto", osmosi: "auto", riciclo: "auto", pompa: "auto", mandata: "auto", ingresso: "auto" };
+    // Chimico-fisico parte sempre Manuale: la portata ingresso la digita l’operatore.
+    const __devMode = { membrane: "auto", ultra: "auto", osmosi: "auto", riciclo: "auto", pompa: "auto", mandata: "auto", ingresso: "manual" };
 
     function deviceIsManual(dev) {
       return __devMode[dev] === "manual";
@@ -4002,6 +4003,17 @@
           const qi = Math.max(0, num("qIn"));
           if (el("qIn") && qi >= 0) setVal("qIn", qi, { force: true });
         }
+      } else if (next === "auto" && dev === "ingresso") {
+        // Passa in Automatico: ora sì, allinea il chimico alla media membrane
+        try {
+          const de = dutyEffective();
+          const dAvg = de.dAvg != null ? de.dAvg : duty().d;
+          const totOn = Math.max(0, typeof sumMemsAllOn === "function" ? sumMemsAllOn() : num("qMemTotale"));
+          const qFromMem = round1(totOn * (dAvg > 0.05 ? dAvg : 0.875));
+          if (qFromMem > 0.05 && el("qIn") && !isEditing("qIn")) {
+            setVal("qIn", qFromMem, { force: true });
+          }
+        } catch (_) { /* ok */ }
       } else if (dev === "mandata") {
         if (el("equiparaMandata") && isAutoMode()) {
           el("equiparaMandata").checked = true;
@@ -8071,6 +8083,9 @@
       __simMin = 0;
       __mbrCycleMin = 0;
       __ufSvcMin = 0;
+      // Chimico-fisico sempre Manuale all’avvio / Reset (portata a carico dell’operatore)
+      __devMode.ingresso = "manual";
+      try { paintDevModeUI("ingresso"); } catch (_) { /* ok */ }
       resetUfChem();
       resetCarbWash();
       resetQInWobble();
@@ -8808,19 +8823,24 @@
             setMemEqual(totOn);
           } else if (source === "totale") {
             const totOn = qTotRaw === null ? num("qMemTotale") : qTotRaw;
-            qIn = totOn * dAvg;
-            setVal("qIn", qIn);
+            // Chimico Manuale: non toccare qIn. Solo se ingresso è Automatico.
+            if (deviceAutoControlled("ingresso") && !isEditing("qIn")) {
+              qIn = totOn * dAvg;
+              setVal("qIn", qIn);
+            }
           } else if (source === "membrana") {
             const totOn = sumMems();
             setVal("qMemTotale", totOn);
-            qIn = totOn * dAvg;
-            setVal("qIn", qIn);
+            if (deviceAutoControlled("ingresso") && !isEditing("qIn")) {
+              qIn = totOn * dAvg;
+              setVal("qIn", qIn);
+            }
           }
         } else if (deviceAutoControlled("membrane") && simulating && source === "membrana") {
           // In sim: aggiorna solo il totale configurato, senza ricalcolare qIn da duty istantaneo
           setVal("qMemTotale", sumMems());
-        } else if (isAutoMode() && deviceIsManual("membrane") && !deviceIsManual("ingresso") && !isEditing("qIn")) {
-          // Membrane in manuale locale: l’impianto adatta l’ingresso alla loro media (evita blocco flottatore)
+        } else if (deviceAutoControlled("ingresso") && deviceIsManual("membrane") && !isEditing("qIn")) {
+          // Membrane Manuale + chimico Automatico: adatta l’ingresso alla media membrane
           const totOn = Math.max(0, sumMemsAllOn());
           const qFromMem = round1(totOn * dAvg);
           if (Math.abs(qIn - qFromMem) > 0.15) {
