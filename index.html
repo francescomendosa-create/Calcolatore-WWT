@@ -4058,38 +4058,13 @@
       }
     }
 
-    /** All'avvio impianto: portate vive da 0, poi salgono lentamente al set. */
+    /**
+     * Soft-start aggressivo DISATTIVATO: azzerava campi portate + misure UF/osmosi a ogni Start,
+     * poi i bilanci vedevano IN≈OUT (o tutto a 0) → livelli inchiodati al 90/91% e “tutto in marcia ma fermo”.
+     * L’animazione tubi usa le portate/processo già in corso; non serve distruggere lo stato.
+     */
     function softStartPlantFlows() {
-      cancelFlowTween();
-      FLOW_IDS.forEach((id) => {
-        __flowLive[id] = 0;
-        __flowAnimFrom[id] = 0;
-        if (!isEditing(id)) {
-          setVal(id, 0, { force: true });
-          const sid = FLOW_SVG[id];
-          const node = sid ? el(sid) : null;
-          if (node) node.textContent = "0.0";
-        }
-      });
-      __qMemPermLive = 0;
-      try { paintMemPermLive(0); } catch (_) { /* ignore */ }
-      UF_LINES.forEach((L) => {
-        __ufMeas[L] = 0;
-        __ufValvePct[L] = 0;
-        __ufMeasTarget[L] = 0;
-        __ufValveTarget[L] = 0;
-      });
-      OSM_LINES.forEach((L) => {
-        __osmMeas[L] = 0;
-        __osmValvePct[L] = 0;
-        __osmMeasTarget[L] = 0;
-        __osmValveTarget[L] = 0;
-      });
-      try { paintUfValveUI(); } catch (_) { /* ignore */ }
-      try { paintOsmValveUI(); } catch (_) { /* ignore */ }
-      try { paintUfSvgLive(); } catch (_) { /* ignore */ }
-      try { syncOsmosiSvg(); } catch (_) { /* ignore */ }
-      try { paintPumpColors(); } catch (_) { /* ignore */ }
+      /* no-op di proposito — non toccare __flowLive / setVal / __ufMeas / __osmMeas */
     }
 
     function paintMemPermLive(v) {
@@ -8501,7 +8476,9 @@
       playCasioClick();
       __simPlaying = true;
       try { keepScreenAwake(); } catch (_) { /* ok */ }
-      softStartPlantFlows();
+      softStartPlantFlows(); // no-op (non azzerare lo stato processo)
+      // Allinea viva ai campi attuali (setpoint/portate già impostati) — niente rampa da 0
+      try { snapFlowLiveFromFields(); } catch (_) { /* ignore */ }
       advanceQInWobble(1);
       tickUfRegulation(1);
       tickOsmRegulation(1);
@@ -13966,7 +13943,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt181", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt182", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
