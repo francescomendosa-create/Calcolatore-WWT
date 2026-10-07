@@ -734,7 +734,7 @@
     .badge-sp { fill: #fbbf24; font: 700 13px "Segoe UI", sans-serif; }
     .badge-sep { fill: #64748b; font: 600 11px "Segoe UI", sans-serif; }
     .badge-unit { fill: var(--muted); font: 500 10px "Segoe UI", sans-serif; }
-    .badge-unit-set { fill: #fbbf24; font: 800 12px "Segoe UI", sans-serif; letter-spacing: 0.04em; }
+    .badge-unit-set { fill: #fbbf24; font: 600 9px "Segoe UI", sans-serif; }
     .badge-label { fill: var(--muted); font: 600 10px "Segoe UI", sans-serif; letter-spacing: 0.03em; }
     .uf-valve-track, .osm-valve-track { fill: #0f172a; stroke: #64748b; stroke-width: 0.8; }
     .uf-valve-fill, .osm-valve-fill { fill: #22d3ee; }
@@ -1695,7 +1695,7 @@
           <g class="flow-edit" data-field="qPump" data-source="pompa" aria-label="Setpoint P11011">
             <rect class="badge" x="318" y="174" width="74" height="32" rx="5" stroke="#fbbf24" />
             <text class="badge-sp" x="342" y="195" text-anchor="middle" id="svgQPumpSp">345</text>
-            <text class="badge-unit badge-unit-set" x="372" y="195" text-anchor="middle">SET</text>
+            <text class="badge-unit badge-unit-set" x="372" y="195" text-anchor="middle">set</text>
           </g>
           <text id="svgManPompa" class="svg-man-mark" x="396" y="195" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
         </g>
@@ -1742,7 +1742,7 @@
           <g class="flow-edit" data-field="qMandata" data-source="mandata" aria-label="Setpoint MP 11036">
             <rect class="badge" x="663" y="174" width="74" height="32" rx="5" stroke="#fbbf24" />
             <text class="badge-sp" x="687" y="195" text-anchor="middle" id="svgQMandSp">345</text>
-            <text class="badge-unit badge-unit-set" x="717" y="195" text-anchor="middle">SET</text>
+            <text class="badge-unit badge-unit-set" x="717" y="195" text-anchor="middle">set</text>
           </g>
           <text id="svgManMandata" class="svg-man-mark" x="741" y="195" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
         </g>
@@ -1833,7 +1833,7 @@
           <rect class="badge" x="1000" y="8" width="74" height="34" rx="5" stroke="#fbbf24" />
           <text class="badge-label" x="1037" y="20" text-anchor="middle" fill="#fde68a">SET</text>
           <text class="badge-sp" x="1024" y="34" text-anchor="middle" id="svgQMemSp">171</text>
-          <text class="badge-unit badge-unit-set" x="1054" y="34" text-anchor="middle">SET</text>
+          <text class="badge-unit badge-unit-set" x="1054" y="34" text-anchor="middle">set</text>
         </g>
         <text id="svgManMembrane" class="svg-man-mark" x="1078" y="30" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
 
@@ -1862,7 +1862,7 @@
           <g class="flow-edit" data-field="qRecycle" data-source="riciclo-inline" aria-label="Setpoint 11014">
             <rect class="badge" x="912" y="284" width="74" height="32" rx="5" stroke="#fbbf24" />
             <text class="badge-sp" x="936" y="305" text-anchor="middle" id="svgQRecSp">171</text>
-            <text class="badge-unit badge-unit-set" x="966" y="305" text-anchor="middle">SET</text>
+            <text class="badge-unit badge-unit-set" x="966" y="305" text-anchor="middle">set</text>
           </g>
           <text id="svgManRiciclo" class="svg-man-mark" x="990" y="305" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
         </g>
@@ -2004,7 +2004,7 @@
             <rect class="badge" x="546" y="300" width="74" height="34" rx="5" stroke="#fbbf24" />
             <text class="badge-label" x="583" y="312" text-anchor="middle" fill="#fde68a">SET</text>
             <text class="badge-sp" x="570" y="326" text-anchor="middle" id="svgQUfSp">0.0</text>
-            <text class="badge-unit badge-unit-set" x="600" y="326" text-anchor="middle">SET</text>
+            <text class="badge-unit badge-unit-set" x="600" y="326" text-anchor="middle">set</text>
           </g>
           <text id="svgManUltra" class="svg-man-mark" x="624" y="322" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
 
@@ -2191,7 +2191,7 @@
             <rect class="badge" x="166" y="292" width="74" height="34" rx="5" stroke="#fbbf24" />
             <text class="badge-label" x="203" y="304" text-anchor="middle" fill="#fde68a">SET</text>
             <text class="badge-sp" x="190" y="318" text-anchor="middle" id="svgQOsmTotaleSp">0.0</text>
-            <text class="badge-unit badge-unit-set" x="220" y="318" text-anchor="middle">SET</text>
+            <text class="badge-unit badge-unit-set" x="220" y="318" text-anchor="middle">set</text>
           </g>
           <text id="svgManOsmosi" class="svg-man-mark" x="244" y="314" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
 
@@ -13620,7 +13620,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt156", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt157", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
