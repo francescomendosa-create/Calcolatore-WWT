@@ -2560,16 +2560,16 @@
         <p class="mini" id="regTk11007GeomHint">TK-11007: V utile 30 m³.</p>
 
         <h4 style="margin-top:14px">TK-11021 — permeato UF</h4>
-        <p class="mini">Volume utile <strong>30 m³</strong>. In processo: %/min = (IN UF − OUT osmosi) ÷ V × 100 ÷ 60, come gli altri serbatoi di REGOLAZIONI.</p>
+        <p class="mini">Volume utile <strong>11,7 m³</strong> (dato impianto). In processo: %/min = (IN UF − OUT osmosi) ÷ V × 100 ÷ 60.</p>
         <div class="row">
           <label><strong>Volume utile TK-11021 (m³)</strong>
-            <input type="number" id="regTk11021Vutile" min="0.5" max="5000" step="0.1" value="30" inputmode="decimal" />
+            <input type="number" id="regTk11021Vutile" min="0.5" max="5000" step="0.1" value="11.7" inputmode="decimal" />
           </label>
           <label><strong>%/min ogni 100 m³/h netto</strong>
             <input type="number" id="viewTk11021Rate100" readonly tabindex="-1" placeholder="—" />
           </label>
         </div>
-        <p class="mini" id="regTk11021GeomHint">TK-11021: V utile 30 m³.</p>
+        <p class="mini" id="regTk11021GeomHint">TK-11021: V utile 11,7 m³.</p>
       </div>
 
       <!-- 0b. Valvole regolazione portata UF / osmosi -->
@@ -2944,6 +2944,7 @@
           </label>
         </div>
         <p class="mini">Svuotamento: membrane ON/OFF. Riempimento: MP 11036 A/B fermano a stop (92%) e ripartono a start (85%), se anche A10611 è OK.</p>
+        <p class="mini" id="mbrFillBalanceHint">Bilancio MBR: mandata IN − permeato OUT − scarico→A11004. A membrane ferme il riciclo 11014 non svuota le vaschette.</p>
         <div class="row" style="margin-top:8px">
           <label><strong>Start riemp. TK 11007 %</strong>
             <input type="number" id="viewStartRiempTk11007b" readonly placeholder="—" inputmode="decimal" />
@@ -3364,9 +3365,9 @@
         <small>da TK 11007 · verso carboni / IAS</small>
       </button>
       <label><strong>Set portata pompe P11019 (m³/h)</strong>
-        <input type="number" id="qP11019" min="0" max="500" step="1" value="140" inputmode="decimal" />
+        <input type="number" id="qP11019" min="0" max="140" step="1" value="140" inputmode="decimal" />
       </label>
-      <p class="mini">In <strong>Automatico</strong> le pompe partono a <strong>140 m³/h</strong>. In Manuale puoi scendere anche sotto (es. 80–90) senza aprire IAS. <strong>IAS</strong> si apre solo se lo imposti tu: Impianto/carboni = set pompe − IAS. Overview = set pompe; se IAS &gt; 0 compare «Aperto IAS».</p>
+      <p class="mini">Set pompe: <strong>0–140 m³/h</strong> (max 140). Puoi scendere a piacere (es. 60) <strong>senza aprire IAS</strong>: Impianto = set pompe. IAS si apre solo se lo imposti tu e si sottrae dal set (Impianto = set − IAS). Overview = set pompe.</p>
 
       <svg class="p11019-split" viewBox="0 0 400 150" aria-label="Schizzo split Impianto / IAS">
         <text x="200" y="16" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="700">P11019 → destinazioni · tocca per modificare</text>
@@ -3399,13 +3400,13 @@
 
       <div class="row">
         <label><strong>Verso IAS (m³/h)</strong>
-          <input type="number" id="qP11019Ias" min="0" max="500" step="0.1" value="" placeholder="" inputmode="decimal" />
+          <input type="number" id="qP11019Ias" min="0" max="140" step="0.1" value="" placeholder="" inputmode="decimal" />
         </label>
         <label><strong>Verso Impianto / carboni (m³/h)</strong>
-          <input type="number" id="qP11019Impianto" min="0" max="500" step="0.1" value="" placeholder="" inputmode="decimal" />
+          <input type="number" id="qP11019Impianto" min="0" max="140" step="0.1" value="" placeholder="" inputmode="decimal" />
         </label>
       </div>
-      <p class="mini" id="p11019SplitHint">Tocca IAS per aprirlo (sottrae dal set pompe). Cambiare il set pompe con IAS a 0 non apre IAS. Overview = set pompe.</p>
+      <p class="mini" id="p11019SplitHint">Abbassa il set pompe liberamente (IAS chiuso → tutto a Impianto/carboni). Tocca IAS solo se vuoi aprirlo: sottrae dal set. Overview = set pompe.</p>
       <div class="settings-block show">
         <h4>TK 11007 — consenso (da PROCESSO)</h4>
         <div class="row">
@@ -3428,11 +3429,21 @@
     const Q_FREQ_MIN = 42; // Automatico: minimo processo P11011
     const Q_FREQ_ABS_MIN = 0; // Manuale: puoi impostare anche sotto 42 Hz
     const Q_RECYCLE_MIN = 100; // Automatico: riciclo fanghi minimo (P11011 − ingresso)
-    const Q_P11019_MIN = 140; // default Automatico (non pavimento assoluto in Manuale)
+    const Q_P11019_DEFAULT = 140; // avvio / set vuoto
+    const Q_P11019_MAX = 140;     // tetto set pompe (non si supera)
+    /** @deprecated alias di Q_P11019_DEFAULT (retrocompat) */
+    const Q_P11019_MIN = Q_P11019_DEFAULT;
 
-    /** Pavimento set P11019: Auto = 140; Manuale = libero (≥ 0). */
+    /** Pavimento set P11019: sempre 0 — si può scendere senza aprire IAS. */
     function qP11019Floor() {
-      return isAutoMode() ? Q_P11019_MIN : 0;
+      return 0;
+    }
+
+    /** Clamp set pompe P11019: 0 … 140. */
+    function clampP11019Set(v) {
+      const n = Math.round(Number(v) || 0);
+      if (!Number.isFinite(n) || n < 0) return 0;
+      return Math.min(Q_P11019_MAX, n);
     }
     const DEFAULT_REG_FREQ = {
       "50": 334, "49": 320, "48": 307, "47": 294, "46": 281, "45": 268,
@@ -3675,8 +3686,8 @@
       if (id === "qP11019") {
         let s = Math.max(0, Number(__flowSetpoint.qP11019) || 0);
         if (s < 0.05) s = Math.max(0, num("qP11019") || 0);
-        if (s < 0.05) s = Q_P11019_MIN;
-        return round1(Math.max(qP11019Floor(), s));
+        if (s < 0.05) s = Q_P11019_DEFAULT;
+        return round1(clampP11019Set(s));
       }
       return Math.max(0, round1(num(id)));
     }
@@ -4092,8 +4103,14 @@
           el("equiparaMandata").checked = true;
           if (el("qMandata")) el("qMandata").disabled = true;
         }
-        rememberFlowSetpoint("qP11019", Q_P11019_MIN);
-        if (!isEditing("qP11019")) setVal("qP11019", Q_P11019_MIN, { force: true });
+        // P11019: non forzare 140 se l’operatore ha già un set più basso (es. 60, IAS chiuso)
+        {
+          let q19 = clampP11019Set(flowSetpointOf("qP11019") || num("qP11019") || 0);
+          if (q19 < 0.05) q19 = Q_P11019_DEFAULT;
+          rememberFlowSetpoint("qP11019", q19);
+          if (!isEditing("qP11019")) setVal("qP11019", q19, { force: true });
+          try { syncP11019SplitKeepIas(); } catch (_) { /* ok */ }
+        }
         ensurePumpsFlowing();
         try { ensureMembranesAutoMin(); } catch (_) { /* ok */ }
         applyBalance("ingresso");
@@ -4588,7 +4605,9 @@
       let qIasSp = 0;
       try { qIasSp = Math.max(0, Number(__flowSetpoint.qP11019Ias) || 0); } catch (_) { /* ok */ }
       let qOsmCap = 0;
-      try { qOsmCap = osmExportSetpointTotal(); } catch (_) { qOsmCap = 0; }
+      try { qOsmCap = osmExportForForecast(); } catch (_) {
+        try { qOsmCap = osmExportSetpointTotal(); } catch (__) { qOsmCap = 0; }
+      }
       if (opts.qOsm != null) qOsmCap = Math.max(0, Number(opts.qOsm) || 0);
 
       let chimicoOn = opts.chimicoOn != null ? !!opts.chimicoOn : (__chimicoAllowFill !== false);
@@ -4601,7 +4620,9 @@
       let runP19By07 = opts.runP19 != null ? !!opts.runP19 : (__runP11019By07 !== false);
       let runMbrByLevel = opts.runMbrByLevel != null ? !!opts.runMbrByLevel : (__runMbrByLevel !== false);
       const startupHold = opts.startupHold != null ? !!opts.startupHold : (__startupPumpHold !== false);
+      // Valle corta: export osmosi (solo linee vive) < chimico — es. 44 vs 160
       const valleyClosed = qOsmCap < 0.05;
+      const valleyShort = qInSp > 0.5 && qOsmCap + 0.5 < qInSp;
       const memLow = qInSp > 0.5 && qPermAvg + 1 < qInSp;
       const qScaricoNeed = mbrScaricoToH(qMandSp, qPermAvg, livMbr);
       const recStarve = qScaricoNeed > qRecSp + 2;
@@ -4632,6 +4653,7 @@
           qScaricoNeed: round1(qScaricoNeed),
           qOsmCap: round1(qOsmCap),
           valleyClosed: !!valleyClosed,
+          valleyShort: !!valleyShort,
           allowUf: !!extra.allowUf,
           allowMbrByPerm: !!extra.allowMbrByPerm,
           run11036: !!extra.run11036,
@@ -4741,8 +4763,8 @@
           chimicoOn = false;
           if (firstBlockMin == null) {
             firstBlockMin = t;
-            if (valleyClosed || !allowUf) reason = "valley";
-            else if (!allowMbrByPerm && (valleyClosed || qOsm < 0.05)) reason = "valley";
+            if (valleyClosed || valleyShort || !allowUf) reason = "valley";
+            else if (!allowMbrByPerm && (valleyShort || qOsm + 0.5 < qInSp)) reason = "valley";
             else if (recStarve && (hBackedUp || !allow11036ByMbr)) reason = "rec";
             else if (!allowMbrByPerm || (memLow && (!allow11036ByMbr || blockP11 || !run11036))) reason = "mem";
             else if (blockP11) reason = "mand";
@@ -4759,22 +4781,31 @@
         }
       }
 
-      if (firstBlockMin == null && (valleyClosed || memLow) && qInSp > 0.5) {
-        const deficit = Math.max(0, qInSp - (valleyClosed ? 0 : qPermAvg));
+      if (firstBlockMin == null && (valleyClosed || valleyShort || memLow) && qInSp > 0.5) {
+        // Deficit di prodotto = chimico − export osmosi (non le membrane: restano in sito)
+        const deficit = Math.max(0, qInSp - ((valleyClosed || valleyShort) ? qOsmCap : qPermAvg));
         let V20 = 450;
+        let V21 = 11.7;
+        let V07 = 30;
         try { V20 = getA10620Geom().V || 450; } catch (_) { /* ok */ }
-        const pctRoom = Math.max(2, stop - liv20);
-        const rateFill = Math.max(0.01, (deficit / Math.max(1, V20)) * (100 / 60));
-        const tEst = Math.ceil(pctRoom / rateFill);
+        try { V21 = getTk11021Geom().V || 11.7; } catch (_) { /* ok */ }
+        try { V07 = getTk11007Geom().V || 30; } catch (_) { /* ok */ }
+        // Tempo grezzo: prima i piccoli serbatoi valle, poi A10620
+        const room21 = Math.max(0, (stopUV - livU) / 100) * V21;
+        const room07 = Math.max(0, (stopPV - livP) / 100) * V07;
+        const room20 = Math.max(0, (stop - liv20) / 100) * V20;
+        const tValley = deficit > 0.5 ? Math.ceil(((room21 + room07) / deficit) * 60) : 0;
+        const t20 = deficit > 0.5 ? Math.ceil((room20 / deficit) * 60) : 9999;
+        const tEst = Math.max(1, tValley + t20);
         if (tEst <= H) {
           firstBlockMin = Math.max(1, Math.min(H, tEst));
-          reason = valleyClosed ? "valley" : "mem";
+          reason = (valleyClosed || valleyShort) ? "valley" : "mem";
           blocks.push(firstBlockMin);
-          firstSnap = snapAt(firstBlockMin, qRecSp, qPumpSp, qMandSp, valleyClosed ? 0 : qPermAvg, {
+          firstSnap = snapAt(firstBlockMin, qRecSp, qPumpSp, qMandSp, (valleyClosed || valleyShort) ? 0 : qPermAvg, {
             run11036: true, pumpOn: true, pumpBy20: true, blockP11: false,
-            allowUf: !valleyClosed, allowMbrByPerm: !valleyClosed,
+            allowUf: !(valleyClosed || valleyShort), allowMbrByPerm: !(valleyClosed || valleyShort),
           });
-          firstSnap.liv20 = round2(Math.min(stop, liv20 + rateFill * firstBlockMin));
+          firstSnap.liv20 = round2(Math.min(stop, liv20 + (deficit / Math.max(1, V20)) * (100 / 60) * firstBlockMin));
           firstSnap.deficitProd = round1(deficit);
         }
       }
@@ -4815,6 +4846,7 @@
         qScaricoNeed: round1(qScaricoNeed),
         qOsmCap: round1(qOsmCap),
         valleyClosed: !!valleyClosed,
+        valleyShort: !!valleyShort,
         endLiv20: round2(liv20),
         endLiv11: round2(liv11),
         endLivMbr: round2(livMbr),
@@ -4994,22 +5026,25 @@
         askQ = `È possibile aumentare il <strong>riciclo 11014</strong> a <strong class="flow-val">${fmtQ(qRecNeed)} m³/h</strong>?`;
         yesHtml = `Ok: riciclo → <strong class="flow-val">${fmtQ(qRecNeed)} m³/h</strong>.`;
         noHtml = cfLowerNoHtml(qSafeSamePumps, "riciclo 11014", qHaveRec);
-      } else if (fc.reason === "valley" || fc.valleyClosed) {
-        // Osmosi/valle chiuse: non ha senso alzare membrane — si riempie tutto a monte
+      } else if (fc.reason === "valley" || fc.valleyClosed || fc.valleyShort) {
+        // Export osmosi < chimico (es. 44 vs 160): i serbatoi assorbono poco, poi blocco
         focus = "osm";
         device = "osmosi";
+        const qOsmHave = fc.qOsmCap != null ? fc.qOsmCap : 0;
         target = Math.max(qInSp, 1);
-        haveNow = 0;
+        haveNow = qOsmHave;
         anomaly = true;
         near = false;
-        verdict = `Male: <strong>valle chiusa</strong> (osmosi ferme / export ≈ 0). `
-          + `TK-11021 si riempie → UF stop → P11019 non scaricano il 11007 → membrane stop → blocco a monte. `
+        verdict = `Male: <strong>valle corta</strong> — osmosi esportano <strong class="flow-val">${fmtQ(qOsmHave)} m³/h</strong> `
+          + `ma chimico <strong>${fmtQ(qInSp)}</strong> (manca ≈ <strong class="flow-val">${fmtQ(Math.max(0, qInSp - qOsmHave))}</strong>). `
+          + `TK-11021/11007 si riempiono → membrane spesso ferme → blocco a monte. `
           + `Previsto tra <strong>${when}</strong>.`;
-        action = `Riparti le <strong>osmosi</strong> (o una portata valle ≥ chimico), altrimenti scendi il chimico. `
-          + `Non alzare le membrane: peggiorano il riempimento del 11007.`;
-        askQ = `Puoi rimettere in marcia le <strong>osmosi</strong> (valle aperta) per evitare il blocco?`;
-        yesHtml = `Ok: riparti le osmosi — la valle deve esportare ≈ chimico.`;
-        noHtml = cfLowerNoHtml(qSafeSamePumps, "osmosi", 0);
+        action = `Porta l’export osmosi a ≥ <span class="flow-val">${fmtQ(qInSp)} m³/h</span> `
+          + `(più linee in marcia), oppure scendi il chimico. Non alzare le membrane: restano in sito.`;
+        askQ = `Puoi aumentare le <strong>osmosi</strong> a ≥ <strong class="flow-val">${fmtQ(qInSp)} m³/h</strong> `
+          + `(ora ${fmtQ(qOsmHave)})?`;
+        yesHtml = `Ok: export valle ≥ <strong class="flow-val">${fmtQ(qInSp)} m³/h</strong>.`;
+        noHtml = cfLowerNoHtml(qSafeSamePumps, "osmosi", qOsmHave);
       } else if (!memOk) {
         focus = "mem";
         device = "membrane";
@@ -5061,6 +5096,14 @@
       if (focus === "p11" && askQ) {
         ask = {
           key: `fc-p11-${pumpAdv.hz}-${fmtQ(qPumpTarget)}-${fmtQ(qHavePump)}-${hzHave || "x"}`,
+          q: askQ,
+          yesHtml,
+          noHtml,
+          hideAltOnNo: false,
+        };
+      } else if (focus === "osm" && askQ) {
+        ask = {
+          key: `fc-osm-${fmtQ(target)}-${fmtQ(haveNow)}-${fmtQ(qInSp)}`,
           q: askQ,
           yesHtml,
           noHtml,
@@ -5788,7 +5831,7 @@
 
     function getTk11021Geom() {
       let V = numOrNull("regTk11021Vutile");
-      if (V === null || V < 0.5) V = 30;
+      if (V === null || V < 0.5) V = 11.7;
       return { V: Math.max(0.5, V) };
     }
 
@@ -5858,7 +5901,7 @@
       }
       const hint21 = el("regTk11021GeomHint");
       if (hint21) {
-        hint21.textContent = `TK-11021: V utile ${round1(g21.V)} m³ → ${r21.toFixed(2)} %/min ogni 100 m³/h di netto (IN UF − OUT osmosi). Attivo in processo.`;
+        hint21.textContent = `TK-11021: V utile ${String(round1(g21.V)).replace(".", ",")} m³ → ${r21.toFixed(2)} %/min ogni 100 m³/h di netto (IN UF − OUT osmosi). Attivo in processo.`;
       }
       paintTk10608Passante();
       try { getTk11007Calib(); } catch (_) { /* ok */ }
@@ -6064,8 +6107,27 @@
     }
 
     /**
-     * Livello MBR: volume = N vaschette. Quasi tutto l’eccesso (mandata−permeato)
-     * scende ad A11004; se il riciclo non smaltisce / H è piena, l’eccesso resta in MBR.
+     * Permeato EFFETTIVO per bilanci di livello (m³/h).
+     * 0 se membrane bloccate da processo (MBR basso / TK-11007 pieno) — mai usare la media di ciclo
+     * come se stessero ancora estraendo (altrimenti il MBR “non si riempie” a membrane ferme).
+     */
+    function qMemPermeateForLevels(simulating) {
+      if (!membranesProcessAllowed()) return 0;
+      const sim = simulating || __simBusy || __simMin > 0;
+      if (sim) return round1(sumMemsRunning(__mbrCycleMin));
+      try {
+        const d = duty().d;
+        return round1(sumMemsAllOn() * (d > 0.05 ? d : 0.875));
+      } catch (_) {
+        return round1(sumMemsAllOn() * 0.875);
+      }
+    }
+
+    /**
+     * Livello MBR: volume = N vaschette.
+     * — Membrane in estrazione: quasi tutto l’eccesso (mandata−permeato) → A11004; poco resta in MBR.
+     * — Membrane FERME: quasi tutta la mandata resta in vaschetta. Il riciclo 11014 aspira da A11004,
+     *   NON compensa/svuota le membrane.
      */
     function estimateMbrRatePctPerMin(qMandata, qPerm, livMbrOpt, opts) {
       opts = opts || {};
@@ -6078,6 +6140,7 @@
       const backedUp = !!opts.backedUp;
 
       if (!membranesExtracting) {
+        // Ferme: ~92% della mandata resta in MBR (solo ~8% comunica verso A11004)
         const net = qIn * 0.92;
         const rFill = ratePctPerMinFromVolume(net, V);
         if (!Number.isFinite(rFill)) return 0;
@@ -6105,7 +6168,7 @@
 
     /**
      * Scarico MBR → A11004 (m³/h): gli scarichi di tutte le vaschette vanno al collettore.
-     * In estrazione ≈ 90% di (mandata − permeato); a membrane ferme poca comunicazione.
+     * In estrazione ≈ 90% di (mandata − permeato); a membrane ferme poca comunicazione (~8%).
      */
     function mbrScaricoToH(qMandata, qPerm, livMbrOpt) {
       const qM = Math.max(0, Number(qMandata) || 0);
@@ -6113,6 +6176,47 @@
       if (qP < 0.5) return round1(qM * 0.08);
       const excess = Math.max(0, qM - qP);
       return round1(excess * 0.90);
+    }
+
+    /** Minuti stimati da livello attuale → stop riempimento MBR (11036 fermano). null se non sale. */
+    function mbrMinutesToStopFill(qMandata, qPerm, livMbr, opts) {
+      const stop = numOrNull("stopRiempMbr");
+      const stopV = stop !== null ? stop : 92;
+      const liv = Number(livMbr);
+      if (!Number.isFinite(liv) || liv >= stopV - 0.05) return 0;
+      const r = estimateMbrRatePctPerMin(qMandata, qPerm, liv, opts || {});
+      if (!(r > 0.02)) return null;
+      return round1((stopV - liv) / r);
+    }
+
+    /** Hint popup membrane: conti IN/OUT e tempo a stop 11036. */
+    function paintMbrFillBalanceHint(qMandata, qPerm, livMbr, qRecycle) {
+      const hint = el("mbrFillBalanceHint");
+      if (!hint) return;
+      const qM = Math.max(0, Number(qMandata) || 0);
+      const qP = Math.max(0, Number(qPerm) || 0);
+      const qH = mbrScaricoToH(qM, qP, livMbr);
+      const vol = getMbrCommonVolume();
+      const backedUp = (numOrNull("livelloAttualeH") ?? 90) >= 94 || qH > (qRecycle || 0) + 2;
+      const r = estimateMbrRatePctPerMin(qM, qP, livMbr, { backedUp, qRecycle: qRecycle || 0 });
+      const eta = mbrMinutesToStopFill(qM, qP, livMbr, { backedUp, qRecycle: qRecycle || 0 });
+      const stopV = numOrNull("stopRiempMbr") ?? 92;
+      const fermi = qP < 0.5;
+      let etaTxt;
+      if (!qM || qM < 0.5) etaTxt = "11036 ferme → livello MBR non sale da mandata";
+      else if (eta === 0) etaTxt = `già ≥ stop riemp. ${fmtPct(stopV)} → 11036 devono stare ferme`;
+      else if (eta == null) etaTxt = fermi
+        ? `livello non sale (netto≈0) — verifica mandata`
+        : `livello stabile/in calo (permeato+scarico ≥ mandata)`;
+      else etaTxt = `≈ <strong>${eta} min</strong> per arrivare a stop riemp. ${fmtPct(stopV)} (11036 stop)`;
+      hint.innerHTML = (fermi
+        ? `<strong>Membrane FERME</strong> (OUT permeato 0). Mandata IN <strong class="flow-val">${fmtQ(qM)}</strong> → `
+          + `resta in vaschetta ≈ <strong>${fmtQ(qM * 0.92)}</strong> · scarico→A11004 ≈ ${fmtQ(qH)}. `
+          + `<em>Il riciclo 11014 NON svuota le membrane</em> (aspira solo A11004). `
+        : `Membrane in estrazione: IN mandata <strong>${fmtQ(qM)}</strong> · OUT permeato <strong class="flow-val">${fmtQ(qP)}</strong> `
+          + `· scarico→A11004 ≈ ${fmtQ(qH)} · netto in MBR (dopo scarico) guida il livello. `)
+        + `V MBR≈${round1(vol.V)} m³ (${vol.n}×${round1(vol.Vtray)}) · ${r >= 0 ? "+" : ""}${round1(r).toFixed(2)} %/min · ${etaTxt}.`;
+      hint.style.color = fermi && qM > 0.5 ? "var(--warn)" : "var(--muted)";
     }
 
     function paintMbrLevelUI(livMbr, rateMbr) {
@@ -6268,10 +6372,9 @@
       }
     }
 
-    /** Setpoint P11019: Automatico = 140; Manuale = set libero (≥ 0). IAS si sottrae → Impianto. */
+    /** Setpoint P11019: set operatore 0…140 (default 140). IAS opzionale = sottrae → Impianto. */
     function qP11019Setpoint() {
-      if (isAutoMode()) return Q_P11019_MIN;
-      return Math.max(0, flowSetpointOf("qP11019"));
+      return clampP11019Set(flowSetpointOf("qP11019"));
     }
 
     /** Portata effettiva pompe P11019 (OUT TK-11007): 0 se stop svuotamento; altrimenti setpoint. */
@@ -6283,14 +6386,10 @@
 
     /** Set pompe P11019 memorizzato (comando). Non è la viva a 0 con pompe ferme. */
     function qP11019SplitPumpMem() {
-      if (isAutoMode()) {
-        __flowSetpoint.qP11019 = Q_P11019_MIN;
-        return Q_P11019_MIN;
-      }
       let s = Math.max(0, Number(__flowSetpoint.qP11019) || 0);
       if (s < 0.05) s = Math.max(0, num("qP11019") || 0);
-      if (s < 0.05) s = Q_P11019_MIN;
-      s = Math.round(Math.min(500, Math.max(0, s)));
+      if (s < 0.05) s = Q_P11019_DEFAULT;
+      s = clampP11019Set(s);
       __flowSetpoint.qP11019 = s;
       return s;
     }
@@ -6377,30 +6476,46 @@
     }
 
     /**
-     * Split bidirezionale: set pompe fisso.
-     * which = "ias" → Impianto = pompe − IAS
-     * which = "impianto" → IAS = pompe − Impianto
+     * Split Impianto / IAS.
+     * — IAS chiuso + tocchi Impianto → cambia il set pompe (IAS resta 0). Mai aprire IAS “di nascosto”.
+     * — IAS già aperto + tocchi Impianto → regola IAS = pompe − Impianto.
+     * — Tocchi IAS → apre/regola IAS; Impianto = pompe − IAS.
      */
     function applyP11019SplitFrom(which, raw) {
-      const pump = qP11019SplitPumpMem();
+      let pump = qP11019SplitPumpMem();
+      const iasNow = Math.max(0, Math.round(Number(__flowSetpoint.qP11019Ias) || 0));
       let v = Math.max(0, Math.round(Number(raw) || 0));
-      if (v > 500) v = 500;
-      if (pump > 0.05 && v > pump) v = pump;
+      if (v > Q_P11019_MAX) v = Q_P11019_MAX;
       let ias;
       let imp;
       if (which === "impianto") {
         imp = v;
-        ias = pump > 0.05 ? Math.max(0, pump - v) : Math.max(0, Math.round(Number(__flowSetpoint.qP11019Ias) || 0));
+        if (iasNow < 0.05) {
+          // IAS chiuso: Impianto = set pompe (es. 60 m³/h senza aprire IAS)
+          pump = clampP11019Set(imp);
+          rememberFlowSetpoint("qP11019", pump);
+          if (!isEditing("qP11019")) setVal("qP11019", pump, { force: true });
+          ias = 0;
+          rememberFlowSetpoint("qP11019Ias", 0, { allowZero: true });
+        } else if (imp > pump + 0.05) {
+          pump = clampP11019Set(imp);
+          rememberFlowSetpoint("qP11019", pump);
+          if (!isEditing("qP11019")) setVal("qP11019", pump, { force: true });
+          ias = Math.min(iasNow, pump);
+        } else {
+          ias = Math.max(0, pump - imp);
+        }
       } else {
-        ias = v;
-        imp = pump > 0.05 ? Math.max(0, pump - v) : Math.max(0, Math.round(Number(__flowSetpoint.qP11019Impianto) || 0));
+        ias = Math.min(pump > 0.05 ? pump : Q_P11019_MAX, v);
+        imp = Math.max(0, pump - ias);
       }
       if (ias > 0.05) rememberFlowSetpoint("qP11019Ias", ias);
-      else if (which === "ias") rememberFlowSetpoint("qP11019Ias", 0, { allowZero: true });
-      if (imp > 0.05) rememberFlowSetpoint("qP11019Impianto", imp);
-      else if (which === "impianto") rememberFlowSetpoint("qP11019Impianto", 0, { allowZero: true });
+      else rememberFlowSetpoint("qP11019Ias", 0, { allowZero: true });
+      rememberFlowSetpoint("qP11019Impianto", Math.max(0, pump - ias), { allowZero: true });
       setVal("qP11019Ias", ias, { force: !isEditing("qP11019Ias") || which === "ias" });
-      setVal("qP11019Impianto", imp, { force: !isEditing("qP11019Impianto") || which === "impianto" });
+      setVal("qP11019Impianto", Math.max(0, pump - ias), { force: !isEditing("qP11019Impianto") || which === "impianto" });
+      if (p11019Allowed()) commitFlow("qP11019", pump, { setpoint: pump });
+      else commitFlow("qP11019", 0, { setpoint: pump });
       paintP11019SplitUI();
       try { syncDownstreamPermeate(null, "p11019"); } catch (_) { /* ignore */ }
       try { schedulePersist(); } catch (_) { /* ignore */ }
@@ -7226,18 +7341,46 @@
       return ratePctPerMinFromVolume(qIn - qOut, V);
     }
 
-    /** Capacità setpoint osmosi abilitate (0 = tutte ferme/disabilitate → valle chiusa a regime). */
+    /**
+     * Export valle REALE (m³/h): somma solo linee che stanno davvero mandando fuori.
+     * NON sommare i setpoint delle linee spente/non feeding (altrimenti 1×44 + B/C fantasma ≈ 160
+     * e la previsione “regge ore” con chimico 160 — falso).
+     */
     function osmExportSetpointTotal() {
       let q = 0;
       try {
         ["A", "B", "C"].forEach((L) => {
           if (!osmLineEnabled(L)) return;
+          if (!osmLineRunning(L)) return;
+          // Automatico: solo linee che ricevono portata
+          if (deviceAutoControlled("osmosi") && !osmLineFeeding(L)) return;
           const id = "qOsmosi" + L;
-          const sp = Math.max(0, procSetpointOf(id) || num(id) || 0);
-          if (sp > 0.05) q += sp;
+          let sp = Math.max(0, procSetpointOf(id) || 0);
+          if (sp < 0.05) sp = Math.max(0, num(id) || 0);
+          let live = 0;
+          try { live = Math.max(0, Number(__osmMeas[L]) || 0); } catch (_) { /* ok */ }
+          const use = Math.max(sp, live);
+          if (use > 0.05) q += use;
         });
       } catch (_) { /* ok */ }
       return round1(q);
+    }
+
+    /** Export istantaneo misurato (0 se linee ferme). */
+    function osmExportLiveTotal() {
+      let q = 0;
+      try {
+        ["A", "B", "C"].forEach((L) => { q += Math.max(0, osmQinEffective(L)); });
+      } catch (_) { /* ok */ }
+      return round1(q);
+    }
+
+    /** Export da usare in previsioni: preferisci viva se >0, senno setpoint linee in marcia. */
+    function osmExportForForecast() {
+      const live = osmExportLiveTotal();
+      const sp = osmExportSetpointTotal();
+      if (live > 0.05) return live;
+      return sp;
     }
 
     function paintTk11021UI(livU, rateU, blocked) {
@@ -8552,9 +8695,13 @@
       paintChimico(chimicoOk);
 
       // A11004 / riciclo fanghi (11014) — setpoints PROCESSO + calibrazione
+      // totAvg qui deve essere permeato effettivo (0 a membrane ferme), non la media di ciclo
+      const qPermLiv = (totAvg != null && Number.isFinite(Number(totAvg)))
+        ? Math.max(0, Number(totAvg))
+        : qMemPermeateForLevels(__simBusy || __simMin > 0);
       const calH = getRicicloHCalib();
       const rateH = estimateRicHRatePctPerMin(
-        mbrScaricoToH(qMandata, totAvg, numOrNull("livelloAttualeMbr") ?? 90),
+        mbrScaricoToH(qMandata, qPermLiv, numOrNull("livelloAttualeMbr") ?? 90),
         qRecycle
       );
       let livH = numOrNull("livelloAttualeH");
@@ -8609,13 +8756,15 @@
       if (livMbrUi === null) livMbrUi = 90;
       updateMbrLevelInterlocks(livMbrUi);
       updateMbrFillFor11036(livMbrUi);
-      const rateMbrUi = estimateMbrRatePctPerMin(qMandata, totAvg, livMbrUi, {
-        backedUp: livH >= 94 || mbrScaricoToH(qMandata, totAvg, livMbrUi) > qRecycle + 2,
+      const qScaricoMbrUi = mbrScaricoToH(qMandata, qPermLiv, livMbrUi);
+      const rateMbrUi = estimateMbrRatePctPerMin(qMandata, qPermLiv, livMbrUi, {
+        backedUp: livH >= 94 || qScaricoMbrUi > qRecycle + 2,
         qRecycle,
       });
       paintMbrLevelUI(livMbrUi, rateMbrUi);
       paintMembraneCycleUI(__mbrCycleMin);
       paintMbrRicHCalibHints();
+      try { paintMbrFillBalanceHint(qMandata, qPermLiv, livMbrUi, qRecycle); } catch (_) { /* ok */ }
 
       // TK 11007 permeato — IN membrane istantanee vs OUT P11019 (≈ ingresso)
       let livPUi = numOrNull("livelloAttualeTk11007");
@@ -9279,17 +9428,22 @@
         }
 
         const totConfigured = round1(sumMemsAllOn()); // max = tutte in marcia
+        const totMediaCap = round1(totConfigured * dAvg); // media ciclo teorica (setpoint)
         let totOn;   // uscita effettiva (badge TOT ON)
-        let totAvg;  // usata per livelli / valle
-        if (simulating) {
+        // totAvg = permeato EFFETTIVO per bilanci livello (0 se membrane bloccate da processo)
+        let totAvg = qMemPermeateForLevels(simulating);
+        if (!membranesProcessAllowed()) {
+          totOn = 0;
+          totAvg = 0;
+        } else if (simulating) {
           // Tutte ON → max; 1 ferma → max − portata di quella; 2 ferme → max − due portate
           totOn = round1(sumMemsRunning(__mbrCycleMin));
           totAvg = totOn;
         } else {
           totOn = totConfigured;
-          totAvg = round1(totConfigured * dAvg);
+          totAvg = totMediaCap;
         }
-        setVal("qMemMedia", totAvg);
+        setVal("qMemMedia", totMediaCap);
         setVal("qInFromMem", round1(qIn));
         try { paintMemMinHint(); } catch (_) { /* ok */ }
         try { paintMbrRicHCalibHints(); } catch (_) { /* ok */ }
@@ -11441,7 +11595,7 @@
         return;
       }
       if (field === "qP11019") {
-        const q19 = Math.max(qP11019Floor(), Math.round(v));
+        const q19 = clampP11019Set(v);
         rememberFlowSetpoint("qP11019", q19);
         commitFlow("qP11019", p11019Allowed() ? q19 : 0, {
           instant: true,
@@ -11556,7 +11710,7 @@
         return;
       }
       if (field === "qP11019") {
-        const q19 = Math.max(qP11019Floor(), Math.round(v));
+        const q19 = clampP11019Set(v);
         rememberFlowSetpoint("qP11019", q19);
         commitFlow("qP11019", p11019Allowed() ? q19 : 0, {
           instant: true,
@@ -11867,7 +12021,7 @@
 
     el("qP11019")?.addEventListener("input", () => {
       if (numOrNull("qP11019") === null) return;
-      const v = Math.max(qP11019Floor(), Math.round(num("qP11019")));
+      const v = clampP11019Set(num("qP11019"));
       if (Math.abs(v - num("qP11019")) > 0.05) setVal("qP11019", v, { force: true });
       rememberFlowSetpoint("qP11019", v);
       commitFlow("qP11019", p11019Allowed() ? v : 0, { setpoint: v });
@@ -12438,8 +12592,8 @@
           const qm = Math.max(0, num("qMandata") || lastQMandata || __flowSetpoint.qMandata || 0);
           if (qp > 0.05) rememberFlowSetpoint("qPump", qp);
           if (qm > 0.05) rememberFlowSetpoint("qMandata", qm);
-          const qp19 = Math.max(qP11019Floor(), num("qP11019") || __flowSetpoint.qP11019 || Q_P11019_MIN);
-          if (qp19 <= 500) rememberFlowSetpoint("qP11019", qp19);
+          const qp19 = clampP11019Set(num("qP11019") || __flowSetpoint.qP11019 || Q_P11019_DEFAULT);
+          if (qp19 >= 0) rememberFlowSetpoint("qP11019", qp19);
           let ias = Math.max(0, num("qP11019Ias") || Number(data.qP11019Ias) || 0);
           if (ias > 500) ias = 0;
           rememberFlowSetpoint("qP11019Ias", ias, { allowZero: true });
