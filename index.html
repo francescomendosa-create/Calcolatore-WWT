@@ -4768,10 +4768,8 @@
       const qMandTarget = round1(Math.max(qPumpTarget, liveFlowHave(fc.qPumpSp, "qPump")));
       const memMinInfo = qMemMinTotaleForQin(qInSp);
       const dutyAvg = memMinInfo.duty;
-      const qMemTarget = round1(Math.max(
-        memMinInfo.qMemMin,
-        qMandTarget > 0.5 ? qMandTarget * 0.85 : 0
-      ));
+      // Solo minimo tecnico vs chimico (ceil(qIn/duty)) — mai legare a mandata×0.85
+      const qMemTarget = roundMem(Math.max(0, memMinInfo.qMemMin));
       const qPermHave = fc.qPermAvg != null
         ? fc.qPermAvg
         : round1((fc.qMemSp || 0) * dutyAvg);
@@ -4908,9 +4906,10 @@
           + `<strong>membrane a ${fmtQ(qHaveMem)}</strong> (uscita ≈ ${fmtQ(qPermHave)}) &lt; chimico <strong>${fmtQ(qInSp)}</strong>. `
           + `Blocco previsto tra <strong>${when}</strong>.`;
         action = `Membrane → <span class="flow-val">${fmtQ(qMemTarget)} m³/h</span> `
-          + `(P11011 resta ${havePumpLbl}).`;
-        askQ = `È possibile aumentare le <strong>membrane</strong> a <strong class="flow-val">${fmtQ(qMemTarget)} m³/h</strong>?`;
-        yesHtml = `Ok: membrane → <strong class="flow-val">${fmtQ(qMemTarget)} m³/h</strong>.`;
+          + `(minimo tecnico vs chimico ${fmtQ(qInSp)}; P11011 resta ${havePumpLbl}).`;
+        askQ = `È possibile portare le <strong>membrane</strong> al minimo tecnico `
+          + `<strong class="flow-val">${fmtQ(qMemTarget)} m³/h</strong>?`;
+        yesHtml = `Ok: membrane → <strong class="flow-val">${fmtQ(qMemTarget)} m³/h</strong> (minimo tecnico).`;
         noHtml = cfLowerNoHtml(qSafeSamePumps, "membrane", qHaveMem);
       } else if (qPumpTarget > qMax + 0.05) {
         forceAlt = true;
@@ -5048,9 +5047,9 @@
         forceManualFlows: true,
       });
 
-      // Target 11036 / membrane: scaricare almeno quanto arriva da P11011 (o il bisogno impianto)
+      // Target 11036: allinea a P11011. Membrane: solo minimo tecnico vs chimico.
       const qMandTarget = round1(Math.max(qPumpTarget, ev.qInTo20 || 0, ev.qPumpSp || 0));
-      const qMemTarget = round1(Math.max(qMandTarget * 0.85, qMandTarget > 0.5 ? qMandTarget * 0.85 : 0));
+      const qMemTarget = roundMem(Math.max(0, qMemMinTotaleForQin(ev.qInSp).qMemMin));
       const qHaveMand = Math.max(ev.qMandSp || 0, ev.run11036 ? (ev.qMandLive || 0) : 0);
       const qHaveMem = Math.max(ev.qMemSp || 0, ev.qMemLive || 0);
       const anomalyMand = isAnomalousLowFlow(qHaveMand, qMandTarget, ev.qInSp);
@@ -5072,18 +5071,20 @@
         const memWorse = (anomalyMem || memGap > mandGap + 5) && (qHaveMem + 0.5 < qMemTarget) && !anomalyMand;
         anomaly = memWorse ? anomalyMem : anomalyMand;
         if (memWorse) {
-          verdict = `Male: <strong>membrane a ${fmtQ(qHaveMem)}</strong> — mettile a <strong class="fix-val">${fmtQ(qMemTarget)}</strong> `
+          verdict = `Male: <strong>membrane a ${fmtQ(qHaveMem)}</strong> — minimo tecnico `
+            + `<strong class="flow-val">${fmtQ(qMemTarget)}</strong> vs chimico ${fmtQ(ev.qInSp)} `
             + `(A10611 ${fmtBlockPct(ev.liv11)} → P11011 ferme).`;
-          action = `Membrane → <span class="fix-val">${fmtQ(qMemTarget)} m³/h</span> · MP 11036 ≥ <span class="fix-val">${fmtQ(qMandTarget)}</span> `
-            + `finché A10611 &lt; <strong class="fix-val">${fmtBlockPct(ev.hiRestart)}</strong>.`;
+          action = `Membrane → <span class="flow-val">${fmtQ(qMemTarget)} m³/h</span> (minimo tecnico) · MP 11036 ≥ <span class="flow-val">${fmtQ(qMandTarget)}</span> `
+            + `finché A10611 &lt; <strong class="flow-val">${fmtBlockPct(ev.hiRestart)}</strong>.`;
           if (anomaly) {
-            fault = `Portata bassa: IN ${fmtQ(ev.qInSp)} ma membrane a ${fmtQ(qHaveMem)} (serve ≈ ${fmtQ(qMemTarget)}). `
-              + `Prima alza le membrane; se non puoi, No → quanto scendere il chimico.`;
+            fault = `Portata bassa: IN ${fmtQ(ev.qInSp)} ma membrane a ${fmtQ(qHaveMem)} (minimo tecnico ${fmtQ(qMemTarget)}). `
+              + `Prima alza le membrane al minimo; se non puoi, No → quanto scendere il chimico.`;
             alt = "";
             ask = {
               key: `mem-${fmtQ(qMemTarget)}-${fmtQ(ev.qInSp)}`,
-              q: `È possibile aumentare le <strong>membrane</strong> a <strong class="fix-val">${fmtQ(qMemTarget)} m³/h</strong>?`,
-              yesHtml: `Ok: membrane → <span class="fix-val">${fmtQ(qMemTarget)}</span>, MP 11036 ≥ <span class="fix-val">${fmtQ(qMandTarget)}</span>.`,
+              q: `È possibile portare le <strong>membrane</strong> al minimo tecnico `
+                + `<strong class="flow-val">${fmtQ(qMemTarget)} m³/h</strong>?`,
+              yesHtml: `Ok: membrane → <span class="flow-val">${fmtQ(qMemTarget)}</span> (minimo), MP 11036 ≥ <span class="flow-val">${fmtQ(qMandTarget)}</span>.`,
               noHtml: cfLowerNoHtml(Math.min(ev.qInSp, qSafe8h), "membrane", qHaveMem),
               hideAltOnNo: false,
             };
@@ -5091,8 +5092,9 @@
             alt = cfLowerNoHtml(Math.min(ev.qInSp, qSafe8h), "membrane", qHaveMem);
             ask = {
               key: `mem-ok-${fmtQ(qMemTarget)}-${fmtQ(ev.qInSp)}`,
-              q: `È possibile aumentare le <strong>membrane</strong> a <strong class="fix-val">${fmtQ(qMemTarget)} m³/h</strong>?`,
-              yesHtml: `Ok: membrane → <span class="fix-val">${fmtQ(qMemTarget)}</span>, MP 11036 ≥ <span class="fix-val">${fmtQ(qMandTarget)}</span>.`,
+              q: `È possibile portare le <strong>membrane</strong> al minimo tecnico `
+                + `<strong class="flow-val">${fmtQ(qMemTarget)} m³/h</strong>?`,
+              yesHtml: `Ok: membrane → <span class="flow-val">${fmtQ(qMemTarget)}</span> (minimo), MP 11036 ≥ <span class="flow-val">${fmtQ(qMandTarget)}</span>.`,
               noHtml: alt,
               hideAltOnNo: false,
             };
