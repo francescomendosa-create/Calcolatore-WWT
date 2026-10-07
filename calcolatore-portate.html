@@ -4380,6 +4380,11 @@
       if (focus === "p11") {
         return `Male · ripristina P11011 (Hz) · o chimico ≤ ${qSafe} · ~${when}`;
       }
+      if (focus === "osm") {
+        const qOsm = fc && fc.qOsmCap != null ? fmtQ(fc.qOsmCap) : "—";
+        const qIn = fc && fc.qInSp != null ? fmtQ(fc.qInSp) : "—";
+        return `Male · valle corta (osmosi ${qOsm} < chimico ${qIn}) · ~${when}`;
+      }
       return `Male · regola impianto · o chimico ≤ ${qSafe} · ~${when}`;
     }
 
@@ -4501,11 +4506,16 @@
 
     /** True se P11011 è sotto il set che metterebbe Automatico (portata o Hz). */
     function pumpBelowAutoSet(qHave, pumpAdv) {
+      const hzHave = livePumpHz();
+      const hzNeed = pumpAdv && pumpAdv.hz != null ? Number(pumpAdv.hz) : null;
+      // Già al Hz (o sopra) del passo Automatico → ok: non chiedere di nuovo «metti a 45 Hz»
+      // se la portata UI è leggermente sotto la tabella (rampa / arrotondamenti).
+      if (hzNeed != null && hzHave != null && Number.isFinite(hzHave) && hzHave + 0.05 >= hzNeed) {
+        return false;
+      }
       const qH = Math.max(0, Number(qHave) || 0);
       const needQ = Math.max(0, Number(pumpAdv && pumpAdv.q) || 0);
       if (needQ > 0.5 && !flowMeetsNeed(qH, needQ)) return true;
-      const hzHave = livePumpHz();
-      const hzNeed = pumpAdv && pumpAdv.hz != null ? Number(pumpAdv.hz) : null;
       if (hzNeed != null && hzHave != null && hzHave + 0.05 < hzNeed) return true;
       return false;
     }
@@ -5028,6 +5038,7 @@
         noHtml = cfLowerNoHtml(qSafeSamePumps, "riciclo 11014", qHaveRec);
       } else if (fc.reason === "valley" || fc.valleyClosed || fc.valleyShort) {
         // Export osmosi < chimico (es. 44 vs 160): i serbatoi assorbono poco, poi blocco
+        // Non è un fallimento di Auto su P11011: Automatico regola pompe/mandata, non accende linee osmosi.
         focus = "osm";
         device = "osmosi";
         const qOsmHave = fc.qOsmCap != null ? fc.qOsmCap : 0;
@@ -5035,12 +5046,13 @@
         haveNow = qOsmHave;
         anomaly = true;
         near = false;
-        verdict = `Male: <strong>valle corta</strong> — osmosi esportano <strong class="flow-val">${fmtQ(qOsmHave)} m³/h</strong> `
-          + `ma chimico <strong>${fmtQ(qInSp)}</strong> (manca ≈ <strong class="flow-val">${fmtQ(Math.max(0, qInSp - qOsmHave))}</strong>). `
-          + `TK-11021/11007 si riempiono → membrane spesso ferme → blocco a monte. `
+        verdict = `Male: <strong>valle corta</strong> — P11011 già a set (<strong>${havePumpLbl}</strong>), ma `
+          + `osmosi esportano <strong class="flow-val">${fmtQ(qOsmHave)} m³/h</strong> `
+          + `vs chimico <strong>${fmtQ(qInSp)}</strong> (manca ≈ <strong class="flow-val">${fmtQ(Math.max(0, qInSp - qOsmHave))}</strong>). `
+          + `Automatico non avvia linee osmosi: TK-11021/11007 si riempiono → blocco a monte. `
           + `Previsto tra <strong>${when}</strong>.`;
         action = `Porta l’export osmosi a ≥ <span class="flow-val">${fmtQ(qInSp)} m³/h</span> `
-          + `(più linee in marcia), oppure scendi il chimico. Non alzare le membrane: restano in sito.`;
+          + `(più linee in marcia), oppure scendi il chimico. Non toccare P11011/Hz: sono già a posto.`;
         askQ = `Puoi aumentare le <strong>osmosi</strong> a ≥ <strong class="flow-val">${fmtQ(qInSp)} m³/h</strong> `
           + `(ora ${fmtQ(qOsmHave)})?`;
         yesHtml = `Ok: export valle ≥ <strong class="flow-val">${fmtQ(qInSp)} m³/h</strong>.`;
