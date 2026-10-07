@@ -731,9 +731,10 @@
       stroke-width: 1;
     }
     .badge-val { fill: #fff; font: 700 13px "Segoe UI", sans-serif; }
-    .badge-sp { fill: #fbbf24; font: 700 12px "Segoe UI", sans-serif; }
+    .badge-sp { fill: #fbbf24; font: 700 13px "Segoe UI", sans-serif; }
     .badge-sep { fill: #64748b; font: 600 11px "Segoe UI", sans-serif; }
     .badge-unit { fill: var(--muted); font: 500 10px "Segoe UI", sans-serif; }
+    .badge-unit-set { fill: #fbbf24; font: 600 9px "Segoe UI", sans-serif; }
     .badge-label { fill: var(--muted); font: 600 10px "Segoe UI", sans-serif; letter-spacing: 0.03em; }
     .uf-valve-track, .osm-valve-track { fill: #0f172a; stroke: #64748b; stroke-width: 0.8; }
     .uf-valve-fill, .osm-valve-fill { fill: #22d3ee; }
@@ -1585,7 +1586,7 @@
     </div>
 
     <div class="sketch" id="sketch">
-      <svg viewBox="0 0 1070 620" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-label="Schema linea MBR">
+      <svg viewBox="0 0 1090 620" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-label="Schema linea MBR">
         <defs>
           <clipPath id="clipTank20"><ellipse cx="285" cy="100" rx="50" ry="26"/></clipPath>
           <clipPath id="clipTank11"><ellipse cx="630" cy="100" rx="48" ry="25"/></clipPath>
@@ -1660,10 +1661,11 @@
             <text class="badge-unit" x="372" y="159" text-anchor="middle">m³/h</text>
           </g>
           <g class="flow-edit" data-field="qPump" data-source="pompa" aria-label="Setpoint P11011">
-            <rect class="badge" x="318" y="174" width="74" height="26" rx="5" stroke="#fbbf24" />
-            <text class="badge-sp" x="355" y="192" text-anchor="middle" id="svgQPumpSp" font-size="12">345</text>
+            <rect class="badge" x="318" y="174" width="74" height="32" rx="5" stroke="#fbbf24" />
+            <text class="badge-sp" x="342" y="195" text-anchor="middle" id="svgQPumpSp">345</text>
+            <text class="badge-unit badge-unit-set" x="372" y="195" text-anchor="middle">set</text>
           </g>
-          <text id="svgManPompa" class="svg-man-mark" x="396" y="192" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
+          <text id="svgManPompa" class="svg-man-mark" x="396" y="195" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
           <g class="flow-edit" data-field="freqHz" data-source="freq">
             <rect class="badge" x="398" y="84" width="58" height="32" rx="5" stroke="#86efac" />
             <text class="badge-val" x="418" y="105" text-anchor="middle" id="svgFreqHz">45</text>
@@ -1779,17 +1781,20 @@
           <text x="963" y="170" text-anchor="middle" font-size="6" fill="#86efac" id="svgRateH">—</text>
         </g>
 
-        <!-- TOT membrane ON — misura; setpoint in quadretto a destra (stesso stile UF) -->
+        <!-- TOT membrane ON — misura + set identici (set a destra) -->
         <g class="flow-edit" data-field="qMemTotale" data-source="totale" aria-label="Totale membrane ON">
-          <rect class="badge" x="930" y="8" width="72" height="34" rx="5" stroke="#c084fc" />
-          <text class="badge-label" x="966" y="20" text-anchor="middle">TOT ON</text>
-          <text class="badge-val" x="966" y="34" text-anchor="middle" id="svgQMem" font-size="12">171</text>
+          <rect class="badge" x="922" y="8" width="74" height="34" rx="5" stroke="#c084fc" />
+          <text class="badge-label" x="959" y="20" text-anchor="middle">TOT ON</text>
+          <text class="badge-val" x="946" y="34" text-anchor="middle" id="svgQMem">171</text>
+          <text class="badge-unit" x="976" y="34" text-anchor="middle">m³/h</text>
         </g>
         <g class="flow-edit" data-field="qMemTotale" data-source="totale" aria-label="Setpoint membrane">
-          <rect class="badge" x="1006" y="8" width="42" height="34" rx="5" stroke="#fbbf24" />
-          <text class="badge-sp" x="1027" y="30" text-anchor="middle" id="svgQMemSp" font-size="12">171</text>
+          <rect class="badge" x="1000" y="8" width="74" height="34" rx="5" stroke="#fbbf24" />
+          <text class="badge-label" x="1037" y="20" text-anchor="middle" fill="#fde68a">SET</text>
+          <text class="badge-sp" x="1024" y="34" text-anchor="middle" id="svgQMemSp">171</text>
+          <text class="badge-unit badge-unit-set" x="1054" y="34" text-anchor="middle">set</text>
         </g>
-        <text id="svgManMembrane" class="svg-man-mark" x="1052" y="30" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
+        <text id="svgManMembrane" class="svg-man-mark" x="1078" y="30" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
 
         <!-- aspirazione A11004 → 11014 -->
         <path class="pipe pipe-rec" d="M949 176 V200" fill="none" />
@@ -1806,15 +1811,16 @@
           </g>
           <text id="svgPump11014Label" x="949" y="242" text-anchor="middle" fill="#86efac" font-size="9" font-weight="700">11014 A/B</text>
           <g class="flow-edit" data-field="qRecycle" data-source="riciclo-inline">
-            <rect class="badge" x="912" y="248" width="74" height="30" rx="5" stroke="#fb7185" />
-            <text class="badge-val" x="936" y="268" text-anchor="middle" id="svgQRec">170.8</text>
-            <text class="badge-unit" x="966" y="268" text-anchor="middle">m³/h</text>
+            <rect class="badge" x="912" y="248" width="74" height="32" rx="5" stroke="#fb7185" />
+            <text class="badge-val" x="936" y="269" text-anchor="middle" id="svgQRec">170.8</text>
+            <text class="badge-unit" x="966" y="269" text-anchor="middle">m³/h</text>
           </g>
           <g class="flow-edit" data-field="qRecycle" data-source="riciclo-inline" aria-label="Setpoint 11014">
-            <rect class="badge" x="912" y="282" width="74" height="26" rx="5" stroke="#fbbf24" />
-            <text class="badge-sp" x="949" y="300" text-anchor="middle" id="svgQRecSp" font-size="12">171</text>
+            <rect class="badge" x="912" y="284" width="74" height="32" rx="5" stroke="#fbbf24" />
+            <text class="badge-sp" x="936" y="305" text-anchor="middle" id="svgQRecSp">171</text>
+            <text class="badge-unit badge-unit-set" x="966" y="305" text-anchor="middle">set</text>
           </g>
-          <text id="svgManRiciclo" class="svg-man-mark" x="990" y="300" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
+          <text id="svgManRiciclo" class="svg-man-mark" x="990" y="305" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
         </g>
 
         <!-- TK-11007 permeato — click → popup livello + setpoints -->
@@ -1943,16 +1949,20 @@
 
         <!-- ULTRAFILTRAZIONE — IN A–D in ingresso · totale sopra -->
         <g aria-label="Ultrafiltrazione A B C D">
-          <text x="539" y="300" text-anchor="middle" fill="#bae6fd" font-size="9" font-weight="700">ULTRA FILTRAZIONE</text>
-          <g class="flow-edit" data-field="qUfTotale" data-source="uf-totale" aria-label="Totale UF misura e setpoint">
-            <rect class="badge" x="474" y="306" width="130" height="28" rx="5" stroke="#7dd3fc" />
-            <text class="badge-label" x="539" y="317" text-anchor="middle">TOTALE</text>
-            <text class="badge-val" x="508" y="329" text-anchor="middle" id="svgQUf" font-size="12">0.0</text>
-            <text class="badge-sep" x="534" y="329" text-anchor="middle">|</text>
-            <text class="badge-sp" x="558" y="329" text-anchor="middle" id="svgQUfSp" font-size="12">0.0</text>
-            <text class="badge-unit" x="586" y="329" text-anchor="middle">m³/h</text>
+          <text x="543" y="294" text-anchor="middle" fill="#bae6fd" font-size="9" font-weight="700">ULTRA FILTRAZIONE</text>
+          <g class="flow-edit" data-field="qUfTotale" data-source="uf-totale" aria-label="Totale UF misura">
+            <rect class="badge" x="468" y="300" width="74" height="34" rx="5" stroke="#7dd3fc" />
+            <text class="badge-label" x="505" y="312" text-anchor="middle">TOTALE</text>
+            <text class="badge-val" x="492" y="326" text-anchor="middle" id="svgQUf">0.0</text>
+            <text class="badge-unit" x="522" y="326" text-anchor="middle">m³/h</text>
           </g>
-          <text id="svgManUltra" class="svg-man-mark" x="608" y="324" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
+          <g class="flow-edit" data-field="qUfTotale" data-source="uf-totale" aria-label="Setpoint UF">
+            <rect class="badge" x="546" y="300" width="74" height="34" rx="5" stroke="#fbbf24" />
+            <text class="badge-label" x="583" y="312" text-anchor="middle" fill="#fde68a">SET</text>
+            <text class="badge-sp" x="570" y="326" text-anchor="middle" id="svgQUfSp">0.0</text>
+            <text class="badge-unit badge-unit-set" x="600" y="326" text-anchor="middle">set</text>
+          </g>
+          <text id="svgManUltra" class="svg-man-mark" x="624" y="322" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
 
           <!-- Collettore ingresso (da carbone) + 4 misuratori → testata UF -->
           <path class="pipe pipe-main" d="M688 360 V500" />
@@ -2121,17 +2131,21 @@
 
         <!-- OSMOSI A B C — totali in alto · linea → misuratore → osmosi -->
         <g aria-label="Osmosi A B C">
-          <text x="160" y="292" text-anchor="middle" fill="#bae6fd" font-size="9" font-weight="700">OSMOSI</text>
-          <!-- Totale unico in anteprima = misura | setpoint (click → popup osmosi) -->
-          <g class="node" tabindex="0" data-popup="osmosi" role="button" aria-label="Totale osmosi misura e setpoint">
-            <rect class="badge" x="103" y="298" width="130" height="28" rx="5" stroke="#7dd3fc" />
-            <text class="badge-label" x="168" y="309" text-anchor="middle">TOTALE</text>
-            <text class="badge-val" x="137" y="321" text-anchor="middle" id="svgQOsmTotale" font-size="12">0.0</text>
-            <text class="badge-sep" x="163" y="321" text-anchor="middle">|</text>
-            <text class="badge-sp" x="187" y="321" text-anchor="middle" id="svgQOsmTotaleSp" font-size="12">0.0</text>
-            <text class="badge-unit" x="215" y="321" text-anchor="middle">m³/h</text>
+          <text x="163" y="286" text-anchor="middle" fill="#bae6fd" font-size="9" font-weight="700">OSMOSI</text>
+          <!-- Totale osmosi: misura + set identici (click → popup osmosi) -->
+          <g class="node" tabindex="0" data-popup="osmosi" role="button" aria-label="Totale osmosi misura">
+            <rect class="badge" x="88" y="292" width="74" height="34" rx="5" stroke="#7dd3fc" />
+            <text class="badge-label" x="125" y="304" text-anchor="middle">TOTALE</text>
+            <text class="badge-val" x="112" y="318" text-anchor="middle" id="svgQOsmTotale">0.0</text>
+            <text class="badge-unit" x="142" y="318" text-anchor="middle">m³/h</text>
           </g>
-          <text id="svgManOsmosi" class="svg-man-mark" x="238" y="316" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
+          <g class="node" tabindex="0" data-popup="osmosi" role="button" aria-label="Setpoint osmosi">
+            <rect class="badge" x="166" y="292" width="74" height="34" rx="5" stroke="#fbbf24" />
+            <text class="badge-label" x="203" y="304" text-anchor="middle" fill="#fde68a">SET</text>
+            <text class="badge-sp" x="190" y="318" text-anchor="middle" id="svgQOsmTotaleSp">0.0</text>
+            <text class="badge-unit badge-unit-set" x="220" y="318" text-anchor="middle">set</text>
+          </g>
+          <text id="svgManOsmosi" class="svg-man-mark" x="244" y="314" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
 
           <path class="pipe pipe-main" d="M310 415 H300" />
           <path class="pipe pipe-main" d="M300 348 V482" />
@@ -13285,7 +13299,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt145", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt146", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
