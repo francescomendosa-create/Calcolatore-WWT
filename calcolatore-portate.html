@@ -1705,7 +1705,18 @@
             <text class="badge-val" x="687" y="159" text-anchor="middle" id="svgQMand">345</text>
             <text class="badge-unit" x="717" y="159" text-anchor="middle">m³/h</text>
           </g>
-          <text id="svgManMandata" class="svg-man-mark" x="700" y="182" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
+          <g class="flow-edit" data-field="qMandata" data-source="mandata" aria-label="Setpoint MP 11036">
+            <rect class="badge" x="663" y="174" width="74" height="32" rx="5" stroke="#fbbf24" />
+            <text class="badge-sp" x="687" y="195" text-anchor="middle" id="svgQMandSp">345</text>
+            <text class="badge-unit badge-unit-set" x="717" y="195" text-anchor="middle">set</text>
+          </g>
+          <text id="svgManMandata" class="svg-man-mark" x="741" y="195" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
+          <g class="flow-edit" data-field="freqHzMand" data-source="freqMand">
+            <rect class="badge" x="615" y="84" width="58" height="32" rx="5" stroke="#86efac" />
+            <text class="badge-val" x="635" y="105" text-anchor="middle" id="svgFreqHzMand">45</text>
+            <text class="badge-unit" x="659" y="105" text-anchor="middle">Hz</text>
+          </g>
+          <text id="svgManMandataHz" class="svg-man-mark" x="644" y="128" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
         </g>
 
         <!-- MBR: vaschette A–G (+H fuori uso). Scarichi → A11004. Mandata/permeato dalle membrane -->
@@ -2663,6 +2674,28 @@
         </table>
       </div>
 
+      <!-- 1b. Frequenze MP 11036 = stesse di P11011 -->
+      <div class="settings-block show" id="regFreq11036">
+        <h4>1b · Frequenze MP 11036 A/B (A10611/7)</h4>
+        <p class="mini">Stessa scala di <strong>P11011 A/B</strong> (modifica sopra → si aggiorna anche qui, e viceversa). In Automatico con «equipara» la mandata segue P11011 (stessi Hz/portata). In Manuale regoli Hz/portata da questa curva.</p>
+        <table class="reg-table" aria-label="Quadro frequenze MP 11036 A/B">
+          <thead>
+            <tr><th>Frequenza</th><th>Portata (m³/h)</th></tr>
+          </thead>
+          <tbody>
+            <tr data-hz="50"><td>50 Hz (max)</td><td><input type="number" class="reg-q-mand" data-hz="50" min="0" max="500" step="0.1" value="430" inputmode="decimal" /></td></tr>
+            <tr data-hz="49"><td>49 Hz</td><td><input type="number" class="reg-q-mand" data-hz="49" min="0" max="500" step="0.1" value="412" inputmode="decimal" /></td></tr>
+            <tr data-hz="48"><td>48 Hz</td><td><input type="number" class="reg-q-mand" data-hz="48" min="0" max="500" step="0.1" value="395" inputmode="decimal" /></td></tr>
+            <tr data-hz="47"><td>47 Hz</td><td><input type="number" class="reg-q-mand" data-hz="47" min="0" max="500" step="0.1" value="378" inputmode="decimal" /></td></tr>
+            <tr data-hz="46"><td>46 Hz</td><td><input type="number" class="reg-q-mand" data-hz="46" min="0" max="500" step="0.1" value="362" inputmode="decimal" /></td></tr>
+            <tr data-hz="45"><td>45 Hz</td><td><input type="number" class="reg-q-mand" data-hz="45" min="0" max="500" step="0.1" value="345" inputmode="decimal" /></td></tr>
+            <tr data-hz="44"><td>44 Hz</td><td><input type="number" class="reg-q-mand" data-hz="44" min="0" max="500" step="0.1" value="328" inputmode="decimal" /></td></tr>
+            <tr data-hz="43"><td>43 Hz</td><td><input type="number" class="reg-q-mand" data-hz="43" min="0" max="500" step="0.1" value="311" inputmode="decimal" /></td></tr>
+            <tr data-hz="42"><td>42 Hz (min)</td><td><input type="number" class="reg-q-mand" data-hz="42" min="0" max="500" step="0.1" value="295" inputmode="decimal" /></td></tr>
+          </tbody>
+        </table>
+      </div>
+
       <!-- Contesto prova comune -->
       <div class="settings-block show" id="regTestContext">
         <h4>Contesto prova (comune)</h4>
@@ -2881,6 +2914,14 @@
         <label><strong>Portata mandata verso MBR (m³/h)</strong>
           <input type="number" id="qMandata" min="0" max="500" step="0.1" value="345" inputmode="decimal" />
         </label>
+        <div class="row" id="boxFreqMand">
+          <label><strong>Frequenza MP 11036 (Hz)</strong>
+            <input type="number" id="freqHzMand" min="0" max="60" step="1" value="45" inputmode="numeric" />
+          </label>
+          <label><strong>Hz max (scala)</strong>
+            <input type="number" id="freqMaxHzMand" min="42" max="60" step="1" value="50" inputmode="numeric" />
+          </label>
+        </div>
         <div class="row">
           <label><strong>Arrivo da P11011 A/B</strong>
             <input type="number" id="qArrivoView" readonly />
@@ -2889,7 +2930,7 @@
             <input type="number" id="qDeltaMand" readonly />
           </label>
         </div>
-        <p class="mini" id="qMandHint">Con equipara attiva, la mandata segue P11011 A/B così A10611/7 non si riempie.</p>
+        <p class="mini" id="qMandHint">Hz → portata dalla tabella REGOLAZIONI (uguale a P11011). Con equipara attiva, mandata = P11011 (stessi Hz).</p>
       </div>
       <div class="actions"><button type="button" data-close>Applica</button></div>
     </div>
@@ -3965,7 +4006,7 @@
       const map = {
         ingresso: ["svgManIngresso"],
         pompa: ["svgManPompa", "svgManPompaHz"],
-        mandata: ["svgManMandata"],
+        mandata: ["svgManMandata", "svgManMandataHz"],
         membrane: ["svgManMembrane"],
         riciclo: ["svgManRiciclo"],
         ultra: ["svgManUltra"],
@@ -5752,7 +5793,7 @@
     };
 
     function getRegFreqMap() {
-      // SEMPRE i valori in REGOLAZIONI (tabella P11011) — non inventare portate.
+      // SEMPRE i valori in REGOLAZIONI (tabella P11011 = MP 11036) — non inventare portate.
       const map = { ...DEFAULT_REG_FREQ };
       const root = el("regFreq11011") || document;
       root.querySelectorAll("input.reg-q[data-hz]").forEach((inp) => {
@@ -5763,6 +5804,26 @@
         if (Number.isFinite(v) && v >= 0) map[hz] = round1(v);
       });
       return map;
+    }
+
+    /** Mantiene le due tabelle REGOLAZIONI (11011 / 11036) identiche. */
+    function syncRegFreqTwinTables(fromCls) {
+      const srcSel = fromCls === "reg-q-mand" ? "#regFreq11036 input.reg-q-mand" : "#regFreq11011 input.reg-q";
+      const dstSel = fromCls === "reg-q-mand" ? "#regFreq11011 input.reg-q" : "#regFreq11036 input.reg-q-mand";
+      const byHz = {};
+      document.querySelectorAll(srcSel).forEach((inp) => {
+        const hz = String(inp.getAttribute("data-hz") || "");
+        if (hz) byHz[hz] = inp.value;
+      });
+      document.querySelectorAll(dstSel).forEach((inp) => {
+        const hz = String(inp.getAttribute("data-hz") || "");
+        if (hz && byHz[hz] != null) inp.value = String(byHz[hz]);
+      });
+    }
+
+    /** Portata MP 11036 a un Hz = stessa tabella di P11011. */
+    function qMandAtHz(hz) {
+      return qPumpAtHz(hz);
     }
 
     /** Punti tabella Hz → m³/h (scala REGOLAZIONI), ordinati per Hz. */
@@ -5943,6 +6004,31 @@
       }
       const svg = el("svgFreqHz");
       if (svg && !isEditing("freqHz")) svg.textContent = String(hz);
+    }
+
+    function syncMandFromFreq() {
+      const hzRaw = numOrNull("freqHzMand");
+      if (hzRaw === null) return;
+      const hz = clampFreq(hzRaw);
+      if (!isEditing("freqHzMand") && hz !== hzRaw) el("freqHzMand").value = String(hz);
+      const q = qMandAtHz(hz);
+      if (!isEditing("qMandata")) {
+        rememberFlowSetpoint("qMandata", q);
+        lastQMandata = q;
+        if (__run11036) commitFlow("qMandata", q, { setpoint: q });
+        else commitFlow("qMandata", 0, { setpoint: q > 0.05 ? q : undefined });
+      }
+      const svg = el("svgFreqHzMand");
+      if (svg && !isEditing("freqHzMand")) svg.textContent = String(hz);
+    }
+
+    function syncFreqFromMand(q) {
+      if (isEditing("freqHzMand")) return;
+      const hz = clampFreq(hzNearestFromQ(q));
+      const node = el("freqHzMand");
+      if (node) node.value = String(hz);
+      const svg = el("svgFreqHzMand");
+      if (svg) svg.textContent = String(hz);
     }
 
     function fmtPct(v) {
@@ -9273,6 +9359,7 @@
       try {
         // Hz → portata (curva REGOLAZIONI): Automatico e Manuale
         let qFromFreqThisPass = null;
+        let qFromFreqMandThisPass = null;
         if (source === "freq" || isEditing("freqHz")) {
           const hzRaw = numOrNull("freqHz");
           if (hzRaw !== null) {
@@ -9287,6 +9374,27 @@
               commitFlow("qPump", p11011Allowed() ? qFromHz : 0, { setpoint: qFromHz });
             }
             const svgHz = el("svgFreqHz");
+            if (svgHz) svgHz.textContent = String(hz);
+          }
+        }
+        if (source === "freqMand" || isEditing("freqHzMand")) {
+          const hzRaw = numOrNull("freqHzMand");
+          if (hzRaw !== null) {
+            const hz = clampFreq(hzRaw);
+            if (!isEditing("freqHzMand") || hz !== Math.round(hzRaw)) el("freqHzMand").value = String(hz);
+            const qFromHz = qMandAtHz(hz);
+            qFromFreqMandThisPass = qFromHz;
+            if (!isEditing("qMandata")) {
+              lastQMandata = qFromHz;
+              rememberFlowSetpoint("qMandata", qFromHz);
+              commitFlow("qMandata", __run11036 ? qFromHz : 0, { setpoint: qFromHz });
+            }
+            // Manuale su Hz mandata: togli equipara
+            if (el("equiparaMandata")) {
+              el("equiparaMandata").checked = false;
+              if (el("qMandata")) el("qMandata").disabled = false;
+            }
+            const svgHz = el("svgFreqHzMand");
             if (svgHz) svgHz.textContent = String(hz);
           }
         }
@@ -9306,6 +9414,7 @@
         if (source === "pompa" && qPumpRaw === null) return;
         if (source === "totale" && qTotRaw === null) return;
         if (source === "freq" && numOrNull("freqHz") === null) return;
+        if (source === "freqMand" && numOrNull("freqHzMand") === null) return;
 
         let qIn = qInRaw === null ? num("qIn") : qInRaw;
         let qPump = qPumpRaw === null ? lastQPump : qPumpRaw;
@@ -9473,12 +9582,22 @@
           }
           lastQMandata = qMandataSet;
           qMandata = Math.max(0, num("qMandata")); // viva (rampa)
-        } else if (!autoMand) {
-          // Manuale: setpoint congelato / digitato; viva 0 se 11036 ferme, altrimenti setpoint
+          // Equipara: stessi Hz di P11011 (stessa tabella)
+          if (!isEditing("freqHzMand") && qFromFreqMandThisPass == null) {
+            const hzEq = clampFreq(numOrNull("freqHz") ?? hzNearestFromQ(qMandataSet));
+            const hzNode = el("freqHzMand");
+            if (hzNode) hzNode.value = String(hzEq);
+            const svgHzM = el("svgFreqHzMand");
+            if (svgHzM) svgHzM.textContent = String(hzEq);
+          }
+        } else if (!autoMand || qFromFreqMandThisPass != null) {
+          // Manuale (o regolazione da Hz mandata): setpoint da tabella / digitato
           const qMandRaw = numOrNull("qMandata");
           if (source === "mandata" && isEditing("qMandata") && qMandRaw === null) return;
-          qMandataSet = flowSetpointOf("qMandata");
-          if (isEditing("qMandata") && qMandRaw !== null && qMandRaw > 0.05) {
+          qMandataSet = qFromFreqMandThisPass != null
+            ? qFromFreqMandThisPass
+            : flowSetpointOf("qMandata");
+          if (isEditing("qMandata") && qMandRaw !== null && qMandRaw > 0.05 && qFromFreqMandThisPass == null) {
             qMandataSet = Math.max(0, qMandRaw);
             rememberFlowSetpoint("qMandata", qMandataSet);
           }
@@ -9623,6 +9742,18 @@
             }
           }
         }
+        if (source !== "freqMand" && !isEditing("freqHzMand") && qFromFreqMandThisPass == null) {
+          if (__run11036 && qMandata > 0.05) {
+            if (!autoMand || source === "mandata" || !(el("equiparaMandata")?.checked)) {
+              syncFreqFromMand(qMandataSet != null ? qMandataSet : qMandata);
+            }
+          } else if (!__run11036 && autoMand) {
+            const hzNode = el("freqHzMand");
+            if (hzNode && !isEditing("freqHzMand")) hzNode.value = "0";
+            const svgHz0 = el("svgFreqHzMand");
+            if (svgHz0 && !isEditing("freqHzMand")) svgHz0.textContent = "0";
+          }
+        }
 
         const totConfigured = round1(sumMemsAllOn()); // max = tutte in marcia
         const totMediaCap = round1(totConfigured * dAvg); // media ciclo teorica (setpoint)
@@ -9748,6 +9879,15 @@
         if (svgQMand && !isEditing("qMandata")) {
           const showMand = auto ? __flowLive.qMandata : Math.max(0, flowSetpointOf("qMandata"));
           svgQMand.textContent = round1(showMand).toFixed(1);
+        }
+        const svgQMandSp = el("svgQMandSp");
+        if (svgQMandSp) {
+          svgQMandSp.textContent = round1(Math.max(0, flowSetpointOf("qMandata") || lastQMandata || 0)).toFixed(1);
+        }
+        const svgHzMand = el("svgFreqHzMand");
+        if (svgHzMand && !isEditing("freqHzMand")) {
+          const hzM = numOrNull("freqHzMand");
+          svgHzMand.textContent = String(hzM != null ? Math.round(hzM) : 0);
         }
         const svgQRec = el("svgQRec");
         if (svgQRec && !isEditing("qRecycle")) {
@@ -11573,6 +11713,7 @@
       qIn: "Chimico-fisico",
       qPump: "P11011 A/B",
       freqHz: "P11011 · Hz",
+      freqHzMand: "MP 11036 · Hz",
       qMandata: "MP 11036 A/B",
       qMemTotale: "Totale MBR",
       qRecycle: "11014 riciclo",
@@ -11592,7 +11733,7 @@
       const f = String(field || "");
       if (f === "qIn") return "ingresso";
       if (f === "qPump" || f === "freqHz") return "pompa";
-      if (f === "qMandata") return "mandata";
+      if (f === "qMandata" || f === "freqHzMand") return "mandata";
       if (f === "qRecycle") return "riciclo";
       if (f === "qMemTotale") return "membrane";
       if (f.startsWith("qUf")) return "ultra";
@@ -11630,7 +11771,7 @@
 
     function flowEditStep(field) {
       const f = String(field || "");
-      if (f === "freqHz" || f === "qIn" || f === "qRecycle"
+      if (f === "freqHz" || f === "freqHzMand" || f === "qIn" || f === "qRecycle"
         || f === "qP11019" || f === "qP11019Ias" || f === "qP11019Impianto"
         || f === "qUfTotale" || f.startsWith("qUf")
         || f === "qOsmosiA" || f === "qOsmosiB" || f === "qOsmosiC"
@@ -11954,7 +12095,26 @@
       if (field === "qMandata") {
         el("equiparaMandata").checked = false;
         el("qMandata").disabled = false;
-        rememberFlowSetpoint("qMandata", Math.max(0, v));
+        const step = pumpStepForNeed(Math.max(0, v));
+        el("freqHzMand").value = String(step.hz);
+        rememberFlowSetpoint("qMandata", step.q);
+        lastQMandata = step.q;
+        applyBalance("freqMand");
+        return;
+      }
+      if (field === "freqHzMand") {
+        el("equiparaMandata").checked = false;
+        el("qMandata").disabled = false;
+        const hz = clampFreq(v);
+        el("freqHzMand").value = String(hz);
+        const svgHz = el("svgFreqHzMand");
+        if (svgHz) svgHz.textContent = String(hz);
+        const qFromHz = qMandAtHz(hz);
+        rememberFlowSetpoint("qMandata", qFromHz);
+        lastQMandata = qFromHz;
+        updateFlowEditCorr();
+        applyBalance("freqMand");
+        return;
       }
       if (FLOW_IDS.includes(field)) rememberFlowSetpoint(field, Math.max(0, v));
       setVal(field, v, { force: true });
@@ -12074,7 +12234,25 @@
       if (field === "qMandata") {
         el("equiparaMandata").checked = false;
         el("qMandata").disabled = false;
-        rememberFlowSetpoint("qMandata", Math.max(0, v));
+        const step = pumpStepForNeed(Math.max(0, v));
+        el("freqHzMand").value = String(step.hz);
+        rememberFlowSetpoint("qMandata", step.q);
+        lastQMandata = step.q;
+        applyBalance("freqMand");
+        return;
+      }
+      if (field === "freqHzMand") {
+        el("equiparaMandata").checked = false;
+        el("qMandata").disabled = false;
+        const hz = clampFreq(v);
+        el("freqHzMand").value = String(hz);
+        const svgHz = el("svgFreqHzMand");
+        if (svgHz) svgHz.textContent = String(hz);
+        const qFromHz = qMandAtHz(hz);
+        rememberFlowSetpoint("qMandata", qFromHz);
+        lastQMandata = qFromHz;
+        applyBalance("freqMand");
+        return;
       }
       if (FLOW_IDS.includes(field)) rememberFlowSetpoint(field, Math.max(0, v));
       setVal(field, v, { force: true });
@@ -12103,7 +12281,8 @@
     function updateFlowEditCorr() {
       const box = el("flowEditCorr");
       if (!box) return;
-      if (!inlineCtx || inlineCtx.field !== "freqHz") {
+      const f = inlineCtx && inlineCtx.field;
+      if (f !== "freqHz" && f !== "freqHzMand") {
         box.hidden = true;
         return;
       }
@@ -12115,7 +12294,7 @@
         return;
       }
       const hz = clampFreq(v);
-      const q = qPumpAtHz(hz);
+      const q = f === "freqHzMand" ? qMandAtHz(hz) : qPumpAtHz(hz);
       box.textContent = `≈ ${q.toFixed(1)} m³/h · a ${hz} Hz`;
     }
 
@@ -12123,10 +12302,14 @@
       resetFlowEditPanelPos();
       let field = flowGroup.dataset?.field || flowGroup.getAttribute?.("data-field") || "";
       let source = flowGroup.dataset?.source || flowGroup.getAttribute?.("data-source") || "";
-      // P11011: portata e frequenza aprono lo stesso popup (si regola solo in Hz)
+      // P11011 / MP 11036: portata e frequenza aprono lo stesso popup (si regola solo in Hz)
       if (field === "qPump") {
         field = "freqHz";
         source = "freq";
+      }
+      if (field === "qMandata") {
+        field = "freqHzMand";
+        source = "freqMand";
       }
       // Pompe: nel popup SEMPRE il SETPOINT (mai la viva a 0 se la pompa è ferma)
       let val;
@@ -12137,7 +12320,14 @@
           const step = pumpStepForNeed(Math.max(flowSetpointOf("qPump"), lastQPump, pumpFloorForIngresso(num("qIn"))));
           val = step.hz;
         }
-      } else if (field === "qMandata" || field === "qRecycle") {
+      } else if (field === "freqHzMand") {
+        const hzNow = numOrNull("freqHzMand");
+        if (hzNow !== null && hzNow > 0.05) val = clampFreq(hzNow);
+        else {
+          const step = pumpStepForNeed(Math.max(flowSetpointOf("qMandata"), lastQMandata, 0));
+          val = step.hz;
+        }
+      } else if (field === "qRecycle") {
         val = flowSetpointOf(field);
       } else if (field === "qP11019") {
         // Seed = valore già in display (setpoint; se 0 resta 0)
@@ -12170,9 +12360,13 @@
       if (flowEditTitle) {
         flowEditTitle.textContent = field === "freqHz"
           ? "P11011 · Hz"
-          : (FLOW_EDIT_LABELS[field] || "Portata");
+          : (field === "freqHzMand"
+            ? "MP 11036 · Hz"
+            : (FLOW_EDIT_LABELS[field] || "Portata"));
       }
-      if (flowEditUnit) flowEditUnit.textContent = field === "freqHz" ? "Hz" : "m³/h";
+      if (flowEditUnit) {
+        flowEditUnit.textContent = (field === "freqHz" || field === "freqHzMand") ? "Hz" : "m³/h";
+      }
       syncFlowEditDevMode(field);
       updateFlowEditCorr();
       __flowNumpadFresh = true;
@@ -12517,6 +12711,7 @@
       if (el("equiparaMandata").checked) el("qMandata").disabled = true;
       else el("qMandata").disabled = false;
       applyBalance("pompa");
+      applyBalance("freqMand");
     });
     if (el("qMandata") && el("equiparaMandata")?.checked) el("qMandata").disabled = true;
 
@@ -12524,6 +12719,27 @@
     el("cicloPausa")?.addEventListener("input", () => applyBalance("ciclo"));
     el("freqHz")?.addEventListener("input", () => applyBalance("freq"));
     el("freqMaxHz")?.addEventListener("input", () => applyBalance("freq"));
+    el("freqHzMand")?.addEventListener("input", () => {
+      if (el("equiparaMandata")) {
+        el("equiparaMandata").checked = false;
+        if (el("qMandata")) el("qMandata").disabled = false;
+      }
+      applyBalance("freqMand");
+    });
+    el("freqHzMand")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      startFieldInlineEdit("freqHzMand", "freqMand");
+    });
+    el("freqHzMand")?.addEventListener("focus", (e) => {
+      e.preventDefault();
+      try { el("freqHzMand").blur(); } catch (_) { /* ok */ }
+      startFieldInlineEdit("freqHzMand", "freqMand");
+    });
+    el("qMandata")?.addEventListener("click", (e) => {
+      if (isTouchUi() || el("equiparaMandata")?.checked) return;
+      e.preventDefault();
+      startFieldInlineEdit("freqHzMand", "freqMand");
+    });
     el("livelloAttuale")?.addEventListener("input", () => applyBalance("livello"));
     el("livelloAttuale")?.addEventListener("blur", () => {
       if (numOrNull("livelloAttuale") === null) setVal("livelloAttuale", 0, { force: true });
@@ -12767,7 +12983,7 @@
       "ufAcidoOreA", "ufAcidoOreB", "ufAcidoOreC", "ufAcidoOreD",
       "carbLavoroOreA", "carbLavoroOreB", "carbCtrlMinA", "carbCtrlMinB",
       "carbLavMinA", "carbLavMinB", "carbCtrlQ", "carbLavQ",
-      "cicloLavoro", "cicloPausa", "freqHz", "freqMaxHz",
+      "cicloLavoro", "cicloPausa", "freqHz", "freqMaxHz", "freqHzMand", "freqMaxHzMand",
       "livelloAttuale", "livelloAttualeA10611",
       "startRiempA10620", "stopRiempA10620", "startSvuotA10620", "stopSvuotA10620",
       "startRiempA10611", "stopRiempA10611", "startSvuotA10611", "stopSvuotA10611",
@@ -12977,7 +13193,10 @@
               inp.value = String(DEFAULT_REG_FREQ[hz] ?? cur);
             }
           });
-          try { applyBalance("freq"); } catch (_) { /* ok */ }
+          try { syncRegFreqTwinTables("reg-q"); } catch (_) { /* ok */ }
+          try { applyBalance("freq"); applyBalance("freqMand"); } catch (_) { /* ok */ }
+        } else {
+          try { syncRegFreqTwinTables("reg-q"); } catch (_) { /* ok */ }
         }
         const rev = Number(data.syncRevision) || 0;
         if (rev > __calcSyncRevision) __calcSyncRevision = rev;
@@ -13094,8 +13313,10 @@
       if (e.target && (e.target.classList.contains("mem-q") || e.target.classList.contains("uf-q"))) {
         schedulePersist();
       }
-      if (e.target && e.target.classList.contains("reg-q")) {
-        // Tabella cambiata → ricalcola portata dagli Hz attuali (non il contrario)
+      if (e.target && (e.target.classList.contains("reg-q") || e.target.classList.contains("reg-q-mand"))) {
+        // Tabella cambiata → gemella uguale + ricalcola portata dagli Hz attuali
+        const fromCls = e.target.classList.contains("reg-q-mand") ? "reg-q-mand" : "reg-q";
+        try { syncRegFreqTwinTables(fromCls); } catch (_) { /* ok */ }
         const max = getPumpMax();
         const cur = numOrNull("qPump");
         if (cur !== null && cur > max) {
@@ -13103,11 +13324,12 @@
           lastQPump = max;
         }
         applyBalance("freq");
+        applyBalance("freqMand");
         schedulePersist();
       }
     });
     document.addEventListener("change", (e) => {
-      if (e.target && e.target.classList.contains("reg-q")) {
+      if (e.target && (e.target.classList.contains("reg-q") || e.target.classList.contains("reg-q-mand"))) {
         const raw = String(e.target.value ?? "").trim().replace(",", ".");
         const v = parseFloat(raw);
         const hz = String(e.target.getAttribute("data-hz") || e.target.dataset.hz || "");
@@ -13116,7 +13338,10 @@
         } else {
           e.target.value = String(round1(v));
         }
+        const fromCls = e.target.classList.contains("reg-q-mand") ? "reg-q-mand" : "reg-q";
+        try { syncRegFreqTwinTables(fromCls); } catch (_) { /* ok */ }
         applyBalance("freq");
+        applyBalance("freqMand");
         schedulePersist();
       }
     });
@@ -13299,7 +13524,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt146", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt147", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
