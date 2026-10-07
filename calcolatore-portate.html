@@ -6451,20 +6451,37 @@
       };
     }
 
-    /** In Automatico: membrane al minimo tecnico (ceil(qIn/duty)) per tenere in marcia senza sforzarle. */
+    /**
+     * In Automatico: se il totale abilitate è sotto il minimo tecnico vs chimico,
+     * alza solo il deficit sulle linee ON — senza resettare/ripartire i set già impostati.
+     * Disabilitare una membrana NON deve cambiare la portata delle altre.
+     */
     function ensureMembranesAutoMin() {
       if (!isAutoMode()) return;
       if (!deviceAutoControlled("membrane")) return;
       if (isEditing("qMemTotale")) return;
       const info = qMemMinTotaleForQin(Math.max(0, num("qIn")));
       const qMin = roundMem(Math.max(0, info.qMemMin));
-      const cur = roundMem(Math.max(0, num("qMemTotale")));
-      if (Math.abs(cur - qMin) < 0.05) {
+      const cur = roundMem(sumMems());
+      if (!isEditing("qMemTotale")) setVal("qMemTotale", cur, { force: true });
+      if (cur + 0.05 >= qMin) {
         try { paintMemMinHint(); } catch (_) { /* ok */ }
         return;
       }
-      setVal("qMemTotale", qMin, { force: true });
-      setMemEqual(qMin);
+      const enabledInps = Array.from(document.querySelectorAll(".mem-q")).filter((inp) => {
+        const L = String(inp.dataset.mem || "").toUpperCase();
+        return memLineEnabled(L) && document.activeElement !== inp;
+      });
+      const n = enabledInps.length || 1;
+      let rem = Math.max(0, Math.round(qMin - cur));
+      const add = Math.floor(rem / n);
+      let extra = rem - add * n;
+      enabledInps.forEach((inp) => {
+        let q = roundMem(inp.value) + add;
+        if (extra > 0) { q += 1; extra -= 1; }
+        inp.value = String(Math.max(0, q));
+      });
+      if (!isEditing("qMemTotale")) setVal("qMemTotale", sumMems(), { force: true });
       try { paintMemMinHint(); } catch (_) { /* ok */ }
     }
     function paintMemMinHint() {
@@ -7419,7 +7436,12 @@
       __memEnabled[L] = !!enabled;
       paintMemEnableUI();
       paintMembraneCycleUI(__mbrCycleMin);
-      try { applyBalance("membrana"); } catch (_) { /* ignore */ }
+      // Solo aggiorna il totale = somma delle abilitate. NON ripartire le portate delle altre.
+      try {
+        const tot = sumMems();
+        if (!isEditing("qMemTotale")) setVal("qMemTotale", tot, { force: true });
+        applyBalance("mem-enable");
+      } catch (_) { /* ignore */ }
       try { schedulePersist(); } catch (_) { /* ignore */ }
     }
 
@@ -9483,16 +9505,13 @@
       const n = enabledInps.length || 1;
       const base = n ? Math.floor(tot / n) : 0;
       let rem = n ? tot - base * n : 0;
-      enabledInps.forEach((inp, i) => {
+      enabledInps.forEach((inp) => {
         if (document.activeElement === inp) return;
         let q = base;
         if (rem > 0) { q += 1; rem -= 1; }
         inp.value = String(q);
       });
-      inputs.forEach((inp) => {
-        const L = String(inp.dataset.mem || "").toUpperCase();
-        if (!memLineEnabled(L) && document.activeElement !== inp) inp.value = "0";
-      });
+      // Disabilitate: NON azzerare il set in memoria (serve se le riattivi)
     }
 
     function sumMems() {
@@ -9668,6 +9687,9 @@
               setVal("qIn", qIn);
             }
           }
+        } else if (source === "mem-enable") {
+          // Solo sync totale dopo abilita/disabilita: le portate di linea restano invariate
+          if (!isEditing("qMemTotale")) setVal("qMemTotale", sumMems(), { force: true });
         } else if (deviceAutoControlled("membrane") && simulating && source === "membrana") {
           // In sim: aggiorna solo il totale configurato, senza ricalcolare qIn da duty istantaneo
           setVal("qMemTotale", sumMems());
@@ -9867,12 +9889,20 @@
           }
         }
 
-        const editingMem = isEditing("qMemTotale") || source === "membrana" || source === "totale" || deviceIsManual("membrane");
+        const editingMem = isEditing("qMemTotale") || source === "membrana" || source === "mem-enable"
+          || source === "totale" || deviceIsManual("membrane");
         // In sim NON riscrivere le portate membrane: restano il setpoint "tutte ON".
         // L'uscita effettiva scende da sola via sumMemsRunning (membrane in pausa = 0).
+        // Abilita/disabilita: le portate delle altre restano invariate.
         if (deviceAutoControlled("membrane") && !editingMem && !simulating) {
-          // Automatico: minimo tecnico vs chimico (non alzare per scarico — le pompe gestiscono lo svuotamento)
-          ensureMembranesAutoMin();
+          // Alza al minimo tecnico solo se cambia chimico/ciclo — mai dopo un disable
+          if (source === "ingresso" || source === "ciclo") {
+            ensureMembranesAutoMin();
+          } else {
+            const cur = roundMem(sumMems());
+            if (!isEditing("qMemTotale")) setVal("qMemTotale", cur, { force: true });
+            try { paintMemMinHint(); } catch (_) { /* ok */ }
+          }
         }
 
         if (auto && pumpOn && !stillFillingToStop && (atHigh || atBlock) && !isEditing("qPump") && source !== "freq") {
@@ -13793,7 +13823,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt162", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt163", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
