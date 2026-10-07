@@ -4247,6 +4247,10 @@
       if (focus === "mem") {
         return `Male · membrane basse · o chimico ≤ ${qSafe} · ~${when}`;
       }
+      if (focus === "rec") {
+        const qRecNeed = adv && adv.qRecNeed != null ? fmtQ(adv.qRecNeed) : "—";
+        return `Male · riciclo basso (serve ≥ ${qRecNeed}) · ~${when}`;
+      }
       if (focus === "cf") {
         return `Male · scendi chimico ≤ ${qSafe} · ~${when}`;
       }
@@ -4323,10 +4327,11 @@
       return "";
     }
 
-    /**
-     * Previsione 8h: A10620 / riciclo→A10620 / A10611 / MP 11036 / MBR / permeato.
-     * Il riciclo chiude l’anello ma NON esporta: se membrane << chimico, il MBR sale,
-     * 11036 si ferma, A10611 va alto, P11011 si ferma, A10620 si riempie → blocco.
+﻿    /**
+     * Previsione 8h: A10620 / riciclo↔A11004 / A10611 / MP 11036 / MBR / permeato.
+     * Il riciclo NON esporta dal sito, ma svuota A11004 (collettore scarichi MBR):
+     * se mandata − permeato ≫ riciclo, A11004 (e poi MBR) salgono → blocco.
+     * Prodotto: permeato medio ≥ chimico, altrimenti inventario impianto sale.
      */
     function forecastChimicoHorizon(horizonMin, opts) {
       opts = opts || {};
@@ -4364,10 +4369,8 @@
         const d = duty();
         if (d && d.d > 0.05) dutyAvg = d.d;
       } catch (_) { /* ok */ }
-      // Uscita prodotto media (membrane tutte-ON × duty) — unica via d’uscita dall’anello
       const qPermAvg = round1(qMemSp * dutyAvg);
 
-      // In Automatico la P11011 segue il pavimento ingresso+riciclo (come in marcia).
       try {
         if (opts.forceManualFlows !== true && isAutoMode() && deviceAutoControlled("pompa")) {
           const floor = pumpFloorForIngresso(qInSp);
@@ -4385,9 +4388,11 @@
       let liv20 = opts.liv20 != null ? Number(opts.liv20) : (numOrNull("livelloAttuale") ?? 90);
       let liv11 = opts.liv11 != null ? Number(opts.liv11) : (numOrNull("livelloAttualeA10611") ?? 90);
       let livMbr = opts.livMbr != null ? Number(opts.livMbr) : (numOrNull("livelloAttualeMbr") ?? 90);
+      let livH = opts.livH != null ? Number(opts.livH) : (numOrNull("livelloAttualeH") ?? 90);
       if (!Number.isFinite(liv20)) liv20 = 90;
       if (!Number.isFinite(liv11)) liv11 = 90;
       if (!Number.isFinite(livMbr)) livMbr = 90;
+      if (!Number.isFinite(livH)) livH = 90;
 
       let chimicoOn = opts.chimicoOn != null ? !!opts.chimicoOn : (__chimicoAllowFill !== false);
       let pumpBy20 = opts.pumpBy20 != null ? !!opts.pumpBy20 : (__runP11011By20 !== false);
@@ -4396,11 +4401,43 @@
       let allow11036ByMbr = opts.allow11036ByMbr != null ? !!opts.allow11036ByMbr : (__allow11036ByMbr !== false);
       const startupHold = opts.startupHold != null ? !!opts.startupHold : (__startupPumpHold !== false);
       const memLow = qInSp > 0.5 && qPermAvg + 1 < qInSp;
+      const qScaricoNeed = mbrScaricoToH(qMandSp, qPermAvg, livMbr);
+      const recStarve = qScaricoNeed > qRecSp + 2;
 
       const blocks = [];
       let firstBlockMin = null;
       let firstSnap = null;
       let reason = "";
+
+      function snapAt(t, qRec, qPump, qMand, qPerm, extra) {
+        return {
+          tMin: t,
+          liv20: round2(liv20),
+          liv11: round2(liv11),
+          livMbr: round2(livMbr),
+          livH: round2(livH),
+          stop, start, startSvuot: startS, stopSvuot: stopS,
+          hiBlock: hiB, hiRestart: hiR,
+          qInSp: round1(qInSp), qInLive: round1(qInSp),
+          qRecSp: round1(qRecSp), qRecLive: round1(qRec),
+          qPumpSp: round1(qPumpSp), qPumpLive: round1(qPumpSp),
+          qOut: round1(qPump),
+          qMandSp: round1(qMandSp), qMandLive: round1(qMand),
+          qMemSp: round1(qMemSp), qMemLive: round1(qPerm),
+          qPermAvg: round1(qPermAvg),
+          qScaricoNeed: round1(qScaricoNeed),
+          run11036: !!extra.run11036,
+          qInTo20: round1(qInSp + qRec),
+          qEq20: round1(qInSp + qRec),
+          qEqPlant: round1(Math.max(qInSp + qRec, qInSp + Q_RECYCLE_MIN)),
+          deficit: round1(Math.max(0, (qInSp + qRec) - qPump)),
+          deficitProd: round1(Math.max(0, qInSp - qPermAvg)),
+          deficitRec: round1(Math.max(0, qScaricoNeed - qRecSp)),
+          pumpOn: !!extra.pumpOn,
+          runP11011By20: !!extra.pumpBy20,
+          blockP11011: !!extra.blockP11,
+        };
+      }
 
       for (let t = dt; t <= H; t += dt) {
         if (liv20 <= stopS + 0.05) pumpBy20 = false;
@@ -4413,7 +4450,6 @@
         if (liv11 <= loStop + 0.05) run11036Tank = false;
         else if (liv11 >= loStart - 0.05) run11036Tank = true;
 
-        // MBR alto → ferma 11036 (riparte sotto start riempimento)
         if (livMbr >= stopMbrFill - 0.05) allow11036ByMbr = false;
         else if (livMbr <= startMbrFill + 0.05) allow11036ByMbr = true;
 
@@ -4422,23 +4458,35 @@
         const qPump = pumpOn ? qPumpSp : 0;
         const qMand = run11036 ? qMandSp : 0;
         const qIn = chimicoOn ? qInSp : 0;
-        // Riciclo 11014 → A10620 solo se P11011 in marcia (come in processo)
         let qRec = 0;
         if (pumpOn) {
           if (qRecSp > 0.05) qRec = qRecSp;
           else if (ricicloAutoControlled()) qRec = Math.max(Q_RECYCLE_MIN, round1(Math.max(0, qPumpSp - qInSp)));
         }
-        const qPerm = qPermAvg; // media ciclo (duty)
+        const qPerm = qPermAvg;
+        const qScarico = mbrScaricoToH(qMand, qPerm, livMbr);
+        const hBackedUp = livH >= 94 || qScarico > qRec + 2;
 
         const r20 = rateA10620PctPerMin(qIn, qPump, qRec);
         const r11 = estimateA10611RatePctPerMin(qPump, qMand);
-        const rMbr = estimateMbrRatePctPerMin(qMand, qPerm, livMbr);
+        const rH = estimateRicHRatePctPerMin(qScarico, qRec);
+        const rMbr = estimateMbrRatePctPerMin(qMand, qPerm, livMbr, { backedUp: hBackedUp, qRecycle: qRec });
         liv20 = Math.max(0, Math.min(100, liv20 + r20 * dt));
         liv11 = Math.max(0, Math.min(100, liv11 + r11 * dt));
+        livH = Math.max(0, Math.min(100, livH + rH * dt));
         livMbr = Math.max(0, Math.min(100, livMbr + rMbr * dt));
         if (livMbr >= stopMbrFill - 0.05) {
           livMbr = Math.min(livMbr, stopMbrFill);
           allow11036ByMbr = false;
+        }
+
+        if (firstBlockMin == null && livH >= 97.5 && qScarico > qRec + 1) {
+          firstBlockMin = t;
+          reason = "rec";
+          firstSnap = snapAt(t, qRec, qPump, qMand, qPerm, {
+            run11036, pumpOn, pumpBy20, blockP11,
+          });
+          blocks.push(t);
         }
 
         if (chimicoOn && qInSp > 0.5 && liv20 >= stop - 0.05) {
@@ -4446,35 +4494,15 @@
           chimicoOn = false;
           if (firstBlockMin == null) {
             firstBlockMin = t;
-            if (memLow && (!allow11036ByMbr || blockP11 || !run11036)) reason = "mem";
+            if (recStarve && (hBackedUp || !allow11036ByMbr)) reason = "rec";
+            else if (memLow && (!allow11036ByMbr || blockP11 || !run11036)) reason = "mem";
             else if (blockP11) reason = "mand";
             else if (!pumpOn) reason = "p11off";
             else if ((qIn + qRec) - qPump > 0.5) reason = "p11low";
             else reason = memLow ? "mem" : "near";
-            firstSnap = {
-              tMin: t,
-              liv20: round2(liv20),
-              liv11: round2(liv11),
-              livMbr: round2(livMbr),
-              stop, start, startSvuot: startS, stopSvuot: stopS,
-              hiBlock: hiB, hiRestart: hiR,
-              qInSp: round1(qInSp), qInLive: round1(qInSp),
-              qRecSp: round1(qRecSp), qRecLive: round1(qRec),
-              qPumpSp: round1(qPumpSp), qPumpLive: round1(qPumpSp),
-              qOut: round1(qPump),
-              qMandSp: round1(qMandSp), qMandLive: round1(qMand),
-              qMemSp: round1(qMemSp), qMemLive: round1(qPerm),
-              qPermAvg: round1(qPermAvg),
-              run11036: !!run11036,
-              qInTo20: round1(qInSp + qRec),
-              qEq20: round1(qInSp + qRec),
-              qEqPlant: round1(Math.max(qInSp + qRec, qInSp + Q_RECYCLE_MIN)),
-              deficit: round1(Math.max(0, (qInSp + qRec) - qPump)),
-              deficitProd: round1(Math.max(0, qInSp - qPermAvg)),
-              pumpOn: !!pumpOn,
-              runP11011By20: !!pumpBy20,
-              blockP11011: !!blockP11,
-            };
+            firstSnap = snapAt(t, qRec, qPump, qMand, qPerm, {
+              run11036, pumpOn, pumpBy20, blockP11,
+            });
           }
           blocks.push(t);
         } else if (!chimicoOn && liv20 <= start + 0.05) {
@@ -4482,10 +4510,8 @@
         }
       }
 
-      // Se in 8h non ha ancora toccato lo stop ma prodotto << ingresso: non è “tutto OK”
       if (firstBlockMin == null && memLow && qInSp > 0.5) {
         const deficit = qInSp - qPermAvg;
-        // stima grezza: minuti al blocco da inventario (A10620 ~450 m³ + MBR)
         let V20 = 450;
         try { V20 = getA10620Geom().V || 450; } catch (_) { /* ok */ }
         const pctRoom = Math.max(2, stop - liv20);
@@ -4495,30 +4521,30 @@
           firstBlockMin = Math.max(1, Math.min(H, tEst));
           reason = "mem";
           blocks.push(firstBlockMin);
-          firstSnap = {
-            tMin: firstBlockMin,
-            liv20: round2(Math.min(stop, liv20 + rateFill * firstBlockMin)),
-            liv11: round2(liv11),
-            livMbr: round2(livMbr),
-            stop, start, startSvuot: startS, stopSvuot: stopS,
-            hiBlock: hiB, hiRestart: hiR,
-            qInSp: round1(qInSp), qInLive: round1(qInSp),
-            qRecSp: round1(qRecSp), qRecLive: round1(qRecSp),
-            qPumpSp: round1(qPumpSp), qPumpLive: round1(qPumpSp),
-            qOut: round1(qPumpSp),
-            qMandSp: round1(qMandSp), qMandLive: round1(qMandSp),
-            qMemSp: round1(qMemSp), qMemLive: round1(qPermAvg),
-            qPermAvg: round1(qPermAvg),
-            run11036: true,
-            qInTo20: round1(qInSp + qRecSp),
-            qEq20: round1(qInSp + qRecSp),
-            qEqPlant: round1(qInSp + Q_RECYCLE_MIN),
-            deficit: 0,
-            deficitProd: round1(deficit),
-            pumpOn: true,
-            runP11011By20: true,
-            blockP11011: false,
-          };
+          firstSnap = snapAt(firstBlockMin, qRecSp, qPumpSp, qMandSp, qPermAvg, {
+            run11036: true, pumpOn: true, pumpBy20: true, blockP11: false,
+          });
+          firstSnap.liv20 = round2(Math.min(stop, liv20 + rateFill * firstBlockMin));
+          firstSnap.deficitProd = round1(deficit);
+        }
+      }
+
+      if (firstBlockMin == null && recStarve && qMandSp > 0.5) {
+        let VH = 20;
+        try { VH = getA11004Volume().V || 20; } catch (_) { /* ok */ }
+        const netH = qScaricoNeed - qRecSp;
+        const rateH = Math.max(0.05, (netH / Math.max(1, VH)) * (100 / 60));
+        const pctRoom = Math.max(2, 97.5 - livH);
+        const tEst = Math.ceil(pctRoom / rateH);
+        if (tEst <= H) {
+          firstBlockMin = Math.max(1, Math.min(H, tEst));
+          reason = "rec";
+          blocks.push(firstBlockMin);
+          firstSnap = snapAt(firstBlockMin, qRecSp, qPumpSp, qMandSp, qPermAvg, {
+            run11036: true, pumpOn: true, pumpBy20: true, blockP11: false,
+          });
+          firstSnap.livH = round2(Math.min(100, livH + rateH * firstBlockMin));
+          firstSnap.deficitRec = round1(netH);
         }
       }
 
@@ -4533,14 +4559,16 @@
         qPumpSp: round1(qPumpSp),
         qMandSp: round1(qMandSp),
         qMemSp: round1(qMemSp),
+        qRecSp: round1(qRecSp),
         qPermAvg: round1(qPermAvg),
+        qScaricoNeed: round1(qScaricoNeed),
         endLiv20: round2(liv20),
         endLiv11: round2(liv11),
         endLivMbr: round2(livMbr),
+        endLivH: round2(livH),
       };
     }
 
-    /** Massimo chimico-fisico che evita il blocco per l'orizzonte (stessi set pompe). */
     function maxQinSafeForHorizon(horizonMin, opts) {
       opts = opts || {};
       const cur = Math.max(0, opts.qIn != null ? Number(opts.qIn) : num("qIn"));
@@ -4603,8 +4631,14 @@
         qPump: fc.qPumpSp,
         qMand: fc.qMandSp,
         qMem: fc.qMemSp,
+        qRec: fc.qRecSp,
         forceManualFlows: true,
       });
+      const qRecNeed = round1(Math.max(
+        Q_RECYCLE_MIN,
+        fc.qScaricoNeed != null ? fc.qScaricoNeed : 0
+      ));
+      const qHaveRec = fc.qRecSp != null ? fc.qRecSp : Math.max(0, flowSetpointOf("qRecycle"));
 
       if (fc.ok) {
         return {
@@ -4613,7 +4647,8 @@
           forecastHtml: `<div class="block-forecast is-ok"><strong>Tutto OK — prossime 8 ore</strong><br>`
             + `Impianto in marcia: chimico <strong>${fmtQ(qInSp)}</strong> · P11011 <strong>${fmtQ(fc.qPumpSp)}</strong>`
             + ` · MP 11036 <strong>${fmtQ(fc.qMandSp)}</strong> · membrane <strong>${fmtQ(fc.qMemSp)}</strong>`
-            + ` (uscita media ≈ <strong>${fmtQ(qPermHave)}</strong>). `
+            + ` (uscita media ≈ <strong>${fmtQ(qPermHave)}</strong>)`
+            + ` · riciclo <strong>${fmtQ(qHaveRec)}</strong> (≥ scarico MBR ≈ ${fmtQ(fc.qScaricoNeed)}). `
             + `Nessun blocco previsto — nessuna regolazione.</div>`,
           verdict: "",
           action: "",
@@ -4622,6 +4657,7 @@
           alt: "",
           forceAlt: false,
           qSafeSamePumps: qInSp,
+          qRecNeed,
         };
       }
 
@@ -4640,7 +4676,22 @@
       let forceAlt = false;
       let focus = "p11";
 
-      if (fc.reason === "mem" || (anomalyMem && qPermHave + 1 < qInSp && (fc.reason === "mand" || fc.reason === "near" || fc.reason === "mem"))) {
+      if (fc.reason === "rec") {
+        focus = "rec";
+        device = "riciclo 11014";
+        target = qRecNeed;
+        haveNow = qHaveRec;
+        anomaly = qHaveRec + 5 < qRecNeed;
+        near = isNearMissFlow(qHaveRec, qRecNeed);
+        verdict = `Male: <strong>riciclo a ${fmtQ(qHaveRec)}</strong> con scarico MBR→A11004 ≈ <strong>${fmtQ(fc.qScaricoNeed)}</strong> `
+          + `(mandata − permeato). A11004 è il collettore delle vaschette: senza riciclo non si svuota e il MBR sale. `
+          + `Blocco previsto tra <strong>${when}</strong>.`;
+        action = `Riciclo 11014 → <span class="fix-val">${fmtQ(qRecNeed)} m³/h</span> `
+          + `(≥ scarico) · oppure abbassa mandata / alza membrane.`;
+        askQ = `È possibile aumentare il <strong>riciclo 11014</strong> a <strong class="fix-val">${fmtQ(qRecNeed)} m³/h</strong>?`;
+        yesHtml = `Ok: riciclo → <strong class="fix-val">${fmtQ(qRecNeed)} m³/h</strong> per smaltire lo scarico MBR verso A11004.`;
+        noHtml = cfLowerNoHtml(qSafeSamePumps, "riciclo 11014", qHaveRec);
+      } else if (fc.reason === "mem" || (anomalyMem && qPermHave + 1 < qInSp && (fc.reason === "mand" || fc.reason === "near" || fc.reason === "mem"))) {
         focus = "mem";
         device = "membrane";
         target = qMemTarget;
@@ -4761,6 +4812,7 @@
         qPumpTarget,
         qMandTarget,
         qMemTarget,
+        qRecNeed,
       };
     }
 
@@ -5651,16 +5703,18 @@
 
     /**
      * Livello MBR: volume = N vaschette. Quasi tutto l’eccesso (mandata−permeato)
-     * scende ad A11004; resta poco netto sulle vaschette (+ effetto pausa scarico §4).
+     * scende ad A11004; se il riciclo non smaltisce / H è piena, l’eccesso resta in MBR.
      */
-    function estimateMbrRatePctPerMin(qMandata, qPerm, livMbrOpt) {
+    function estimateMbrRatePctPerMin(qMandata, qPerm, livMbrOpt, opts) {
+      opts = opts || {};
       const { V, calM } = getMbrCommonVolume();
       const cal = calM || getMbrLivCalib();
       const qIn = Math.max(0, Number(qMandata) || 0);
       const qOutPerm = Math.max(0, Number(qPerm) || 0);
       const membranesExtracting = qOutPerm > 0.5;
+      const qRec = Math.max(0, Number(opts.qRecycle) || 0);
+      const backedUp = !!opts.backedUp;
 
-      // Membrane FERME: mandata riempie le N vaschette (poco scarico ad H)
       if (!membranesExtracting) {
         const net = qIn * 0.92;
         const rFill = ratePctPerMinFromVolume(net, V);
@@ -5668,15 +5722,18 @@
         return Math.max(-RATE_PCT_CLAMP_VOL, Math.min(RATE_PCT_CLAMP_VOL, rFill));
       }
 
-      // In estrazione: ~90% eccesso → A11004; ~10% resta / dinamica vaschette
       const excess = Math.max(0, qIn - qOutPerm);
-      const retainFrac = 0.10;
-      let net = excess * retainFrac;
+      // Di norma ~10% resta in MBR; se A11004 non smaltisce (riciclo basso / H piena) resta di più
+      let retainFrac = 0.10;
+      if (backedUp) {
+        const wantToH = excess * 0.90;
+        const unsunk = Math.max(0, wantToH - qRec);
+        retainFrac = Math.min(0.85, 0.10 + (wantToH > 0.5 ? unsunk / Math.max(wantToH, 1) * 0.75 : 0.6));
+      }
+      const net = excess * retainFrac;
 
-      // Pausa ciclo: scarico misurato §4 (calo % sulle vaschette)
       const cycle = Math.max(0.2, cal.lavoro + cal.pausa);
       const fracPause = Math.max(0.05, cal.pausa / cycle);
-      // Converti rateDrain (%/min in pausa) in equivalente netto medio sul ciclo
       const rPauseAvg = cal.rateDrain * fracPause;
       let r = ratePctPerMinFromVolume(net, V) - rPauseAvg;
 
@@ -7389,7 +7446,11 @@
       const r11 = estimateA10611RatePctPerMin(qPump, qMandata);
       const qScaricoH = mbrScaricoToH(qMandata, qPerm, livMbr);
       const rH = estimateRicHRatePctPerMin(qScaricoH, qRecycleForH);
-      const rMbr = estimateMbrRatePctPerMin(qMandata, qPerm, livMbr);
+      const hBackedUp = livH >= 94 || qScaricoH > qRecycleForH + 2;
+      const rMbr = estimateMbrRatePctPerMin(qMandata, qPerm, livMbr, {
+        backedUp: hBackedUp,
+        qRecycle: qRecycleForH,
+      });
       const rP = estimateTk11007RatePctPerMin(qPerm, qP19);
       const rU = estimateTk11021RatePctPerMin(qUfIn, qOsmOut);
 
@@ -8095,7 +8156,10 @@
       if (livMbrUi === null) livMbrUi = 90;
       updateMbrLevelInterlocks(livMbrUi);
       updateMbrFillFor11036(livMbrUi);
-      const rateMbrUi = estimateMbrRatePctPerMin(qMandata, totAvg, livMbrUi);
+      const rateMbrUi = estimateMbrRatePctPerMin(qMandata, totAvg, livMbrUi, {
+        backedUp: livH >= 94 || mbrScaricoToH(qMandata, totAvg, livMbrUi) > qRecycle + 2,
+        qRecycle,
+      });
       paintMbrLevelUI(livMbrUi, rateMbrUi);
       paintMembraneCycleUI(__mbrCycleMin);
       paintMbrRicHCalibHints();
