@@ -693,6 +693,13 @@
     }
     .node:hover { filter: brightness(1.15); }
     .node:focus, .node:focus-visible { outline: none; }
+    /* Niente “quadretti” / alone di focus sullo schema */
+    .sketch svg :focus, .sketch svg :focus-visible {
+      outline: none !important;
+    }
+    .sketch svg .badge {
+      -webkit-tap-highlight-color: transparent;
+    }
     .node[data-osm-line],
     .node[data-uf-line],
     .node[data-popup="membrane"] { touch-action: manipulation; }
@@ -787,7 +794,18 @@
     }
     .settings-block .row { margin-bottom: 2px; }
     .modal.wide-settings { width: min(520px, 100%); }
-    .flow-edit { cursor: pointer; }
+    .flow-edit {
+      cursor: pointer;
+      outline: none !important;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    .flow-edit:focus, .flow-edit:focus-visible,
+    .flow-edit *:focus, .flow-edit *:focus-visible {
+      outline: none !important;
+    }
+    .flow-edit .badge { pointer-events: all; }
     .flow-edit-back {
       position: fixed;
       inset: 0;
@@ -1641,7 +1659,7 @@
             <text class="badge-val" x="342" y="159" text-anchor="middle" id="svgQPump">334</text>
             <text class="badge-unit" x="372" y="159" text-anchor="middle">m³/h</text>
           </g>
-          <g aria-label="Setpoint P11011">
+          <g class="flow-edit" data-field="qPump" data-source="pompa" aria-label="Setpoint P11011">
             <rect class="badge" x="318" y="174" width="74" height="26" rx="5" stroke="#fbbf24" />
             <text class="badge-sp" x="355" y="192" text-anchor="middle" id="svgQPumpSp" font-size="12">334</text>
           </g>
@@ -1767,7 +1785,7 @@
           <text class="badge-label" x="966" y="20" text-anchor="middle">TOT ON</text>
           <text class="badge-val" x="966" y="34" text-anchor="middle" id="svgQMem" font-size="12">171</text>
         </g>
-        <g aria-label="Setpoint membrane">
+        <g class="flow-edit" data-field="qMemTotale" data-source="totale" aria-label="Setpoint membrane">
           <rect class="badge" x="1006" y="8" width="42" height="34" rx="5" stroke="#fbbf24" />
           <text class="badge-sp" x="1027" y="30" text-anchor="middle" id="svgQMemSp" font-size="12">171</text>
         </g>
@@ -1792,7 +1810,7 @@
             <text class="badge-val" x="936" y="268" text-anchor="middle" id="svgQRec">170.8</text>
             <text class="badge-unit" x="966" y="268" text-anchor="middle">m³/h</text>
           </g>
-          <g aria-label="Setpoint 11014">
+          <g class="flow-edit" data-field="qRecycle" data-source="riciclo-inline" aria-label="Setpoint 11014">
             <rect class="badge" x="912" y="282" width="74" height="26" rx="5" stroke="#fbbf24" />
             <text class="badge-sp" x="949" y="300" text-anchor="middle" id="svgQRecSp" font-size="12">171</text>
           </g>
@@ -11192,9 +11210,57 @@
       else unlockPageScroll();
     }
 
+    /** Evita tastiera Android all’apertura popup: nessun focus input finché non tocchi un campo. */
+    let __modalInputUnlockAt = 0;
+    let __allowModalInputFocus = false;
+    function blurAnyInput(root) {
+      try {
+        const ae = document.activeElement;
+        if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA" || ae.tagName === "SELECT")) {
+          ae.blur();
+        }
+      } catch (_) { /* ok */ }
+      try {
+        (root || document).querySelectorAll("input:focus, textarea:focus, select:focus").forEach((n) => {
+          try { n.blur(); } catch (_) { /* ok */ }
+        });
+      } catch (_) { /* ok */ }
+    }
+    function armModalInputFocusGuard(ms) {
+      __allowModalInputFocus = false;
+      __modalInputUnlockAt = Date.now() + Math.max(300, Number(ms) || 650);
+      blurAnyInput();
+    }
+    document.addEventListener("pointerdown", (e) => {
+      try {
+        const t = e.target;
+        if (!t || !t.closest) return;
+        if (!t.closest(".modal-back.show")) return;
+        // Tap intenzionale su un campo (o la sua label) → da quel momento il focus è ok
+        if (t.matches("input, textarea, select") || t.closest("label")) {
+          __allowModalInputFocus = true;
+        }
+      } catch (_) { /* ok */ }
+    }, true);
+    document.addEventListener("focusin", (e) => {
+      try {
+        if (__allowModalInputFocus) return;
+        if (Date.now() >= __modalInputUnlockAt) return;
+        const t = e.target;
+        if (!t || !t.matches) return;
+        if (!t.matches("input, textarea, select")) return;
+        if (!t.closest || !t.closest(".modal-back.show")) return;
+        // Focus fantasma (stesso tap che ha aperto il serbatoio) → niente tastiera
+        e.preventDefault();
+        try { t.blur(); } catch (_) { /* ok */ }
+      } catch (_) { /* ok */ }
+    }, true);
+
     function openPopup(name, opts) {
       // Blocca chiusura fantasma dal click che ha aperto (arriva sullo sfondo modal)
       armPopupCloseGuard(500);
+      // Niente tastiera finché non clicchi un misuratore/campo
+      armModalInputFocusGuard(700);
       // 1) Mostra subito il popup (il calcolo pesante viene dopo → click più reattivo)
       Object.values(popups).forEach((p) => { if (p) p.classList.remove("show"); });
       if (popups[name]) {
@@ -11204,6 +11270,13 @@
         } catch (_) { /* ok */ }
         popups[name].classList.add("show");
         try { popups[name].scrollTop = 0; } catch (_) { /* ignore */ }
+        // Riblur dopo il paint: Android a volte rifocalizza il primo input
+        blurAnyInput(popups[name]);
+        requestAnimationFrame(() => {
+          blurAnyInput(popups[name]);
+          setTimeout(() => blurAnyInput(popups[name]), 80);
+          setTimeout(() => blurAnyInput(popups[name]), 220);
+        });
       }
       try { syncScrollLock(); } catch (_) { /* ok */ }
 
@@ -11285,6 +11358,7 @@
     function closePopups() {
       if (Date.now() < __popupIgnoreCloseUntil) return;
       const needCommit = !!(popups.pompe && popups.pompe.classList.contains("show"));
+      try { blurAnyInput(); } catch (_) { /* ok */ }
       Object.values(popups).forEach((p) => { if (p) p.classList.remove("show"); });
       try { resetAllModalDragPos(); } catch (_) { /* ok */ }
       try { hideInline(); } catch (_) { /* ok */ }
@@ -11388,6 +11462,13 @@
 
       node.addEventListener("pointerup", (e) => {
         clearHold();
+        try {
+          if (e.target && e.target.closest && e.target.closest(".flow-edit")) {
+            clearMemPress();
+            ptrDown = null;
+            return;
+          }
+        } catch (_) { /* ok */ }
         if (isMemNode && holdFired && holdMemL && !holdCommitted) {
           holdCommitted = true;
           toggleMemLineEnabled(holdMemL);
@@ -12104,10 +12185,33 @@
     }
 
     document.querySelectorAll(".flow-edit").forEach((g) => {
+      let openedByPtr = false;
+      const openFlow = (e) => {
+        e.stopPropagation();
+        if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
+        e.preventDefault();
+        try {
+          const parentNode = g.closest && g.closest(".node[data-popup]");
+          if (parentNode && parentNode.blur) parentNode.blur();
+        } catch (_) { /* ok */ }
+        startInlineEdit(g);
+      };
+      g.addEventListener("pointerdown", (e) => {
+        // Non far partire il tap del serbatoio padre (A10620 / riciclo…)
+        e.stopPropagation();
+        if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
+      });
+      g.addEventListener("pointerup", (e) => {
+        if (e.pointerType === "mouse" && e.button != null && e.button !== 0) return;
+        openedByPtr = true;
+        openFlow(e);
+        setTimeout(() => { openedByPtr = false; }, 450);
+      });
       g.addEventListener("click", (e) => {
         e.stopPropagation();
         e.preventDefault();
-        startInlineEdit(g);
+        if (openedByPtr) return;
+        openFlow(e);
       });
     });
 
@@ -13158,7 +13262,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt142", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt144", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
