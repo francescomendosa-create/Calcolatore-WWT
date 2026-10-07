@@ -3610,6 +3610,34 @@
   </div>
 
   <script>
+    /** Click stile orologio Casio (breve beep quadrato). */
+    let __casioCtx = null;
+    let __casioLast = 0;
+    function playCasioClick() {
+      try {
+        const now = Date.now();
+        if (now - __casioLast < 45) return; // anti-doppio su pointer+click
+        __casioLast = now;
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        if (!__casioCtx) __casioCtx = new AC();
+        const ctx = __casioCtx;
+        if (ctx.state === "suspended") ctx.resume();
+        const t0 = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.type = "square";
+        osc.frequency.setValueAtTime(1850, t0);
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(0.07, t0 + 0.004);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.055);
+        osc.connect(g);
+        g.connect(ctx.destination);
+        osc.start(t0);
+        osc.stop(t0 + 0.065);
+      } catch (_) { /* ok */ }
+    }
+
     const MEMBRANE = ["A", "B", "C", "D", "E", "F", "G"];
     const UF_LINES = ["A", "B", "C", "D"];
     const Q_PUMP_MIN = 80;
@@ -11212,6 +11240,8 @@
       if (svg) svg.textContent = tot.toFixed(1);
       const svgSp = el("svgQUfSp");
       if (svgSp) svgSp.textContent = round1(procSetpointOf("qUfTotale")).toFixed(1);
+      // Campo popup = setpoint (non lasciare 0 se vivo in lavaggio/blocco)
+      try { paintUfPopupSetpoints(); } catch (_) { /* ok */ }
       paintUfValveUI();
       paintUfWashUI();
       return tot;
@@ -11617,6 +11647,7 @@
     }, true);
 
     function openPopup(name, opts) {
+      playCasioClick();
       // Blocca chiusura fantasma dal click che ha aperto (arriva sullo sfondo modal)
       armPopupCloseGuard(500);
       // Niente tastiera finché non clicchi un misuratore/campo
@@ -12372,11 +12403,13 @@
         return;
       }
       if (field === "qUfTotale") {
+        rememberProcSetpoint("qUfTotale", v, { allowZero: true });
         setVal("qUfTotale", v, { force: true });
         syncUf("uf-totale");
         return;
       }
       if (field === "qUfA" || field === "qUfB" || field === "qUfC" || field === "qUfD") {
+        rememberProcSetpoint(field, v, { allowZero: true });
         setVal(field, v, { force: true });
         syncUf("uf-linea");
         el(field).dispatchEvent(new Event("input", { bubbles: true }));
@@ -12387,6 +12420,7 @@
         return;
       }
       if (field === "qOsmosiA" || field === "qOsmosiB" || field === "qOsmosiC") {
+        rememberProcSetpoint(field, v, { allowZero: true });
         setVal(field, v, { force: true });
         syncOsmosiSvg();
         el(field).dispatchEvent(new Event("input", { bubbles: true }));
@@ -12504,6 +12538,7 @@
     }
 
     function startInlineEdit(flowGroup) {
+      playCasioClick();
       resetFlowEditPanelPos();
       let field = flowGroup.dataset?.field || flowGroup.getAttribute?.("data-field") || "";
       let source = flowGroup.dataset?.source || flowGroup.getAttribute?.("data-source") || "";
@@ -12546,6 +12581,26 @@
         val = readP11019SplitEditVal(field);
       } else if (field === "qOsmosiD") {
         val = 0; // P11040 D sempre ferma
+      } else if (
+        field === "qUfTotale" || field === "qUfA" || field === "qUfB" || field === "qUfC" || field === "qUfD"
+        || field === "qOsmosiA" || field === "qOsmosiB" || field === "qOsmosiC"
+      ) {
+        // SEMPRE il setpoint (mai la viva a 0 in lavaggio/blocco)
+        val = procSetpointOf(field);
+        if (!(val > 0.05) && field === "qUfTotale") {
+          const spTxt = parseFloat(String(el("svgQUfSp")?.textContent || "").replace(",", "."));
+          if (Number.isFinite(spTxt) && spTxt > 0.05) val = round1(spTxt);
+        }
+        if (!(val > 0.05) && field.startsWith("qOsmosi")) {
+          const live = numOrNull(field);
+          if (live !== null && live > 0.05) val = live;
+        }
+      } else if (field === "qMemTotale") {
+        val = Math.max(
+          0,
+          num("qMemTotale") || 0,
+          parseFloat(String(el("svgQMemSp")?.textContent || "").replace(",", ".")) || 0
+        );
       } else {
         val = num(field);
       }
@@ -12655,10 +12710,12 @@
     });
     el("flowEditOk")?.addEventListener("click", (e) => {
       e.preventDefault();
+      playCasioClick();
       commitInline();
     });
     el("flowEditCancel")?.addEventListener("click", (e) => {
       e.preventDefault();
+      playCasioClick();
       hideInline();
       try { applyBalance("livello"); } catch (_) { /* ignore */ }
     });
@@ -12717,6 +12774,7 @@
       if (!btn) return;
       e.preventDefault();
       e.stopPropagation();
+      playCasioClick();
       applyNumpadKey(btn.getAttribute("data-np"));
     });
 
@@ -12741,6 +12799,7 @@
       btn.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
+        playCasioClick();
         // Chiudi solo se non è il click fantasma post-apertura
         if (Date.now() < __popupIgnoreCloseUntil) return;
         closePopups();
@@ -13734,7 +13793,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt161", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt162", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
