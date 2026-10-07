@@ -78,8 +78,18 @@
       text-overflow: ellipsis;
     }
     .status.warn { background: #422006; color: #fde68a; border-color: #854d0e; }
-    .status.danger { background: #450a0a; color: #fecaca; border-color: #7f1d1d; }
-    #statusBar[data-clickable="1"] { cursor: pointer; }
+    .status.danger { background: #450a0a; color: #fecaca; border-color: #7f1d1d; font-weight: 800; }
+    .status.is-ok {
+      background: #14532d;
+      color: #bbf7d0;
+      border-color: #4ade80;
+      font-weight: 800;
+    }
+    .status.is-bad { font-weight: 800; }
+    #statusBar {
+      max-width: min(560px, 58vw);
+    }
+    #statusBar[data-clickable="1"] { cursor: pointer; touch-action: manipulation; }
     #statusBar[data-clickable="1"]:hover { filter: brightness(1.12); }
 
     .schema-wrap {
@@ -679,12 +689,18 @@
       cursor: pointer;
       transition: filter 0.12s;
       outline: none;
+      touch-action: manipulation; /* click più reattivo su touch */
     }
     .node:hover { filter: brightness(1.15); }
     .node:focus, .node:focus-visible { outline: none; }
     .node[data-osm-line],
     .node[data-uf-line],
     .node[data-popup="membrane"] { touch-action: manipulation; }
+    .modal-back .modal .actions button,
+    .modal h3 > [data-close],
+    #chimicoBlockCount {
+      touch-action: manipulation;
+    }
     .node[data-popup="membrane"],
     .node[data-popup="membrane"]:hover,
     .node[data-popup="membrane"]:focus,
@@ -1093,6 +1109,18 @@
       align-items: center;
       gap: 8px;
     }
+    /* Tutti i popup: trascina dal titolo (si aprono al centro, poi spostabili) */
+    .modal-back .modal > h3 {
+      cursor: grab;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .modal-back .modal.is-dragging {
+      box-shadow: 0 22px 56px rgba(0,0,0,.55);
+      z-index: 6;
+    }
+    .modal-back .modal.is-dragging > h3 { cursor: grabbing; }
     .modal h3 .modal-title-row {
       display: flex;
       flex-direction: row;
@@ -2226,7 +2254,7 @@
     <div class="modal wide-settings">
       <h3>
         <span class="modal-title-row">
-          <span class="modal-title-name">P11011 A/B</span>
+          <span class="modal-title-name">A10620 · P11011 A/B</span>
           <span class="dev-mode" data-dev="pompa" title="Override locale: solo P11011 A/B">
             <button type="button" data-dev-mode="auto" class="is-on">Aut</button>
             <button type="button" data-dev-mode="manual">Man</button>
@@ -2235,8 +2263,8 @@
         <button type="button" data-close>&times;</button>
       </h3>
       <button type="button" class="proc-label" disabled style="cursor:default;opacity:.95">
-        <span>POMPE — P11011 A/B</span>
-        <small>A10620 · portata · frequenza</small>
+        <span>SERBATOIO A10620 · pompe P11011 A/B</span>
+        <small>portata · frequenza · livelli</small>
       </button>
       <p class="mini" id="devModeHintPompa">Automatico: P11011 segue ingresso + riciclo minimo. Manuale: portata tua, il resto può restare in automatico.</p>
       <div class="settings-block show">
@@ -2739,7 +2767,7 @@
     <div class="modal wide-settings">
       <h3>
         <span class="modal-title-row">
-          <span class="modal-title-name">MP 11036 A/B</span>
+          <span class="modal-title-name">A10611/7 · MP 11036 A/B</span>
           <span class="dev-mode" data-dev="mandata" title="Override locale: solo MP 11036 A/B">
             <button type="button" data-dev-mode="auto" class="is-on">Aut</button>
             <button type="button" data-dev-mode="manual">Man</button>
@@ -2748,8 +2776,8 @@
         <button type="button" data-close>&times;</button>
       </h3>
       <button type="button" class="proc-label" disabled style="cursor:default;opacity:.95">
-        <span>POMPE — MP 11036 A/B</span>
-        <small>A10611/7 · mandata verso MBR</small>
+        <span>SERBATOIO A10611/7 · pompe MP 11036 A/B</span>
+        <small>mandata verso MBR · blocco alto su P11011</small>
       </button>
       <p class="mini" id="devModeHintMandata">Automatico: la mandata segue P11011. Manuale: portata tua, il resto può restare in automatico.</p>
       <div class="settings-block show">
@@ -2777,14 +2805,16 @@
             <input type="number" id="viewStopRiempMbr" readonly placeholder="—" inputmode="decimal" />
           </label>
         </div>
+        <p class="mini">MP 11036: partono/fermano sul livello <strong>basso</strong> di A10611 (e sul MBR). Sotto: isteresi <strong>alta</strong> di A10611 che ferma/riparte le <strong>P11011</strong> (da A10620).</p>
         <div class="row">
-          <label><strong>Stop P11011 (blocco alto) %</strong>
+          <label><strong>Stop P11011 · blocco alto A10611 %</strong>
             <input type="number" id="viewStopAltoA10611" readonly placeholder="—" inputmode="decimal" />
           </label>
-          <label><strong>Ripartenza P11011 %</strong>
+          <label><strong>Ripartenza P11011 · dopo blocco %</strong>
             <input type="number" id="viewRipartenzaP11011A10611" readonly placeholder="—" inputmode="decimal" />
           </label>
         </div>
+        <p class="mini">Default: a <strong>≥ 96%</strong> P11011 si fermano; quando A10611 scende a <strong>≤ 90%</strong> ripartono. Non è lo start/stop delle MP 11036.</p>
         <p class="mini" id="mandataPumpHint">Stato pompe: —</p>
       </div>
       <div class="settings-block show">
@@ -4219,64 +4249,81 @@
       __chimicoAllowFill = on;
     }
 
+    let __regPreviewTimer = 0;
+    let __blocchiRefreshTimer = 0;
+    let __regPreviewSeq = 0;
+
+    /** Aggiorna subito (o quasi) bene/male + popup previsioni se aperto. */
+    function scheduleRegPreview(opts) {
+      opts = opts || {};
+      const delay = opts.immediate ? 0 : (opts.delay != null ? opts.delay : 70);
+      if (__regPreviewTimer) clearTimeout(__regPreviewTimer);
+      __regPreviewTimer = setTimeout(() => {
+        __regPreviewTimer = 0;
+        try { paintRegPreviewBar(); } catch (_) { /* ok */ }
+        try { scheduleOpenBlocchiRefresh(); } catch (_) { /* ok */ }
+      }, delay);
+    }
+
+    function scheduleOpenBlocchiRefresh() {
+      const pop = el("popBlocchi");
+      if (!pop || !pop.classList.contains("show")) return;
+      if (__blocchiRefreshTimer) clearTimeout(__blocchiRefreshTimer);
+      __blocchiRefreshTimer = setTimeout(() => {
+        __blocchiRefreshTimer = 0;
+        if (!pop.classList.contains("show")) return;
+        try { paintBlocchiExplain(); } catch (_) { /* ok */ }
+        try { paintBlocchiImproveUI(); } catch (_) { /* ok */ }
+      }, 90);
+    }
+
     function updateChimicoBlockUI() {
       const node = el("chimicoBlockCount");
       if (!node) return;
-      node.textContent = String(__chimicoBlockCount);
-      node.setAttribute("data-count", String(__chimicoBlockCount));
       const n = __chimicoBlockCount;
-      let warn = node.getAttribute("data-warn") === "1";
-      // Previsione 8 ore: solo a impianto fermo (non ogni minuto di Start)
-      if (!__simBusy && !__simPlaying) {
-        try {
-          const fc = forecastChimicoHorizon(BLOCK_FORECAST_HORIZON);
-          warn = !fc.ok;
-          if (n === 0) {
-            node.title = warn
-              ? `Previsto blocco entro 8 ore (~${fmtForecastWhen(fc.firstBlockMin)}) — clic per consigli`
-              : "Nessun blocco — previsione 8 ore OK — clic per dettagli";
-          } else {
-            node.title = n === 1
-              ? "1 blocco — clic per cosa regolare"
-              : `${n} blocchi — clic per cosa regolare`;
-          }
-        } catch (_) {
-          warn = false;
-          node.title = n === 0
-            ? "Nessun blocco — clic per previsione 8 ore"
-            : (n === 1 ? "1 blocco — clic" : `${n} blocchi — clic`);
-        }
-        try { paintRegPreviewBar(); } catch (_) { /* ok */ }
-      } else if (n === 0) {
-        node.title = "Simulazione in corso — clic per previsione/consigli";
-      } else {
-        node.title = n === 1
-          ? "1 blocco — clic per cosa regolare"
-          : `${n} blocchi — clic per cosa regolare`;
-        warn = false;
-      }
-      node.setAttribute("data-warn", warn ? "1" : "0");
+      node.textContent = String(n);
+      node.setAttribute("data-count", String(n));
+      node.title = n === 0
+        ? "Clic: previsione 8 ore / regolato bene-male"
+        : (n === 1 ? "1 blocco — clic per consigli" : `${n} blocchi — clic per consigli`);
+      try { scheduleRegPreview({ delay: 40 }); } catch (_) { /* ok */ }
     }
 
-    /** Anteprima regolazione (sinistra di Sync): sempre aggiornata a ogni variazione / Reset. */
+    /** Bene/Male: sempre in evidenza (impianto fermo o in marcia), a ogni variazione. */
     function paintRegPreviewBar() {
-      if (__simBusy || __simPlaying) return;
       const bar = el("statusBar");
       if (!bar) return;
       bar.setAttribute("data-clickable", "1");
+      const seq = ++__regPreviewSeq;
       try {
         const fc = forecastChimicoHorizon(BLOCK_FORECAST_HORIZON);
+        if (seq !== __regPreviewSeq) return; // risposta obsoleta
         const adv = buildHorizonAdvice(fc);
+        let text;
+        let cls;
         if (fc.ok) {
-          bar.className = "status";
-          bar.textContent = "Regolato bene · 8 h OK";
+          cls = "status is-ok";
+          text = "Regolato bene · 8 h OK";
           bar.title = "Nessun blocco previsto nelle prossime 8 ore — clic per dettaglio";
         } else {
-          bar.className = "status danger";
-          bar.textContent = shortRegPreviewBad(adv, fc);
+          cls = "status danger is-bad";
+          text = shortRegPreviewBad(adv, fc);
           bar.title = (adv.verdict || "Regolazione da correggere") + " — clic per dettaglio / Sì-No";
         }
+        if (__simPlaying || __simMin > 0) text = `t=${__simMin}′ · ` + text;
+        bar.className = cls;
+        bar.textContent = text;
+        const badge = el("chimicoBlockCount");
+        if (badge) {
+          badge.setAttribute("data-warn", fc.ok ? "0" : "1");
+          if (__chimicoBlockCount === 0) {
+            badge.title = fc.ok
+              ? "Nessun blocco — previsione 8 ore OK — clic"
+              : `Previsto blocco entro 8 ore (~${fmtForecastWhen(fc.firstBlockMin)}) — clic`;
+          }
+        }
       } catch (_) {
+        if (seq !== __regPreviewSeq) return;
         bar.className = "status warn";
         bar.textContent = "Regolazione · in aggiornamento…";
         bar.title = "Clic: dettaglio previsione 8 ore";
@@ -4836,7 +4883,8 @@
 
       const ask = (!forceAlt && askQ)
         ? {
-            key: `fc-${focus}-${fc.reason || "x"}-${fmtQ(target)}-${fmtQ(qInSp)}-${fc.firstBlockMin}`,
+            // Chiave stabile (senza firstBlockMin): altrimenti ogni tick azzera Sì/No
+            key: `fc-${focus}-${fc.reason || "x"}-${fmtQ(target)}-${fmtQ(qInSp)}`,
             q: askQ,
             yesHtml,
             noHtml,
@@ -5088,8 +5136,7 @@
       return { chain, meta, verdict, action, alt, eq, ask, fault, forceAlt, anomaly };
     }
 
-    function resetBlocchiPanelPos() {
-      const panel = el("blocchiPanel");
+    function resetModalDragPos(panel) {
       if (!panel) return;
       panel.classList.remove("is-dragging");
       panel.style.position = "";
@@ -5097,26 +5144,37 @@
       panel.style.top = "";
       panel.style.margin = "";
       panel.style.transform = "";
+      panel.style.zIndex = "";
+    }
+
+    function resetAllModalDragPos() {
+      document.querySelectorAll(".modal-back > .modal").forEach(resetModalDragPos);
+    }
+
+    function resetBlocchiPanelPos() {
+      resetModalDragPos(el("blocchiPanel"));
     }
 
     function renderBlockAskHtml(ask) {
       if (!ask) return "";
-      if (ask.key !== __blockQaKey) {
-        __blockQaKey = ask.key;
+      const key = String(ask.key || "");
+      if (key && key !== __blockQaKey) {
+        __blockQaKey = key;
         __blockQaAnswer = null;
       }
-      let html = `<div class="block-qa" data-qa-key="${ask.key}">`;
+      const ans = __blockQaAnswer;
+      let html = `<div class="block-qa" data-qa-key="${key}">`;
       html += `<p>${ask.q}</p>`;
       html += `<div class="block-qa-btns">`;
-      html += `<button type="button" data-block-qa="yes"${__blockQaAnswer === "yes" ? ' class="is-picked"' : ""}>Sì</button>`;
-      html += `<button type="button" data-block-qa="no"${__blockQaAnswer === "no" ? ' class="is-picked"' : ""}>No</button>`;
+      html += `<button type="button" data-block-qa="yes"${ans === "yes" ? ' class="is-picked"' : ""}>Sì</button>`;
+      html += `<button type="button" data-block-qa="no"${ans === "no" ? ' class="is-picked"' : ""}>No</button>`;
       html += `</div></div>`;
-      if (__blockQaAnswer === "yes") {
-        html += `<div class="block-action">${ask.yesHtml}</div>`;
-      } else if (__blockQaAnswer === "no") {
-        html += `<div class="block-alt">${ask.noHtml}</div>`;
+      if (ans === "yes") {
+        html += `<div class="block-action" data-block-qa-result="yes">${ask.yesHtml || "Ok."}</div>`;
+      } else if (ans === "no") {
+        html += `<div class="block-alt" data-block-qa-result="no">${ask.noHtml || "Ok."}</div>`;
       } else {
-        html += `<p class="mini">Rispondi Sì/No. Solo se dici No compare l’eventuale set del chimico-fisico per le 8 ore.</p>`;
+        html += `<p class="mini">Rispondi Sì o No: sotto compare subito il consiglio. Puoi cambiare risposta quando vuoi.</p>`;
       }
       return html;
     }
@@ -5124,6 +5182,8 @@
     function paintBlocchiExplain() {
       const body = el("blocchiBody");
       if (!body) return;
+      const sc = el("blocchiScroll");
+      const yKeep = sc ? sc.scrollTop : 0;
       const last = __chimicoBlockLog.length ? __chimicoBlockLog[__chimicoBlockLog.length - 1] : null;
       const blockedNow = !__chimicoAllowFill;
       const livNow = numOrNull("livelloAttuale");
@@ -5133,89 +5193,119 @@
       let html = "";
       let fc = null;
       try { fc = forecastChimicoHorizon(BLOCK_FORECAST_HORIZON); } catch (_) { fc = null; }
-      const adv = fc ? buildHorizonAdvice(fc) : null;
+      let adv = null;
+      try { adv = fc ? buildHorizonAdvice(fc) : null; } catch (_) { adv = null; }
 
       // Prima dello Start (o non in blocco): priorità alla previsione 8 ore sui set attuali.
       // In blocco vivo: diagnosi immediata dell’evento.
-      if (blockedNow && last) {
-        const rep = buildChimicoBlockReport(last);
-        html += `<div class="block-verdict">${rep.verdict}</div>`;
-        html += `<div class="block-action"><strong>Cosa regolare</strong><br>${rep.action}</div>`;
-        if (rep.fault) html += `<div class="block-fault">${rep.fault}</div>`;
-        if (rep.ask) {
-          html += renderBlockAskHtml(rep.ask);
-        } else if (rep.forceAlt && rep.alt) {
-          html += `<div class="block-alt"><strong>Obbligatorio</strong><br>${rep.alt}</div>`;
-        }
-        html += `<p class="mini" style="margin-top:10px">Ancora in blocco (A10620 ${livNow !== null ? fmtBlockPct(livNow) : "—"}). `
-          + `Il chimico riparte a ≤ ${fmtBlockPct(startV)}.</p>`;
-        html += `<details class="block-details"><summary>Dettaglio catena</summary>`;
-        html += `<div class="block-meta">${rep.meta}</div>`;
-        html += `<ul class="block-chain">`;
-        rep.chain.forEach((step) => { html += `<li>${step}</li>`; });
-        html += `</ul></details>`;
-        if (adv) {
-          html += `<p class="mini" style="margin-top:12px"><strong>Se riparti con questi set</strong></p>`;
-          html += adv.forecastHtml;
-        }
-      } else if (adv) {
-        html += adv.forecastHtml;
-        if (adv.ok) {
-          html += `<div class="block-action ok-line">Portate coerenti: nessuna regolazione, impianto in marcia per 8 ore.</div>`;
-          __blockQaKey = `ok-${fmtQ(fc.qInSp)}-${fmtQ(fc.qPumpSp)}-${fmtQ(fc.qMandSp)}-${fmtQ(fc.qMemSp)}`;
-          __blockQaAnswer = null;
-        } else {
-          html += `<div class="block-action"><strong>Cosa regolare</strong><br>${adv.action}</div>`;
-          if (adv.fault) html += `<div class="block-fault">${adv.fault}</div>`;
-          if (adv.ask) {
-            html += renderBlockAskHtml(adv.ask);
-          } else if (adv.forceAlt && adv.alt) {
-            html += `<div class="block-alt"><strong>Obbligatorio</strong><br>${adv.alt}</div>`;
-          }
-          if (fc && fc.snap) {
-            html += `<div class="block-meta"><div><strong>Previsione</strong> · primo blocco a ${fmtForecastWhen(fc.firstBlockMin)}`
-              + ` · A10620→${fmtBlockPct(fc.snap.liv20)} · A10611→${fmtBlockPct(fc.snap.liv11)}</div>`
-              + `<div>Chimico ${fmtQ(fc.qInSp)} · P11011 ${fmtQ(fc.qPumpSp)} · MP 11036 ${fmtQ(fc.qMandSp)} · membrane ${fmtQ(fc.qMemSp)}</div></div>`;
-          }
-        }
-        if (last) {
+      try {
+        if (blockedNow && last) {
           const rep = buildChimicoBlockReport(last);
-          html += `<details class="block-details"><summary>Ultimo blocco già avvenuto (${last.tMin}′)</summary>`;
           html += `<div class="block-verdict">${rep.verdict}</div>`;
-          html += `<div class="block-action">${rep.action}</div>`;
-          html += `<div class="block-meta">${rep.meta}</div></details>`;
+          html += `<div class="block-action"><strong>Cosa regolare</strong><br>${rep.action}</div>`;
+          if (rep.fault) html += `<div class="block-fault">${rep.fault}</div>`;
+          if (rep.ask) {
+            html += renderBlockAskHtml(rep.ask);
+          } else if (rep.forceAlt && rep.alt) {
+            html += `<div class="block-alt"><strong>Obbligatorio</strong><br>${rep.alt}</div>`;
+          }
+          html += `<p class="mini" style="margin-top:10px">Ancora in blocco (A10620 ${livNow !== null ? fmtBlockPct(livNow) : "—"}). `
+            + `Il chimico riparte a ≤ ${fmtBlockPct(startV)}.</p>`;
+          html += `<details class="block-details"><summary>Dettaglio catena</summary>`;
+          html += `<div class="block-meta">${rep.meta}</div>`;
+          html += `<ul class="block-chain">`;
+          rep.chain.forEach((step) => { html += `<li>${step}</li>`; });
+          html += `</ul></details>`;
+          if (adv) {
+            html += `<p class="mini" style="margin-top:12px"><strong>Se riparti con questi set</strong></p>`;
+            html += adv.forecastHtml;
+          }
+        } else if (adv) {
+          html += adv.forecastHtml;
+          if (adv.ok) {
+            html += `<div class="block-action ok-line">Portate coerenti: nessuna regolazione, impianto in marcia per 8 ore.</div>`;
+            __blockQaKey = `ok-${fmtQ(fc.qInSp)}-${fmtQ(fc.qPumpSp)}-${fmtQ(fc.qMandSp)}-${fmtQ(fc.qMemSp)}`;
+            __blockQaAnswer = null;
+          } else {
+            html += `<div class="block-action"><strong>Cosa regolare</strong><br>${adv.action}</div>`;
+            if (adv.fault) html += `<div class="block-fault">${adv.fault}</div>`;
+            if (adv.ask) {
+              html += renderBlockAskHtml(adv.ask);
+            } else if (adv.forceAlt && adv.alt) {
+              html += `<div class="block-alt"><strong>Obbligatorio</strong><br>${adv.alt}</div>`;
+            }
+            if (fc && fc.snap) {
+              html += `<div class="block-meta"><div><strong>Previsione</strong> · primo blocco a ${fmtForecastWhen(fc.firstBlockMin)}`
+                + ` · A10620→${fmtBlockPct(fc.snap.liv20)} · A10611→${fmtBlockPct(fc.snap.liv11)}</div>`
+                + `<div>Chimico ${fmtQ(fc.qInSp)} · P11011 ${fmtQ(fc.qPumpSp)} · MP 11036 ${fmtQ(fc.qMandSp)} · membrane ${fmtQ(fc.qMemSp)}</div></div>`;
+            }
+          }
+          if (last) {
+            const rep = buildChimicoBlockReport(last);
+            html += `<details class="block-details"><summary>Ultimo blocco già avvenuto (${last.tMin}′)</summary>`;
+            html += `<div class="block-verdict">${rep.verdict}</div>`;
+            html += `<div class="block-action">${rep.action}</div>`;
+            html += `<div class="block-meta">${rep.meta}</div></details>`;
+          }
+        } else if (__chimicoBlockCount === 0) {
+          html += `<div class="block-action">Imposta le portate e riapri: legge i set e prevede le 8 ore.</div>`;
+        } else {
+          html += `<p>Ci sono ${__chimicoBlockCount} blocco/i contati, ma senza snapshot della catena.</p>`;
         }
-      } else if (__chimicoBlockCount === 0) {
-        html += `<div class="block-action">Imposta le portate e riapri: legge i set e prevede le 8 ore.</div>`;
-      } else {
-        html += `<p>Ci sono ${__chimicoBlockCount} blocco/i contati, ma senza snapshot della catena.</p>`;
-      }
 
-      if (__chimicoBlockLog.length > 1) {
-        const prev = __chimicoBlockLog.slice(0, -1).slice(-3).reverse();
-        html += `<p class="mini" style="margin-top:12px">Precedenti: `
-          + prev.map((e) => `${e.tMin}′ · IN ${fmtQ(e.qInLive)} / P11011 ${fmtQ(e.qOut)}`).join(" · ")
-          + `</p>`;
+        if (__chimicoBlockLog.length > 1) {
+          const prev = __chimicoBlockLog.slice(0, -1).slice(-3).reverse();
+          html += `<p class="mini" style="margin-top:12px">Precedenti: `
+            + prev.map((e) => `${e.tMin}′ · IN ${fmtQ(e.qInLive)} / P11011 ${fmtQ(e.qOut)}`).join(" · ")
+            + `</p>`;
+        }
+      } catch (err) {
+        console.warn("[calcolatore] paintBlocchiExplain", err);
+        html += `<p class="mini">Errore nel dettaglio — richiudi e riapri Previsioni.</p>`;
       }
 
       body.innerHTML = html;
-      body.querySelectorAll("[data-block-qa]").forEach((btn) => {
-        btn.addEventListener("click", (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const ans = btn.getAttribute("data-block-qa");
-          __blockQaAnswer = ans === "no" ? "no" : "yes";
-          paintBlocchiExplain();
-        });
-      });
-      try { updateChimicoBlockUI(); } catch (_) { /* ok */ }
+      if (sc) {
+        sc.scrollTop = yKeep;
+        if (__blockQaAnswer) {
+          const res = body.querySelector("[data-block-qa-result]");
+          if (res) {
+            try { res.scrollIntoView({ block: "nearest", behavior: "smooth" }); } catch (_) { /* ok */ }
+          }
+        }
+      }
     }
+
+    /** Sì/No previsioni: un solo listener sul body (non si perde al re-paint). */
+    (function bindBlockQaDelegation() {
+      const body = el("blocchiBody");
+      if (!body || body.dataset.qaBound === "1") return;
+      body.dataset.qaBound = "1";
+      let __qaLockUntil = 0;
+      body.addEventListener("click", (e) => {
+        const btn = e.target && e.target.closest ? e.target.closest("[data-block-qa]") : null;
+        if (!btn || !body.contains(btn)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const now = Date.now();
+        if (now < __qaLockUntil) return;
+        __qaLockUntil = now + 280;
+        const ans = btn.getAttribute("data-block-qa");
+        const wrap = btn.closest("[data-qa-key]");
+        if (wrap) {
+          const k = wrap.getAttribute("data-qa-key");
+          if (k) __blockQaKey = k;
+        }
+        __blockQaAnswer = ans === "no" ? "no" : "yes";
+        try { paintBlocchiExplain(); } catch (err) {
+          console.warn("[calcolatore] block-qa", err);
+        }
+      });
+    })();
 
     function openBlocchiPopup() {
       resetBlocchiPanelPos();
-      paintBlocchiExplain();
-      paintBlocchiImproveUI();
-      openPopup("blocchi");
+      openPopup("blocchi"); // fill asincrono in openPopup (apertura immediata)
     }
 
     /** Avanza oscillazione lenta intorno al setpoint digitato (tipicamente ±1…2 m³/h, max ±2.5). */
@@ -9034,95 +9124,9 @@
         if (svgHz && !isEditing("freqHz")) svgHz.textContent = String(Math.round(num("freqHz")));
         refreshProcViews();
 
-        const ranges = updateLevelRangeUI(qInEff, qPumpEff2, qMandata, qRecycle, totAvg);
-
-        const bar = el("statusBar");
-        if (!bar) return;
-        // A impianto fermo: solo consiglio regolazione 8 h (ogni variazione / Reset).
-        if (!__simPlaying && !__simBusy) {
-          try { paintRegPreviewBar(); } catch (_) { /* ok */ }
-        } else {
-        const pumpOk = !p11011Allowed() || qPumpEff2 + 0.05 >= qInSet + Q_RECYCLE_MIN;
-        const aboveMin = !p11011Allowed() || qPumpEff2 + 0.05 >= getPumpMin();
-        const mandOk = !__run11036
-          || Math.abs(qMandata - qPumpEff2) <= 0.25
-          || el("equiparaMandata").checked
-          || !p11011Allowed();
-        const qUf = round1(sumUfEffective());
-        const qDemi = round1(OSM_IDS.reduce((s, id) => s + Math.max(0, num(id)), 0));
-        const downOk = Math.abs(procSetpointOf("qUfTotale") - totAvg) <= 0.6 && Math.abs(qDemi - totAvg) <= 0.6;
-        if (!__chimicoAllowFill && ilRiemp.configured) {
-          bar.className = "status danger";
-          bar.textContent = `Stop riempimento A10620 ≥${fmtPct(ilRiemp.stopR)} · CHIMICO FERMO · riparte ≤${fmtPct(ilRiemp.startR)}`;
-        } else if (!__runP11011By20) {
-          bar.className = "status warn";
-          bar.textContent = `A10620 ≤${fmtPct(il20.stopS)} · P11011 FERME · ripartono a ≥${fmtPct(il20.startS)}`;
-        } else if (__blockP11011By11) {
-          bar.className = "status danger";
-          bar.textContent = `A10611 BLOCCO ≥${fmtPct(il11.hiBlock)} · P11011 A/B FERME · ripartono ≤${fmtPct(il11.hiRestart)}`;
-        } else if (!__run11036) {
-          bar.className = "status warn";
-          if (!__run11036Tank) {
-            bar.textContent = `A10611 basso ≤${fmtPct(il11.loStop)} · MP 11036 A/B FERME · ripartono ≥${fmtPct(il11.loStart)} (e MBR OK)`;
-          } else if (!__allow11036ByMbr) {
-            const stopR = numOrNull("stopRiempMbr") ?? 92;
-            const startR = numOrNull("startRiempMbr") ?? 85;
-            bar.textContent = `MBR pieno ≥${fmtPct(stopR)} · MP 11036 A/B FERME · ripartono a ≤${fmtPct(startR)} (se A10611 OK)`;
-          } else {
-            bar.textContent = `MP 11036 A/B FERME`;
-          }
-        } else if (!ranges.chimicoOk) {
-          bar.className = "status danger";
-          bar.textContent = (livAtt >= il20.startS - 0.05 && !p11011Allowed())
-            ? `A10620 ≥${fmtPct(il20.startS)} e P11011 FERME · chimico-fisico non smaltisce`
-            : `Ingresso > max P11011 · chimico-fisico non smaltisce`;
-        } else if (ranges.hEmpty || (ranges.run14 && !ranges.run14.running && ranges.run14.blockAlto20)) {
-          bar.className = "status warn";
-          bar.textContent = ranges.run14
-            ? ranges.run14.reason
-            : `A11004 basso · 11014 si ferma (stop ~${fmtPct(num("stopSvuotA11004") || 77)})`;
-        } else if (ranges.r20.atBlock || ranges.r11.atBlock) {
-          bar.className = ranges.r11.atBlock ? "status danger" : "status warn";
-          bar.textContent = ranges.r11.atBlock
-            ? `A10611 al set BLOCCO ${fmtPct(ranges.r11.hi)}`
-            : `A10620 in svuotamento ≥${fmtPct(ranges.r20.hi)} · P11011 ${p11011Allowed() ? "ON" : "OFF"}`;
-        } else if (atBlock || atHigh) {
-          bar.className = "status danger";
-          bar.textContent = `ALTO LIV. A10620 ${livAtt.toFixed(1)}% · scarico +${scaricoExtra} m³/h`;
-        } else if (nearHigh) {
-          bar.className = "status warn";
-          bar.textContent = `Anticipo scarico · liv ${livAtt.toFixed(1)}% → soglia ${altoLivello}%`;
-        } else if (!aboveMin) {
-          bar.className = "status warn";
-          bar.textContent = `P11011 sotto minimo (42 Hz ≈ ${round1(getPumpMin())} m³/h)`;
-        } else if (!pumpOk) {
-          bar.className = "status danger";
-          bar.textContent = `Alza P11011 almeno = ingresso + ${Q_RECYCLE_MIN} m³/h (riciclo min)`;
-        } else if (!mandOk) {
-          bar.className = "status warn";
-          bar.textContent = "Allinea mandata MP 11036 A/B a P11011 A/B";
-        } else if (!downOk) {
-          bar.className = "status warn";
-          bar.textContent = `Permeato ${totAvg.toFixed(1)} · UF ${qUf.toFixed(1)} · Demi ${qDemi.toFixed(1)} — allinea`;
-        } else {
-          bar.className = "status";
-          bar.textContent = ricicloAutoControlled()
-            ? `Stabile · riciclo ${qRecycle.toFixed(0)} (=P11011−in) · P11011 ${round1(qPumpEff2).toFixed(0)} @ ${Math.round(num("freqHz"))} Hz`
-            : `Stabile · riciclo MAN ${qRecycle.toFixed(0)} · P11011 ${round1(qPumpEff2).toFixed(0)} @ ${Math.round(num("freqHz"))} Hz`;
-        }
-        if (__simMin > 0 && bar) {
-          const maxM = round1(sumMemsAllOn());
-          const offN = memIdsEnabled().filter((L) => membraneIsPaused(__mbrCycleMin, L)).length;
-          const outTxt = !membranesProcessAllowed()
-            ? (!__allowMbrByPermeate
-              ? `MBR FERME (TK11007 pieno) · ciclo@${__mbrCycleMin}′`
-              : `MBR FERME (livello) · ciclo@${__mbrCycleMin}′`)
-            : (offN > 0
-              ? `TOT ON ${roundMem(totOn)}/${roundMem(maxM)}${offN ? ` (−${offN} memb.)` : ""}`
-              : `TOT ON ${roundMem(totOn)} (tutte ON)`);
-          bar.textContent = `t=${__simMin}′ · ${outTxt} · ` + bar.textContent;
-        }
-        }
+        updateLevelRangeUI(qInEff, qPumpEff2, qMandata, qRecycle, totAvg);
+        // Sempre bene/male in evidenza (anche in marcia); popup previsioni se aperto si aggiorna
+        try { scheduleRegPreview({ delay: __simPlaying ? 120 : 40 }); } catch (_) { /* ok */ }
       } finally {
         endFlowStep();
         lock = false;
@@ -10513,78 +10517,99 @@
     }
 
     function openPopup(name, opts) {
+      // 1) Mostra subito il popup (il calcolo pesante viene dopo → click più reattivo)
       Object.values(popups).forEach((p) => { if (p) p.classList.remove("show"); });
       if (popups[name]) {
+        try {
+          const panel = popups[name].querySelector(":scope > .modal") || popups[name].querySelector(".modal");
+          resetModalDragPos(panel);
+        } catch (_) { /* ok */ }
         popups[name].classList.add("show");
         try { popups[name].scrollTop = 0; } catch (_) { /* ignore */ }
       }
-      syncScrollLock();
-      if (name === "pompe" || name === "mandata" || name === "processo" || name === "riciclo" || name === "membrane" || name === "permeato" || name === "p11019" || name === "tk11021" || name === "ultra") refreshProcViews();
-      if (name === "blocchi") paintBlocchiExplain();
-      if (name === "riciclo") {
-        paintDevModeUI("riciclo");
-        paintRecycleEditableUI();
+      try { syncScrollLock(); } catch (_) { /* ok */ }
+
+      if (name === "blocchi") {
+        const body = el("blocchiBody");
+        if (body) body.innerHTML = `<p class="mini">Calcolo previsione…</p>`;
       }
-      if (name === "p11019") {
-        const q19 = qP11019Setpoint();
-        rememberFlowSetpoint("qP11019", q19);
-        if (!isEditing("qP11019")) setVal("qP11019", q19, { force: true });
-        sanitizeP11019SplitMem();
-        paintP11019SplitUI();
-      }
-      if (name === "carbone") {
-        paintCarbWashUI();
-        const line = opts && opts.carbLine;
-        if (line) setTimeout(() => focusCarbRow(line), 40);
-        else {
-          document.querySelectorAll("#popCarbone .uf-row").forEach((row) => row.classList.remove("is-focus"));
-          const title = el("carbPopTitle");
-          if (title) title.textContent = "Filtri carb · gestione lavaggi";
+
+      const fill = () => {
+        if (!popups[name] || !popups[name].classList.contains("show")) return;
+        try {
+          if (name === "pompe" || name === "mandata" || name === "processo" || name === "riciclo"
+            || name === "membrane" || name === "permeato" || name === "p11019" || name === "tk11021"
+            || name === "ultra") refreshProcViews();
+          if (name === "blocchi") {
+            paintBlocchiExplain();
+            paintBlocchiImproveUI();
+          }
+          if (name === "riciclo") {
+            paintDevModeUI("riciclo");
+            paintRecycleEditableUI();
+          }
+          if (name === "p11019") {
+            const q19 = qP11019Setpoint();
+            rememberFlowSetpoint("qP11019", q19);
+            if (!isEditing("qP11019")) setVal("qP11019", q19, { force: true });
+            sanitizeP11019SplitMem();
+            paintP11019SplitUI();
+          }
+          if (name === "carbone") {
+            paintCarbWashUI();
+            const line = opts && opts.carbLine;
+            if (line) setTimeout(() => focusCarbRow(line), 40);
+            else {
+              document.querySelectorAll("#popCarbone .uf-row").forEach((row) => row.classList.remove("is-focus"));
+              const title = el("carbPopTitle");
+              if (title) title.textContent = "Filtri carb · gestione lavaggi";
+            }
+          }
+          if (name === "ultra") {
+            paintUfPopupSetpoints();
+            syncUf("uf-totale");
+            paintUfSvgLive();
+            const line = opts && opts.ufLine;
+            if (line) setTimeout(() => focusUfRow(line), 40);
+            else document.querySelectorAll(".uf-row").forEach((row) => row.classList.remove("is-focus"));
+          }
+          if (name === "osmosi") {
+            ["A", "B", "C"].forEach((L) => paintProcSetpointField("qOsmosi" + L));
+            syncOsmosiSvg();
+            paintOsmosiRunUI();
+            const line = opts && opts.osmLine;
+            if (line) setTimeout(() => focusOsmosiRow(line), 40);
+            else document.querySelectorAll(".osm-row").forEach((row) => row.classList.remove("is-focus"));
+          }
+          if (name === "regolazioni") {
+            refreshTankGeomHints();
+            getA10611Calib();
+            getRicicloHCalib();
+            paintMbrRicHCalibHints();
+            getTk11007Calib();
+          }
+          if (name === "membrane") {
+            try { paintMemMinHint(); } catch (_) { /* ok */ }
+          }
+        } catch (err) {
+          console.warn("[calcolatore] openPopup fill", name, err);
         }
-      }
-      if (name === "ultra") {
-        paintUfPopupSetpoints();
-        syncUf("uf-totale");
-        paintUfSvgLive();
-        const line = opts && opts.ufLine;
-        if (line) {
-          setTimeout(() => focusUfRow(line), 40);
-        } else {
-          document.querySelectorAll(".uf-row").forEach((row) => row.classList.remove("is-focus"));
-        }
-      }
-      if (name === "osmosi") {
-        ["A", "B", "C"].forEach((L) => paintProcSetpointField("qOsmosi" + L));
-        syncOsmosiSvg();
-        paintOsmosiRunUI();
-        const line = opts && opts.osmLine;
-        if (line) {
-          setTimeout(() => focusOsmosiRow(line), 40);
-        } else {
-          document.querySelectorAll(".osm-row").forEach((row) => row.classList.remove("is-focus"));
-        }
-      }
-      if (name === "regolazioni") {
-        refreshTankGeomHints();
-        getA10611Calib();
-        getRicicloHCalib();
-        paintMbrRicHCalibHints();
-        getTk11007Calib();
-      }
-      if (name === "membrane") {
-        try { paintMemMinHint(); } catch (_) { /* ok */ }
-      }
+      };
+      // Due frame: il browser dipinge il popup prima del forecast/refresh
+      requestAnimationFrame(() => { requestAnimationFrame(fill); });
     }
     function closePopups() {
-      try {
-        if (popups.pompe && popups.pompe.classList.contains("show")) commitPump();
-      } catch (e) {
-        console.warn("[calcolatore] commitPump on close", e);
-      }
+      const needCommit = !!(popups.pompe && popups.pompe.classList.contains("show"));
       Object.values(popups).forEach((p) => { if (p) p.classList.remove("show"); });
-      try { resetBlocchiPanelPos(); } catch (_) { /* ok */ }
+      try { resetAllModalDragPos(); } catch (_) { /* ok */ }
       try { hideInline(); } catch (_) { /* ok */ }
-      syncScrollLock();
+      try { syncScrollLock(); } catch (_) { /* ok */ }
+      // commit dopo la chiusura visiva (non blocca il click)
+      if (needCommit) {
+        setTimeout(() => {
+          try { commitPump(); } catch (e) { console.warn("[calcolatore] commitPump on close", e); }
+        }, 0);
+      }
     }
 
     document.querySelectorAll(".node[data-popup]").forEach((node) => {
@@ -10596,6 +10621,7 @@
       let holdFired = false;
       let holdMemL = "";
       let holdCommitted = false;
+      let ptrDown = null;
       const clearHold = () => {
         if (holdTimer != null) {
           clearTimeout(holdTimer);
@@ -10625,48 +10651,6 @@
         if (!cell) return;
         cell.classList.add(memLineEnabled(letter) ? "is-press-off" : "is-press-on");
       };
-      if (holdOnNode) {
-        node.addEventListener("pointerdown", (e) => {
-          if (e.pointerType === "mouse" && e.button !== 0) return;
-          holdFired = false;
-          holdCommitted = false;
-          holdMemL = "";
-          clearHold();
-          clearMemPress();
-          const memL = isMemNode ? memLetterFromEvent(e) : "";
-          holdMemL = memL;
-          if (isMemNode) {
-            try { node.blur(); } catch (_) { /* ignore */ }
-          }
-          if (isMemNode && !memL) return;
-          holdTimer = setTimeout(() => {
-            holdTimer = null;
-            holdFired = true;
-            if (osmLine) toggleOsmLineEnabled(osmLine);
-            else if (ufLine) toggleUfLineEnabled(ufLine);
-            else if (memL) pressMemCell(memL);
-            try { if (navigator.vibrate) navigator.vibrate(18); } catch (_) { /* ok */ }
-          }, 500);
-        });
-        node.addEventListener("pointerup", () => {
-          clearHold();
-          if (isMemNode && holdFired && holdMemL && !holdCommitted) {
-            holdCommitted = true;
-            toggleMemLineEnabled(holdMemL);
-          }
-          clearMemPress();
-        });
-        ["pointercancel", "pointerleave", "lostpointercapture"].forEach((ev) => {
-          node.addEventListener(ev, () => {
-            clearHold();
-            clearMemPress();
-            if (isMemNode && !holdCommitted) holdFired = false;
-          });
-        });
-        node.addEventListener("contextmenu", (e) => {
-          if (!isMemNode || memLetterFromEvent(e)) e.preventDefault();
-        });
-      }
       const carbLine = node.getAttribute("data-carb-line") || node.dataset.carbLine;
       const popupOpts = () => {
         if (osmLine) return { osmLine };
@@ -10674,27 +10658,100 @@
         if (carbLine) return { carbLine };
         return undefined;
       };
-      const open = (e) => {
-        try {
-          const t = e.target;
-          if (t && t.closest && t.closest(".flow-edit")) return;
-        } catch (_) { /* SVG senza closest su target rari */ }
-        if (holdOnNode && holdFired) {
-          holdFired = false;
-          e.preventDefault();
-          e.stopPropagation();
-          return;
-        }
+      const openNow = () => {
         const name = node.getAttribute("data-popup") || node.dataset.popup;
         if (name) openPopup(name, popupOpts());
         if (node.blur) node.blur();
       };
-      node.addEventListener("click", open);
+
+      node.addEventListener("pointerdown", (e) => {
+        if (e.pointerType === "mouse" && e.button !== 0) return;
+        try {
+          const t = e.target;
+          if (t && t.closest && t.closest(".flow-edit")) {
+            ptrDown = null;
+            return;
+          }
+        } catch (_) { /* ok */ }
+        ptrDown = { x: e.clientX, y: e.clientY, id: e.pointerId };
+        holdFired = false;
+        holdCommitted = false;
+        holdMemL = "";
+        clearHold();
+        clearMemPress();
+        if (!holdOnNode) return;
+        const memL = isMemNode ? memLetterFromEvent(e) : "";
+        holdMemL = memL;
+        if (isMemNode) {
+          try { node.blur(); } catch (_) { /* ignore */ }
+        }
+        if (isMemNode && !memL) return;
+        holdTimer = setTimeout(() => {
+          holdTimer = null;
+          holdFired = true;
+          ptrDown = null;
+          if (osmLine) toggleOsmLineEnabled(osmLine);
+          else if (ufLine) toggleUfLineEnabled(ufLine);
+          else if (memL) pressMemCell(memL);
+          try { if (navigator.vibrate) navigator.vibrate(18); } catch (_) { /* ok */ }
+        }, 480);
+      });
+
+      node.addEventListener("pointerup", (e) => {
+        clearHold();
+        if (isMemNode && holdFired && holdMemL && !holdCommitted) {
+          holdCommitted = true;
+          toggleMemLineEnabled(holdMemL);
+          clearMemPress();
+          ptrDown = null;
+          return;
+        }
+        clearMemPress();
+        if (holdOnNode && holdFired) {
+          holdFired = false;
+          ptrDown = null;
+          return;
+        }
+        const d = ptrDown;
+        ptrDown = null;
+        if (!d) return;
+        if (d.id != null && e.pointerId != null && d.id !== e.pointerId) return;
+        const dx = Math.abs((e.clientX || 0) - d.x);
+        const dy = Math.abs((e.clientY || 0) - d.y);
+        if (dx > 14 || dy > 14) return;
+        e.preventDefault();
+        e.stopPropagation();
+        openNow();
+      });
+
+      // Non usare pointerleave: sui figli SVG interrompe il tap
+      ["pointercancel", "lostpointercapture"].forEach((ev) => {
+        node.addEventListener(ev, () => {
+          clearHold();
+          clearMemPress();
+          ptrDown = null;
+          if (isMemNode && !holdCommitted) holdFired = false;
+        });
+      });
+      if (holdOnNode) {
+        node.addEventListener("contextmenu", (e) => {
+          if (!isMemNode || memLetterFromEvent(e)) e.preventDefault();
+        });
+      }
+      // click come fallback (tastiera/accessibilità); evita doppio open se pointerup già ha aperto
+      node.addEventListener("click", (e) => {
+        if (e.detail === 0) {
+          openNow();
+          return;
+        }
+        // se pointerup ha già gestito, non riaprire
+        e.preventDefault();
+        e.stopPropagation();
+      });
       node.addEventListener("keydown", (e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          const name = node.getAttribute("data-popup") || node.dataset.popup;
-          if (name) openPopup(name, popupOpts());
+          openNow();
         }
       });
     });
@@ -10874,11 +10931,11 @@
       handle.addEventListener("touchstart", onDown, { passive: false });
     })();
 
-    /** Trascina il popup blocco dal titolo (schema sotto resta visibile). */
-    (function bindBlocchiPanelDrag() {
-      const panel = el("blocchiPanel");
-      const handle = panel?.querySelector("h3");
-      if (!panel || !handle) return;
+    /** Trascina qualsiasi popup (.modal) dal titolo h3 — si apre al centro, poi spostabile. */
+    function bindModalDrag(panel) {
+      const handle = panel?.querySelector(":scope > h3");
+      if (!panel || !handle || handle.dataset.modalDragBound === "1") return;
+      handle.dataset.modalDragBound = "1";
       let drag = null;
       const onMove = (e) => {
         if (!drag) return;
@@ -10908,7 +10965,9 @@
         window.removeEventListener("touchcancel", onUp, true);
       };
       const onDown = (e) => {
-        if (e.target.closest?.("button") || e.target.closest?.("[data-close]")) return;
+        if (e.target.closest?.("button") || e.target.closest?.("[data-close]")
+          || e.target.closest?.(".dev-mode") || e.target.closest?.("input")
+          || e.target.closest?.("label") || e.target.closest?.("a")) return;
         if (e.button != null && e.button !== 0) return;
         e.preventDefault();
         e.stopPropagation();
@@ -10931,6 +10990,10 @@
       };
       handle.addEventListener("pointerdown", onDown);
       handle.addEventListener("touchstart", onDown, { passive: false });
+    }
+
+    (function bindAllModalDrags() {
+      document.querySelectorAll(".modal-back > .modal").forEach(bindModalDrag);
     })();
 
     function nudgeFlowEdit(dir) {
