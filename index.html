@@ -1660,18 +1660,18 @@
             <text class="badge-val" x="342" y="159" text-anchor="middle" id="svgQPump">345</text>
             <text class="badge-unit" x="372" y="159" text-anchor="middle">m³/h</text>
           </g>
+          <g class="flow-edit" data-field="freqHz" data-source="freq">
+            <rect class="badge" x="256" y="174" width="58" height="32" rx="5" stroke="#86efac" />
+            <text class="badge-val" x="276" y="195" text-anchor="middle" id="svgFreqHz">45</text>
+            <text class="badge-unit" x="300" y="195" text-anchor="middle">Hz</text>
+          </g>
+          <text id="svgManPompaHz" class="svg-man-mark" x="268" y="218" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
           <g class="flow-edit" data-field="qPump" data-source="pompa" aria-label="Setpoint P11011">
             <rect class="badge" x="318" y="174" width="74" height="32" rx="5" stroke="#fbbf24" />
             <text class="badge-sp" x="342" y="195" text-anchor="middle" id="svgQPumpSp">345</text>
             <text class="badge-unit badge-unit-set" x="372" y="195" text-anchor="middle">set</text>
           </g>
           <text id="svgManPompa" class="svg-man-mark" x="396" y="195" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
-          <g class="flow-edit" data-field="freqHz" data-source="freq">
-            <rect class="badge" x="398" y="84" width="58" height="32" rx="5" stroke="#86efac" />
-            <text class="badge-val" x="418" y="105" text-anchor="middle" id="svgFreqHz">45</text>
-            <text class="badge-unit" x="442" y="105" text-anchor="middle">Hz</text>
-          </g>
-          <text id="svgManPompaHz" class="svg-man-mark" x="427" y="128" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
         </g>
 
         <!-- TK-10608 alto — passante (geometria in REGOLAZIONI) -->
@@ -1705,18 +1705,18 @@
             <text class="badge-val" x="687" y="159" text-anchor="middle" id="svgQMand">345</text>
             <text class="badge-unit" x="717" y="159" text-anchor="middle">m³/h</text>
           </g>
+          <g class="flow-edit" data-field="freqHzMand" data-source="freqMand">
+            <rect class="badge" x="601" y="174" width="58" height="32" rx="5" stroke="#86efac" />
+            <text class="badge-val" x="621" y="195" text-anchor="middle" id="svgFreqHzMand">45</text>
+            <text class="badge-unit" x="645" y="195" text-anchor="middle">Hz</text>
+          </g>
+          <text id="svgManMandataHz" class="svg-man-mark" x="613" y="218" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
           <g class="flow-edit" data-field="qMandata" data-source="mandata" aria-label="Setpoint MP 11036">
             <rect class="badge" x="663" y="174" width="74" height="32" rx="5" stroke="#fbbf24" />
             <text class="badge-sp" x="687" y="195" text-anchor="middle" id="svgQMandSp">345</text>
             <text class="badge-unit badge-unit-set" x="717" y="195" text-anchor="middle">set</text>
           </g>
           <text id="svgManMandata" class="svg-man-mark" x="741" y="195" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
-          <g class="flow-edit" data-field="freqHzMand" data-source="freqMand">
-            <rect class="badge" x="615" y="84" width="58" height="32" rx="5" stroke="#86efac" />
-            <text class="badge-val" x="635" y="105" text-anchor="middle" id="svgFreqHzMand">45</text>
-            <text class="badge-unit" x="659" y="105" text-anchor="middle">Hz</text>
-          </g>
-          <text id="svgManMandataHz" class="svg-man-mark" x="644" y="128" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
         </g>
 
         <!-- MBR: vaschette A–G (+H fuori uso). Scarichi → A11004. Mandata/permeato dalle membrane -->
@@ -13524,7 +13524,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt147", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt148", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
