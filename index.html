@@ -1656,17 +1656,17 @@
           <text id="svgPump11011Label" x="355" y="128" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700">P11011 A/B</text>
           <g class="flow-edit" data-field="qPump" data-source="pompa">
             <rect class="badge" x="318" y="138" width="74" height="32" rx="5" stroke="#4ade80" />
-            <text class="badge-val" x="342" y="159" text-anchor="middle" id="svgQPump">334</text>
+            <text class="badge-val" x="342" y="159" text-anchor="middle" id="svgQPump">345</text>
             <text class="badge-unit" x="372" y="159" text-anchor="middle">m³/h</text>
           </g>
           <g class="flow-edit" data-field="qPump" data-source="pompa" aria-label="Setpoint P11011">
             <rect class="badge" x="318" y="174" width="74" height="26" rx="5" stroke="#fbbf24" />
-            <text class="badge-sp" x="355" y="192" text-anchor="middle" id="svgQPumpSp" font-size="12">334</text>
+            <text class="badge-sp" x="355" y="192" text-anchor="middle" id="svgQPumpSp" font-size="12">345</text>
           </g>
           <text id="svgManPompa" class="svg-man-mark" x="396" y="192" text-anchor="start" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
           <g class="flow-edit" data-field="freqHz" data-source="freq">
             <rect class="badge" x="398" y="84" width="58" height="32" rx="5" stroke="#86efac" />
-            <text class="badge-val" x="418" y="105" text-anchor="middle" id="svgFreqHz">50</text>
+            <text class="badge-val" x="418" y="105" text-anchor="middle" id="svgFreqHz">45</text>
             <text class="badge-unit" x="442" y="105" text-anchor="middle">Hz</text>
           </g>
           <text id="svgManPompaHz" class="svg-man-mark" x="427" y="128" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
@@ -1700,7 +1700,7 @@
           <text id="svgPump11036Label" x="700" y="128" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700">MP 11036 A/B</text>
           <g class="flow-edit" data-field="qMandata" data-source="mandata">
             <rect class="badge" x="663" y="138" width="74" height="32" rx="5" stroke="#4ade80" />
-            <text class="badge-val" x="687" y="159" text-anchor="middle" id="svgQMand">334</text>
+            <text class="badge-val" x="687" y="159" text-anchor="middle" id="svgQMand">345</text>
             <text class="badge-unit" x="717" y="159" text-anchor="middle">m³/h</text>
           </g>
           <text id="svgManMandata" class="svg-man-mark" x="700" y="182" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="800" opacity="0" pointer-events="none">M</text>
@@ -2339,10 +2339,10 @@
         <p class="mini">Min 80 m³/h · curva Hz⟷portata da REGOLAZIONI (50 Hz = max).</p>
         <div class="row">
           <label><strong>Portata P11011 A/B (m³/h) — da frequenza</strong>
-            <input type="number" id="qPump" min="80" max="500" step="0.1" value="334" inputmode="decimal" readonly title="Si regola solo dalla frequenza (scala REGOLAZIONI)" />
+            <input type="number" id="qPump" min="80" max="500" step="0.1" value="345" inputmode="decimal" readonly title="Si regola solo dalla frequenza (scala REGOLAZIONI)" />
           </label>
           <label><strong>Frequenza (Hz)</strong>
-            <input type="number" id="freqHz" min="0" max="60" step="1" value="50" inputmode="numeric" />
+            <input type="number" id="freqHz" min="0" max="60" step="1" value="45" inputmode="numeric" />
           </label>
         </div>
         <label class="check" style="display:none"><input type="checkbox" id="usaFrequenza" /> Imposta da frequenza (Hz)</label>
@@ -2636,15 +2636,15 @@
             <tr><th>Frequenza</th><th>Portata (m³/h)</th></tr>
           </thead>
           <tbody>
-            <tr data-hz="50"><td>50 Hz (max)</td><td><input type="number" class="reg-q" data-hz="50" min="0" max="500" step="0.1" value="334" inputmode="decimal" /></td></tr>
-            <tr data-hz="49"><td>49 Hz</td><td><input type="number" class="reg-q" data-hz="49" min="0" max="500" step="0.1" value="320" inputmode="decimal" /></td></tr>
-            <tr data-hz="48"><td>48 Hz</td><td><input type="number" class="reg-q" data-hz="48" min="0" max="500" step="0.1" value="307" inputmode="decimal" /></td></tr>
-            <tr data-hz="47"><td>47 Hz</td><td><input type="number" class="reg-q" data-hz="47" min="0" max="500" step="0.1" value="294" inputmode="decimal" /></td></tr>
-            <tr data-hz="46"><td>46 Hz</td><td><input type="number" class="reg-q" data-hz="46" min="0" max="500" step="0.1" value="281" inputmode="decimal" /></td></tr>
-            <tr data-hz="45"><td>45 Hz</td><td><input type="number" class="reg-q" data-hz="45" min="0" max="500" step="0.1" value="268" inputmode="decimal" /></td></tr>
-            <tr data-hz="44"><td>44 Hz</td><td><input type="number" class="reg-q" data-hz="44" min="0" max="500" step="0.1" value="255" inputmode="decimal" /></td></tr>
-            <tr data-hz="43"><td>43 Hz</td><td><input type="number" class="reg-q" data-hz="43" min="0" max="500" step="0.1" value="242" inputmode="decimal" /></td></tr>
-            <tr data-hz="42"><td>42 Hz (min)</td><td><input type="number" class="reg-q" data-hz="42" min="0" max="500" step="0.1" value="229" inputmode="decimal" /></td></tr>
+            <tr data-hz="50"><td>50 Hz (max)</td><td><input type="number" class="reg-q" data-hz="50" min="0" max="500" step="0.1" value="430" inputmode="decimal" /></td></tr>
+            <tr data-hz="49"><td>49 Hz</td><td><input type="number" class="reg-q" data-hz="49" min="0" max="500" step="0.1" value="412" inputmode="decimal" /></td></tr>
+            <tr data-hz="48"><td>48 Hz</td><td><input type="number" class="reg-q" data-hz="48" min="0" max="500" step="0.1" value="395" inputmode="decimal" /></td></tr>
+            <tr data-hz="47"><td>47 Hz</td><td><input type="number" class="reg-q" data-hz="47" min="0" max="500" step="0.1" value="378" inputmode="decimal" /></td></tr>
+            <tr data-hz="46"><td>46 Hz</td><td><input type="number" class="reg-q" data-hz="46" min="0" max="500" step="0.1" value="362" inputmode="decimal" /></td></tr>
+            <tr data-hz="45"><td>45 Hz</td><td><input type="number" class="reg-q" data-hz="45" min="0" max="500" step="0.1" value="345" inputmode="decimal" /></td></tr>
+            <tr data-hz="44"><td>44 Hz</td><td><input type="number" class="reg-q" data-hz="44" min="0" max="500" step="0.1" value="328" inputmode="decimal" /></td></tr>
+            <tr data-hz="43"><td>43 Hz</td><td><input type="number" class="reg-q" data-hz="43" min="0" max="500" step="0.1" value="311" inputmode="decimal" /></td></tr>
+            <tr data-hz="42"><td>42 Hz (min)</td><td><input type="number" class="reg-q" data-hz="42" min="0" max="500" step="0.1" value="295" inputmode="decimal" /></td></tr>
           </tbody>
         </table>
       </div>
@@ -2865,7 +2865,7 @@
           Equipara a P11011 A/B (consigliato)
         </label>
         <label><strong>Portata mandata verso MBR (m³/h)</strong>
-          <input type="number" id="qMandata" min="0" max="500" step="0.1" value="334" inputmode="decimal" />
+          <input type="number" id="qMandata" min="0" max="500" step="0.1" value="345" inputmode="decimal" />
         </label>
         <div class="row">
           <label><strong>Arrivo da P11011 A/B</strong>
@@ -3486,12 +3486,13 @@
       if (!Number.isFinite(n) || n < 0) return 0;
       return Math.min(Q_P11019_MAX, n);
     }
+    /** Tabella impianto P11011 (A10620) — fonte unica: REGOLAZIONI (poi override utente/localStorage). */
     const DEFAULT_REG_FREQ = {
-      "50": 334, "49": 320, "48": 307, "47": 294, "46": 281, "45": 268,
-      "44": 255, "43": 242, "42": 229,
+      "50": 430, "49": 412, "48": 395, "47": 378, "46": 362, "45": 345,
+      "44": 328, "43": 311, "42": 295,
     };
     let lock = false;
-    let lastQPump = 334;
+    let lastQPump = 345;
     let lastQMandata = 334;
     /** Portate “vive” pompe: salgono/scendono a rampa verso il comando (non a scatto). */
     const FLOW_IDS = ["qPump", "qMandata", "qRecycle", "qP11019"];
@@ -3499,7 +3500,7 @@
     const __flowLive = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 140 };
     const __flowDesire = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 140 };
     /** Setpoint comando (popup modifica): resta anche a pompe ferme / portata viva = 0. */
-    const __flowSetpoint = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 140, qP11019Ias: 0, qP11019Impianto: 140 };
+    const __flowSetpoint = { qPump: 345, qMandata: 345, qRecycle: 170.8, qP11019: 140, qP11019Ias: 0, qP11019Impianto: 140 };
     let __inlineSuppressLive = false; // non applicare 0 mentre si apre il tastierino
     /** Setpoint UF / osmosi (popup): restano anche a linee ferme / portata viva = 0. */
     const __procSetpoint = {
@@ -5737,13 +5738,15 @@
     };
 
     function getRegFreqMap() {
+      // SEMPRE i valori in REGOLAZIONI (tabella P11011) — non inventare portate.
       const map = { ...DEFAULT_REG_FREQ };
-      document.querySelectorAll(".reg-q").forEach((inp) => {
-        const hz = String(inp.dataset.hz || "");
+      const root = el("regFreq11011") || document;
+      root.querySelectorAll("input.reg-q[data-hz]").forEach((inp) => {
+        const hz = String(inp.getAttribute("data-hz") || inp.dataset.hz || "");
         const raw = String(inp.value ?? "").trim().replace(",", ".");
         if (!hz || raw === "" || raw === "-" || raw === ".") return;
         const v = parseFloat(raw);
-        if (Number.isFinite(v) && v >= 0) map[hz] = v;
+        if (Number.isFinite(v) && v >= 0) map[hz] = round1(v);
       });
       return map;
     }
@@ -9109,23 +9112,33 @@
       return round1(Math.min(getPumpMax(), Math.max(getPumpMin(), v)));
     }
 
-    /** Allinea P11011 al punto di tabella Hz (mai portata libera). */
+    /** Allinea P11011 al punto di tabella Hz (mai portata libera). Manuale: rispetta gli Hz scelti. */
     function commitPump() {
       const hint = el("qPumpHint");
-      const floor = pumpFloorForIngresso(num("qIn"));
-      const want = deviceAutoControlled("pompa")
-        ? floor
-        : Math.max(0, numOrNull("qPump") ?? lastQPump ?? floor);
-      const step = pumpStepForNeed(want);
-      el("freqHz").value = String(step.hz);
+      let hz;
+      let q;
+      if (deviceAutoControlled("pompa")) {
+        const floor = pumpFloorForIngresso(num("qIn"));
+        const step = pumpStepForNeed(floor);
+        hz = step.hz;
+        q = step.q;
+      } else {
+        // Manuale: Hz che hai messo → portata SOLO da tabella REGOLAZIONI (niente snap Q→Hz).
+        const hzRaw = numOrNull("freqHz");
+        hz = hzRaw != null && hzRaw > 0.05
+          ? clampFreq(hzRaw)
+          : clampFreq(hzNearestFromQ(Math.max(0, flowSetpointOf("qPump") || lastQPump || 0)));
+        q = qPumpAtHz(hz);
+      }
+      el("freqHz").value = String(hz);
       const svgHz = el("svgFreqHz");
-      if (svgHz) svgHz.textContent = String(step.hz);
-      rememberFlowSetpoint("qPump", step.q);
-      lastQPump = step.q;
+      if (svgHz) svgHz.textContent = String(hz);
+      rememberFlowSetpoint("qPump", q);
+      lastQPump = q;
       if (hint) {
         hint.textContent = deviceAutoControlled("pompa")
-          ? `Automatico: ${step.hz} Hz ≈ ${step.q.toFixed(1)} m³/h (≥ ingresso + ${Q_RECYCLE_MIN}).`
-          : `Manuale: frequenza ${step.hz} Hz → ≈ ${step.q.toFixed(1)} m³/h (scala REGOLAZIONI).`;
+          ? `Automatico: ${hz} Hz ≈ ${q.toFixed(1)} m³/h (≥ ingresso + ${Q_RECYCLE_MIN}).`
+          : `Manuale: ${hz} Hz → ${q.toFixed(1)} m³/h (tabella REGOLAZIONI).`;
         hint.style.color = "";
       }
       applyBalance("freq");
@@ -12934,12 +12947,23 @@
           });
         }
         if (data.regFreqQs && typeof data.regFreqQs === "object") {
-          document.querySelectorAll(".reg-q").forEach((inp) => {
-            const hz = String(inp.dataset.hz || "");
+          const OLD_REG_FREQ = {
+            "50": 334, "49": 320, "48": 307, "47": 294, "46": 281, "45": 268,
+            "44": 255, "43": 242, "42": 229,
+          };
+          document.querySelectorAll("#regFreq11011 input.reg-q").forEach((inp) => {
+            const hz = String(inp.getAttribute("data-hz") || inp.dataset.hz || "");
             if (hz && data.regFreqQs[hz] != null && data.regFreqQs[hz] !== "") {
               inp.value = String(data.regFreqQs[hz]);
             }
+            // Celle ancora sui vecchi default (es. 44→255) mentre 45 è già a 345: aggiorna alla tabella impianto
+            const cur = parseFloat(String(inp.value ?? "").replace(",", "."));
+            const oldDef = OLD_REG_FREQ[hz];
+            if (Number.isFinite(cur) && oldDef != null && Math.abs(cur - oldDef) < 0.05) {
+              inp.value = String(DEFAULT_REG_FREQ[hz] ?? cur);
+            }
           });
+          try { applyBalance("freq"); } catch (_) { /* ok */ }
         }
         const rev = Number(data.syncRevision) || 0;
         if (rev > __calcSyncRevision) __calcSyncRevision = rev;
@@ -13057,14 +13081,14 @@
         schedulePersist();
       }
       if (e.target && e.target.classList.contains("reg-q")) {
-        // Curva REGOLAZIONI cambiata: riallinea Hz più vicina e clamp max
+        // Tabella cambiata → ricalcola portata dagli Hz attuali (non il contrario)
         const max = getPumpMax();
         const cur = numOrNull("qPump");
         if (cur !== null && cur > max) {
           setVal("qPump", max, { force: true });
           lastQPump = max;
         }
-        applyBalance("pompa");
+        applyBalance("freq");
         schedulePersist();
       }
     });
@@ -13072,14 +13096,13 @@
       if (e.target && e.target.classList.contains("reg-q")) {
         const raw = String(e.target.value ?? "").trim().replace(",", ".");
         const v = parseFloat(raw);
+        const hz = String(e.target.getAttribute("data-hz") || e.target.dataset.hz || "");
         if (!Number.isFinite(v) || v < 0) {
-          const hz = String(e.target.dataset.hz || "");
           e.target.value = String(DEFAULT_REG_FREQ[hz] ?? 0);
         } else {
           e.target.value = String(round1(v));
         }
-        if (el("usaFrequenza")?.checked) applyBalance("freq");
-        else applyBalance("pompa");
+        applyBalance("freq");
         schedulePersist();
       }
     });
@@ -13262,7 +13285,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt144", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt145", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
