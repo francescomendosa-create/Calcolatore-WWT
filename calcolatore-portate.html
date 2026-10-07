@@ -335,10 +335,25 @@
       width: min(360px, calc(100vw - 16px));
       margin: 8px 8px 8px 0;
       max-height: min(88vh, 720px);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden; /* lo scroll è su .blocchi-scroll */
+      touch-action: manipulation;
+    }
+    #popBlocchi .blocchi-scroll {
+      flex: 1 1 auto;
+      min-height: 0;
       overflow-x: hidden;
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
-      touch-action: none;
+      touch-action: pan-y;
+      overscroll-behavior: contain;
+      padding-bottom: 4px;
+    }
+    #popBlocchi .modal > h3,
+    #popBlocchi .modal > .block-drag-hint,
+    #popBlocchi .modal > .actions {
+      flex-shrink: 0;
     }
     #popBlocchi .modal.is-dragging {
       box-shadow: 0 22px 56px rgba(0,0,0,.55);
@@ -346,7 +361,7 @@
     }
     #popBlocchi .modal h3 {
       cursor: grab;
-      touch-action: none;
+      touch-action: none; /* solo il titolo trascina il pannello */
       user-select: none;
       -webkit-user-select: none;
     }
@@ -358,15 +373,40 @@
       color: #94a3b8;
       margin: -4px 0 10px;
     }
+    /* Landscape: altri .modal non scrollano; previsioni sì */
+    html.layout-landscape #popBlocchi .modal {
+      max-height: min(88vh, 720px);
+      overflow: hidden;
+    }
+    #popBlocchi .blocchi-improve-wrap {
+      margin: 0 0 10px;
+    }
+    #popBlocchi .blocchi-improve-wrap .blocchi-improve-head {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 0;
+      padding: 0;
+      justify-content: stretch;
+    }
+    #popBlocchi .blocchi-improve-wrap .blocchi-improve-head button[data-blocchi-improve] {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
     #popBlocchi .block-improve {
       display: none;
-      margin: 0 0 10px;
+      margin: 8px 0 0;
       padding: 10px 12px;
-      border-radius: 8px;
+      border-radius: 0 0 8px 8px;
       background: #0f172a;
       border: 1px solid #334155;
+      border-top: 1px solid #1e3a5f;
     }
     #popBlocchi .block-improve.is-open { display: block; }
+    #popBlocchi .blocchi-improve-wrap.is-open button[data-blocchi-improve] {
+      border-radius: 8px 8px 0 0;
+      margin-bottom: 0;
+    }
     #popBlocchi .block-improve-row {
       display: flex;
       align-items: flex-start;
@@ -3259,21 +3299,27 @@
   <div class="modal-back" id="popBlocchi" role="dialog" aria-modal="true" aria-labelledby="blocchiTitle">
     <div class="modal" id="blocchiPanel">
       <h3><span id="blocchiTitle">Blocco / previsione 8 ore</span><button type="button" data-close>&times;</button></h3>
-      <span class="block-drag-hint">Trascina: leggi e vedi le pompe sullo schema</span>
-      <div class="block-explain" id="blocchiBody">
-        <p class="mini">Nessun dettaglio.</p>
-      </div>
-      <div class="block-improve" id="blocchiImprove" hidden>
-        <div class="block-improve-row">
-          <input type="checkbox" id="osmAlwaysOnSf3" />
-          <label for="osmAlwaysOnSf3">Osmosi sempre in marcia per SF3</label>
+      <span class="block-drag-hint">Trascina dal titolo · scorri il testo sotto</span>
+      <div class="blocchi-scroll" id="blocchiScroll">
+        <div class="block-explain" id="blocchiBody">
+          <p class="mini">Nessun dettaglio.</p>
         </div>
-        <div class="block-improve-verdict" id="blocchiImproveVerdict"></div>
-        <div class="block-improve-ask" id="blocchiImproveAsk" hidden></div>
-        <p class="mini" id="blocchiImproveHint">Attiva: calcola set fissi start/stop su TK-11021 (niente regolazione portata in corsa). Se serve una correzione impianto, te la propone qui con Sì/No.</p>
+        <div class="blocchi-improve-wrap" id="blocchiImproveWrap">
+          <div class="actions blocchi-improve-head">
+            <button type="button" data-blocchi-improve>Miglioramenti</button>
+          </div>
+          <div class="block-improve" id="blocchiImprove" hidden>
+            <div class="block-improve-row">
+              <input type="checkbox" id="osmAlwaysOnSf3" />
+              <label for="osmAlwaysOnSf3">Osmosi sempre in marcia (portate fisse)</label>
+            </div>
+            <div class="block-improve-verdict" id="blocchiImproveVerdict"></div>
+            <div class="block-improve-ask" id="blocchiImproveAsk" hidden></div>
+            <p class="mini" id="blocchiImproveHint">Attiva: set fissi start/stop su TK-11021. Le portate osmosi (es. A=23) restano quelle che hai impostato — non scendono in chiusura.</p>
+          </div>
+        </div>
       </div>
       <div class="actions">
-        <button type="button" data-blocchi-improve>Miglioramenti</button>
         <button type="button" data-close>Chiudi</button>
       </div>
     </div>
@@ -6249,9 +6295,28 @@
       return round1(Math.max(0, q));
     }
 
+    /** Portata fissa “di guardia” (linea A, o prima abilitata): non si riduce in SF3. */
+    function osmAlwaysOnFixedLineFlow() {
+      const ids = [
+        { L: "A", id: "qOsmosiA" },
+        { L: "B", id: "qOsmosiB" },
+        { L: "C", id: "qOsmosiC" },
+      ];
+      for (let i = 0; i < ids.length; i++) {
+        if (!osmLineEnabled(ids[i].L)) continue;
+        let sp = 0;
+        try { sp = Math.max(0, procSetpointOf(ids[i].id)); } catch (_) { sp = 0; }
+        if (sp < 0.05) {
+          try { sp = Math.max(0, num(ids[i].id)); } catch (_) { sp = 0; }
+        }
+        if (sp >= OSM_IN_MIN - 0.05) return round1(sp);
+      }
+      return OSM_IN_MIN;
+    }
+
     /**
      * Set fissi di processo per ≥1 osmosi in marcia (cascata su TK-11021).
-     * Solo livelli start/stop — nessuna regolazione portata in corsa.
+     * Solo livelli start/stop — le portate di linea restano quelle impostate.
      */
     function buildOsmAlwaysOnSets() {
       const stopR = numOrNull("stopRiempTk11021") ?? 97;
@@ -6265,15 +6330,15 @@
     }
 
     /**
-     * Analisi matematica: con la portata valle attuale e min 20+15,
-     * i set fissi bastano? Altrimenti consiglio (es. alza chimico).
+     * Analisi: con valle attuale e portate fisse (non ridotte), i set start/stop
+     * tengono ≥1 osmosi? Altrimenti consiglio (es. alza chimico).
      */
     function analyzeOsmAlwaysOnPlan() {
       const osmSets = buildOsmAlwaysOnSets();
       const qValley = osmAlwaysOnValleyFlow();
-      const qNeed = OSM_IN_MIN; // una linea a minimo reale (20 + 15 conc)
+      const qFixed = osmAlwaysOnFixedLineFlow(); // es. A=23 resta 23
+      const qNeed = qFixed;
       const qInNow = round1(Math.max(0, num("qIn")));
-      // Con 1 linea a OSM_IN_MIN, bilancia inventario se valle ≥ min → può restare ON.
       const qAdvice = round1(Math.max(qNeed + 5, qInNow > 0 && qInNow < qNeed ? qNeed + 5 : qNeed + 5));
       const fmtSets = `A <strong>${osmSets.startSvuotOsmA}/${osmSets.stopSvuotOsmA}</strong> · `
         + `B <strong>${osmSets.startSvuotOsmB}/${osmSets.stopSvuotOsmB}</strong> · `
@@ -6284,52 +6349,58 @@
           ok: true,
           osmSets,
           qValley,
+          qFixed,
           advice: null,
-          html: `<strong>Fattibile</strong> con portata valle ≈ <strong>${fmtQ(qValley)}</strong> m³/h `
-            + `(≥ min linea ${OSM_IN_MIN}+15). Set fissi PROCESSO: ${fmtSets}. `
-            + `Niente regolazione portata in corsa — solo isteresi livello.`,
+          html: `<strong>Fattibile</strong> con valle ≈ <strong>${fmtQ(qValley)}</strong> m³/h `
+            + `e portata fissa linea ≈ <strong>${fmtQ(qFixed)}</strong> (non si riduce). `
+            + `Set PROCESSO: ${fmtSets}. Solo isteresi livello — niente throttle osmosi.`,
         };
       }
       return {
         ok: false,
         osmSets,
         qValley,
+        qFixed,
         advice: { type: "qIn", value: qAdvice, current: qInNow },
         html: `<strong>Con questo assetto non regge</strong>: valle ≈ <strong>${fmtQ(qValley)}</strong> `
-          + `&lt; minimo osmosi <strong>${OSM_IN_MIN}</strong> m³/h. `
-          + `Per tenere ≥1 osmosi sempre in marcia, <strong>aumenta il chimico-fisico a ≥ `
-          + `<span class="fix-val">${fmtQ(qAdvice)}</span></strong> m³/h; `
+          + `&lt; portata fissa osmosi <strong>${fmtQ(qFixed)}</strong> m³/h. `
+          + `Per tenere ≥1 osmosi sempre in marcia <em>senza abbassare la portata</em>, `
+          + `<strong>aumenta il chimico-fisico a ≥ <span class="fix-val">${fmtQ(qAdvice)}</span></strong> m³/h; `
           + `poi applico i set ${fmtSets}.`,
       };
     }
 
     function paintBlocchiImproveUI() {
       const box = el("blocchiImprove");
+      const wrap = el("blocchiImproveWrap");
       const btn = document.querySelector("#popBlocchi [data-blocchi-improve]");
       const chk = el("osmAlwaysOnSf3");
       const verdict = el("blocchiImproveVerdict");
       const ask = el("blocchiImproveAsk");
       const pending = __osmAlwaysOnPending;
       const showAsk = !!(pending && !pending.ok && pending.advice && !__osmAlwaysOnSf3);
+      const open = !!(box && box.classList.contains("is-open"));
 
       if (chk) chk.checked = !!__osmAlwaysOnSf3 || showAsk;
-      if (btn) btn.classList.toggle("is-open", !!(box && box.classList.contains("is-open")));
+      if (btn) btn.classList.toggle("is-open", open);
+      if (wrap) wrap.classList.toggle("is-open", open);
 
       if (verdict) {
         if (__osmAlwaysOnSf3) {
           const s = readOsmSvuotSets();
+          const qFixed = osmAlwaysOnFixedLineFlow();
           verdict.className = "block-improve-verdict is-ok";
-          verdict.innerHTML = `<strong>Attivo</strong> · set fissi A <strong>${s.startSvuotOsmA}/${s.stopSvuotOsmA}</strong> · `
+          verdict.innerHTML = `<strong>Attivo</strong> · set A <strong>${s.startSvuotOsmA}/${s.stopSvuotOsmA}</strong> · `
             + `B <strong>${s.startSvuotOsmB}/${s.stopSvuotOsmB}</strong> · `
             + `C <strong>${s.startSvuotOsmC}/${s.stopSvuotOsmC}</strong>. `
-            + `Min linea ${OSM_IN_MIN}+15. Disattiva = ripristina i set precedenti.`;
+            + `Portate fisse (es. ≈ ${fmtQ(qFixed)}) — non scendono in chiusura. Disattiva = ripristina i set.`;
         } else if (pending) {
           verdict.className = "block-improve-verdict " + (pending.ok ? "is-ok" : "is-bad");
           verdict.innerHTML = pending.html;
         } else {
           verdict.className = "block-improve-verdict";
-          verdict.innerHTML = `Spunta l’opzione: calcolo se con la portata attuale (≥ ${OSM_IN_MIN} m³/h) `
-            + `i set fissi tengono almeno un’osmosi in marcia.`;
+          verdict.innerHTML = `Spunta: set start/stop fissi + portate osmosi bloccate (quelle che hai impostato). `
+            + `Serve valle ≥ portata fissa di guardia per restare sempre in marcia.`;
         }
       }
 
@@ -6359,8 +6430,8 @@
       const hint = el("blocchiImproveHint");
       if (hint) {
         hint.innerHTML = __osmAlwaysOnSf3
-          ? `Set di processo fissi (start/stop). La portata di linea resta ≥ ${OSM_IN_MIN} quando è in marcia — non si regola da sola in corsa.`
-          : `Attiva: calcolo set fissi start/stop su TK-11021. Se serve una correzione (es. chimico), te la propone con Sì/No.`;
+          ? `Start/stop fissi su TK-11021. Le portate (A/B/C) restano quelle impostate — in chiusura non si riducono per “restare in marcia”.`
+          : `Attiva: set fissi start/stop. Portate osmosi invariate. Se serve più valle (chimico), te lo propone con Sì/No.`;
       }
     }
 
@@ -6444,10 +6515,12 @@
 
     function toggleBlocchiImprovePanel() {
       const box = el("blocchiImprove");
+      const wrap = el("blocchiImproveWrap");
       if (!box) return;
       const open = !box.classList.contains("is-open");
       box.classList.toggle("is-open", open);
       box.hidden = !open;
+      if (wrap) wrap.classList.toggle("is-open", open);
       paintBlocchiImproveUI();
     }
 
@@ -6612,7 +6685,8 @@
       return (osmLineFeeding("A") ? 1 : 0) + (osmLineFeeding("B") ? 1 : 0) + (osmLineFeeding("C") ? 1 : 0);
     }
 
-    /** Portate osmosi in Auto: domanda sulle linee in marcia, ciascuna ≥ OSM_IN_MIN (20). */
+    /** Portate osmosi in Auto: domanda sulle linee in marcia, ciascuna ≥ OSM_IN_MIN (20).
+     *  Con SF3 (osmosi sempre in marcia): portate BLOCCATE — non si riducono mai. */
     function applyOsmosiAutoFlows(qDemandTotal) {
       const qDemand = Math.max(0, round1(Number(qDemandTotal) || 0));
       const ids = ["qOsmosiA", "qOsmosiB", "qOsmosiC"];
@@ -6630,6 +6704,19 @@
         return { each: 0, nRun: osmFeedingCount(), qDemand, manual: true };
       }
 
+      // SF3: solo ON/OFF da isteresi livello — le portate restano quelle impostate (es. 23).
+      if (__osmAlwaysOnSf3) {
+        letters.forEach((L, i) => {
+          const id = ids[i];
+          paintProcSetpointField(id);
+          const sp = Math.max(0, procSetpointOf(id));
+          if (osmLineRunning(L) && sp >= OSM_IN_MIN - 0.05) __osmFeedOk[L] = true;
+        });
+        syncOsmosiSvg();
+        paintOsmosiRunUI();
+        return { each: 0, nRun: osmFeedingCount(), qDemand, fixed: true };
+      }
+
       // Linee che il livello tiene ON (priorità A→B→C).
       let want = letters.filter((L) => osmLineRunning(L));
       while (want.length > 1 && qDemand / want.length < OSM_IN_MIN - 0.05) {
@@ -6638,7 +6725,6 @@
       if (want.length === 1 && qDemand < OSM_IN_MIN - 0.05) {
         want = [];
       }
-      // SF3: solo set start/stop fissi — niente forza-ON / regolazione portata in corsa.
 
       const nRun = want.length;
       const each = nRun > 0 ? round1(Math.max(OSM_IN_MIN, qDemand / nRun)) : 0;
@@ -6773,7 +6859,7 @@
         return `${L} ${osmLineFeeding(L) ? "ON" : "OFF"}`;
       });
       const txt = `TK 11021 ${round1(liv).toFixed(1)}% · P11040/Osmosi ${parts.join(" · ")} · D OFF`
-        + (__osmAlwaysOnSf3 ? " · SF3 min " + OSM_IN_MIN : "");
+        + (__osmAlwaysOnSf3 ? " · SF3 portate fisse" : "");
       const col = (plantIsStarted() && osmFeedingCount() > 0) ? "var(--ok)" : "var(--muted)";
       ["tk11021OsmHint", "osmosiRunHint"].forEach((id) => {
         const hint = el(id);
