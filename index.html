@@ -766,21 +766,21 @@
     .pipe-water-core.pipe-water-rec { stroke: #ffe4e6; }
     .pipe-water-core[data-flow-water="scar"] { stroke-width: 1.55; }
     .pipe-water-core.is-flowing {
-      opacity: 0.5;
+      opacity: 0.62;
       animation: pipe-water-glow 2s ease-in-out infinite;
     }
     /* Riflesso: banda luminosa sfocata che scorre (sembra liquido, non tratti) */
     .pipe-water-sheen {
-      stroke-width: 2.6;
+      stroke-width: 2.8;
       filter: url(#pipeWaterBlur);
     }
     .pipe-water-sheen.pipe-water-main { stroke: #f8fafc; }
     .pipe-water-sheen.pipe-water-rec { stroke: #fff5f5; }
     .pipe-water-sheen[data-flow-water="scar"] { stroke-width: 1.9; }
     .pipe-water-sheen.is-flowing {
-      opacity: 0.85;
-      stroke-dasharray: 70 200;
-      animation: pipe-water-sheen 1.4s linear infinite;
+      opacity: 0.95;
+      stroke-dasharray: 55 160;
+      animation: pipe-water-sheen 1.15s linear infinite;
     }
     @keyframes pipe-water-sheen { to { stroke-dashoffset: -270; } }
     @keyframes pipe-water-glow {
@@ -2028,10 +2028,8 @@
             <text x="809" y="408" text-anchor="middle" fill="#e2e8f0" font-size="7" font-weight="700" pointer-events="none">FILTRI</text>
             <text x="809" y="419" text-anchor="middle" fill="#e2e8f0" font-size="7" font-weight="700" pointer-events="none">CARB B</text>
           </g>
-          <!-- Spine orizzontale attraverso i filtri (stessa animazione valle 11007→UF) -->
-          <path class="pipe pipe-main" data-flow="carb" d="M834 415 H784" />
+          <!-- Ponte solo tra i filtri / verso UF — NON attraversa i carboni (l’acqua è nel dispositivo) -->
           <path class="pipe pipe-main" data-flow="carb" d="M784 415 H774" />
-          <path class="pipe pipe-main" data-flow="carb" d="M774 415 H724" />
           <path class="pipe pipe-main" data-flow="carb" d="M724 415 H688" />
         </g>
 
@@ -4060,37 +4058,31 @@
       }
     }
 
-    /** All'avvio impianto: portate vive da 0, poi salgono lentamente al set. */
+    /**
+     * All'avvio impianto: solo rampa COSMETICA delle pompe (FLOW_IDS) da 0 → set.
+     * NON azzerare misure UF/osmosi né i bilanci di livello della valle
+     * (11007→carboni→UF→11021→osmosi): altrimenti Start blocca riempimento/svuotamento.
+     */
     function softStartPlantFlows() {
       cancelFlowTween();
       FLOW_IDS.forEach((id) => {
         __flowLive[id] = 0;
         __flowAnimFrom[id] = 0;
-        if (!isEditing(id)) {
+        // Campo qP11019: lascia il setpoint (usato da split/seed). Le altre pompe: 0 in rampa.
+        if (!isEditing(id) && id !== "qP11019") {
           setVal(id, 0, { force: true });
           const sid = FLOW_SVG[id];
           const node = sid ? el(sid) : null;
           if (node) node.textContent = "0.0";
         }
       });
+      try {
+        if (!isEditing("qP11019")) {
+          setVal("qP11019", flowSetpointOf("qP11019"), { force: true });
+        }
+      } catch (_) { /* ignore */ }
       __qMemPermLive = 0;
       try { paintMemPermLive(0); } catch (_) { /* ignore */ }
-      UF_LINES.forEach((L) => {
-        __ufMeas[L] = 0;
-        __ufValvePct[L] = 0;
-        __ufMeasTarget[L] = 0;
-        __ufValveTarget[L] = 0;
-      });
-      OSM_LINES.forEach((L) => {
-        __osmMeas[L] = 0;
-        __osmValvePct[L] = 0;
-        __osmMeasTarget[L] = 0;
-        __osmValveTarget[L] = 0;
-      });
-      try { paintUfValveUI(); } catch (_) { /* ignore */ }
-      try { paintOsmValveUI(); } catch (_) { /* ignore */ }
-      try { paintUfSvgLive(); } catch (_) { /* ignore */ }
-      try { syncOsmosiSvg(); } catch (_) { /* ignore */ }
       try { paintPumpColors(); } catch (_) { /* ignore */ }
     }
 
@@ -8257,12 +8249,14 @@
       try { paintPipeFlowUI(vis11011, vis11036, vis11014, run11019); } catch (_) { /* ignore */ }
     }
 
-    /** Layer acqua: corpo + riflesso in #pipeWaterLayer (sopra i casing, leggibile anche laggiù). */
+    /**
+     * Acqua in #pipeWaterLayer (sopra i casing, sotto niente “attraverso” i carboni:
+     * i path data-flow della valle si interrompono ai filtri).
+     */
     function ensurePipeWaterLayers() {
       const layer = el("pipeWaterLayer");
       if (!layer) return;
-      const READY = "4";
-      // Una sola volta: ripulisci layer se nuova versione
+      const READY = "6";
       if (layer.getAttribute("data-water-ver") !== READY) {
         while (layer.firstChild) layer.removeChild(layer.firstChild);
         layer.setAttribute("data-water-ver", READY);
@@ -8308,7 +8302,6 @@
       } catch (_) {
         flowPerm = go && num("qMemTotale") > 0.5;
       }
-      // Scarichi → A11004: continuano anche a membrane ferme (stesso modo, se c’è mandata)
       const qMandLivePipe = Math.max(0, Number(__flowLive.qMandata) || num("qMandata") || 0);
       const qPermLivePipe = flowPerm
         ? Math.max(0, Number(__flowLive.qMemTotale) || num("qMemTotale") || 0)
@@ -8343,10 +8336,9 @@
         flowOsmB = go && num("qOsmosiB") > 0.5;
         flowOsmC = go && num("qOsmosiC") > 0.5;
       }
-      // Valle TK-11007 → carboni → UF → osmosi: come le linee alte — se P11019 in marcia
-      // anima tutto il tratto (non pezzi spenti per set/misura a 0).
-      const flowValley = go && !!run11019;
-      const flowOsm = flowOsmA || flowOsmB || flowOsmC || flowValley;
+      const q19LivePipe = Math.max(0, Number(__flowLive.qP11019) || num("qP11019") || 0);
+      // Valle 11007→osmosi: stessa regola delle linee alte — pompa tratto in marcia
+      const flowValley = go && (!!run11019 || q19LivePipe > 0.5);
       const map = {
         in: flowIn,
         p11: !!vis11011,
@@ -8357,7 +8349,7 @@
         p19: flowValley,
         carb: flowValley,
         uf: flowValley || flowUf,
-        osm: flowOsm,
+        osm: flowValley || flowOsmA || flowOsmB || flowOsmC,
         osmA: flowOsmA || flowValley,
         osmB: flowOsmB || flowValley,
         osmC: flowOsmC || flowValley,
@@ -8577,9 +8569,13 @@
       const qInSet = num("qIn");
       const qIn = qInEffective(qInSet);
       // Marcia/arresto SEMPRE da livelli (auto e manuale). In manuale il setpoint digitato resta nel campo.
-      // Portate VIVE (rampa) per i bilanci di livello — non il target a scatto.
-      const qPump = p11011Allowed() ? Math.max(0, num("qPump")) : 0;
-      const qMandata = __run11036 ? Math.max(0, num("qMandata")) : 0;
+      // Bilanci livello: portata comando (desire), non il campo azzerato dalla soft-start cosmetica.
+      const qPump = p11011Allowed()
+        ? Math.max(0, Number(__flowDesire.qPump) > 0.05 ? Number(__flowDesire.qPump) : num("qPump"))
+        : 0;
+      const qMandata = __run11036
+        ? Math.max(0, Number(__flowDesire.qMandata) > 0.05 ? Number(__flowDesire.qMandata) : num("qMandata"))
+        : 0;
       const liv20 = num("livelloAttuale");
       const liv11 = num("livelloAttualeA10611");
       let livH = numOrNull("livelloAttualeH");
@@ -8605,7 +8601,18 @@
       updateTk11021Interlocks(livU);
       updateTk11007PumpInterlocks(livP);
       applyP11019RunFromLevel();
-      const qP19 = Math.max(0, num("qP11019")); // viva (rampa) per bilanci TK
+      // Bilancio TK-11007: portata COMANDO (desire/target valle), non il campo in rampa soft-start.
+      // La rampa __flowLive è solo cosmetica: se usiamo num()/live azzerata, 11007 non si svuota più.
+      let qP19 = 0;
+      if (p11019Allowed()) {
+        const desire = Number(__flowDesire.qP11019);
+        const target = qP11019LiveTargetFromValley();
+        qP19 = Math.max(
+          0,
+          Number.isFinite(desire) && desire > 0.05 ? desire : 0,
+          Number.isFinite(target) ? target : 0
+        );
+      }
       // OUT osmosi da TK 11021: solo linee in marcia (isteresi P-11040 sul livello)
       updateOsmosiTk11021Interlocks(livU);
       if (deviceAutoControlled("osmosi")) {
@@ -10778,9 +10785,17 @@
       try { el("carbRow" + L)?.scrollIntoView({ block: "nearest", behavior: "smooth" }); } catch (_) { /* ok */ }
     }
 
-    /** Portata verso UF: Impianto dopo carboni (meno eventuale lavaggio). */
+    /**
+     * Portata verso UF disponibile per avviare/proseguire i lavaggi.
+     * Usa il processo (set Impianto→carboni), non solo la viva: dopo Start la
+     * soft-start azzera la rampa e i lavaggi resterebbero bloccati “senza acqua”.
+     * (Stesso criterio dei carboni: non attendere la portata viva.)
+     */
     function ufInletAvailable() {
       if (!__allowUfByTk11021) return false;
+      try {
+        if (qCarbToUfProcess() > 0.05) return true;
+      } catch (_) { /* ok */ }
       return qCarbToUfLive() > 0.05;
     }
 
@@ -11209,8 +11224,8 @@
             b.setAttribute("fill", c.fill);
           }
           if (f) {
-            f.setAttribute("fill", waterInner(off, runUf, washBw));
-            f.setAttribute("opacity", off || !runUf ? "0.7" : "0.92");
+            f.setAttribute("fill", waterInner(off, runUf, wash));
+            f.setAttribute("opacity", off || (!runUf && !wash) ? "0.7" : "0.92");
           }
           if (t) t.setAttribute("fill", c.lab);
         };
@@ -11294,13 +11309,13 @@
           }
         }
         const badge = el("svgQUf" + L)?.closest("g")?.querySelector("rect.badge");
-        if (badge) badge.setAttribute("stroke", deviceCol(off, runUf).stroke);
+        if (badge) badge.setAttribute("stroke", deviceCol(off, runUf || wash).stroke);
         const ufNode = document.querySelector(`g.node[data-uf-line="${L}"]`);
         const ufRow = el("ufRow" + L);
-        if (off || (!runUf && !washBw)) {
+        if (off || (!runUf && !wash)) {
           setWaterFlow(ufNode, false);
           setWaterFlow(ufRow, false);
-        } else if (washBw) {
+        } else if (wash) {
           setWaterFlow(ufNode, true, "down");
           setWaterFlow(ufRow, true, "down");
         } else {
@@ -13968,7 +13983,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt175", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt179", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
