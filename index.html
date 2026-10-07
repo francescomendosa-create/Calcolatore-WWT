@@ -2558,7 +2558,7 @@
         <p class="mini" id="regTk10608GeomHint">TK-10608: V utile 400 m³ (passante).</p>
 
         <h4 style="margin-top:14px">TK-11007 — permeato</h4>
-        <p class="mini">Volume utile <strong>30 m³</strong>. Il livello in processo usa questo V: %/min = (IN membrane − OUT P11019) ÷ V × 100 ÷ 60. La prova §5 stima un V di confronto; in simulazione vale il volume qui.</p>
+        <p class="mini">Volume utile di targa <strong>30 m³</strong>. Il livello in processo usa questo V: %/min = (IN membrane − OUT P11019) ÷ V × 100 ÷ 60.</p>
         <div class="row">
           <label><strong>Volume utile TK-11007 (m³)</strong>
             <input type="number" id="regTk11007Vutile" min="0.5" max="5000" step="0.1" value="30" inputmode="decimal" />
@@ -2570,16 +2570,16 @@
         <p class="mini" id="regTk11007GeomHint">TK-11007: V utile 30 m³.</p>
 
         <h4 style="margin-top:14px">TK-11021 — permeato UF</h4>
-        <p class="mini">Volume utile <strong>11,7 m³</strong> (dato impianto). In processo: %/min = (IN UF − OUT osmosi) ÷ V × 100 ÷ 60.</p>
+        <p class="mini">Volume utile di targa <strong>30 m³</strong>. In processo: %/min = (IN UF − OUT osmosi) ÷ V × 100 ÷ 60.</p>
         <div class="row">
           <label><strong>Volume utile TK-11021 (m³)</strong>
-            <input type="number" id="regTk11021Vutile" min="0.5" max="5000" step="0.1" value="11.7" inputmode="decimal" />
+            <input type="number" id="regTk11021Vutile" min="0.5" max="5000" step="0.1" value="30" inputmode="decimal" />
           </label>
           <label><strong>%/min ogni 100 m³/h netto</strong>
             <input type="number" id="viewTk11021Rate100" readonly tabindex="-1" placeholder="—" />
           </label>
         </div>
-        <p class="mini" id="regTk11021GeomHint">TK-11021: V utile 11,7 m³.</p>
+        <p class="mini" id="regTk11021GeomHint">TK-11021: V utile 30 m³.</p>
       </div>
 
       <!-- 0b. Valvole regolazione portata UF / osmosi -->
@@ -2718,7 +2718,7 @@
       <!-- 5. Calibrazione TK-11007 permeato (prova reale) -->
       <div class="settings-block show" id="regTk11007Calib">
         <h4>5 · TK-11007 permeato — prova riempimento / svuotamento</h4>
-        <p class="mini">Portate di prova e livelli osservati. L’ingresso membrane è quello a <strong>tutte ON</strong>; il simulatore applica il ciclo lavoro/pausa (default 7′+1′ → duty 7/8) per il netto medio. Il <strong>volume utile di processo</strong> è quello di §0 (default 30 m³); qui sotto resta il V stimato dalla salita, per confronto.</p>
+        <p class="mini">Portate di prova e livelli osservati. L’ingresso membrane è quello a <strong>tutte ON</strong>; il simulatore applica il ciclo lavoro/pausa (default 7′+1′ → duty 7/8) per il netto medio. Il <strong>volume utile di processo</strong> (§0) è il dato di targa <strong>30 m³</strong>; qui sotto resta il V stimato dalla salita, solo per confronto.</p>
         <div class="row">
           <label><strong>IN membrane tutte ON (m³/h)</strong>
             <input type="number" id="regTk11007QinRef" min="0" max="500" step="0.1" value="184" inputmode="decimal" />
@@ -2997,7 +2997,7 @@
         <label><strong>Livello TK 11007 %</strong>
           <input type="number" id="livelloAttualeTk11007" min="0" max="100" step="0.1" value="91.0" inputmode="decimal" />
         </label>
-        <p class="mini">All’avvio / Reset: <strong>91%</strong>. Sale se permeato membrane &gt; P11019; scende se membrane in pausa/blocco o P11019 preleva di più. Volume utile da REGOLAZIONI: <strong>30 m³</strong> (modificabile).</p>
+        <p class="mini">All’avvio / Reset: <strong>91%</strong>. Sale se permeato membrane &gt; P11019; scende se membrane in pausa/blocco o P11019 preleva di più. Volume utile da REGOLAZIONI: <strong>30 m³</strong> (targa).</p>
       </div>
       <div class="settings-block show">
         <h4>Gestione (da PROCESSO)</h4>
@@ -3079,7 +3079,7 @@
         <label><strong>Livello TK 11021 %</strong>
           <input type="number" id="livelloAttualeTk11021" min="0" max="100" step="0.1" value="91.0" inputmode="decimal" />
         </label>
-        <p class="mini">All’avvio / Reset: <strong>91%</strong>. Sale se UF &gt; osmosi; scende se UF ferma/blocco o osmosi preleva di più. Volume utile da REGOLAZIONI: <strong>30 m³</strong> (modificabile).</p>
+        <p class="mini">All’avvio / Reset: <strong>91%</strong>. Sale se UF &gt; osmosi; scende se UF ferma/blocco o osmosi preleva di più. Volume utile da REGOLAZIONI: <strong>30 m³</strong> (targa).</p>
       </div>
       <div class="settings-block show">
         <h4>Gestione (da PROCESSO)</h4>
@@ -5838,7 +5838,7 @@
 
     function getTk11021Geom() {
       let V = numOrNull("regTk11021Vutile");
-      if (V === null || V < 0.5) V = 11.7;
+      if (V === null || V < 0.5) V = 30;
       return { V: Math.max(0.5, V) };
     }
 
@@ -12529,6 +12529,19 @@
           const node = el(id);
           if (node) node.value = String(data[id]);
         });
+        // Targa: TK-11007 e TK-11021 = 30 m³ (annulla valori inventati 15.4 / 11.7)
+        try {
+          const v07 = numOrNull("regTk11007Vutile");
+          if (v07 != null && (Math.abs(v07 - 15.4) < 0.05 || Math.abs(v07 - 11.7) < 0.05)) {
+            const n = el("regTk11007Vutile");
+            if (n) n.value = "30";
+          }
+          const v21 = numOrNull("regTk11021Vutile");
+          if (v21 != null && (Math.abs(v21 - 11.7) < 0.05 || Math.abs(v21 - 15.4) < 0.05)) {
+            const n = el("regTk11021Vutile");
+            if (n) n.value = "30";
+          }
+        } catch (_) { /* ok */ }
         ensureA10611ProcessDefaults();
         if (typeof data.equiparaMandata === "boolean") {
           el("equiparaMandata").checked = data.equiparaMandata;

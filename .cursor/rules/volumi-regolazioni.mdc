@@ -1,0 +1,21 @@
+---
+description: Volumi impianto = fondamentali in REGOLAZIONI; applicare subito senza chiedere
+alwaysApply: true
+---
+
+# Volumi REGOLAZIONI (fondamentali)
+
+Se l’utente dà un **volume** (o geometria da cui deriva V utile), è un dato di impianto/targa: **mettilo subito** in REGOLAZIONI (`reg*Vutile` / geometrie) e nei fallback JS. Non inventare volumi da prove/stime se l’utente ha dato la targa.
+
+## Valori correnti (dato targa / impianto)
+
+| Serbatoio | Campo | V utile |
+|-----------|--------|---------|
+| **A10620** | `regA10620Vutile` (+ L×W×H 20×9×3) | **450 m³** |
+| **TK-10608** | `regTk10608Vutile` | **400 m³** |
+| **TK-11007** | `regTk11007Vutile` | **30 m³** (targa) |
+| **TK-11021** | `regTk11021Vutile` | **30 m³** (targa) |
+
+La prova §5 sul 11007 può mostrare un V stimato a confronto: **non sostituisce** i 30 m³ di targa in processo.
+
+Aggiorna testi popup/hint, fallback `get*Geom()`, migrazione localStorage se compaiono valori sbagliati (15.4 / 11.7), sync `index.html`, bump `sw.js`.
