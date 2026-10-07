@@ -1588,7 +1588,7 @@
     <div class="sketch" id="sketch">
       <svg viewBox="0 0 1090 620" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-label="Schema linea MBR">
         <defs>
-          <clipPath id="clipTank20"><ellipse cx="285" cy="100" rx="50" ry="26"/></clipPath>
+          <clipPath id="clipTank20"><rect x="235" y="74" width="100" height="52" rx="3"/></clipPath>
           <clipPath id="clipTank11"><ellipse cx="630" cy="100" rx="48" ry="25"/></clipPath>
           <clipPath id="clipTankH"><rect x="922" y="118" width="54" height="58" rx="4"/></clipPath>
           <clipPath id="clipTank11007"><rect x="940" y="360" width="64" height="110" rx="7"/></clipPath>
@@ -1642,10 +1642,11 @@
           <text x="285" y="52" text-anchor="middle" font-size="9" font-weight="700" id="svgRangeWork20" fill="#e2e8f0">—</text>
           <text x="322" y="52" text-anchor="middle" font-size="9" font-weight="700" id="svgRangeHi20" fill="#4ade80">—</text>
           <text x="285" y="62" text-anchor="middle" fill="#64748b" font-size="7" id="svgRangeHint20">range liv.</text>
-          <ellipse class="tank-body" cx="285" cy="100" rx="50" ry="26" fill="#0f172a" id="svgTank20" />
+          <!-- vasca aperta rettangolare (stesso ingombro dell’ellisse 100×52) -->
+          <path class="tank-body" id="svgTank20" d="M236 76 L236 123 Q236 126 239 126 L331 126 Q334 126 334 123 L334 76" fill="#0f172a" stroke="#64748b" stroke-width="1.8" stroke-linecap="square" stroke-linejoin="round" />
           <rect id="svgTank20liq" x="235" y="74" width="100" height="52" fill="#22c55e" clip-path="url(#clipTank20)" opacity="0.9" />
-          <text x="285" y="78" text-anchor="middle" fill="#bbf7d0" font-size="11" font-weight="700">A10620</text>
-          <text x="285" y="104" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700" id="svgLiv">63.8%</text>
+          <text x="285" y="88" text-anchor="middle" fill="#bbf7d0" font-size="11" font-weight="700">A10620</text>
+          <text x="285" y="108" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700" id="svgLiv">63.8%</text>
           <!-- pompa a destra verso 10608 — click → numpad portata (non popup serbatoio) -->
           <g class="flow-edit" data-field="qPump" data-source="pompa" aria-label="P11011 A/B portata">
             <g transform="translate(355,100)">
@@ -1776,8 +1777,10 @@
             <text id="svgMemHHint" x="897" y="117" text-anchor="middle" fill="#fda4af" font-size="6" font-weight="600">off</text>
             <rect class="mem-hit" x="880" y="88" width="34" height="36" rx="4" />
           </g>
-          <!-- collettore scarichi → A11004 (solo scarichi, non mandata) -->
+          <!-- collettore scarichi → A11004 (solo scarichi, non mandata): cade da E F G H -->
           <path class="pipe pipe-rec" d="M783 128 V140 H897 V128" fill="none" stroke-width="2.2" opacity="0.9" />
+          <path class="pipe pipe-rec" d="M821 128 V140" fill="none" stroke-width="2.2" opacity="0.9" />
+          <path class="pipe pipe-rec" d="M859 128 V140" fill="none" stroke-width="2.2" opacity="0.9" />
           <path class="pipe pipe-rec" d="M840 140 H922" fill="none" stroke-width="2.2" />
           <polygon points="914,135 926,140 914,145" fill="#fb7185" />
           <!-- permeato: parte dalle membrane (lato destro) -->
@@ -8484,7 +8487,7 @@
       const pct = Number(L);
       const txt = pct.toFixed(1) + "%";
       try {
-        setTankLiquid("svgTank20liq", 285, 100, 50, 26, pct, false);
+        setRectLiquid("svgTank20liq", 235, 74, 100, 52, pct, false);
         setTankLiquid("svgTank11liq", 630, 100, 48, 25, pct, false);
         setRectLiquid("svgTankHliq", 922, 118, 54, 58, pct, false);
         paintMbrLevelUI(numOrNull("livelloAttualeMbr") ?? 90, 0);
@@ -8939,7 +8942,7 @@
       // Liquido dinamico nei serbatoi (altezza = livello %) — TK-10608 escluso (solo passante)
       const rate20 = rateA10620PctPerMin(qIn, qPump, qRecycle);
       const rate11Show = rate11;
-      setTankLiquid("svgTank20liq", 285, 100, 50, 26, liv20, r20.atBlock);
+      setRectLiquid("svgTank20liq", 235, 74, 100, 52, liv20, r20.atBlock);
       setTankLiquid("svgTank11liq", 630, 100, 48, 25, liv11, r11.atBlock);
       paintA10608Passante();
 
@@ -13549,7 +13552,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt152", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt154", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
