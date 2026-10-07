@@ -740,45 +740,63 @@
     .uf-valve-fill, .osm-valve-fill { fill: #22d3ee; }
     .uf-valve-fill.is-full, .osm-valve-fill.is-full { fill: #fbbf24; }
     .uf-valve-pct, .osm-valve-pct { fill: #cbd5e1; font: 700 7px "Segoe UI", sans-serif; }
-    /* Tubo (guscio) sempre visibile + acqua interna animata (layer .pipe-water) */
+    /* Tubazioni: colore sempre uguale. Acqua = alone continuo + riflesso sfumato (no tratteggio). */
     .pipe {
       fill: none;
-      stroke-width: 5.2;
+      stroke-width: 4;
       stroke-linecap: round;
       stroke-linejoin: round;
     }
-    .pipe-main { stroke: #0c4a6e; }
-    .pipe-rec { stroke: #4c0519; }
-    .pipe.is-wet.pipe-main { stroke: #155e75; }
-    .pipe.is-wet.pipe-rec { stroke: #9f1239; }
-    .pipe[data-flow="scar"] { stroke-width: 4.2; }
+    .pipe-main { stroke: #38bdf8; }
+    .pipe-rec { stroke: #fb7185; }
+    .pipe[data-flow="scar"] { stroke-width: 3.4; }
     .pipe-water {
       fill: none;
-      stroke-width: 2.35;
       stroke-linecap: round;
       stroke-linejoin: round;
       pointer-events: none;
       opacity: 0;
     }
-    .pipe-water-main { stroke: #67e8f9; }
-    .pipe-water-rec { stroke: #fda4af; }
-    .pipe-water[data-flow-water="scar"] { stroke-width: 1.75; }
-    /* Acqua densa (segmenti lunghi, gap stretti) — non il tratteggio scarso */
-    .pipe-water.is-flowing {
-      opacity: 1;
-      stroke-dasharray: 18 5;
-      animation: pipe-water-flow 0.75s linear infinite;
-      filter: drop-shadow(0 0 0.8px rgba(186, 230, 253, 0.85));
+    /* Corpo acqua: tratto pieno continuo (mai dash) */
+    .pipe-water-core {
+      stroke-width: 2.15;
+      stroke-dasharray: none !important;
     }
-    .pipe-water-rec.is-flowing {
-      filter: drop-shadow(0 0 0.8px rgba(253, 164, 175, 0.75));
+    .pipe-water-core.pipe-water-main { stroke: #e0f2fe; }
+    .pipe-water-core.pipe-water-rec { stroke: #ffe4e6; }
+    .pipe-water-core[data-flow-water="scar"] { stroke-width: 1.55; }
+    .pipe-water-core.is-flowing {
+      opacity: 0.5;
+      animation: pipe-water-glow 2s ease-in-out infinite;
     }
-    @keyframes pipe-water-flow { to { stroke-dashoffset: -23; } }
+    /* Riflesso: banda luminosa sfocata che scorre (sembra liquido, non tratti) */
+    .pipe-water-sheen {
+      stroke-width: 2.6;
+      filter: url(#pipeWaterBlur);
+    }
+    .pipe-water-sheen.pipe-water-main { stroke: #f8fafc; }
+    .pipe-water-sheen.pipe-water-rec { stroke: #fff5f5; }
+    .pipe-water-sheen[data-flow-water="scar"] { stroke-width: 1.9; }
+    .pipe-water-sheen.is-flowing {
+      opacity: 0.85;
+      stroke-dasharray: 70 200;
+      animation: pipe-water-sheen 1.4s linear infinite;
+    }
+    @keyframes pipe-water-sheen { to { stroke-dashoffset: -270; } }
+    @keyframes pipe-water-glow {
+      0%, 100% { opacity: 0.38; }
+      50% { opacity: 0.62; }
+    }
     @media (prefers-reduced-motion: reduce) {
-      .pipe-water.is-flowing {
+      .pipe-water-core.is-flowing {
+        animation: none;
+        opacity: 0.55;
+      }
+      .pipe-water-sheen.is-flowing {
         animation: none;
         stroke-dasharray: none;
-        opacity: 0.92;
+        opacity: 0.45;
+        filter: none;
       }
     }
     .p11019-split {
@@ -1626,6 +1644,15 @@
     <div class="sketch" id="sketch">
       <svg viewBox="0 0 1090 620" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-label="Schema linea MBR">
         <defs>
+          <!-- alone morbido per riflesso acqua nelle tubazioni -->
+          <filter id="pipeWaterBlur" x="-80%" y="-80%" width="260%" height="260%" color-interpolation-filters="sRGB">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="2.1" result="b" />
+            <feMerge>
+              <feMergeNode in="b" />
+              <feMergeNode in="b" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
           <clipPath id="clipTank20"><rect x="235" y="74" width="100" height="52" rx="3"/></clipPath>
           <clipPath id="clipTank11"><ellipse cx="630" cy="100" rx="48" ry="25"/></clipPath>
           <clipPath id="clipTankH"><rect x="922" y="118" width="54" height="58" rx="4"/></clipPath>
@@ -3103,7 +3130,7 @@
           </label>
         </div>
         <p class="mini">Svuotamento: membrane ON/OFF. Riempimento: MP 11036 A/B fermano a stop (92%) e ripartono a start (85%), se anche A10611 è OK.</p>
-        <p class="mini" id="mbrFillBalanceHint">Bilancio MBR: mandata IN − permeato OUT − scarico→A11004. A membrane ferme il riciclo 11014 non svuota le vaschette.</p>
+        <p class="mini" id="mbrFillBalanceHint">Bilancio MBR: mandata IN − permeato OUT − scarico→A11004 (~90% eccesso, anche a membrane ferme). Il riciclo 11014 aspira solo A11004.</p>
         <div class="row" style="margin-top:8px">
           <label><strong>Start riemp. TK 11007 %</strong>
             <input type="number" id="viewStartRiempTk11007b" readonly placeholder="—" inputmode="decimal" />
@@ -6450,9 +6477,9 @@
 
     /**
      * Livello MBR: volume = N vaschette.
-     * — Membrane in estrazione: quasi tutto l’eccesso (mandata−permeato) → A11004; poco resta in MBR.
-     * — Membrane FERME: quasi tutta la mandata resta in vaschetta. Il riciclo 11014 aspira da A11004,
-     *   NON compensa/svuota le membrane.
+     * Scarico → A11004 sempre nello stesso modo: ~90% dell’eccesso (mandata − permeato).
+     * Membrane ferme (permeato 0): l’eccesso = mandata → scarico continua verso A11004
+     * (non si chiude la comunicazione). Il riciclo 11014 aspira da A11004, non dalle vaschette.
      */
     function estimateMbrRatePctPerMin(qMandata, qPerm, livMbrOpt, opts) {
       opts = opts || {};
@@ -6460,21 +6487,11 @@
       const cal = calM || getMbrLivCalib();
       const qIn = Math.max(0, Number(qMandata) || 0);
       const qOutPerm = Math.max(0, Number(qPerm) || 0);
-      const membranesExtracting = qOutPerm > 0.5;
       const qRec = Math.max(0, Number(opts.qRecycle) || 0);
       const backedUp = !!opts.backedUp;
 
-      if (!membranesExtracting) {
-        // Ferme: ~92% della mandata resta in MBR (solo ~8% comunica verso A11004)
-        const net = qIn * 0.92;
-        const rFill = ratePctPerMinFromVolume(net, V);
-        if (!Number.isFinite(rFill)) return 0;
-        return Math.max(-RATE_PCT_CLAMP_VOL, Math.min(RATE_PCT_CLAMP_VOL, rFill));
-      }
-
-      // Bilancio: mandata − permeato − scarico→H.
-      // Se permeato > mandata il deficit svuota il MBR (netto negativo).
-      // Se mandata > permeato, ~90% dell’eccesso va ad A11004 e ~10% resta (più se H intasata).
+      // Stesso bilancio in estrazione e a membrane ferme:
+      // mandata − permeato − scarico→H (~90% dell’eccesso positivo).
       const delta = qIn - qOutPerm;
       let net;
       if (delta >= 0) {
@@ -6486,12 +6503,13 @@
         }
         net = delta * retainFrac;
       } else {
-        net = delta; // svuotamento proporzionale alle portate
+        net = delta; // permeato > mandata → svuota MBR
       }
 
       const cycle = Math.max(0.2, cal.lavoro + cal.pausa);
       const fracPause = Math.max(0.05, cal.pausa / cycle);
       const rPauseAvg = cal.rateDrain * fracPause;
+      // Anche a membrane ferme resta il drenaggio di ciclo (scarichi → A11004)
       let r = ratePctPerMinFromVolume(net, V) - rPauseAvg;
 
       if (!Number.isFinite(r)) return 0;
@@ -6499,13 +6517,12 @@
     }
 
     /**
-     * Scarico MBR → A11004 (m³/h): gli scarichi di tutte le vaschette vanno al collettore.
-     * In estrazione ≈ 90% di (mandata − permeato); a membrane ferme poca comunicazione (~8%).
+     * Scarico MBR → A11004 (m³/h): sempre ~90% di max(0, mandata − permeato).
+     * Membrane ferme → permeato 0 → scarico ≈ 90% mandata (stesso modo di quando estraggono).
      */
     function mbrScaricoToH(qMandata, qPerm, livMbrOpt) {
       const qM = Math.max(0, Number(qMandata) || 0);
       const qP = Math.max(0, Number(qPerm) || 0);
-      if (qP < 0.5) return round1(qM * 0.08);
       const excess = Math.max(0, qM - qP);
       return round1(excess * 0.90);
     }
@@ -6543,8 +6560,8 @@
       else etaTxt = `≈ <strong>${eta} min</strong> per arrivare a stop riemp. ${fmtPct(stopV)} (11036 stop)`;
       hint.innerHTML = (fermi
         ? `<strong>Membrane FERME</strong> (OUT permeato 0). Mandata IN <strong class="flow-val">${fmtQ(qM)}</strong> → `
-          + `resta in vaschetta ≈ <strong>${fmtQ(qM * 0.92)}</strong> · scarico→A11004 ≈ ${fmtQ(qH)}. `
-          + `<em>Il riciclo 11014 NON svuota le membrane</em> (aspira solo A11004). `
+          + `scarico→A11004 ≈ <strong>${fmtQ(qH)}</strong> (stesso modo: ~90% eccesso) · resta in MBR ≈ ${fmtQ(qM * 0.10)}. `
+          + `<em>11014 aspira solo A11004</em>, non le vaschette. `
         : `Membrane in estrazione: IN mandata <strong>${fmtQ(qM)}</strong> · OUT permeato <strong class="flow-val">${fmtQ(qP)}</strong> `
           + `· scarico→A11004 ≈ ${fmtQ(qH)} · netto in MBR (dopo scarico) guida il livello. `)
         + `V MBR≈${round1(vol.V)} m³ (${vol.n}×${round1(vol.Vtray)}) · ${r >= 0 ? "+" : ""}${round1(r).toFixed(2)} %/min · ${etaTxt}.`;
@@ -8119,19 +8136,33 @@
       try { paintPipeFlowUI(vis11011, vis11036, vis11014, run11019); } catch (_) { /* ignore */ }
     }
 
-    /** Crea il layer acqua dentro ogni tubo (una sola volta). */
+    /** Layer acqua: corpo continuo + riflesso sfumato (v2, sostituisce il vecchio tratteggio). */
     function ensurePipeWaterLayers() {
       document.querySelectorAll("path.pipe[data-flow]").forEach((p) => {
-        if (p.dataset.waterReady === "1") return;
-        p.dataset.waterReady = "1";
+        if (p.dataset.waterReady === "2") return;
+        let n = p.nextElementSibling;
+        while (n && n.classList && n.classList.contains("pipe-water")) {
+          const rem = n;
+          n = n.nextElementSibling;
+          rem.remove();
+        }
+        p.dataset.waterReady = "2";
         const key = p.getAttribute("data-flow") || "";
-        const w = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        w.setAttribute("d", p.getAttribute("d") || "");
-        w.setAttribute("class", "pipe-water " + (p.classList.contains("pipe-rec") ? "pipe-water-rec" : "pipe-water-main"));
-        w.setAttribute("data-flow-water", key);
-        w.setAttribute("pointer-events", "none");
-        w.setAttribute("fill", "none");
-        p.insertAdjacentElement("afterend", w);
+        const kind = p.classList.contains("pipe-rec") ? "pipe-water-rec" : "pipe-water-main";
+        const d = p.getAttribute("d") || "";
+        const mk = (extra) => {
+          const w = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          w.setAttribute("d", d);
+          w.setAttribute("class", "pipe-water " + extra + " " + kind);
+          w.setAttribute("data-flow-water", key);
+          w.setAttribute("pointer-events", "none");
+          w.setAttribute("fill", "none");
+          return w;
+        };
+        const core = mk("pipe-water-core");
+        const sheen = mk("pipe-water-sheen");
+        p.insertAdjacentElement("afterend", core);
+        core.insertAdjacentElement("afterend", sheen);
       });
     }
 
@@ -8147,7 +8178,17 @@
       } catch (_) {
         flowPerm = go && num("qMemTotale") > 0.5;
       }
-      const flowScar = flowPerm;
+      // Scarichi → A11004: continuano anche a membrane ferme (stesso modo, se c’è mandata)
+      const qMandLivePipe = Math.max(0, Number(__flowLive.qMandata) || num("qMandata") || 0);
+      const qPermLivePipe = flowPerm
+        ? Math.max(0, Number(__flowLive.qMemTotale) || num("qMemTotale") || 0)
+        : 0;
+      let flowScar = false;
+      try {
+        flowScar = go && mbrScaricoToH(qMandLivePipe, qPermLivePipe, null) > 0.5;
+      } catch (_) {
+        flowScar = go && (flowPerm || (!!vis11036 && qMandLivePipe > 0.5));
+      }
       let flowUf = false;
       try {
         flowUf = go && (num("qUfTotale") > 0.5 || qCarbToUfLive() > 0.5);
@@ -8174,8 +8215,7 @@
       Object.keys(map).forEach((key) => {
         const on = !!map[key];
         document.querySelectorAll(`path.pipe[data-flow="${key}"]`).forEach((p) => {
-          p.classList.toggle("is-wet", on);
-          p.classList.remove("is-flowing", "is-flowing-rev");
+          p.classList.remove("is-wet", "is-flowing", "is-flowing-rev");
         });
         document.querySelectorAll(`[data-flow-water="${key}"]`).forEach((w) => {
           w.classList.toggle("is-flowing", on);
@@ -13694,7 +13734,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt159", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt161", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
