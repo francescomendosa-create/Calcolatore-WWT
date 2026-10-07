@@ -4347,7 +4347,10 @@
       if (focus === "cf") {
         return `Male · scendi chimico ≤ ${qSafe} · ~${when}`;
       }
-      return `Male · alza P11011 · o chimico ≤ ${qSafe} · ~${when}`;
+      if (focus === "p11") {
+        return `Male · alza P11011 · o chimico ≤ ${qSafe} · ~${when}`;
+      }
+      return `Male · regola impianto · o chimico ≤ ${qSafe} · ~${when}`;
     }
 
     /** Se rispondi No (non puoi alzare la pompa): quanto scendere il chimico. */
@@ -4392,6 +4395,7 @@
       const need = Math.max(0, Number(qNeed) || 0);
       const inn = Math.max(0, Number(qIn) || 0);
       if (need < 40) return false;
+      if (flowMeetsNeed(have, need)) return false; // già a posto → non è anomalia
       const ratio = need > 0 ? have / need : 1;
       const gap = need - have;
       if (inn >= 100 && have <= 80 && need >= 150) return true;
@@ -4400,27 +4404,61 @@
       return false;
     }
 
+    /** True se la portata attuale soddisfa già il bisogno (niente “aumenta a X”). */
+    function flowMeetsNeed(qHave, qNeed, slack) {
+      const have = Math.max(0, Number(qHave) || 0);
+      const need = Math.max(0, Number(qNeed) || 0);
+      const s = slack != null ? Number(slack) : 0.6;
+      if (need <= 0.05) return true;
+      return have + s >= need;
+    }
+
+    /** Setpoint reale: previsione + campo UI + memoria (sempre il massimo leggibile). */
+    function liveFlowHave(fcVal, fieldId) {
+      let v = Math.max(0, Number(fcVal) || 0);
+      try { v = Math.max(v, flowSetpointOf(fieldId)); } catch (_) { /* ok */ }
+      try { v = Math.max(v, Math.max(0, num(fieldId))); } catch (_) { /* ok */ }
+      return round1(v);
+    }
+
     /** Quasi a posto: regolazione fine, ha senso anche scendere il chimico. */
     function isNearMissFlow(qHave, qNeed) {
       const have = Math.max(0, Number(qHave) || 0);
       const need = Math.max(0, Number(qNeed) || 0);
       if (need <= 0) return false;
+      if (flowMeetsNeed(have, need)) return true;
       const ratio = have / need;
       const gap = need - have;
       return ratio >= 0.75 || gap <= 40;
     }
 
     function hzBitForNeed(qNeed) {
-      try {
-        const step = pumpStepForNeed(qNeed);
-        if (step && Number.isFinite(step.hz)) {
-          return ` · ${step.hz} Hz → ${fmtQ(step.q)} m³/h`;
-        }
-      } catch (_) { /* ok */ }
-      return "";
+      const adv = pumpStepAdvise(qNeed);
+      return adv.bit;
     }
 
-﻿    /**
+    /**
+     * Consiglio pompe: un solo numero = passo tabella (≥ bisogno).
+     * Evita "mettila a 280 · 45 Hz → 345" quando il bisogno è 280 ma il passo è 345.
+     */
+    function pumpStepAdvise(qNeed) {
+      const need = round1(Math.max(0, Number(qNeed) || 0));
+      let hz = null;
+      let q = need;
+      try {
+        const step = pumpStepForNeed(need);
+        if (step && Number.isFinite(step.q)) {
+          q = round1(Math.max(need, Number(step.q) || need));
+          if (Number.isFinite(step.hz)) hz = step.hz;
+        }
+      } catch (_) { /* ok */ }
+      const bit = hz != null ? ` (${hz} Hz)` : "";
+      const label = hz != null ? `${fmtQ(q)} m³/h (${hz} Hz)` : `${fmtQ(q)} m³/h`;
+      return { need, q, hz, bit, label };
+    }
+
+
+    /**
      * Previsione 8h: A10620 / riciclo↔A11004 / A10611 / MP 11036 / MBR / permeato.
      * Il riciclo NON esporta dal sito, ma svuota A11004 (collettore scarichi MBR):
      * se mandata − permeato ≫ riciclo, A11004 (e poi MBR) salgono → blocco.
@@ -4452,10 +4490,10 @@
       const startMbrFill = startRiempMbr !== null ? startRiempMbr : 85;
 
       const qInSp = opts.qIn != null ? Math.max(0, Number(opts.qIn) || 0) : Math.max(0, num("qIn"));
-      let qPumpSp = opts.qPump != null ? Math.max(0, Number(opts.qPump) || 0) : Math.max(0, flowSetpointOf("qPump"));
-      let qMandSp = opts.qMand != null ? Math.max(0, Number(opts.qMand) || 0) : Math.max(0, flowSetpointOf("qMandata"));
-      const qMemSp = opts.qMem != null ? Math.max(0, Number(opts.qMem) || 0) : Math.max(0, num("qMemTotale"));
-      let qRecSp = opts.qRec != null ? Math.max(0, Number(opts.qRec) || 0) : Math.max(0, flowSetpointOf("qRecycle"));
+      let qPumpSp = opts.qPump != null ? Math.max(0, Number(opts.qPump) || 0) : liveFlowHave(0, "qPump");
+      let qMandSp = opts.qMand != null ? Math.max(0, Number(opts.qMand) || 0) : liveFlowHave(0, "qMandata");
+      const qMemSp = opts.qMem != null ? Math.max(0, Number(opts.qMem) || 0) : liveFlowHave(0, "qMemTotale");
+      let qRecSp = opts.qRec != null ? Math.max(0, Number(opts.qRec) || 0) : liveFlowHave(0, "qRecycle");
 
       let dutyAvg = 0.875;
       try {
@@ -4696,12 +4734,15 @@
       const qInSp = fc.qInSp;
       let qMax = 334;
       try { qMax = getPumpMax(); } catch (_) { /* ok */ }
-      let qPumpTarget = round1(Math.max(0, qInSp + Q_RECYCLE_MIN));
-      try { qPumpTarget = round1(Math.max(qPumpTarget, pumpFloorForIngresso(qInSp))); } catch (_) { /* ok */ }
-      const qMandTarget = round1(Math.max(qPumpTarget, fc.qPumpSp || 0));
+      let qPumpFloor = round1(Math.max(0, qInSp + Q_RECYCLE_MIN));
+      try { qPumpFloor = round1(Math.max(qPumpFloor, pumpFloorForIngresso(qInSp))); } catch (_) { /* ok */ }
+      const pumpAdv = pumpStepAdvise(qPumpFloor);
+      // Un solo target = portata di tabella (es. 345 @ 45 Hz), non il minimo grezzo 280
+      const qPumpTarget = pumpAdv.q;
+      const hzBit = pumpAdv.bit;
+      const qMandTarget = round1(Math.max(qPumpTarget, liveFlowHave(fc.qPumpSp, "qPump")));
       const memMinInfo = qMemMinTotaleForQin(qInSp);
       const dutyAvg = memMinInfo.duty;
-      // Totale membrane (tutte ON) per esportare almeno il chimico a duty di ciclo
       const qMemTarget = round1(Math.max(
         memMinInfo.qMemMin,
         qMandTarget > 0.5 ? qMandTarget * 0.85 : 0
@@ -4709,10 +4750,14 @@
       const qPermHave = fc.qPermAvg != null
         ? fc.qPermAvg
         : round1((fc.qMemSp || 0) * dutyAvg);
-      const hzBit = hzBitForNeed(qPumpTarget);
-      const qHavePump = fc.qPumpSp || 0;
-      const qHaveMand = fc.qMandSp || 0;
-      const qHaveMem = fc.qMemSp || 0;
+      // Leggi SEMPRE anche i campi vivi: altrimenti consiglio “alza a 345” con già 345
+      const qHavePump = liveFlowHave(fc.qPumpSp, "qPump");
+      const qHaveMand = liveFlowHave(fc.qMandSp, "qMandata");
+      const qHaveMem = liveFlowHave(fc.qMemSp, "qMemTotale");
+      // OK se ≥ bisogno grezzo OPPURE già sul passo Hz consigliato (345 ≥ 280)
+      const pumpOk = flowMeetsNeed(qHavePump, qPumpFloor) || flowMeetsNeed(qHavePump, qPumpTarget);
+      const mandOk = flowMeetsNeed(qHaveMand, qMandTarget);
+      const memOk = flowMeetsNeed(qHaveMem, qMemTarget) && !(qInSp > 0.5 && qPermHave + 1 < qInSp);
       const anomalyPump = isAnomalousLowFlow(qHavePump, qPumpTarget, qInSp);
       const anomalyMand = isAnomalousLowFlow(qHaveMand, qMandTarget, qInSp);
       const anomalyMem = isAnomalousLowFlow(qHaveMem, qMemTarget, qInSp)
@@ -4731,15 +4776,15 @@
         Q_RECYCLE_MIN,
         fc.qScaricoNeed != null ? fc.qScaricoNeed : 0
       ));
-      const qHaveRec = fc.qRecSp != null ? fc.qRecSp : Math.max(0, flowSetpointOf("qRecycle"));
+      const qHaveRec = liveFlowHave(fc.qRecSp, "qRecycle");
 
       if (fc.ok) {
         return {
           ok: true,
           focus: "",
           forecastHtml: `<div class="block-forecast is-ok"><strong>Tutto OK — prossime 8 ore</strong><br>`
-            + `Impianto in marcia: chimico <strong>${fmtQ(qInSp)}</strong> · P11011 <strong>${fmtQ(fc.qPumpSp)}</strong>`
-            + ` · MP 11036 <strong>${fmtQ(fc.qMandSp)}</strong> · membrane <strong>${fmtQ(fc.qMemSp)}</strong>`
+            + `Impianto in marcia: chimico <strong>${fmtQ(qInSp)}</strong> · P11011 <strong>${fmtQ(qHavePump)}</strong>`
+            + ` · MP 11036 <strong>${fmtQ(qHaveMand)}</strong> · membrane <strong>${fmtQ(qHaveMem)}</strong>`
             + ` (uscita media ≈ <strong>${fmtQ(qPermHave)}</strong>)`
             + ` · riciclo <strong>${fmtQ(qHaveRec)}</strong> (≥ scarico MBR ≈ ${fmtQ(fc.qScaricoNeed)}). `
             + `Nessun blocco previsto — nessuna regolazione.</div>`,
@@ -4841,58 +4886,133 @@
           + `Blocco previsto tra <strong>${when}</strong>.`;
         action = `Non si può alzare abbastanza P11011 (max ${fmtQ(qMax)}).`;
         askQ = "";
-      } else if (fc.reason === "p11off" || qHavePump < 0.5) {
+      } else if ((fc.reason === "p11off" || qHavePump < 0.5) && !pumpOk) {
         focus = "p11";
         device = "P11011 A/B";
         target = qPumpTarget;
         haveNow = qHavePump;
         anomaly = anomalyPump || (qInSp >= 80 && qHavePump < 40);
         near = nearPump;
-        verdict = `Male: <strong>P11011 spenta/a ${fmtQ(qHavePump)}</strong> — mettila a <strong class="fix-val">${fmtQ(qPumpTarget)}</strong>${hzBit}. `
+        verdict = `Male: <strong>P11011 spenta/a ${fmtQ(qHavePump)}</strong> — imposta a <strong class="flow-val">${pumpAdv.label}</strong>. `
           + `Blocco previsto tra <strong>${when}</strong>.`;
-        action = `P11011 A/B → <span class="fix-val">${fmtQ(qPumpTarget)} m³/h</span>${hzBit}.`;
-        askQ = `È possibile mettere <strong>P11011 A/B</strong> a <strong class="fix-val">${fmtQ(qPumpTarget)} m³/h</strong>?`;
-        yesHtml = `Ok: P11011 → <strong class="fix-val">${fmtQ(qPumpTarget)} m³/h</strong>${hzBit}.`;
-      } else {
+        action = `P11011 A/B → <span class="flow-val">${pumpAdv.label}</span>.`;
+        askQ = `È possibile mettere <strong>P11011 A/B</strong> a <strong class="flow-val">${pumpAdv.label}</strong>?`;
+        yesHtml = `Ok: P11011 → <strong class="flow-val">${pumpAdv.label}</strong>.`;
+      } else if (!pumpOk) {
         focus = "p11";
         device = "P11011 A/B";
         target = qPumpTarget;
         haveNow = qHavePump;
         anomaly = anomalyPump;
         near = nearPump;
-        verdict = `Male: <strong>P11011 a ${fmtQ(qHavePump)}</strong> — mettila a <strong class="fix-val">${fmtQ(qPumpTarget)}</strong>${hzBit}. `
+        verdict = `Male: <strong>P11011 a ${fmtQ(qHavePump)}</strong> — imposta a <strong class="flow-val">${pumpAdv.label}</strong>. `
           + `Blocco previsto tra <strong>${when}</strong> (chimico ${fmtQ(qInSp)}).`;
-        action = `P11011 A/B → <span class="fix-val">${fmtQ(qPumpTarget)} m³/h</span>${hzBit}.`;
-        askQ = `È possibile aumentare <strong>P11011 A/B</strong> a <strong class="fix-val">${fmtQ(qPumpTarget)} m³/h</strong>?`;
-        yesHtml = `Ok: P11011 → <strong class="fix-val">${fmtQ(qPumpTarget)} m³/h</strong>${hzBit}. Chimico resta ${fmtQ(qInSp)}.`;
+        action = `P11011 A/B → <span class="flow-val">${pumpAdv.label}</span>.`;
+        askQ = `È possibile aumentare <strong>P11011 A/B</strong> a <strong class="flow-val">${pumpAdv.label}</strong>?`;
+        yesHtml = `Ok: P11011 → <strong class="flow-val">${pumpAdv.label}</strong>. Chimico resta ${fmtQ(qInSp)}.`;
+      } else if (!memOk) {
+        focus = "mem";
+        device = "membrane";
+        target = qMemTarget;
+        haveNow = qHaveMem;
+        anomaly = anomalyMem;
+        near = nearMem;
+        verdict = `Male: <strong>P11011 già a ${fmtQ(qHavePump)}</strong>${hzBit}, ma membrane `
+          + `<strong>${fmtQ(qHaveMem)}</strong> (uscita ≈ ${fmtQ(qPermHave)}) &lt; chimico <strong>${fmtQ(qInSp)}</strong>. `
+          + `Blocco previsto tra <strong>${when}</strong>.`;
+        action = `Membrane → <span class="flow-val">${fmtQ(qMemTarget)} m³/h</span> `
+          + `(P11011 resta ${fmtQ(qHavePump)}; non serve alzarla).`;
+        askQ = `È possibile aumentare le <strong>membrane</strong> a <strong class="flow-val">${fmtQ(qMemTarget)} m³/h</strong>?`;
+        yesHtml = `Ok: membrane → <strong class="flow-val">${fmtQ(qMemTarget)} m³/h</strong>. P11011 resta ${fmtQ(qHavePump)}.`;
+      } else if (!mandOk) {
+        focus = "mand";
+        device = "MP 11036 A/B";
+        target = qMandTarget;
+        haveNow = qHaveMand;
+        anomaly = anomalyMand;
+        near = nearMand;
+        verdict = `Male: <strong>P11011 già a ${fmtQ(qHavePump)}</strong>, ma MP 11036 a <strong>${fmtQ(qHaveMand)}</strong> `
+          + `(serve ≈ ${fmtQ(qMandTarget)}). Blocco previsto tra <strong>${when}</strong>.`;
+        action = `MP 11036 → <span class="flow-val">${fmtQ(qMandTarget)} m³/h</span> · P11011 già OK.`;
+        askQ = `È possibile aumentare <strong>MP 11036 A/B</strong> a <strong class="flow-val">${fmtQ(qMandTarget)} m³/h</strong>?`;
+        yesHtml = `Ok: MP 11036 → <strong class="flow-val">${fmtQ(qMandTarget)} m³/h</strong>.`;
+      } else if (!flowMeetsNeed(qHaveRec, qRecNeed) && (fc.reason === "rec" || (fc.qScaricoNeed != null && fc.qScaricoNeed > 2))) {
+        focus = "rec";
+        device = "riciclo 11014";
+        target = qRecNeed;
+        haveNow = qHaveRec;
+        anomaly = qHaveRec + 5 < qRecNeed;
+        near = isNearMissFlow(qHaveRec, qRecNeed);
+        verdict = `Male: <strong>P11011 già a ${fmtQ(qHavePump)}</strong>, ma riciclo <strong>${fmtQ(qHaveRec)}</strong> `
+          + `&lt; scarico ≈ ${fmtQ(fc.qScaricoNeed)}. Blocco previsto tra <strong>${when}</strong>.`;
+        action = `Riciclo → <span class="flow-val">${fmtQ(qRecNeed)} m³/h</span> · P11011 già OK.`;
+        askQ = `È possibile aumentare il <strong>riciclo 11014</strong> a <strong class="flow-val">${fmtQ(qRecNeed)} m³/h</strong>?`;
+        yesHtml = `Ok: riciclo → <strong class="flow-val">${fmtQ(qRecNeed)} m³/h</strong>.`;
+      } else {
+        forceAlt = true;
+        anomaly = false;
+        focus = "cf";
+        device = "chimico-fisico";
+        target = qSafeSamePumps;
+        haveNow = qInSp;
+        verdict = `Male: P11011 <strong>già a ${fmtQ(qHavePump)}</strong>${hzBit} — non serve alzarla. `
+          + `Blocco previsto tra <strong>${when}</strong>: scendi il chimico.`;
+        action = `P11011 resta ${fmtQ(qHavePump)}. Chimico ≤ <span class="flow-val">${fmtQ(qSafeSamePumps)} m³/h</span>.`;
+        askQ = "";
       }
 
-      if (anomaly) {
+      if ((focus === "p11" && pumpOk)
+        || (focus === "mand" && mandOk)
+        || (focus === "mem" && flowMeetsNeed(qHaveMem, qMemTarget) && memOk)
+        || (focus === "rec" && flowMeetsNeed(qHaveRec, qRecNeed))) {
+        forceAlt = true;
+        anomaly = false;
+        focus = "cf";
+        device = "chimico-fisico";
+        target = qSafeSamePumps;
+        haveNow = qInSp;
+        verdict = `Male: P11011 <strong>già a ${fmtQ(qHavePump)}</strong>${hzBit} — non alzarla. `
+          + `Blocco ~<strong>${when}</strong>: regola il chimico.`;
+        action = `P11011 resta <strong>${fmtQ(qHavePump)}</strong>. Chimico ≤ <span class="flow-val">${fmtQ(qSafeSamePumps)} m³/h</span>.`;
+        askQ = "";
+        fault = "";
+      }
+
+      if (anomaly && !flowMeetsNeed(haveNow, target)) {
         fault = `Portata bassa: ingresso <strong>${fmtQ(qInSp)}</strong> ma <strong>${device}</strong> a `
-          + `<strong>${fmtQ(haveNow)}</strong> (serve ≈ <span class="fix-val">${fmtQ(target)}</span>). `
+          + `<strong>${fmtQ(haveNow)}</strong> (serve ≈ <span class="flow-val">${fmtQ(target)}</span>). `
           + `Prima prova ad alzarla; se non puoi, rispondi No e ti dico a quanto scendere il chimico.`;
         noHtml = cfLowerNoHtml(qSafeSamePumps, device, haveNow);
-      } else if (forceAlt) {
-        const qInMaxPlant = qInCapAtPump(qMax);
+      } else if (forceAlt || focus === "cf") {
         focus = "cf";
-        noHtml = `Scendi il chimico-fisico a ≤ <strong class="fix-val">${fmtQ(qInMaxPlant)} m³/h</strong> `
-          + `(minimo per 8 ore, P11011 a ${fmtQ(qMax)}).`;
+        noHtml = `Scendi il chimico-fisico a ≤ <strong class="flow-val">${fmtQ(qSafeSamePumps)} m³/h</strong> `
+          + `(P11011 resta a ${fmtQ(qHavePump)}${hzBit}; non alzarla).`;
       } else {
         noHtml = cfLowerNoHtml(qSafeSamePumps, device, haveNow);
       }
 
-      const ask = (!forceAlt && askQ)
-        ? {
-            // Chiave stabile (senza firstBlockMin): altrimenti ogni tick azzera Sì/No
-            key: `fc-${focus}-${fc.reason || "x"}-${fmtQ(target)}-${fmtQ(qInSp)}`,
-            q: askQ,
-            yesHtml,
-            noHtml,
-            hideAltOnNo: false,
-          }
-        : null;
+      let ask = null;
+      if (!forceAlt && askQ && !flowMeetsNeed(haveNow, target)) {
+        ask = {
+          key: `fc-${focus}-${fc.reason || "x"}-${fmtQ(target)}-${fmtQ(qInSp)}-${fmtQ(haveNow)}`,
+          q: askQ,
+          yesHtml,
+          noHtml,
+          hideAltOnNo: false,
+        };
+      } else if (focus === "cf") {
+        ask = {
+          key: `fc-cf-${fmtQ(qSafeSamePumps)}-${fmtQ(qHavePump)}`,
+          q: `P11011 è già a <strong class="flow-val">${fmtQ(qHavePump)} m³/h</strong>${hzBit}. `
+            + `Puoi scendere il <strong>chimico-fisico</strong> a ≤ <strong class="flow-val">${fmtQ(qSafeSamePumps)} m³/h</strong>?`,
+          yesHtml: `Ok: chimico → ≤ <strong class="flow-val">${fmtQ(qSafeSamePumps)} m³/h</strong>. P11011 resta ${fmtQ(qHavePump)}.`,
+          noHtml: noHtml || cfLowerNoHtml(qSafeSamePumps, "P11011 A/B", qHavePump),
+          hideAltOnNo: false,
+        };
+        forceAlt = false;
+      }
 
-      return {
+            return {
         ok: false,
         forecastHtml: `<div class="block-forecast is-bad"><strong>Blocco entro 8 ore</strong><br>${verdict}</div>`,
         verdict,
@@ -4955,11 +5075,13 @@
 
       let qMax = 334;
       try { qMax = getPumpMax(); } catch (_) { /* ok */ }
-      const qPumpTarget = round1(Math.max(ev.qEq20 || 0, ev.qEqPlant || 0));
-      const hzBit = hzBitForNeed(qPumpTarget);
-      const qHavePump = Math.max(ev.qPumpSp || 0, ev.pumpOn ? (ev.qOut || 0) : 0);
-      const anomalyPump = isAnomalousLowFlow(qHavePump, qPumpTarget, ev.qInSp);
-      const nearPump = isNearMissFlow(qHavePump, qPumpTarget);
+      const qPumpFloor = round1(Math.max(ev.qEq20 || 0, ev.qEqPlant || 0));
+      const pumpAdv = pumpStepAdvise(qPumpFloor);
+      const qPumpTarget = pumpAdv.q;
+      const hzBit = pumpAdv.bit;
+      const qHavePump = Math.max(liveFlowHave(ev.qPumpSp, "qPump"), ev.pumpOn ? (ev.qOut || 0) : 0);
+      const anomalyPump = isAnomalousLowFlow(qHavePump, qPumpFloor, ev.qInSp);
+      const nearPump = isNearMissFlow(qHavePump, qPumpFloor);
       const qSafe8h = maxQinSafeForHorizon(BLOCK_FORECAST_HORIZON, {
         qPump: Math.max(ev.qPumpSp || 0, ev.qOut || 0),
         qMand: Math.max(ev.qMandSp || 0, ev.qMandLive || 0),
@@ -5070,7 +5192,7 @@
             hideAltOnNo: false,
           };
         }
-      } else if (ev.deficit > 0.5) {
+      } else if (ev.deficit > 0.5 && !flowMeetsNeed(qHavePump, qPumpTarget)) {
         if (qPumpTarget > qMax + 0.05) {
           const qInMaxPlant = qInCapAtPump(qMax);
           forceAlt = true;
@@ -5109,15 +5231,27 @@
             hideAltOnNo: false,
           };
         }
-      } else {
+      } else if (!flowMeetsNeed(qHavePump, qPumpTarget)) {
         verdict = `Male: A10620 allo stop con portate quasi in pareggio `
           + `(IN ${fmtQ(ev.qInSp)} · P11011 ${fmtQ(ev.qPumpSp)}).`;
-        action = `Tieni <strong>P11011 ≥ <span class="fix-val">${fmtQ(qPumpTarget)} m³/h</span></strong>${hzBit}.`;
+        action = `Tieni <strong>P11011 ≥ <span class="flow-val">${pumpAdv.label}</span></strong>.`;
         alt = cfLowerNoHtml(qSafe8h, "P11011 A/B", ev.qPumpSp);
         ask = {
-          key: `near-${fmtQ(qPumpTarget)}`,
-          q: `Puoi alzare un filo le <strong>P11011</strong> a ≥ <strong class="fix-val">${fmtQ(qPumpTarget)} m³/h</strong>?`,
-          yesHtml: `Regola <strong>P11011 → <span class="fix-val">${fmtQ(qPumpTarget)} m³/h</span></strong>${hzBit}.`,
+          key: `near-${fmtQ(qPumpTarget)}-${fmtQ(qHavePump)}`,
+          q: `Puoi alzare un filo le <strong>P11011</strong> a ≥ <strong class="flow-val">${pumpAdv.label}</strong>?`,
+          yesHtml: `Regola <strong>P11011 → <span class="flow-val">${pumpAdv.label}</span></strong>.`,
+          noHtml: alt,
+          hideAltOnNo: false,
+        };
+      } else {
+        verdict = `Male: A10620 in blocco ma <strong>P11011 già a ${fmtQ(qHavePump)}</strong>${hzBit} — non serve alzarla.`;
+        action = `P11011 resta ${fmtQ(qHavePump)}. Se serve, scendi il chimico a ≤ <span class="flow-val">${fmtQ(qSafe8h)} m³/h</span>.`;
+        alt = cfLowerNoHtml(qSafe8h, "P11011 A/B", qHavePump);
+        ask = {
+          key: `near-cf-${fmtQ(qSafe8h)}-${fmtQ(qHavePump)}`,
+          q: `P11011 è già a <strong class="flow-val">${fmtQ(qHavePump)} m³/h</strong>. `
+            + `Puoi scendere il <strong>chimico</strong> a ≤ <strong class="flow-val">${fmtQ(qSafe8h)} m³/h</strong>?`,
+          yesHtml: `Ok: chimico → ≤ <strong class="flow-val">${fmtQ(qSafe8h)} m³/h</strong>. P11011 resta ${fmtQ(qHavePump)}.`,
           noHtml: alt,
           hideAltOnNo: false,
         };
