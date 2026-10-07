@@ -4083,6 +4083,7 @@
         rememberFlowSetpoint("qP11019", Q_P11019_MIN);
         if (!isEditing("qP11019")) setVal("qP11019", Q_P11019_MIN, { force: true });
         ensurePumpsFlowing();
+        try { ensureMembranesAutoMin(); } catch (_) { /* ok */ }
         applyBalance("ingresso");
         paintPumpColors();
         paintA10608Passante();
@@ -5910,6 +5911,22 @@
       };
     }
 
+    /** In Automatico: membrane al minimo tecnico (ceil(qIn/duty)) per tenere in marcia senza sforzarle. */
+    function ensureMembranesAutoMin() {
+      if (!isAutoMode()) return;
+      if (!deviceAutoControlled("membrane")) return;
+      if (isEditing("qMemTotale")) return;
+      const info = qMemMinTotaleForQin(Math.max(0, num("qIn")));
+      const qMin = roundMem(Math.max(0, info.qMemMin));
+      const cur = roundMem(Math.max(0, num("qMemTotale")));
+      if (Math.abs(cur - qMin) < 0.05) {
+        try { paintMemMinHint(); } catch (_) { /* ok */ }
+        return;
+      }
+      setVal("qMemTotale", qMin, { force: true });
+      setMemEqual(qMin);
+      try { paintMemMinHint(); } catch (_) { /* ok */ }
+    }
     function paintMemMinHint() {
       const hint = el("memMinHint");
       if (!hint) return;
@@ -7966,6 +7983,7 @@
           else commitFlow("qMandata", 0);
         }
       }
+      try { ensureMembranesAutoMin(); } catch (_) { /* ok */ }
       return q;
       } finally {
         if (!nested && !deferToStep) endFlowStep();
@@ -8989,10 +9007,8 @@
         // In sim NON riscrivere le portate membrane: restano il setpoint "tutte ON".
         // L'uscita effettiva scende da sola via sumMemsRunning (membrane in pausa = 0).
         if (deviceAutoControlled("membrane") && !editingMem && !simulating) {
-          const qPermTarget = roundMem(qInEff + scaricoExtra);
-          const totOnTarget = roundMem(dAvg > 0 ? qPermTarget / dAvg : qPermTarget);
-          setVal("qMemTotale", totOnTarget, { force: true });
-          setMemEqual(totOnTarget);
+          // Automatico: minimo tecnico vs chimico (non alzare per scarico — le pompe gestiscono lo svuotamento)
+          ensureMembranesAutoMin();
         }
 
         if (auto && pumpOn && !stillFillingToStop && (atHigh || atBlock) && !isEditing("qPump") && source !== "freq") {
