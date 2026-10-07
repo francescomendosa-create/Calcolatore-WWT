@@ -766,21 +766,21 @@
     .pipe-water-core.pipe-water-rec { stroke: #ffe4e6; }
     .pipe-water-core[data-flow-water="scar"] { stroke-width: 1.55; }
     .pipe-water-core.is-flowing {
-      opacity: 0.62;
+      opacity: 0.5;
       animation: pipe-water-glow 2s ease-in-out infinite;
     }
     /* Riflesso: banda luminosa sfocata che scorre (sembra liquido, non tratti) */
     .pipe-water-sheen {
-      stroke-width: 2.8;
+      stroke-width: 2.6;
       filter: url(#pipeWaterBlur);
     }
     .pipe-water-sheen.pipe-water-main { stroke: #f8fafc; }
     .pipe-water-sheen.pipe-water-rec { stroke: #fff5f5; }
     .pipe-water-sheen[data-flow-water="scar"] { stroke-width: 1.9; }
     .pipe-water-sheen.is-flowing {
-      opacity: 0.95;
-      stroke-dasharray: 55 160;
-      animation: pipe-water-sheen 1.15s linear infinite;
+      opacity: 0.85;
+      stroke-dasharray: 70 200;
+      animation: pipe-water-sheen 1.4s linear infinite;
     }
     @keyframes pipe-water-sheen { to { stroke-dashoffset: -270; } }
     @keyframes pipe-water-glow {
@@ -2028,7 +2028,7 @@
             <text x="809" y="408" text-anchor="middle" fill="#e2e8f0" font-size="7" font-weight="700" pointer-events="none">FILTRI</text>
             <text x="809" y="419" text-anchor="middle" fill="#e2e8f0" font-size="7" font-weight="700" pointer-events="none">CARB B</text>
           </g>
-          <!-- Ponte solo tra i filtri / verso UF — NON attraversa i carboni (l’acqua è nel dispositivo) -->
+          <!-- Ponte tra i filtri / verso UF — NON attraversa i carboni (acqua nel dispositivo) -->
           <path class="pipe pipe-main" data-flow="carb" d="M784 415 H774" />
           <path class="pipe pipe-main" data-flow="carb" d="M724 415 H688" />
         </g>
@@ -4058,19 +4058,37 @@
       }
     }
 
-    /**
-     * All'avvio: rampa COSMETICA __flowLive pompe da 0 → set (tween).
-     * I bilanci livello leggono __flowLive (non i campi setpoint).
-     * NON azzerare misure UF/osmosi: altrimenti valle senza portata reale ma UI “in marcia”.
-     */
+    /** All'avvio impianto: portate vive da 0, poi salgono lentamente al set. */
     function softStartPlantFlows() {
       cancelFlowTween();
       FLOW_IDS.forEach((id) => {
         __flowLive[id] = 0;
         __flowAnimFrom[id] = 0;
+        if (!isEditing(id)) {
+          setVal(id, 0, { force: true });
+          const sid = FLOW_SVG[id];
+          const node = sid ? el(sid) : null;
+          if (node) node.textContent = "0.0";
+        }
       });
       __qMemPermLive = 0;
       try { paintMemPermLive(0); } catch (_) { /* ignore */ }
+      UF_LINES.forEach((L) => {
+        __ufMeas[L] = 0;
+        __ufValvePct[L] = 0;
+        __ufMeasTarget[L] = 0;
+        __ufValveTarget[L] = 0;
+      });
+      OSM_LINES.forEach((L) => {
+        __osmMeas[L] = 0;
+        __osmValvePct[L] = 0;
+        __osmMeasTarget[L] = 0;
+        __osmValveTarget[L] = 0;
+      });
+      try { paintUfValveUI(); } catch (_) { /* ignore */ }
+      try { paintOsmValveUI(); } catch (_) { /* ignore */ }
+      try { paintUfSvgLive(); } catch (_) { /* ignore */ }
+      try { syncOsmosiSvg(); } catch (_) { /* ignore */ }
       try { paintPumpColors(); } catch (_) { /* ignore */ }
     }
 
@@ -8237,14 +8255,12 @@
       try { paintPipeFlowUI(vis11011, vis11036, vis11014, run11019); } catch (_) { /* ignore */ }
     }
 
-    /**
-     * Acqua in #pipeWaterLayer (sopra i casing, sotto niente “attraverso” i carboni:
-     * i path data-flow della valle si interrompono ai filtri).
-     */
+    /** Layer acqua: corpo + riflesso in #pipeWaterLayer (sopra i casing, leggibile anche laggiù). */
     function ensurePipeWaterLayers() {
       const layer = el("pipeWaterLayer");
       if (!layer) return;
-      const READY = "6";
+      const READY = "5";
+      // Una sola volta: ripulisci layer se nuova versione (path carboni senza attraversare i filtri)
       if (layer.getAttribute("data-water-ver") !== READY) {
         while (layer.firstChild) layer.removeChild(layer.firstChild);
         layer.setAttribute("data-water-ver", READY);
@@ -8290,6 +8306,7 @@
       } catch (_) {
         flowPerm = go && num("qMemTotale") > 0.5;
       }
+      // Scarichi → A11004: continuano anche a membrane ferme (stesso modo, se c’è mandata)
       const qMandLivePipe = Math.max(0, Number(__flowLive.qMandata) || num("qMandata") || 0);
       const qPermLivePipe = flowPerm
         ? Math.max(0, Number(__flowLive.qMemTotale) || num("qMemTotale") || 0)
@@ -8303,27 +8320,31 @@
       let flowUf = false;
       try {
         const qUfLive = typeof sumUfEffective === "function" ? sumUfEffective() : 0;
-        // Solo portata viva (misura), mai il solo setpoint — altrimenti tubi/UF “scorrono” a vuoto
-        flowUf = go && (qUfLive > 0.5 || qCarbToUfLive() > 0.5);
+        flowUf = go && (
+          qUfLive > 0.5
+          || num("qUfTotale") > 0.5
+          || procSetpointOf("qUfTotale") > 0.5
+          || qCarbToUfLive() > 0.5
+        );
       } catch (_) {
-        flowUf = false;
+        flowUf = go && (num("qUfTotale") > 0.5 || procSetpointOf("qUfTotale") > 0.5);
       }
       let flowOsmA = false;
       let flowOsmB = false;
       let flowOsmC = false;
       try {
-        // osmQinEffective = misura viva; feeding da solo non basta
-        flowOsmA = go && osmQinEffective("A") > 0.5;
-        flowOsmB = go && osmQinEffective("B") > 0.5;
-        flowOsmC = go && osmQinEffective("C") > 0.5;
+        flowOsmA = go && osmLineFeeding("A");
+        flowOsmB = go && osmLineFeeding("B");
+        flowOsmC = go && osmLineFeeding("C");
       } catch (_) {
-        flowOsmA = false;
-        flowOsmB = false;
-        flowOsmC = false;
+        flowOsmA = go && num("qOsmosiA") > 0.5;
+        flowOsmB = go && num("qOsmosiB") > 0.5;
+        flowOsmC = go && num("qOsmosiC") > 0.5;
       }
-      const q19LivePipe = Math.max(0, Number(__flowLive.qP11019) || 0);
-      // Valle: scorrimento tubi solo con portata viva P11019 (non col solo consenso pompe)
-      const flowValley = go && !!run11019 && q19LivePipe > 0.5;
+      // Valle TK-11007 → carboni → UF → osmosi: come le linee alte — se P11019 in marcia
+      // anima tutto il tratto (non pezzi spenti per set/misura a 0).
+      const flowValley = go && !!run11019;
+      const flowOsm = flowOsmA || flowOsmB || flowOsmC || flowValley;
       const map = {
         in: flowIn,
         p11: !!vis11011,
@@ -8334,10 +8355,10 @@
         p19: flowValley,
         carb: flowValley,
         uf: flowValley || flowUf,
-        osm: flowOsmA || flowOsmB || flowOsmC,
-        osmA: flowOsmA,
-        osmB: flowOsmB,
-        osmC: flowOsmC,
+        osm: flowOsm,
+        osmA: flowOsmA || flowValley,
+        osmB: flowOsmB || flowValley,
+        osmC: flowOsmC || flowValley,
       };
       Object.keys(map).forEach((key) => {
         const on = !!map[key];
@@ -8554,9 +8575,9 @@
       const qInSet = num("qIn");
       const qIn = qInEffective(qInSet);
       // Marcia/arresto SEMPRE da livelli (auto e manuale). In manuale il setpoint digitato resta nel campo.
-      // Portate VIVE (__flowLive) per i bilanci di livello — mai il desire/setpoint (altrimenti IN=OUT e livelli piatti).
-      const qPump = p11011Allowed() ? Math.max(0, Number(__flowLive.qPump) || 0) : 0;
-      const qMandata = __run11036 ? Math.max(0, Number(__flowLive.qMandata) || 0) : 0;
+      // Portate VIVE (rampa) per i bilanci di livello — non il target a scatto.
+      const qPump = p11011Allowed() ? Math.max(0, num("qPump")) : 0;
+      const qMandata = __run11036 ? Math.max(0, num("qMandata")) : 0;
       const liv20 = num("livelloAttuale");
       const liv11 = num("livelloAttualeA10611");
       let livH = numOrNull("livelloAttualeH");
@@ -8582,7 +8603,7 @@
       updateTk11021Interlocks(livU);
       updateTk11007PumpInterlocks(livP);
       applyP11019RunFromLevel();
-      const qP19 = qP11019PumpLive(); // viva __flowLive, non setpoint
+      const qP19 = Math.max(0, num("qP11019")); // viva (rampa) per bilanci TK
       // OUT osmosi da TK 11021: solo linee in marcia (isteresi P-11040 sul livello)
       updateOsmosiTk11021Interlocks(livU);
       if (deviceAutoControlled("osmosi")) {
@@ -10755,7 +10776,7 @@
       try { el("carbRow" + L)?.scrollIntoView({ block: "nearest", behavior: "smooth" }); } catch (_) { /* ok */ }
     }
 
-    /** Portata viva verso UF (dopo carboni). Serve per marcia/UI — non il solo setpoint. */
+    /** Portata verso UF: Impianto dopo carboni (meno eventuale lavaggio). */
     function ufInletAvailable() {
       if (!__allowUfByTk11021) return false;
       return qCarbToUfLive() > 0.05;
@@ -11274,7 +11295,6 @@
         if (badge) badge.setAttribute("stroke", deviceCol(off, runUf).stroke);
         const ufNode = document.querySelector(`g.node[data-uf-line="${L}"]`);
         const ufRow = el("ufRow" + L);
-        // Acqua nei corpi UF solo con portata viva reale (inletOk = qCarbToUfLive), non col solo set.
         if (off || (!runUf && !washBw)) {
           setWaterFlow(ufNode, false);
           setWaterFlow(ufRow, false);
@@ -13946,7 +13966,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt180", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt181", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
