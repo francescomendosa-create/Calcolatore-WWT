@@ -1,13 +1,19 @@
 /* Process Managed — service worker (force update mobile) */
-const CACHE = "process-managed-sw-v183";
+const CACHE = "process-managed-sw-v184";
 self.addEventListener("install", (e) => {
   e.waitUntil(self.skipWaiting());
 });
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
-    ).then(() => self.clients.claim())
+      Promise.all(keys.map((k) => caches.delete(k)))
+    ).then(() => self.clients.claim()).then(() =>
+      self.clients.matchAll({ type: "window" }).then((clients) => {
+        clients.forEach((c) => {
+          try { c.postMessage({ type: "WWT_SW_UPDATED", cache: CACHE }); } catch (_) { /* ok */ }
+        });
+      })
+    )
   );
 });
 self.addEventListener("fetch", (e) => {

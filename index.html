@@ -1616,7 +1616,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed</h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v184</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -8938,18 +8938,16 @@
 
     function simPlus5() {
       if (__simBusy) return;
-      // Qualsiasi avanzamento TIME: stop ai reaffirm che riportano i livelli a 90
       clearResetReaffirmTimers();
       __simBusy = true;
       updateSimTimeUI();
       try {
         if (__simMin === 0 && !__simSnap) {
-          forcePlantRunningBaseline();
-          paintResetLevelsUI(SIM_RESET_LIV);
+          // Solo interblocchi/pompe: NON riscrivere i livelli (restano quelli di Reset / utente)
+          __startupPumpHold = true;
+          if (!__runP11011By20) __runP11011By20 = true;
           if (isAutoMode()) ensurePumpsFlowing();
           applyBalance("sim");
-          forcePlantRunningBaseline();
-          paintResetLevelsUI(SIM_RESET_LIV);
           captureSimSnap();
         } else if (__simMin === 0) {
           if (isAutoMode()) ensurePumpsFlowing();
@@ -9049,19 +9047,8 @@
         console.warn("[calcolatore] reset persist", e);
       }
 
+      // Niente reaffirm ritardati: ripristinavano i livelli a 90/91 mentre Start era già partito.
       clearResetReaffirmTimers();
-      const reaffirm = () => {
-        // Se Start / TIME è già partito, NON riscrivere i livelli (era il bug: tutto fermo a 90/91)
-        if (__simPlaying || __simBusy || __simMin > 0) return;
-        forcePlantRunningBaseline();
-        paintResetLevelsUI(L);
-        paintPumpColors();
-        paintA10608Passante();
-        try { paintRegPreviewBar(); } catch (_) { /* ok */ }
-      };
-      [30, 200, 600, 1500, 3000].forEach((ms) => {
-        __resetReaffirmTimers.push(setTimeout(reaffirm, ms));
-      });
     }
 
     /** Se l’utente cambia i livelli di partenza, azzera la simulazione */
@@ -13969,9 +13956,25 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt183", { scope: "./" }).then(function (reg) {
+      var __wwtSwReloaded = false;
+      navigator.serviceWorker.addEventListener("message", function (ev) {
+        if (!ev || !ev.data || ev.data.type !== "WWT_SW_UPDATED") return;
+        if (__wwtSwReloaded) return;
+        __wwtSwReloaded = true;
+        try { location.reload(); } catch (_) { /* ok */ }
+      });
+      navigator.serviceWorker.register("sw.js?v=wwt184", { scope: "./", updateViaCache: "none" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
+        try {
+          if (reg.installing) {
+            reg.installing.addEventListener("statechange", function () {
+              if (reg.installing && reg.installing.state === "activated") {
+                if (!__wwtSwReloaded) { __wwtSwReloaded = true; location.reload(); }
+              }
+            });
+          }
+        } catch (_) { /* ok */ }
       }).catch(function () {});
     }
   </script>
