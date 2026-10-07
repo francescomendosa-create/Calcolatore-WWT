@@ -1626,7 +1626,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v189</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v190</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -3974,6 +3974,12 @@
         return round1(s);
       }
       if (id === "qRecycle") {
+        // In Automatico locale il set è sempre P11011 − ingresso (non un residuo manuale)
+        if (!deviceIsManual("riciclo")) {
+          const qp = flowSetpointOf("qPump");
+          const qIn = Math.max(0, num("qIn"));
+          return round1(Math.max(Q_RECYCLE_MIN, Math.max(0, qp - qIn)));
+        }
         let s = Math.max(0, Number(__flowSetpoint.qRecycle) || 0);
         if (s < 0.05) {
           const qp = flowSetpointOf("qPump");
@@ -4301,21 +4307,44 @@
           const qi = Math.max(0, num("qIn"));
           if (el("qIn") && qi >= 0) setVal("qIn", qi, { force: true });
         }
-      } else if (next === "auto" && dev === "ingresso") {
-        // Passa in Automatico: ora sì, allinea il chimico alla media membrane
-        try {
-          const de = dutyEffective();
-          const dAvg = de.dAvg != null ? de.dAvg : duty().d;
-          const totOn = Math.max(0, typeof sumMemsAllOn === "function" ? sumMemsAllOn() : num("qMemTotale"));
-          const qFromMem = round1(totOn * (dAvg > 0.05 ? dAvg : 0.875));
-          if (qFromMem > 0.05 && el("qIn") && !isEditing("qIn")) {
-            setVal("qIn", qFromMem, { force: true });
+      } else if (next === "auto") {
+        // Ripristina il valore di automatismo (non lasciare il set manuale)
+        if (dev === "ingresso") {
+          try {
+            const de = dutyEffective();
+            const dAvg = de.dAvg != null ? de.dAvg : duty().d;
+            const totOn = Math.max(0, typeof sumMemsAllOn === "function" ? sumMemsAllOn() : num("qMemTotale"));
+            const qFromMem = round1(totOn * (dAvg > 0.05 ? dAvg : 0.875));
+            if (qFromMem > 0.05 && el("qIn") && !isEditing("qIn")) {
+              setVal("qIn", qFromMem, { force: true });
+            }
+          } catch (_) { /* ok */ }
+        } else if (dev === "riciclo") {
+          const qp = flowSetpointOf("qPump");
+          const qIn = Math.max(0, num("qIn"));
+          const qRec = round1(Math.max(Q_RECYCLE_MIN, Math.max(0, qp - qIn)));
+          rememberFlowSetpoint("qRecycle", qRec);
+          if (el("qRecycle") && !isEditing("qRecycle")) setVal("qRecycle", qRec, { force: true });
+          const svgQRec = el("svgQRec");
+          if (svgQRec) svgQRec.textContent = String(Math.round(qRec));
+          const svgQRecSp = el("svgQRecSp");
+          if (svgQRecSp) svgQRecSp.textContent = String(Math.round(qRec));
+          paintRecycleEditableUI();
+        } else if (dev === "mandata") {
+          if (el("equiparaMandata") && isAutoMode()) {
+            el("equiparaMandata").checked = true;
+            if (el("qMandata")) el("qMandata").disabled = true;
           }
-        } catch (_) { /* ok */ }
-      } else if (dev === "mandata") {
-        if (el("equiparaMandata") && isAutoMode()) {
-          el("equiparaMandata").checked = true;
-          if (el("qMandata")) el("qMandata").disabled = true;
+        } else if (dev === "ultra") {
+          try { ensureCarboniMeetsUfDemand(); } catch (_) { /* ok */ }
+          try { syncUf("uf-totale"); } catch (_) { /* ok */ }
+        } else if (dev === "osmosi") {
+          try {
+            if (deviceAutoControlled("osmosi") || isAutoMode()) {
+              applyOsmosiAutoFlows(typeof permeateDemandOut === "function" ? permeateDemandOut() : 0);
+            }
+          } catch (_) { /* ok */ }
+          try { syncOsmosiSvg(); } catch (_) { /* ok */ }
         }
       }
       if (next === "auto" && isAutoMode() && (dev === "pompa" || dev === "mandata" || dev === "riciclo" || dev === "membrane")) {
@@ -12412,6 +12441,10 @@
       if (__inlineSuppressLive) return;
       if (!inlineCtx) return;
       const { field, source } = inlineCtx;
+      // In Automatico locale: il numpad NON scrive sul processo mentre digiti
+      // (evita che un "4" parziale rovini riciclo/UF e passi a manuale). Solo OK decide.
+      const liveDev = typeof devForFlowField === "function" ? devForFlowField(field) : "";
+      if (liveDev && !deviceIsManual(liveDev)) return;
       const raw = String(inlineInp.value ?? "").trim().replace(",", ".");
       if (raw === "" || raw === "-" || raw === "." ) return; // sta cancellando: non forzare
       const v = parseFloat(raw);
@@ -12539,7 +12572,7 @@
         if (flowEditBack) flowEditBack.classList.remove("show");
         return;
       }
-      const { field, source } = inlineCtx;
+      const { field, source, openVal } = inlineCtx;
       const raw = String(inlineInp.value ?? "").trim().replace(",", ".");
       const v = parseFloat(raw);
       inlineCtx = null;
@@ -12560,9 +12593,15 @@
         applyBalance(source === "riciclo-inline" ? "pompa" : source);
         return;
       }
-      // OK su set in Automatico locale → passa in Manuale (M in overview)
+      // Manuale solo se il valore è cambiato rispetto a quello aperto (overview/auto)
       const editDev = typeof devForFlowField === "function" ? devForFlowField(field) : "";
+      const changed = !Number.isFinite(openVal) || Math.abs(v - openVal) > 0.05;
       if (editDev && !deviceIsManual(editDev)) {
+        if (!changed) {
+          // OK senza modifiche: resta Automatico, nessun write spurio
+          try { paintDevModeUI(editDev); } catch (_) { /* ok */ }
+          return;
+        }
         setDevMode(editDev, "manual");
       }
       if (field === "qRecycle") {
@@ -12754,7 +12793,17 @@
           val = step.hz;
         }
       } else if (field === "qRecycle") {
-        val = flowSetpointOf(field);
+        // Seed = set overview (in Aut = P11011 − ingresso; in Man = setpoint manuale)
+        val = flowSetpointOf("qRecycle");
+        const spTxt = parseFloat(String(el("svgQRecSp")?.textContent || "").replace(",", "."));
+        const liveTxt = parseFloat(String(el("svgQRec")?.textContent || "").replace(",", "."));
+        if (!deviceIsManual("riciclo")) {
+          if (Number.isFinite(spTxt) && spTxt > 0.05) val = Math.round(spTxt);
+          else if (Number.isFinite(liveTxt) && liveTxt > 0.05) val = Math.round(liveTxt);
+          else val = Math.round(val);
+        } else if (Number.isFinite(spTxt) && spTxt >= 0) {
+          val = Math.round(spTxt);
+        }
       } else if (field === "qP11019") {
         // Seed = valore già in display (setpoint; se 0 resta 0)
         val = flowSetpointOf("qP11019");
@@ -12789,7 +12838,8 @@
       const seed = splitEdit
         ? formatFlowEditSeed(Number.isFinite(val) ? val : 0, step)
         : (step >= 1 ? String(Math.round(Number.isFinite(val) ? val : 0)) : String(Number.isFinite(val) ? round1(val) : 0));
-      inlineCtx = { field, source };
+      const openValNum = Number.isFinite(val) ? (step >= 1 ? Math.round(val) : round1(val)) : 0;
+      inlineCtx = { field, source, openVal: openValNum, openSeed: seed };
       __inlineSuppressLive = true;
       __flowEditGuardUntil = Date.now() + 450;
       const releaseLive = () => { __inlineSuppressLive = false; };
@@ -13281,7 +13331,7 @@
       });
     });
 
-    // Overview A/M: tap sulla lettera → Aut ↔ Man locale (quante volte vuoi)
+    // Overview A/M: tap sulla lettera → Aut ↔ Man locale (capture: non lo mangia il popup sotto)
     function toggleDevModeFromMark(node, e) {
       if (!node || !node.classList || !node.classList.contains("svg-man-mark")) return false;
       const dev = node.getAttribute("data-dev");
@@ -13295,7 +13345,12 @@
       return true;
     }
     document.querySelectorAll(".svg-man-mark[data-dev]").forEach((node) => {
-      node.addEventListener("click", (e) => { toggleDevModeFromMark(node, e); });
+      node.addEventListener("click", (e) => { toggleDevModeFromMark(node, e); }, true);
+      node.addEventListener("pointerdown", (e) => {
+        // blocca apertura flow-edit/popup sotto
+        e.stopPropagation();
+        if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
+      }, true);
       node.addEventListener("keydown", (e) => {
         if (e.key === "Enter" || e.key === " ") toggleDevModeFromMark(node, e);
       });
