@@ -15,6 +15,7 @@ Se l’utente dà un **volume** (o geometria da cui deriva V utile), è un dato 
 | **TK-10608** | `regTk10608Vutile` | **400 m³** |
 | **TK-11007** | `regTk11007Vutile` | **30 m³** (targa) |
 | **TK-11021** | `regTk11021Vutile` | **30 m³** (targa) |
+| **A11004 / 1 vaschetta MBR** | `regA11004Vutile` | **25 m³** (stimato: MBR comune = N×V; non usare la stima prove §3 ~200 m³) |
 
 La prova §5 sul 11007 può mostrare un V stimato a confronto: **non sostituisce** i 30 m³ di targa in processo.
 

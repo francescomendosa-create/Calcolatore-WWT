@@ -740,30 +740,45 @@
     .uf-valve-fill, .osm-valve-fill { fill: #22d3ee; }
     .uf-valve-fill.is-full, .osm-valve-fill.is-full { fill: #fbbf24; }
     .uf-valve-pct, .osm-valve-pct { fill: #cbd5e1; font: 700 7px "Segoe UI", sans-serif; }
-    .pipe { fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-    .pipe-main { stroke: #38bdf8; }
-    .pipe-rec { stroke: #fb7185; }
-    /* scorrimento acqua sulle tubazioni (pompe in marcia) */
-    .pipe.is-flowing {
-      stroke-dasharray: 14 9;
-      animation: pipe-flow 1.2s linear infinite;
-      filter: brightness(1.2);
+    /* Tubo (guscio) sempre visibile + acqua interna animata (layer .pipe-water) */
+    .pipe {
+      fill: none;
+      stroke-width: 5.2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
-    .pipe.pipe-rec.is-flowing {
-      filter: brightness(1.15);
+    .pipe-main { stroke: #0c4a6e; }
+    .pipe-rec { stroke: #4c0519; }
+    .pipe.is-wet.pipe-main { stroke: #155e75; }
+    .pipe.is-wet.pipe-rec { stroke: #9f1239; }
+    .pipe[data-flow="scar"] { stroke-width: 4.2; }
+    .pipe-water {
+      fill: none;
+      stroke-width: 2.35;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      pointer-events: none;
+      opacity: 0;
     }
-    .pipe.is-flowing-rev {
-      stroke-dasharray: 14 9;
-      animation: pipe-flow-rev 1.2s linear infinite;
-      filter: brightness(1.2);
+    .pipe-water-main { stroke: #67e8f9; }
+    .pipe-water-rec { stroke: #fda4af; }
+    .pipe-water[data-flow-water="scar"] { stroke-width: 1.75; }
+    /* Acqua densa (segmenti lunghi, gap stretti) — non il tratteggio scarso */
+    .pipe-water.is-flowing {
+      opacity: 1;
+      stroke-dasharray: 18 5;
+      animation: pipe-water-flow 0.75s linear infinite;
+      filter: drop-shadow(0 0 0.8px rgba(186, 230, 253, 0.85));
     }
-    @keyframes pipe-flow { to { stroke-dashoffset: -23; } }
-    @keyframes pipe-flow-rev { to { stroke-dashoffset: 23; } }
+    .pipe-water-rec.is-flowing {
+      filter: drop-shadow(0 0 0.8px rgba(253, 164, 175, 0.75));
+    }
+    @keyframes pipe-water-flow { to { stroke-dashoffset: -23; } }
     @media (prefers-reduced-motion: reduce) {
-      .pipe.is-flowing, .pipe.is-flowing-rev {
+      .pipe-water.is-flowing {
         animation: none;
         stroke-dasharray: none;
-        filter: brightness(1.1);
+        opacity: 0.92;
       }
     }
     .p11019-split {
@@ -1801,10 +1816,10 @@
             <rect class="mem-hit" x="880" y="88" width="34" height="36" rx="4" />
           </g>
           <!-- collettore scarichi → A11004 (solo scarichi, non mandata): cade da E F G H -->
-          <path class="pipe pipe-rec" data-flow="scar" d="M783 128 V140 H897 V128" fill="none" stroke-width="2.2" opacity="0.9" />
-          <path class="pipe pipe-rec" data-flow="scar" d="M821 128 V140" fill="none" stroke-width="2.2" opacity="0.9" />
-          <path class="pipe pipe-rec" data-flow="scar" d="M859 128 V140" fill="none" stroke-width="2.2" opacity="0.9" />
-          <path class="pipe pipe-rec" data-flow="scar" d="M840 140 H922" fill="none" stroke-width="2.2" />
+          <path class="pipe pipe-rec" data-flow="scar" d="M783 128 V140 H897 V128" fill="none" />
+          <path class="pipe pipe-rec" data-flow="scar" d="M821 128 V140" fill="none" />
+          <path class="pipe pipe-rec" data-flow="scar" d="M859 128 V140" fill="none" />
+          <path class="pipe pipe-rec" data-flow="scar" d="M840 140 H922" fill="none" />
           <polygon points="914,135 926,140 914,145" fill="#fb7185" />
           <!-- permeato: parte dalle membrane (lato destro) -->
           <path class="pipe pipe-main" data-flow="perm" d="M914 68 H930" />
@@ -2672,6 +2687,18 @@
           </label>
         </div>
         <p class="mini" id="regTk11021GeomHint">TK-11021: V utile 30 m³.</p>
+
+        <h4 style="margin-top:14px">MBR — vaschette A–G + A11004</h4>
+        <p class="mini">Volume di <strong>una vaschetta</strong> (A11004 = stessa taglia). MBR comune = N vaschette abilitate × V. Stima da prove §3 resta solo a confronto. Valori più bassi → livello più reattivo a mandata/permeato/riciclo.</p>
+        <div class="row">
+          <label><strong>Volume utile 1 vaschetta / A11004 (m³)</strong>
+            <input type="number" id="regA11004Vutile" min="1" max="500" step="0.1" value="25" inputmode="decimal" />
+          </label>
+          <label><strong>V MBR comune (N×vaschetta)</strong>
+            <input type="number" id="viewMbrVutile" readonly tabindex="-1" placeholder="—" />
+          </label>
+        </div>
+        <p class="mini" id="regMbrGeomHint">MBR: 1 vaschetta 25 m³ · comune ≈ 175 m³ (7×).</p>
       </div>
 
       <!-- 0b. Valvole regolazione portata UF / osmosi -->
@@ -6184,8 +6211,19 @@
       if (hint21) {
         hint21.textContent = `TK-11021: V utile ${String(round1(g21.V)).replace(".", ",")} m³ → ${r21.toFixed(2)} %/min ogni 100 m³/h di netto (IN UF − OUT osmosi). Attivo in processo.`;
       }
+      try {
+        const mbr = getMbrCommonVolume();
+        const viewMbr = el("viewMbrVutile");
+        if (viewMbr) viewMbr.value = String(round1(mbr.V));
+        const hintMbr = el("regMbrGeomHint");
+        if (hintMbr) {
+          const rM = ratePctPerMinFromVolume(100, mbr.V);
+          hintMbr.textContent = `MBR: 1 vaschetta ${round1(mbr.Vtray)} m³ · comune ${round1(mbr.V)} m³ (${mbr.n}×) → ${rM.toFixed(2)} %/min ogni 100 m³/h di netto in vaschetta. A11004 usa lo stesso V.`;
+        }
+      } catch (_) { /* ok */ }
       paintTk10608Passante();
       try { getTk11007Calib(); } catch (_) { /* ok */ }
+      try { paintMbrRicHCalibHints(); } catch (_) { /* ok */ }
       return { g20, g08, g07, g21 };
     }
 
@@ -6259,8 +6297,9 @@
     }
 
     /**
-     * Volume utile A11004 (una vaschetta) dalle prove REGOLAZIONI §3:
-     * rate %/min @ portata caratteristica riciclo → V = q × 100 / (60 × |rate|).
+     * Volume utile A11004 (una vaschetta): dato REGOLAZIONI §0 (default 25 m³).
+     * La stima da prove §3 resta in Vest (solo confronto) — non guida più il processo
+     * (altrimenti V≈200+ m³/vaschetta e il MBR si muove troppo lento).
      */
     function getA11004Volume() {
       const cal = getRicicloHCalib();
@@ -6269,8 +6308,11 @@
         (Math.abs(Number(cal.rateOn) || 0) + Math.abs(Number(cal.rateOff) || 0)) / 2
       );
       const qChar = Math.max(1, Number(cal.qRecRef) || 1);
-      const V = Math.max(1, (qChar * 100) / (60 * rateMag));
-      return { V, cal, rateMag, qChar };
+      const Vest = Math.max(1, (qChar * 100) / (60 * rateMag));
+      let V = numOrNull("regA11004Vutile");
+      if (V === null || !(V > 0.5)) V = 25;
+      V = Math.max(1, V);
+      return { V, Vest, cal, rateMag, qChar };
     }
 
     /**
@@ -6326,9 +6368,11 @@
         const calH = m.calH;
         const hintH = el("regRicHCalibHint");
         if (hintH && calH) {
-          hintH.textContent = `A11004 ≈ 1 vaschetta · V≈${round1(m.Vtray)} m³ (prove ${round1(calH.min)}′ · `
-            + `ON ${round1(calH.rateOn)} / OFF ${round1(calH.rateOff)} %/min · q riciclo rif. ${round1(calH.qRecRef)}). `
-            + `MBR comune = ${m.n}×V.`;
+          const hVol = getA11004Volume();
+          const vest = hVol.Vest != null ? round1(hVol.Vest) : "—";
+          hintH.textContent = `A11004 ≈ 1 vaschetta · V processo ${round1(m.Vtray)} m³`
+            + ` (stima prove ≈${vest} m³ · ${round1(calH.min)}′ · ON ${round1(calH.rateOn)} / OFF ${round1(calH.rateOff)} %/min). `
+            + `MBR comune = ${m.n}×V ≈ ${round1(m.V)} m³.`;
         }
       } catch (_) { /* ok */ }
     }
@@ -6428,15 +6472,22 @@
         return Math.max(-RATE_PCT_CLAMP_VOL, Math.min(RATE_PCT_CLAMP_VOL, rFill));
       }
 
-      const excess = Math.max(0, qIn - qOutPerm);
-      // Di norma ~10% resta in MBR; se A11004 non smaltisce (riciclo basso / H piena) resta di più
-      let retainFrac = 0.10;
-      if (backedUp) {
-        const wantToH = excess * 0.90;
-        const unsunk = Math.max(0, wantToH - qRec);
-        retainFrac = Math.min(0.85, 0.10 + (wantToH > 0.5 ? unsunk / Math.max(wantToH, 1) * 0.75 : 0.6));
+      // Bilancio: mandata − permeato − scarico→H.
+      // Se permeato > mandata il deficit svuota il MBR (netto negativo).
+      // Se mandata > permeato, ~90% dell’eccesso va ad A11004 e ~10% resta (più se H intasata).
+      const delta = qIn - qOutPerm;
+      let net;
+      if (delta >= 0) {
+        let retainFrac = 0.10;
+        if (backedUp) {
+          const wantToH = delta * 0.90;
+          const unsunk = Math.max(0, wantToH - qRec);
+          retainFrac = Math.min(0.85, 0.10 + (wantToH > 0.5 ? unsunk / Math.max(wantToH, 1) * 0.75 : 0.6));
+        }
+        net = delta * retainFrac;
+      } else {
+        net = delta; // svuotamento proporzionale alle portate
       }
-      const net = excess * retainFrac;
 
       const cycle = Math.max(0.2, cal.lavoro + cal.pausa);
       const fracPause = Math.max(0.05, cal.pausa / cycle);
@@ -8068,8 +8119,25 @@
       try { paintPipeFlowUI(vis11011, vis11036, vis11014, run11019); } catch (_) { /* ignore */ }
     }
 
-    /** Scorrimento tratteggiato sulle tubazioni overview quando c’è portata / pompe in marcia. */
+    /** Crea il layer acqua dentro ogni tubo (una sola volta). */
+    function ensurePipeWaterLayers() {
+      document.querySelectorAll("path.pipe[data-flow]").forEach((p) => {
+        if (p.dataset.waterReady === "1") return;
+        p.dataset.waterReady = "1";
+        const key = p.getAttribute("data-flow") || "";
+        const w = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        w.setAttribute("d", p.getAttribute("d") || "");
+        w.setAttribute("class", "pipe-water " + (p.classList.contains("pipe-rec") ? "pipe-water-rec" : "pipe-water-main"));
+        w.setAttribute("data-flow-water", key);
+        w.setAttribute("pointer-events", "none");
+        w.setAttribute("fill", "none");
+        p.insertAdjacentElement("afterend", w);
+      });
+    }
+
+    /** Tubo sempre visibile; acqua interna animata se portata / pompe in marcia. */
     function paintPipeFlowUI(vis11011, vis11036, vis11014, run11019) {
+      ensurePipeWaterLayers();
       const go = plantIsStarted();
       const qInLive = Math.max(0, num("qIn") || 0);
       const flowIn = go && qInLive > 0.5 && !!__chimicoAllowFill;
@@ -8079,7 +8147,7 @@
       } catch (_) {
         flowPerm = go && num("qMemTotale") > 0.5;
       }
-      const flowScar = flowPerm; // scarichi fanghi con membrane in produzione
+      const flowScar = flowPerm;
       let flowUf = false;
       try {
         flowUf = go && (num("qUfTotale") > 0.5 || qCarbToUfLive() > 0.5);
@@ -8105,9 +8173,12 @@
       };
       Object.keys(map).forEach((key) => {
         const on = !!map[key];
-        document.querySelectorAll(`[data-flow="${key}"]`).forEach((p) => {
-          p.classList.toggle("is-flowing", on);
-          p.classList.remove("is-flowing-rev");
+        document.querySelectorAll(`path.pipe[data-flow="${key}"]`).forEach((p) => {
+          p.classList.toggle("is-wet", on);
+          p.classList.remove("is-flowing", "is-flowing-rev");
+        });
+        document.querySelectorAll(`[data-flow-water="${key}"]`).forEach((w) => {
+          w.classList.toggle("is-flowing", on);
         });
       });
     }
@@ -12904,6 +12975,7 @@
     paintFlowModeUI();
     paintRecycleEditableUI();
     paintAllDevModeUI();
+    try { ensurePipeWaterLayers(); } catch (_) { /* ok */ }
     document.querySelectorAll(".dev-mode[data-dev]").forEach((root) => {
       if (root.id === "flowEditDevMode") return;
       const dev = root.getAttribute("data-dev");
@@ -12936,6 +13008,7 @@
       "regTk11007DnFrom", "regTk11007DnTo", "regTk11007DnMin", "regTk11007DnStopAllMin",
       "regTk11007Vutile",
       "regTk11021Vutile",
+      "regA11004Vutile",
       "regUfValveQ100", "regOsmValveQ100",
       "cicloLavoro", "cicloPausa",
     ].forEach((id) => {
@@ -13097,6 +13170,7 @@
       "regTk11007DnFrom", "regTk11007DnTo", "regTk11007DnMin", "regTk11007DnStopAllMin",
       "regTk11007Vutile",
       "regTk11021Vutile",
+      "regA11004Vutile",
       "regUfValveQ100", "regOsmValveQ100",
       "livelloAttualeH",
       "livelloAttualeMbr",
@@ -13620,7 +13694,7 @@
     try { keepScreenAwake(); } catch (_) { /* ok */ }
 
     if ("serviceWorker" in navigator && window.self === window.top) {
-      navigator.serviceWorker.register("sw.js?v=wwt157", { scope: "./" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt159", { scope: "./" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
       }).catch(function () {});
