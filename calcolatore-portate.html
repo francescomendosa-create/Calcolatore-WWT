@@ -792,6 +792,25 @@
       stroke-dasharray: 48 100;
       animation: pipe-water-sheen 0.85s linear infinite;
     }
+    /* Valle TK11007→osmosi: stesso effetto, un filo più soft (niente tubi nuovi) */
+    .pipe-water-core.is-flowing[data-flow-water="p19"],
+    .pipe-water-core.is-flowing[data-flow-water="carb"],
+    .pipe-water-core.is-flowing[data-flow-water="uf"],
+    .pipe-water-core.is-flowing[data-flow-water="osm"],
+    .pipe-water-core.is-flowing[data-flow-water="osmA"],
+    .pipe-water-core.is-flowing[data-flow-water="osmB"],
+    .pipe-water-core.is-flowing[data-flow-water="osmC"] {
+      opacity: 0.52;
+    }
+    .pipe-water-sheen.is-flowing[data-flow-water="p19"],
+    .pipe-water-sheen.is-flowing[data-flow-water="carb"],
+    .pipe-water-sheen.is-flowing[data-flow-water="uf"],
+    .pipe-water-sheen.is-flowing[data-flow-water="osm"],
+    .pipe-water-sheen.is-flowing[data-flow-water="osmA"],
+    .pipe-water-sheen.is-flowing[data-flow-water="osmB"],
+    .pipe-water-sheen.is-flowing[data-flow-water="osmC"] {
+      opacity: 0.78;
+    }
     @keyframes pipe-water-sheen { to { stroke-dashoffset: -148; } }
     @keyframes pipe-water-glow {
       0%, 100% { opacity: 0.5; }
@@ -1638,7 +1657,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v201</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v203</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -8598,14 +8617,17 @@
       try { paintPipeFlowUI(vis11011, vis11036, vis11014, run11019); } catch (_) { /* ignore */ }
     }
 
-    /** Chiavi valle (UF/carboni/osmosi): NESSUN overlay acqua — erano linee fantasma che comparivano/scomparivano. */
-    const PIPE_WATER_SKIP = { p19: 1, carb: 1, uf: 1, osm: 1, osmA: 1, osmB: 1, osmC: 1 };
+    /**
+     * Overlay acqua: clona SOLO i path.pipe già in schema (nessun tubo nuovo / bypass).
+     * Valle TK11007→P11019→carb→UF→osmosi inclusa (animazione soft).
+     */
+    const PIPE_WATER_SKIP = {};
 
-    /** Layer acqua: solo tubi alti (ingresso/pompe/mandata/riciclo/permeato/scarico). */
+    /** Layer acqua su tutti i tubi data-flow esistenti. */
     function ensurePipeWaterLayers() {
       const layer = el("pipeWaterLayer");
       if (!layer) return;
-      const READY = "9";
+      const READY = "10";
       if (layer.getAttribute("data-water-ver") !== READY) {
         while (layer.firstChild) layer.removeChild(layer.firstChild);
         layer.setAttribute("data-water-ver", READY);
@@ -8623,7 +8645,7 @@
         if (p.getAttribute("data-water-ready") === READY) return;
         p.setAttribute("data-water-ready", READY);
         const key = p.getAttribute("data-flow") || "";
-        if (PIPE_WATER_SKIP[key]) return; // niente cloni su UF / valle
+        if (PIPE_WATER_SKIP[key]) return;
         const kind = p.classList.contains("pipe-rec") ? "pipe-water-rec" : "pipe-water-main";
         const d = p.getAttribute("d") || "";
         if (!d) return;
@@ -8646,7 +8668,7 @@
       });
     }
 
-    /** Tubo sempre visibile; acqua animata solo sulle linee alte (non UF/valle). */
+    /** Tubo sempre visibile; acqua animata se la tratta è in marcia (anche valle, path esistenti). */
     function paintPipeFlowUI(vis11011, vis11036, vis11014, run11019) {
       ensurePipeWaterLayers();
       const go = plantIsStarted();
@@ -8664,10 +8686,31 @@
         : 0;
       let flowScar = false;
       try {
-        flowScar = go && mbrScaricoToH(qMandLivePipe, qPermLivePipe, null, numOrNull("livelloAttualeH")) > 0.5;
+        flowScar = go && mbrScaricoToH(qMandLivePipe, qPermLivePipe, null) > 0.5;
       } catch (_) {
         flowScar = go && (flowPerm || (!!vis11036 && qMandLivePipe > 0.5));
       }
+      const flowP19 = !!run11019;
+      let flowCarb = flowP19;
+      try {
+        const qCarb = typeof qCarbToUfProcess === "function" ? qCarbToUfProcess() : 0;
+        flowCarb = go && (flowP19 || qCarb > 0.5);
+      } catch (_) { /* ok */ }
+      let flowUf = false;
+      try {
+        flowUf = go && (typeof sumUfEffective === "function" ? sumUfEffective() : num("qUfTotale")) > 0.5;
+      } catch (_) {
+        flowUf = go && num("qUfTotale") > 0.5;
+      }
+      let flowOsmA = false;
+      let flowOsmB = false;
+      let flowOsmC = false;
+      try {
+        flowOsmA = go && typeof osmLineFeeding === "function" && osmLineFeeding("A");
+        flowOsmB = go && typeof osmLineFeeding === "function" && osmLineFeeding("B");
+        flowOsmC = go && typeof osmLineFeeding === "function" && osmLineFeeding("C");
+      } catch (_) { /* ok */ }
+      const flowOsm = flowOsmA || flowOsmB || flowOsmC;
       const map = {
         in: flowIn,
         p11: !!vis11011,
@@ -8675,14 +8718,13 @@
         rec: !!vis11014,
         scar: flowScar,
         perm: flowPerm,
-        // valle: nessun overlay (restano solo i tubi originali blu)
-        p19: false,
-        carb: false,
-        uf: false,
-        osm: false,
-        osmA: false,
-        osmB: false,
-        osmC: false,
+        p19: flowP19,
+        carb: flowCarb,
+        uf: flowUf,
+        osm: flowOsm,
+        osmA: flowOsmA,
+        osmB: flowOsmB,
+        osmC: flowOsmC,
       };
       Object.keys(map).forEach((key) => {
         const on = !!map[key];
@@ -8855,7 +8897,7 @@
 
     /** Ferma il conteggio automatico (il tempo resta dove è). */
     function simStop({ silent = false } = {}) {
-      if (!silent && __simPlaying) playCasioStop();
+      if (!silent && __simPlaying) playCasioClick();
       __simPlaying = false;
       if (__simPlayTimer) {
         clearInterval(__simPlayTimer);
