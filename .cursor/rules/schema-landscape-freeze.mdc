@@ -1,0 +1,20 @@
+---
+description: Schema impianto landscape v207 congelato — non modificare
+globs: calcolatore-portate.html,index.html
+alwaysApply: false
+---
+
+# Freeze schema landscape (v207)
+
+**Non toccare lo schema landscape.** Build di riferimento: **v207** = layout orizzontale “perfetto”.
+
+## Intoccabile in `html.layout-landscape`
+- Coordinate SVG, path, pompe, A10620, tubi
+- `preserveAspectRatio="none"` sullo SVG schema
+- Stili `.sketch` / `.sketch svg` che valgono in landscape (regole senza `html:not(.layout-landscape)`)
+
+## Solo portrait
+Modifiche allo schema in verticale: solo CSS sotto `html:not(.layout-landscape)` e toggle `preserveAspectRatio` in `syncLayoutMode()` (meet in portrait, none in landscape).
+
+## Se landscape si rompe
+Rollback immediato alle sole modifiche portrait; ripristinare comportamento v207 in orizzontale.
