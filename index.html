@@ -792,6 +792,25 @@
       stroke-dasharray: 48 100;
       animation: pipe-water-sheen 0.85s linear infinite;
     }
+    /* Valle: stesso meccanismo linee alte, un filo più soft sui pezzi corti */
+    .pipe-water-core.is-flowing[data-flow-water="p19"],
+    .pipe-water-core.is-flowing[data-flow-water="carb"],
+    .pipe-water-core.is-flowing[data-flow-water="uf"],
+    .pipe-water-core.is-flowing[data-flow-water="osm"],
+    .pipe-water-core.is-flowing[data-flow-water="osmA"],
+    .pipe-water-core.is-flowing[data-flow-water="osmB"],
+    .pipe-water-core.is-flowing[data-flow-water="osmC"] {
+      opacity: 0.52;
+    }
+    .pipe-water-sheen.is-flowing[data-flow-water="p19"],
+    .pipe-water-sheen.is-flowing[data-flow-water="carb"],
+    .pipe-water-sheen.is-flowing[data-flow-water="uf"],
+    .pipe-water-sheen.is-flowing[data-flow-water="osm"],
+    .pipe-water-sheen.is-flowing[data-flow-water="osmA"],
+    .pipe-water-sheen.is-flowing[data-flow-water="osmB"],
+    .pipe-water-sheen.is-flowing[data-flow-water="osmC"] {
+      opacity: 0.78;
+    }
     @keyframes pipe-water-sheen { to { stroke-dashoffset: -148; } }
     @keyframes pipe-water-glow {
       0%, 100% { opacity: 0.5; }
@@ -1638,7 +1657,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v204</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v205</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -8598,45 +8617,18 @@
       try { paintPipeFlowUI(vis11011, vis11036, vis11014, run11019); } catch (_) { /* ignore */ }
     }
 
-    /**
-     * Pezzi valle corti: niente clone (facevano solo lampeggio).
-     * Spine continue SOLO nel layer acqua (= stesso effetto linee alte, zero tubi schema nuovi).
-     */
-    const PIPE_WATER_SKIP = { p19: 1, carb: 1, uf: 1, osm: 1, osmA: 1, osmB: 1, osmC: 1 };
-    /** Tracciati acqua valle (coordinate = percorso schema; non sono path.pipe). */
-    const PIPE_WATER_SPINES = [
-      { key: "p19", d: "M940 415 H834" },
-      { key: "carb", d: "M834 415 H688" },
-      { key: "uf", d: "M688 415 H484" },
-      { key: "osm", d: "M420 415 H300" },
-      { key: "osmA", d: "M300 348 H100" },
-      { key: "osmB", d: "M300 415 H100" },
-      { key: "osmC", d: "M300 482 H100" },
-    ];
+    /** Nessuno skip: overlay solo sui path.pipe già in schema (niente spine / bypass carboni). */
+    const PIPE_WATER_SKIP = {};
 
-    function mkPipeWaterPath(d, key, extra, kind) {
-      const w = document.createElementNS("http://www.w3.org/2000/svg", "path");
-      w.setAttribute("d", d);
-      w.setAttribute("class", "pipe-water " + extra + " " + kind);
-      w.setAttribute("data-flow-water", key);
-      w.setAttribute("pointer-events", "none");
-      w.setAttribute("fill", "none");
-      w.setAttribute("stroke-linecap", "round");
-      w.setAttribute("stroke-linejoin", "round");
-      if (kind === "pipe-water-rec") w.setAttribute("stroke", extra.includes("sheen") ? "#fff5f5" : "#ffe4e6");
-      else w.setAttribute("stroke", extra.includes("sheen") ? "#f8fafc" : "#e0f2fe");
-      w.setAttribute("stroke-width", extra.includes("sheen") ? "2.8" : "2.2");
-      return w;
-    }
-
-    /** Layer acqua: cloni tubi alti + spine continue valle. */
+    /** Layer acqua: clona i tubi esistenti (nessun tracciato inventato). */
     function ensurePipeWaterLayers() {
       const layer = el("pipeWaterLayer");
       if (!layer) return;
-      const READY = "11";
+      const READY = "12";
       if (layer.getAttribute("data-water-ver") !== READY) {
         while (layer.firstChild) layer.removeChild(layer.firstChild);
         layer.setAttribute("data-water-ver", READY);
+        layer.removeAttribute("data-valley-spines");
         document.querySelectorAll("path.pipe[data-flow]").forEach((p) => {
           p.removeAttribute("data-water-ready");
           let n = p.nextElementSibling;
@@ -8655,20 +8647,26 @@
         const kind = p.classList.contains("pipe-rec") ? "pipe-water-rec" : "pipe-water-main";
         const d = p.getAttribute("d") || "";
         if (!d) return;
-        layer.appendChild(mkPipeWaterPath(d, key, "pipe-water-core", kind));
-        layer.appendChild(mkPipeWaterPath(d, key, "pipe-water-sheen", kind));
+        const mk = (extra) => {
+          const w = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          w.setAttribute("d", d);
+          w.setAttribute("class", "pipe-water " + extra + " " + kind);
+          w.setAttribute("data-flow-water", key);
+          w.setAttribute("pointer-events", "none");
+          w.setAttribute("fill", "none");
+          w.setAttribute("stroke-linecap", "round");
+          w.setAttribute("stroke-linejoin", "round");
+          if (kind === "pipe-water-rec") w.setAttribute("stroke", extra.includes("sheen") ? "#fff5f5" : "#ffe4e6");
+          else w.setAttribute("stroke", extra.includes("sheen") ? "#f8fafc" : "#e0f2fe");
+          w.setAttribute("stroke-width", extra.includes("sheen") ? "2.8" : "2.2");
+          return w;
+        };
+        layer.appendChild(mk("pipe-water-core"));
+        layer.appendChild(mk("pipe-water-sheen"));
       });
-      if (layer.getAttribute("data-valley-spines") !== READY) {
-        layer.setAttribute("data-valley-spines", READY);
-        PIPE_WATER_SPINES.forEach((sp) => {
-          if (!sp.d) return;
-          layer.appendChild(mkPipeWaterPath(sp.d, sp.key, "pipe-water-core", "pipe-water-main"));
-          layer.appendChild(mkPipeWaterPath(sp.d, sp.key, "pipe-water-sheen", "pipe-water-main"));
-        });
-      }
     }
 
-    /** Tubo schema invariato; acqua = stesso effetto linee alte (spine valle continue). */
+    /** Acqua solo sui tubi già disegnati; valle = pezzi corti esistenti (no bypass carboni). */
     function paintPipeFlowUI(vis11011, vis11036, vis11014, run11019) {
       ensurePipeWaterLayers();
       const go = plantIsStarted();
@@ -8690,28 +8688,25 @@
       } catch (_) {
         flowScar = go && (flowPerm || (!!vis11036 && qMandLivePipe > 0.5));
       }
-      // Valle: on stabile da pompe/set (niente on/off da misure che oscillano → niente lampeggio)
       const flowP19 = !!run11019;
-      const flowCarb = flowP19;
-      let flowUf = flowP19;
+      let flowCarb = flowP19;
       try {
-        if (go && num("qUfTotale") > 0.5) flowUf = true;
-        if (go && typeof sumUfEffective === "function" && sumUfEffective() > 0.5) flowUf = true;
+        const qCarb = typeof qCarbToUfProcess === "function" ? qCarbToUfProcess() : 0;
+        flowCarb = go && (flowP19 || qCarb > 0.5);
       } catch (_) { /* ok */ }
+      let flowUf = false;
+      try {
+        flowUf = go && (typeof sumUfEffective === "function" ? sumUfEffective() : num("qUfTotale")) > 0.5;
+      } catch (_) {
+        flowUf = go && num("qUfTotale") > 0.5;
+      }
       let flowOsmA = false;
       let flowOsmB = false;
       let flowOsmC = false;
       try {
-        const osmOn = (L) => {
-          if (!go) return false;
-          if (typeof osmLineFeeding === "function" && osmLineFeeding(L)) return true;
-          if (typeof osmLineEnabled === "function" && !osmLineEnabled(L)) return false;
-          const q = typeof osmQinEffective === "function" ? osmQinEffective(L) : num("qOsmosi" + L);
-          return q > 0.5;
-        };
-        flowOsmA = osmOn("A");
-        flowOsmB = osmOn("B");
-        flowOsmC = osmOn("C");
+        flowOsmA = go && typeof osmLineFeeding === "function" && osmLineFeeding("A");
+        flowOsmB = go && typeof osmLineFeeding === "function" && osmLineFeeding("B");
+        flowOsmC = go && typeof osmLineFeeding === "function" && osmLineFeeding("C");
       } catch (_) { /* ok */ }
       const flowOsm = flowOsmA || flowOsmB || flowOsmC;
       const map = {
