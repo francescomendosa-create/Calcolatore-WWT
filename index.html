@@ -1751,7 +1751,7 @@
           <!-- vasca aperta rettangolare (stesso ingombro dell’ellisse 100×52) -->
           <path class="tank-body" id="svgTank20" d="M220 76 L220 123 Q220 126 223 126 L315 126 Q318 126 318 123 L318 76" fill="#0f172a" stroke="#64748b" stroke-width="1.8" stroke-linecap="square" stroke-linejoin="round" />
           <rect id="svgTank20liq" x="219" y="74" width="100" height="52" fill="#22c55e" clip-path="url(#clipTank20)" opacity="0.9" />
-          <text x="269" y="70" text-anchor="middle" fill="#bbf7d0" font-size="11" font-weight="700">A10620</text>
+          <text x="269" y="76" text-anchor="middle" fill="#bbf7d0" font-size="11" font-weight="700">A10620</text>
           <text x="269" y="108" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700" id="svgLiv">63.8%</text>
           <!-- pompa a destra verso 10608 — click → numpad portata (non popup serbatoio) -->
           <g class="flow-edit" data-field="qPump" data-source="pompa" aria-label="P11011 A/B portata">
@@ -9673,7 +9673,7 @@
       // Liquido dinamico nei serbatoi (altezza = livello %) — TK-10608 escluso (solo passante)
       const rate20 = rateA10620PctPerMin(qIn, qPump, qRecycle);
       const rate11Show = rate11;
-      setRectLiquid("svgTank20liq", 235, 74, 100, 52, liv20, r20.atBlock);
+      setRectLiquid("svgTank20liq", 219, 74, 100, 52, liv20, r20.atBlock);
       setTankLiquid("svgTank11liq", 630, 100, 48, 25, liv11, r11.atBlock);
       paintA10608Passante();
 
