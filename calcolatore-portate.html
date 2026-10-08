@@ -1638,7 +1638,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v200</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v201</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -3740,6 +3740,8 @@
     };
     /** Ultimo setpoint UF di automatismo (Impianto/carboni) — per seed numpad e ritorno Aut. */
     let __ufAutoTotSp = 0;
+    /** Ultimo totale MBR di automatismo (qIn/duty) — seed numpad e ritorno Aut istantaneo. */
+    let __memAutoTotSp = 0;
     /** Rampa portata viva: breve (parte lenta → subito a regime). */
     const FLOW_RAMP_MS = 850;
     const FLOW_RAMP_MS_MIN = 650;
@@ -4348,6 +4350,10 @@
       if (next === "manual") {
         // Congela le portate attuali del dispositivo come setpoint manuale
         if (dev === "membrane") {
+          try {
+            const autoSnap = membraneAutoTargetTot();
+            if (autoSnap > 0.05) __memAutoTotSp = autoSnap;
+          } catch (_) { /* ok */ }
           const tot = Math.max(0, sumMemsAllOn());
           if (tot > 0.05) setVal("qMemTotale", tot, { force: true });
         } else if (dev === "ultra") {
@@ -4435,25 +4441,8 @@
             syncOpenFlowEditValue("qMandata", qM);
           } catch (_) { /* ok */ }
         } else if (dev === "membrane") {
-          // Come P11011: Aut → subito totale auto (anche numpad aperto)
-          try {
-            const de = dutyEffective();
-            const dAvg = de.dAvg != null ? de.dAvg : duty().d;
-            const qIn = Math.max(0, num("qIn"));
-            let totOn = roundMem(dAvg > 0.05 ? qIn / dAvg : qIn);
-            const qMin = roundMem(Math.max(0, qMemMinTotaleForQin(qIn).qMemMin));
-            if (totOn < qMin) totOn = qMin;
-            if (totOn > 0.05) {
-              rememberFlowSetpoint("qMemTotale", totOn);
-              setVal("qMemTotale", totOn, { force: true });
-              setMemEqual(totOn);
-              const svgSp = el("svgQMemSp");
-              if (svgSp) svgSp.textContent = String(totOn);
-              try { kickMemPermTween(totOn); } catch (_) { /* ok */ }
-              syncOpenFlowEditValue("qMemTotale", totOn);
-              try { paintMemMinHint(); } catch (_) { /* ok */ }
-            }
-          } catch (_) { /* ok */ }
+          // Come P11011: Aut → subito totale auto (anche numpad aperto / impianto in marcia)
+          try { applyMembraneAutoTot(); } catch (_) { /* ok */ }
         } else if (dev === "ultra") {
           try {
             let q = ufAutoTargetTotal();
@@ -4488,10 +4477,18 @@
       }
       if (next === "auto" && isAutoMode() && (dev === "pompa" || dev === "mandata" || dev === "riciclo" || dev === "membrane")) {
         try { ensurePumpsFlowing({ instant: true, forceUi: true }); } catch (_) { /* ok */ }
-        try { ensureMembranesAutoMin({ forceUi: true }); } catch (_) { /* ok */ }
+        if (dev !== "membrane") {
+          try { ensureMembranesAutoMin({ forceUi: true }); } catch (_) { /* ok */ }
+        }
       }
-      const balSrc = ({ membrane: "membrana", ultra: "ultra", osmosi: "osmosi", riciclo: "pompa", pompa: "pompa", mandata: "mandata", ingresso: "ingresso" })[dev] || "pompa";
+      // Membrane→Aut: "ciclo" riseeda da chimico/duty anche a impianto in marcia (non "membrana")
+      const balSrc = (next === "auto" && dev === "membrane")
+        ? "ciclo"
+        : (({ membrane: "membrana", ultra: "ultra", osmosi: "osmosi", riciclo: "pompa", pompa: "pompa", mandata: "mandata", ingresso: "ingresso" })[dev] || "pompa");
       applyBalance(balSrc);
+      if (next === "auto" && dev === "membrane") {
+        try { applyMembraneAutoTot(); } catch (_) { /* ok */ }
+      }
       try { scheduleRegPreview({ immediate: true, userChange: true }); } catch (_) { /* ok */ }
       try { schedulePersist(); } catch (_) { /* persist può non essere ancora definito in teoria */ }
     }
@@ -4574,8 +4571,10 @@
         }
         ensurePumpsFlowing({ instant: true });
         try { ensureMembranesAutoMin(); } catch (_) { /* ok */ }
+        try { applyMembraneAutoTot(); } catch (_) { /* ok */ }
         try { ensureCarboniMeetsUfDemand(); } catch (_) { /* ok */ }
         applyBalance("ingresso");
+        try { applyMembraneAutoTot(); } catch (_) { /* ok */ }
         paintPumpColors();
         paintA10608Passante();
         paintAllDevModeUI();
@@ -6679,6 +6678,44 @@
         qMemMin: Math.max(0, Math.ceil(qIn / d)),
         qMediaMin: roundMem(qIn),
       };
+    }
+
+    /** Totale MBR automatico: capacità tutte-ON = chimico / duty medio (≥ minimo tecnico). */
+    function membraneAutoTargetTot() {
+      const de = typeof dutyEffective === "function" ? dutyEffective() : { dAvg: 0.875 };
+      const dAvg = de.dAvg != null ? de.dAvg : (typeof duty === "function" ? duty().d : 0.875);
+      const qIn = Math.max(0, num("qIn"));
+      let tot = roundMem(dAvg > 0.05 ? qIn / dAvg : qIn);
+      let qMin = 0;
+      try { qMin = roundMem(Math.max(0, qMemMinTotaleForQin(qIn).qMemMin)); } catch (_) { qMin = 0; }
+      if (tot < qMin) tot = qMin;
+      if (tot < 0.05 && __memAutoTotSp > 0.05) tot = roundMem(__memAutoTotSp);
+      return Math.max(0, tot);
+    }
+
+    /** Applica subito il totale auto (campo + linee + SET + numpad aperto). */
+    function applyMembraneAutoTot() {
+      const totOn = membraneAutoTargetTot();
+      if (!(totOn > 0.05)) return 0;
+      __memAutoTotSp = totOn;
+      setVal("qMemTotale", totOn, { force: true });
+      try { setMemEqual(totOn); } catch (_) { /* ok */ }
+      const svgSp = el("svgQMemSp");
+      if (svgSp) svgSp.textContent = String(totOn);
+      // Schema: SET istantaneo; misura viva solo a impianto fermo (in marcia resta il ciclo)
+      if (!__simPlaying && !__simBusy) {
+        try { paintMemPermLive(totOn); } catch (_) { /* ok */ }
+      }
+      if (inlineCtx && inlineCtx.field === "qMemTotale" && inlineInp) {
+        const seed = String(totOn);
+        inlineInp.value = seed;
+        inlineCtx.openVal = totOn;
+        inlineCtx.openSeed = seed;
+        __flowNumpadFresh = true;
+      }
+      try { syncOpenFlowEditValue("qMemTotale", totOn); } catch (_) { /* ok */ }
+      try { paintMemMinHint(); } catch (_) { /* ok */ }
+      return totOn;
     }
 
     /**
@@ -10101,13 +10138,20 @@
           setMemEqual(totOn);
         }
 
-        if (deviceAutoControlled("membrane") && !simulating) {
-          // Solo a freddo (non in sim): bilancia capacità tutte-ON col duty medio
-          if (source === "ingresso" || source === "ciclo") {
-            const totOn = dAvg > 0 ? qIn / dAvg : qIn;
-            setVal("qMemTotale", totOn);
+        // Riseed totale MBR da chimico/duty: "ciclo"/"mem-auto" anche a impianto in marcia (ritorno Aut numpad)
+        if (deviceAutoControlled("membrane")
+          && (source === "ciclo" || source === "mem-auto" || (source === "ingresso" && !simulating))) {
+          const totOn = membraneAutoTargetTot();
+          if (totOn > 0.05) {
+            __memAutoTotSp = totOn;
+            setVal("qMemTotale", totOn, { force: true });
             setMemEqual(totOn);
-          } else if (source === "totale") {
+            const svgSp = el("svgQMemSp");
+            if (svgSp) svgSp.textContent = String(totOn);
+            syncOpenFlowEditValue("qMemTotale", totOn);
+          }
+        } else if (deviceAutoControlled("membrane") && !simulating) {
+          if (source === "totale") {
             const totOn = qTotRaw === null ? num("qMemTotale") : qTotRaw;
             // Chimico Manuale: non toccare qIn. Solo se ingresso è Automatico.
             if (deviceAutoControlled("ingresso") && !isEditing("qIn")) {
@@ -10588,7 +10632,10 @@
         const svgQMemSp = el("svgQMemSp");
         if (svgQMemSp) {
           let memSp = 0;
-          try { memSp = Math.max(0, flowSetpointOf("qMemTotale") || num("qMemTotale") || 0); } catch (_) {
+          try {
+            memSp = Math.max(0, num("qMemTotale") || 0, Number(__memAutoTotSp) || 0);
+            if (deviceAutoControlled("membrane")) memSp = Math.max(memSp, membraneAutoTargetTot());
+          } catch (_) {
             memSp = Math.max(0, num("qMemTotale") || 0);
           }
           svgQMemSp.textContent = String(roundMem(memSp));
@@ -13131,8 +13178,12 @@
         val = Math.max(
           0,
           num("qMemTotale") || 0,
-          parseFloat(String(el("svgQMemSp")?.textContent || "").replace(",", ".")) || 0
+          parseFloat(String(el("svgQMemSp")?.textContent || "").replace(",", ".")) || 0,
+          Number(__memAutoTotSp) || 0
         );
+        if (!deviceIsManual("membrane")) {
+          try { val = Math.max(val, membraneAutoTargetTot()); } catch (_) { /* ok */ }
+        }
       } else {
         val = num(field);
       }
