@@ -1626,7 +1626,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v193</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v194</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -3143,7 +3143,7 @@
           </label>
         </div>
         <p class="mini">Svuotamento: membrane ON/OFF. Riempimento: MP 11036 A/B fermano a stop (92%) e ripartono a start (85%), se anche A10611 è OK.</p>
-        <p class="mini" id="mbrFillBalanceHint">Bilancio MBR: mandata IN − permeato OUT − scarico→A11004 (~90% eccesso, anche a membrane ferme). Il riciclo 11014 aspira solo A11004.</p>
+        <p class="mini" id="mbrFillBalanceHint">Bilancio MBR: mandata IN − permeato OUT − scarico→A11004 (~85% eccesso, anche a membrane ferme). Il riciclo 11014 aspira solo A11004.</p>
         <div class="row" style="margin-top:8px">
           <label><strong>Start riemp. TK 11007 %</strong>
             <input type="number" id="viewStartRiempTk11007b" readonly placeholder="—" inputmode="decimal" />
@@ -3685,6 +3685,9 @@
     const Q_FREQ_MIN = 42; // Automatico: minimo processo P11011
     const Q_FREQ_ABS_MIN = 0; // Manuale: puoi impostare anche sotto 42 Hz
     const Q_RECYCLE_MIN = 100; // Automatico: riciclo fanghi minimo (P11011 − ingresso)
+    /** Scarico MBR → A11004: frazione dell’eccesso (mandata − permeato). Was 0.90; step soft 0.85 → meno verso 11004, più ritenzione MBR. */
+    const MBR_SCARICO_TO_H_FRAC = 0.85;
+    const MBR_RETAIN_FRAC = 1 - MBR_SCARICO_TO_H_FRAC; // 0.15
     const Q_P11019_DEFAULT = 140; // avvio / set vuoto
     const Q_P11019_MAX = 165;     // tetto set pompe (non si supera)
     /** @deprecated alias di Q_P11019_DEFAULT (retrocompat) */
@@ -6713,7 +6716,7 @@
 
     /**
      * Livello MBR: volume = N vaschette.
-     * Scarico → A11004 sempre nello stesso modo: ~90% dell’eccesso (mandata − permeato).
+     * Scarico → A11004: MBR_SCARICO_TO_H_FRAC dell’eccesso (mandata − permeato).
      * Membrane ferme (permeato 0): l’eccesso = mandata → scarico continua verso A11004
      * (non si chiude la comunicazione). Il riciclo 11014 aspira da A11004, non dalle vaschette.
      */
@@ -6727,15 +6730,15 @@
       const backedUp = !!opts.backedUp;
 
       // Stesso bilancio in estrazione e a membrane ferme:
-      // mandata − permeato − scarico→H (~90% dell’eccesso positivo).
+      // mandata − permeato − scarico→H (frazione eccesso positivo).
       const delta = qIn - qOutPerm;
       let net;
       if (delta >= 0) {
-        let retainFrac = 0.10;
+        let retainFrac = MBR_RETAIN_FRAC;
         if (backedUp) {
-          const wantToH = delta * 0.90;
+          const wantToH = delta * MBR_SCARICO_TO_H_FRAC;
           const unsunk = Math.max(0, wantToH - qRec);
-          retainFrac = Math.min(0.85, 0.10 + (wantToH > 0.5 ? unsunk / Math.max(wantToH, 1) * 0.75 : 0.6));
+          retainFrac = Math.min(0.85, MBR_RETAIN_FRAC + (wantToH > 0.5 ? unsunk / Math.max(wantToH, 1) * 0.75 : 0.6));
         }
         net = delta * retainFrac;
       } else {
@@ -6753,14 +6756,14 @@
     }
 
     /**
-     * Scarico MBR → A11004 (m³/h): sempre ~90% di max(0, mandata − permeato).
-     * Membrane ferme → permeato 0 → scarico ≈ 90% mandata (stesso modo di quando estraggono).
+     * Scarico MBR → A11004 (m³/h): MBR_SCARICO_TO_H_FRAC di max(0, mandata − permeato).
+     * Membrane ferme → permeato 0 → scarico ≈ frazione × mandata (stesso modo di quando estraggono).
      */
     function mbrScaricoToH(qMandata, qPerm, livMbrOpt) {
       const qM = Math.max(0, Number(qMandata) || 0);
       const qP = Math.max(0, Number(qPerm) || 0);
       const excess = Math.max(0, qM - qP);
-      return round1(excess * 0.90);
+      return round1(excess * MBR_SCARICO_TO_H_FRAC);
     }
 
     /** Minuti stimati da livello attuale → stop riempimento MBR (11036 fermano). null se non sale. */
@@ -6796,7 +6799,7 @@
       else etaTxt = `≈ <strong>${eta} min</strong> per arrivare a stop riemp. ${fmtPct(stopV)} (11036 stop)`;
       hint.innerHTML = (fermi
         ? `<strong>Membrane FERME</strong> (OUT permeato 0). Mandata IN <strong class="flow-val">${fmtQ(qM)}</strong> → `
-          + `scarico→A11004 ≈ <strong>${fmtQ(qH)}</strong> (stesso modo: ~90% eccesso) · resta in MBR ≈ ${fmtQ(qM * 0.10)}. `
+          + `scarico→A11004 ≈ <strong>${fmtQ(qH)}</strong> (stesso modo: ~${Math.round(MBR_SCARICO_TO_H_FRAC * 100)}% eccesso) · resta in MBR ≈ ${fmtQ(qM * MBR_RETAIN_FRAC)}. `
           + `<em>11014 aspira solo A11004</em>, non le vaschette. `
         : `Membrane in estrazione: IN mandata <strong>${fmtQ(qM)}</strong> · OUT permeato <strong class="flow-val">${fmtQ(qP)}</strong> `
           + `· scarico→A11004 ≈ ${fmtQ(qH)} · netto in MBR (dopo scarico) guida il livello. `)
