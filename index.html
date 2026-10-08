@@ -1638,7 +1638,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v196</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v198</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -3156,7 +3156,7 @@
           </label>
         </div>
         <p class="mini">Svuotamento: membrane ON/OFF. Riempimento: MP 11036 A/B fermano a stop (92%) e ripartono a start (85%), se anche A10611 è OK.</p>
-        <p class="mini" id="mbrFillBalanceHint">Bilancio MBR: mandata IN − permeato OUT − scarico→A11004 (~85% eccesso, anche a membrane ferme). Il riciclo 11014 aspira solo A11004.</p>
+        <p class="mini" id="mbrFillBalanceHint">Bilancio MBR: mandata IN − permeato OUT − scarico→A11004 (~80% eccesso; 0 se A11004 al 100%). Il riciclo 11014 aspira solo A11004.</p>
         <div class="row" style="margin-top:8px">
           <label><strong>Start riemp. TK 11007 %</strong>
             <input type="number" id="viewStartRiempTk11007b" readonly placeholder="—" inputmode="decimal" />
@@ -3698,9 +3698,9 @@
     const Q_FREQ_MIN = 42; // Automatico: minimo processo P11011
     const Q_FREQ_ABS_MIN = 0; // Manuale: puoi impostare anche sotto 42 Hz
     const Q_RECYCLE_MIN = 100; // Automatico: riciclo fanghi minimo (P11011 − ingresso)
-    /** Scarico MBR → A11004: frazione dell’eccesso (mandata − permeato). Was 0.90; step soft 0.85 → meno verso 11004, più ritenzione MBR. */
-    const MBR_SCARICO_TO_H_FRAC = 0.85;
-    const MBR_RETAIN_FRAC = 1 - MBR_SCARICO_TO_H_FRAC; // 0.15
+    /** Scarico MBR → A11004: frazione dell’eccesso (mandata − permeato). Was 0.90→0.85; step soft 0.80 → meno verso 11004, più ritenzione MBR. */
+    const MBR_SCARICO_TO_H_FRAC = 0.80;
+    const MBR_RETAIN_FRAC = 1 - MBR_SCARICO_TO_H_FRAC; // 0.20
     const Q_P11019_DEFAULT = 140; // avvio / set vuoto
     const Q_P11019_MAX = 165;     // tetto set pompe (non si supera)
     /** @deprecated alias di Q_P11019_DEFAULT (retrocompat) */
@@ -5124,8 +5124,8 @@
       let valleyShort = qInSp > 0.5 && qSiteExport + 0.5 < qInSp;
       if (tk21Draining && qSiteExport + 0.5 >= Math.min(qInSp, qP19Sp) - 0.5) valleyShort = false;
       const memLow = qInSp > 0.5 && qPermAvg + 1 < qInSp;
-      const qScaricoNeed = mbrScaricoToH(qMandSp, qPermAvg, livMbr);
-      const recStarve = qScaricoNeed > qRecSp + 2;
+      const qScaricoNeed = mbrScaricoToH(qMandSp, qPermAvg, livMbr, livH);
+      const recStarve = !a11004IsFull(livH) && qScaricoNeed > qRecSp + 2;
 
       const blocks = [];
       let firstBlockMin = null;
@@ -5224,13 +5224,16 @@
         // Osmosi: capacità stabile anche con UF in pausa isteresi — svuota 11021 e riapre la valle
         const qOsm = livU > 8 ? qOsmCap : 0;
 
-        const qScarico = mbrScaricoToH(qMand, qPerm, livMbr);
-        const hBackedUp = livH >= 94 || qScarico > qRec + 2;
+        const hFull = a11004IsFull(livH);
+        const qScarico = mbrScaricoToH(qMand, qPerm, livMbr, livH);
+        const hBackedUp = !hFull && (livH >= 94 || qScarico > qRec + 2);
 
         const r20 = rateA10620PctPerMin(qIn, qPump, qRec);
         const r11 = estimateA10611RatePctPerMin(qPump, qMand);
         const rH = estimateRicHRatePctPerMin(qScarico, qRec);
-        const rMbr = estimateMbrRatePctPerMin(qMand, qPerm, livMbr, { backedUp: hBackedUp, qRecycle: qRec });
+        const rMbr = estimateMbrRatePctPerMin(qMand, qPerm, livMbr, {
+          backedUp: hBackedUp, qRecycle: qRec, hFull, livH,
+        });
         const rP = estimateTk11007RatePctPerMin(qPerm, qP19Out);
         let rU = 0;
         try {
@@ -6727,11 +6730,19 @@
       }
     }
 
+    /** A11004 pieno: non può ricevere altro liquido → scarico MBR bloccato. */
+    function a11004IsFull(livHOpt) {
+      const h = livHOpt != null && Number.isFinite(Number(livHOpt))
+        ? Number(livHOpt)
+        : (numOrNull("livelloAttualeH") ?? 90);
+      return Number.isFinite(h) && h >= 99.95;
+    }
+
     /**
      * Livello MBR: volume = N vaschette.
      * Scarico → A11004: MBR_SCARICO_TO_H_FRAC dell’eccesso (mandata − permeato).
-     * Membrane ferme (permeato 0): l’eccesso = mandata → scarico continua verso A11004
-     * (non si chiude la comunicazione). Il riciclo 11014 aspira da A11004, non dalle vaschette.
+     * Se A11004 è al 100%: scarico = 0, eccesso resta in MBR (sale con mandata; non scende per scarico).
+     * Sotto 100%: riprende lo scarico. Il riciclo 11014 aspira da A11004, non dalle vaschette.
      */
     function estimateMbrRatePctPerMin(qMandata, qPerm, livMbrOpt, opts) {
       opts = opts || {};
@@ -6741,12 +6752,16 @@
       const qOutPerm = Math.max(0, Number(qPerm) || 0);
       const qRec = Math.max(0, Number(opts.qRecycle) || 0);
       const backedUp = !!opts.backedUp;
+      const hFull = opts.hFull != null ? !!opts.hFull : a11004IsFull(opts.livH);
 
       // Stesso bilancio in estrazione e a membrane ferme:
       // mandata − permeato − scarico→H (frazione eccesso positivo).
       const delta = qIn - qOutPerm;
       let net;
-      if (delta >= 0) {
+      if (hFull) {
+        // A11004 al 100%: niente scarico → tutto il netto resta/esce solo per permeato
+        net = delta;
+      } else if (delta >= 0) {
         let retainFrac = MBR_RETAIN_FRAC;
         if (backedUp) {
           const wantToH = delta * MBR_SCARICO_TO_H_FRAC;
@@ -6761,8 +6776,8 @@
       const cycle = Math.max(0.2, cal.lavoro + cal.pausa);
       const fracPause = Math.max(0.05, cal.pausa / cycle);
       const rPauseAvg = cal.rateDrain * fracPause;
-      // Anche a membrane ferme resta il drenaggio di ciclo (scarichi → A11004)
-      let r = ratePctPerMinFromVolume(net, V) - rPauseAvg;
+      // Drenaggio di ciclo = scarichi → A11004: spento se A11004 è pieno
+      let r = ratePctPerMinFromVolume(net, V) - (hFull ? 0 : rPauseAvg);
 
       if (!Number.isFinite(r)) return 0;
       return Math.max(-RATE_PCT_CLAMP_VOL, Math.min(RATE_PCT_CLAMP_VOL, r));
@@ -6770,9 +6785,10 @@
 
     /**
      * Scarico MBR → A11004 (m³/h): MBR_SCARICO_TO_H_FRAC di max(0, mandata − permeato).
-     * Membrane ferme → permeato 0 → scarico ≈ frazione × mandata (stesso modo di quando estraggono).
+     * A11004 al 100% → 0 (non può ricevere). Sotto 100% riprende.
      */
-    function mbrScaricoToH(qMandata, qPerm, livMbrOpt) {
+    function mbrScaricoToH(qMandata, qPerm, livMbrOpt, livHOpt) {
+      if (a11004IsFull(livHOpt)) return 0;
       const qM = Math.max(0, Number(qMandata) || 0);
       const qP = Math.max(0, Number(qPerm) || 0);
       const excess = Math.max(0, qM - qP);
@@ -6796,28 +6812,33 @@
       if (!hint) return;
       const qM = Math.max(0, Number(qMandata) || 0);
       const qP = Math.max(0, Number(qPerm) || 0);
-      const qH = mbrScaricoToH(qM, qP, livMbr);
+      const livH = numOrNull("livelloAttualeH") ?? 90;
+      const hFull = a11004IsFull(livH);
+      const qH = mbrScaricoToH(qM, qP, livMbr, livH);
       const vol = getMbrCommonVolume();
-      const backedUp = (numOrNull("livelloAttualeH") ?? 90) >= 94 || qH > (qRecycle || 0) + 2;
-      const r = estimateMbrRatePctPerMin(qM, qP, livMbr, { backedUp, qRecycle: qRecycle || 0 });
-      const eta = mbrMinutesToStopFill(qM, qP, livMbr, { backedUp, qRecycle: qRecycle || 0 });
+      const backedUp = !hFull && (livH >= 94 || qH > (qRecycle || 0) + 2);
+      const r = estimateMbrRatePctPerMin(qM, qP, livMbr, { backedUp, qRecycle: qRecycle || 0, hFull, livH });
+      const eta = mbrMinutesToStopFill(qM, qP, livMbr, { backedUp, qRecycle: qRecycle || 0, hFull, livH });
       const stopV = numOrNull("stopRiempMbr") ?? 92;
       const fermi = qP < 0.5;
       let etaTxt;
-      if (!qM || qM < 0.5) etaTxt = "11036 ferme → livello MBR non sale da mandata";
+      if (hFull) etaTxt = "A11004 al 100% → scarico bloccato; MBR non scende per scarico (sale se c’è mandata)";
+      else if (!qM || qM < 0.5) etaTxt = "11036 ferme → livello MBR non sale da mandata";
       else if (eta === 0) etaTxt = `già ≥ stop riemp. ${fmtPct(stopV)} → 11036 devono stare ferme`;
       else if (eta == null) etaTxt = fermi
         ? `livello non sale (netto≈0) — verifica mandata`
         : `livello stabile/in calo (permeato+scarico ≥ mandata)`;
       else etaTxt = `≈ <strong>${eta} min</strong> per arrivare a stop riemp. ${fmtPct(stopV)} (11036 stop)`;
-      hint.innerHTML = (fermi
-        ? `<strong>Membrane FERME</strong> (OUT permeato 0). Mandata IN <strong class="flow-val">${fmtQ(qM)}</strong> → `
-          + `scarico→A11004 ≈ <strong>${fmtQ(qH)}</strong> (stesso modo: ~${Math.round(MBR_SCARICO_TO_H_FRAC * 100)}% eccesso) · resta in MBR ≈ ${fmtQ(qM * MBR_RETAIN_FRAC)}. `
-          + `<em>11014 aspira solo A11004</em>, non le vaschette. `
-        : `Membrane in estrazione: IN mandata <strong>${fmtQ(qM)}</strong> · OUT permeato <strong class="flow-val">${fmtQ(qP)}</strong> `
-          + `· scarico→A11004 ≈ ${fmtQ(qH)} · netto in MBR (dopo scarico) guida il livello. `)
+      hint.innerHTML = (hFull
+        ? `<strong>A11004 PIENO (100%)</strong> — scarico MBR→A11004 = <strong>0</strong>. Eccesso resta in MBR. `
+        : (fermi
+          ? `<strong>Membrane FERME</strong> (OUT permeato 0). Mandata IN <strong class="flow-val">${fmtQ(qM)}</strong> → `
+            + `scarico→A11004 ≈ <strong>${fmtQ(qH)}</strong> (stesso modo: ~${Math.round(MBR_SCARICO_TO_H_FRAC * 100)}% eccesso) · resta in MBR ≈ ${fmtQ(qM * MBR_RETAIN_FRAC)}. `
+            + `<em>11014 aspira solo A11004</em>, non le vaschette. `
+          : `Membrane in estrazione: IN mandata <strong>${fmtQ(qM)}</strong> · OUT permeato <strong class="flow-val">${fmtQ(qP)}</strong> `
+            + `· scarico→A11004 ≈ ${fmtQ(qH)} · netto in MBR (dopo scarico) guida il livello. `))
         + `V MBR≈${round1(vol.V)} m³ (${vol.n}×${round1(vol.Vtray)}) · ${r >= 0 ? "+" : ""}${round1(r).toFixed(2)} %/min · ${etaTxt}.`;
-      hint.style.color = fermi && qM > 0.5 ? "var(--warn)" : "var(--muted)";
+      hint.style.color = hFull || (fermi && qM > 0.5) ? "var(--warn)" : "var(--muted)";
     }
 
     function paintMbrLevelUI(livMbr, rateMbr) {
@@ -8580,7 +8601,7 @@
         : 0;
       let flowScar = false;
       try {
-        flowScar = go && mbrScaricoToH(qMandLivePipe, qPermLivePipe, null) > 0.5;
+        flowScar = go && mbrScaricoToH(qMandLivePipe, qPermLivePipe, null, numOrNull("livelloAttualeH")) > 0.5;
       } catch (_) {
         flowScar = go && (flowPerm || (!!vis11036 && qMandLivePipe > 0.5));
       }
@@ -8909,12 +8930,15 @@
       // Solo bilanciamento reale (niente rClimb forzato: era quello che mandava subito a 95% / blocco)
       let r20 = rateA10620PctPerMin(qIn, qPump, qRecycleDisp);
       const r11 = estimateA10611RatePctPerMin(qPump, qMandata);
-      const qScaricoH = mbrScaricoToH(qMandata, qPerm, livMbr);
+      const hFull = a11004IsFull(livH);
+      const qScaricoH = mbrScaricoToH(qMandata, qPerm, livMbr, livH);
       const rH = estimateRicHRatePctPerMin(qScaricoH, qRecycleForH);
-      const hBackedUp = livH >= 94 || qScaricoH > qRecycleForH + 2;
+      const hBackedUp = !hFull && (livH >= 94 || qScaricoH > qRecycleForH + 2);
       const rMbr = estimateMbrRatePctPerMin(qMandata, qPerm, livMbr, {
         backedUp: hBackedUp,
         qRecycle: qRecycleForH,
+        hFull,
+        livH,
       });
       const rP = estimateTk11007RatePctPerMin(qPerm, qP19);
       const rU = estimateTk11021RatePctPerMin(qUfIn, qOsmOut);
@@ -9589,12 +9613,12 @@
       const qPermLiv = (totAvg != null && Number.isFinite(Number(totAvg)))
         ? Math.max(0, Number(totAvg))
         : qMemPermeateForLevels(__simBusy || __simMin > 0);
-      const rateH = estimateRicHRatePctPerMin(
-        mbrScaricoToH(qMandata, qPermLiv, numOrNull("livelloAttualeMbr") ?? 90),
-        qRecycle
-      );
       let livH = numOrNull("livelloAttualeH");
       if (livH === null) livH = 90;
+      const rateH = estimateRicHRatePctPerMin(
+        mbrScaricoToH(qMandata, qPermLiv, numOrNull("livelloAttualeMbr") ?? 90, livH),
+        qRecycle
+      );
       const startH = numOrNull("startSvuotA11004");
       const stopH = numOrNull("stopSvuotA11004");
       const loH = stopH !== null ? stopH : 77;
@@ -9647,10 +9671,13 @@
       if (livMbrUi === null) livMbrUi = 90;
       updateMbrLevelInterlocks(livMbrUi);
       updateMbrFillFor11036(livMbrUi);
-      const qScaricoMbrUi = mbrScaricoToH(qMandata, qPermLiv, livMbrUi);
+      const hFullUi = a11004IsFull(livH);
+      const qScaricoMbrUi = mbrScaricoToH(qMandata, qPermLiv, livMbrUi, livH);
       const rateMbrUi = estimateMbrRatePctPerMin(qMandata, qPermLiv, livMbrUi, {
-        backedUp: livH >= 94 || qScaricoMbrUi > qRecycle + 2,
+        backedUp: !hFullUi && (livH >= 94 || qScaricoMbrUi > qRecycle + 2),
         qRecycle,
+        hFull: hFullUi,
+        livH,
       });
       paintMbrLevelUI(livMbrUi, rateMbrUi);
       paintMembraneCycleUI(__mbrCycleMin);
