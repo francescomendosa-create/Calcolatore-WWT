@@ -1657,7 +1657,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v205</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v206</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -1694,7 +1694,7 @@
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
-          <clipPath id="clipTank20"><rect x="235" y="74" width="100" height="52" rx="3"/></clipPath>
+          <clipPath id="clipTank20"><rect x="219" y="74" width="100" height="52" rx="3"/></clipPath>
           <clipPath id="clipTank11"><ellipse cx="630" cy="100" rx="48" ry="25"/></clipPath>
           <clipPath id="clipTankH"><rect x="922" y="118" width="54" height="58" rx="4"/></clipPath>
           <clipPath id="clipTank11007"><rect x="940" y="360" width="64" height="110" rx="7"/></clipPath>
@@ -1703,7 +1703,7 @@
           <clipPath id="clipMbrBar"><rect x="752" y="48" width="10" height="76" rx="2"/></clipPath>
         </defs>
         <!-- tubazioni (data-flow = scorrimento se pompa/linea in marcia) -->
-        <path class="pipe pipe-main" data-flow="in" d="M115 100 H230" />
+        <path class="pipe pipe-main" data-flow="in" d="M115 100 H214" />
         <path class="pipe pipe-main" data-flow="p11" d="M360 100 H400" />
         <path class="pipe pipe-main" data-flow="p11" d="M400 100 V52 H430" />
         <path class="pipe pipe-main" data-flow="p11" d="M520 52 H555" />
@@ -1712,8 +1712,8 @@
         <!-- permeato: membrane → destra fino sotto SET → scende → sinistra in TK-11007 -->
         <path class="pipe pipe-main" data-flow="perm" d="M912 68 H1070 V415 H1004" />
         <!-- riciclo: da 11014 (sotto A11004) verso A10620 -->
-        <path class="pipe pipe-rec" data-flow="rec" d="M949 220 H248 V135" fill="none" />
-        <polygon points="242,145 248,128 254,145" fill="#fb7185" />
+        <path class="pipe pipe-rec" data-flow="rec" d="M949 220 H232 V135" fill="none" />
+        <polygon points="226,145 232,128 238,145" fill="#fb7185" />
 
         <!-- Chimico fisico -->
         <g class="node" tabindex="0" data-popup="ingresso" role="button" aria-label="Ingresso TOT OUT">
@@ -1741,18 +1741,18 @@
           <text x="62" y="258" text-anchor="middle" fill="#e2e8f0" font-size="10" font-weight="700">REGOLAZIONI</text>
         </g>
 
-        <!-- A10620 + P11011 A/B -->
+        <!-- A10620 + P11011 A/B (vasca leggermente a sinistra → si legge P11011) -->
         <g class="node" tabindex="0" data-popup="pompe" role="button" aria-label="A10620 P11011 A/B">
           <!-- range livello sopra la sigla -->
-          <text x="248" y="52" text-anchor="middle" font-size="9" font-weight="700" id="svgRangeLo20" fill="#4ade80">—</text>
-          <text x="285" y="52" text-anchor="middle" font-size="9" font-weight="700" id="svgRangeWork20" fill="#e2e8f0">—</text>
-          <text x="322" y="52" text-anchor="middle" font-size="9" font-weight="700" id="svgRangeHi20" fill="#4ade80">—</text>
-          <text x="285" y="62" text-anchor="middle" fill="#64748b" font-size="7" id="svgRangeHint20">range liv.</text>
+          <text x="232" y="52" text-anchor="middle" font-size="9" font-weight="700" id="svgRangeLo20" fill="#4ade80">—</text>
+          <text x="269" y="52" text-anchor="middle" font-size="9" font-weight="700" id="svgRangeWork20" fill="#e2e8f0">—</text>
+          <text x="306" y="52" text-anchor="middle" font-size="9" font-weight="700" id="svgRangeHi20" fill="#4ade80">—</text>
+          <text x="269" y="62" text-anchor="middle" fill="#64748b" font-size="7" id="svgRangeHint20">range liv.</text>
           <!-- vasca aperta rettangolare (stesso ingombro dell’ellisse 100×52) -->
-          <path class="tank-body" id="svgTank20" d="M236 76 L236 123 Q236 126 239 126 L331 126 Q334 126 334 123 L334 76" fill="#0f172a" stroke="#64748b" stroke-width="1.8" stroke-linecap="square" stroke-linejoin="round" />
-          <rect id="svgTank20liq" x="235" y="74" width="100" height="52" fill="#22c55e" clip-path="url(#clipTank20)" opacity="0.9" />
-          <text x="285" y="70" text-anchor="middle" fill="#bbf7d0" font-size="11" font-weight="700">A10620</text>
-          <text x="285" y="108" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700" id="svgLiv">63.8%</text>
+          <path class="tank-body" id="svgTank20" d="M220 76 L220 123 Q220 126 223 126 L315 126 Q318 126 318 123 L318 76" fill="#0f172a" stroke="#64748b" stroke-width="1.8" stroke-linecap="square" stroke-linejoin="round" />
+          <rect id="svgTank20liq" x="219" y="74" width="100" height="52" fill="#22c55e" clip-path="url(#clipTank20)" opacity="0.9" />
+          <text x="269" y="70" text-anchor="middle" fill="#bbf7d0" font-size="11" font-weight="700">A10620</text>
+          <text x="269" y="108" text-anchor="middle" fill="#e2e8f0" font-size="11" font-weight="700" id="svgLiv">63.8%</text>
           <!-- pompa a destra verso 10608 — click → numpad portata (non popup serbatoio) -->
           <g class="flow-edit" data-field="qPump" data-source="pompa" aria-label="P11011 A/B portata">
             <g transform="translate(355,100)">
@@ -8617,14 +8617,14 @@
       try { paintPipeFlowUI(vis11011, vis11036, vis11014, run11019); } catch (_) { /* ignore */ }
     }
 
-    /** Nessuno skip: overlay solo sui path.pipe già in schema (niente spine / bypass carboni). */
-    const PIPE_WATER_SKIP = {};
+    /** UF: niente overlay acqua (i rami verticali sembravano tubi in più). Carboni: no bypass. */
+    const PIPE_WATER_SKIP = { uf: 1 };
 
     /** Layer acqua: clona i tubi esistenti (nessun tracciato inventato). */
     function ensurePipeWaterLayers() {
       const layer = el("pipeWaterLayer");
       if (!layer) return;
-      const READY = "12";
+      const READY = "13";
       if (layer.getAttribute("data-water-ver") !== READY) {
         while (layer.firstChild) layer.removeChild(layer.firstChild);
         layer.setAttribute("data-water-ver", READY);
@@ -8718,7 +8718,7 @@
         perm: flowPerm,
         p19: flowP19,
         carb: flowCarb,
-        uf: flowUf,
+        uf: false, // niente acqua overlay su UF (tubi fantasma)
         osm: flowOsm,
         osmA: flowOsmA,
         osmB: flowOsmB,
@@ -9215,7 +9215,7 @@
       const pct = Number(L);
       const txt = pct.toFixed(1) + "%";
       try {
-        setRectLiquid("svgTank20liq", 235, 74, 100, 52, pct, false);
+        setRectLiquid("svgTank20liq", 219, 74, 100, 52, pct, false);
         setTankLiquid("svgTank11liq", 630, 100, 48, 25, pct, false);
         setRectLiquid("svgTankHliq", 922, 118, 54, 58, pct, false);
         paintMbrLevelUI(numOrNull("livelloAttualeMbr") ?? 90, 0);
