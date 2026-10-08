@@ -1100,6 +1100,18 @@
       background: var(--panel-2);
       color: var(--text);
     }
+    .flow-edit-actions .flow-estop {
+      background: #7f1d1d;
+      border-color: #f87171;
+      color: #fecaca;
+      flex: 1.15;
+    }
+    .flow-edit-actions .flow-estop.is-stopped {
+      background: #14532d;
+      border-color: #4ade80;
+      color: #bbf7d0;
+    }
+    .flow-edit-actions .flow-estop[hidden] { display: none !important; }
     /* Blocca menu contestuale copia/incolla su schema e popup */
     .sketch, .sketch *, .flow-edit-back, .flow-edit-back * {
       -webkit-touch-callout: none !important;
@@ -1626,7 +1638,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v194</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v195</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -2375,6 +2387,7 @@
       </div>
       <div class="flow-edit-actions">
         <button type="button" class="flow-cancel" id="flowEditCancel">Annulla</button>
+        <button type="button" class="flow-estop" id="flowEditEstop" hidden>Stop</button>
         <button type="button" class="flow-ok" id="flowEditOk">OK</button>
       </div>
     </div>
@@ -6950,6 +6963,7 @@
 
     /** Portata viva OUT da 11007: set pompe se valle OK; solo IAS se UF/11021 bloccano l’Impianto. */
     function qP11019LiveTargetFromValley() {
+      if (pumpEstopped("p11019")) return 0;
       const qSet = qP11019Setpoint();
       if (!__runP11019By07) return 0;
       if (p11019ValleyOpen()) return qSet;
@@ -6967,6 +6981,7 @@
 
     /** Portata effettiva pompe P11019 (OUT TK-11007): 0 se stop svuotamento; altrimenti setpoint. */
     function qP11019Effective() {
+      if (pumpEstopped("p11019")) return 0;
       updateTk11007PumpInterlocks(numOrNull("livelloAttualeTk11007") ?? 91);
       if (!p11019Allowed()) return 0;
       return qP11019Setpoint();
@@ -7731,6 +7746,7 @@
 
     /** True solo se la linea è in marcia E riceve portata (≥ min in Auto). */
     function osmLineFeeding(letter) {
+      if (pumpEstopped("osmosi")) return false;
       const L = String(letter || "").toUpperCase();
       if (!osmLineRunning(L)) return false;
       if (!deviceAutoControlled("osmosi")) return true;
@@ -7822,12 +7838,132 @@
       });
     }
 
-    /** Verde = marcia, grigio = fermo, rosso = disabilitata. Non usare il rosso per lo stop. */
+    /** Verde = marcia, grigio = fermo processo, rosso = emergenza Stop (numpad) / disabilitata. */
     const DEV_COL = {
       run: { fill: "#14532d", stroke: "#4ade80", inner: "#22c55e", arrow: "#bbf7d0", lab: "#86efac" },
       stop: { fill: "#334155", stroke: "#94a3b8", inner: "#64748b", arrow: "#cbd5e1", lab: "#94a3b8" },
       off: { fill: "#7f1d1d", stroke: "#f87171", inner: "#991b1b", arrow: "#fecaca", lab: "#fda4af" },
     };
+    /** Stop emergenza da numpad pompe (true = ferma e rossa). */
+    const __pumpEstop = { pompa: false, mandata: false, riciclo: false, p11019: false, osmosi: false };
+    function pumpEstopKeyForField(field) {
+      const f = String(field || "");
+      if (f === "qPump" || f === "freqHz") return "pompa";
+      if (f === "qMandata" || f === "freqHzMand") return "mandata";
+      if (f === "qRecycle") return "riciclo";
+      if (f === "qP11019" || f === "qP11019Ias" || f === "qP11019Impianto") return "p11019";
+      if (f.startsWith("qOsmosi")) return "osmosi";
+      return "";
+    }
+    function pumpEstopped(key) {
+      return !!(key && __pumpEstop[key]);
+    }
+    function restorePumpFromSetpoint(id) {
+      const sp = Math.max(0, flowSetpointOf(id) || 0);
+      if (sp > 0.05) commitFlow(id, sp, { setpoint: sp, instant: true });
+      else commitFlow(id, 0, { instant: true });
+      return sp;
+    }
+    function applyPumpEstopFlows(key, stopped) {
+      if (key === "pompa") {
+        if (stopped) commitFlow("qPump", 0, { instant: true });
+        else {
+          try {
+            if (isAutoMode() && deviceAutoControlled("pompa")) {
+              ensurePumpsFlowing({ instant: true, forceUi: true });
+            } else {
+              const sp = restorePumpFromSetpoint("qPump");
+              try {
+                const hz = hzMeetPumpNeed(sp);
+                if (el("freqHz") && !isEditing("freqHz")) el("freqHz").value = String(hz);
+                const svgHz = el("svgFreqHz");
+                if (svgHz && !isEditing("freqHz")) svgHz.textContent = String(hz);
+                syncOpenFlowEditValue("freqHz", hz);
+              } catch (_) { /* ok */ }
+            }
+          } catch (_) { /* ok */ }
+        }
+      } else if (key === "mandata") {
+        if (stopped) commitFlow("qMandata", 0, { instant: true });
+        else {
+          try {
+            if (isAutoMode() && deviceAutoControlled("mandata")) {
+              ensurePumpsFlowing({ instant: true, forceUi: true });
+            } else {
+              const sp = restorePumpFromSetpoint("qMandata");
+              try {
+                const hz = hzMeetPumpNeed(sp);
+                if (el("freqHzMand") && !isEditing("freqHzMand")) el("freqHzMand").value = String(hz);
+                const svgHz = el("svgFreqHzMand");
+                if (svgHz && !isEditing("freqHzMand")) svgHz.textContent = String(hz);
+                syncOpenFlowEditValue("freqHzMand", hz);
+              } catch (_) { /* ok */ }
+            }
+          } catch (_) { /* ok */ }
+        }
+      } else if (key === "riciclo") {
+        if (stopped) commitFlow("qRecycle", 0, { instant: true });
+        else {
+          try {
+            if (isAutoMode() && ricicloAutoControlled()) applyBalance("pompa");
+            else restorePumpFromSetpoint("qRecycle");
+          } catch (_) { /* ok */ }
+        }
+      } else if (key === "p11019") {
+        if (stopped) commitFlow("qP11019", 0, { instant: true });
+        else {
+          try {
+            const sp = flowSetpointOf("qP11019");
+            let q = sp;
+            if (isAutoMode() && typeof qP11019LiveTargetFromValley === "function") {
+              q = Math.max(sp, qP11019LiveTargetFromValley() || 0);
+            }
+            commitFlow("qP11019", q, { setpoint: sp > 0.05 ? sp : q, instant: true });
+          } catch (_) { /* ok */ }
+        }
+      } else if (key === "osmosi") {
+        try {
+          if (stopped) {
+            ["A", "B", "C"].forEach((L) => { __osmMeas[L] = 0; });
+            syncOsmosiSvg();
+          } else if (typeof applyOsmosiAutoFlows === "function") {
+            applyOsmosiAutoFlows(typeof permeateDemandOut === "function" ? permeateDemandOut() : 0);
+          }
+        } catch (_) { /* ok */ }
+      }
+    }
+    function setPumpEstop(key, stopped) {
+      if (!key || !Object.prototype.hasOwnProperty.call(__pumpEstop, key)) return;
+      const next = !!stopped;
+      if (__pumpEstop[key] === next) {
+        syncFlowEditEstopBtn();
+        return;
+      }
+      playCasioClick();
+      __pumpEstop[key] = next;
+      try { applyPumpEstopFlows(key, next); } catch (_) { /* ok */ }
+      try { paintPumpColors(); } catch (_) { /* ok */ }
+      try { paintOsmosiRunUI(); } catch (_) { /* ok */ }
+      syncFlowEditEstopBtn();
+      try { schedulePersist(); } catch (_) { /* ok */ }
+    }
+    function syncFlowEditEstopBtn() {
+      const btn = el("flowEditEstop");
+      if (!btn) return;
+      const field = inlineCtx && inlineCtx.field;
+      const key = pumpEstopKeyForField(field);
+      if (!key) {
+        btn.hidden = true;
+        btn.classList.remove("is-stopped");
+        return;
+      }
+      btn.hidden = false;
+      const stopped = pumpEstopped(key);
+      btn.classList.toggle("is-stopped", stopped);
+      btn.textContent = stopped ? "Start" : "Stop";
+      btn.setAttribute("aria-label", stopped ? "Riparti pompa" : "Stop emergenza pompa");
+      btn.setAttribute("aria-pressed", stopped ? "true" : "false");
+    }
     const WATER_COL = { run: "#0369a1", wash: "#0284c7", stop: "#1e3a5f", off: "#7f1d1d" };
     function deviceCol(disabled, running) {
       if (disabled) return DEV_COL.off;
@@ -7886,9 +8022,10 @@
     function paintOsmosiRunUI() {
       updateOsmosiTk11021Interlocks(numOrNull("livelloAttualeTk11021") ?? 91);
       paintOsmosiEnableUI();
+      const osmEstop = pumpEstopped("osmosi");
       ["A", "B", "C"].forEach((L) => {
-        const run = plantIsStarted() && osmLineFeeding(L);
-        const disabled = !osmLineEnabled(L);
+        const run = plantIsStarted() && osmLineFeeding(L) && !osmEstop;
+        const disabled = !osmLineEnabled(L) || osmEstop;
         const node = document.querySelector(`g.node[aria-label="Osmosi ${L}"]`);
         if (node) paintOsmMiniSketch(node, run, disabled);
         const popMini = el("osmRow" + L)?.querySelector(".osm-mini");
@@ -7904,14 +8041,14 @@
           "svgPump11040" + L + "Label",
           plantIsStarted() && run,
           disabled,
-          osmQinEffective(L)
+          osmEstop ? 0 : osmQinEffective(L)
         );
       });
-      paintOnePump("svgPump11040D", "svgPump11040DArrow", "svgPump11040DLabel", false, false, 0);
+      paintOnePump("svgPump11040D", "svgPump11040DArrow", "svgPump11040DLabel", false, osmEstop, 0);
       const labGroup = el("svgPump11040Label");
       if (labGroup) {
-        const any = plantIsStarted() && osmFeedingCount() > 0;
-        labGroup.setAttribute("fill", any ? DEV_COL.run.lab : DEV_COL.stop.lab);
+        const any = plantIsStarted() && osmFeedingCount() > 0 && !osmEstop;
+        labGroup.setAttribute("fill", osmEstop ? DEV_COL.off.lab : (any ? DEV_COL.run.lab : DEV_COL.stop.lab));
       }
       const liv = numOrNull("livelloAttualeTk11021") ?? 91;
       const parts = ["A", "B", "C"].map((L) => {
@@ -8343,39 +8480,45 @@
         const h = livH !== null ? livH : 90;
         allow11014 = assess11014RunState(h, num("livelloAttuale")).running;
       }
-      // Verde marcia se consenso E portata > 0; ferme → grigie (non rosse)
+      // Verde marcia; grigio = fermo processo; rosso = Stop emergenza numpad
       const qRecNow = Math.max(0, num("qRecycle"));
       const run11014 = !!allow11014 && qRecNow > 0.5;
-      // In Stop impianto: tutte le pompe graficamente ferme. In Start: marcia da processo.
       const go = plantIsStarted();
-      const vis11011 = go && run11011;
-      const vis11036 = go && run11036;
-      const vis11014 = go && run11014;
-      const qPumpLive = Math.max(0, Number(__flowLive.qPump) || num("qPump") || 0);
-      const qMandLive = Math.max(0, Number(__flowLive.qMandata) || num("qMandata") || 0);
-      const qRecLive = Math.max(0, Number(__flowLive.qRecycle) || qRecNow || 0);
-      paintOnePump("svgPump11011", "svgPump11011Arrow", "svgPump11011Label", vis11011, false, qPumpLive);
-      paintOnePump("svgPump11036", "svgPump11036Arrow", "svgPump11036Label", vis11036, false, qMandLive);
-      paintOnePump("svgPump11014", "svgPump11014Arrow", "svgPump11014Label", vis11014, false, qRecLive);
+      const estop11 = pumpEstopped("pompa");
+      const estop36 = pumpEstopped("mandata");
+      const estop14 = pumpEstopped("riciclo");
+      const estop19 = pumpEstopped("p11019");
+      const vis11011 = go && run11011 && !estop11;
+      const vis11036 = go && run11036 && !estop36;
+      const vis11014 = go && run11014 && !estop14;
+      const qPumpLive = estop11 ? 0 : Math.max(0, Number(__flowLive.qPump) || num("qPump") || 0);
+      const qMandLive = estop36 ? 0 : Math.max(0, Number(__flowLive.qMandata) || num("qMandata") || 0);
+      const qRecLive = estop14 ? 0 : Math.max(0, Number(__flowLive.qRecycle) || qRecNow || 0);
+      paintOnePump("svgPump11011", "svgPump11011Arrow", "svgPump11011Label", vis11011, estop11, qPumpLive);
+      paintOnePump("svgPump11036", "svgPump11036Arrow", "svgPump11036Label", vis11036, estop36, qMandLive);
+      paintOnePump("svgPump11014", "svgPump11014Arrow", "svgPump11014Label", vis11014, estop14, qRecLive);
       const recGroup = document.querySelector('[data-field="qRecycle"] rect.badge');
-      if (recGroup) recGroup.setAttribute("stroke", vis11014 ? DEV_COL.run.stroke : DEV_COL.stop.stroke);
+      if (recGroup) {
+        recGroup.setAttribute("stroke", estop14
+          ? DEV_COL.off.stroke
+          : (vis11014 ? DEV_COL.run.stroke : DEV_COL.stop.stroke));
+      }
       const svgQRec = el("svgQRec");
-      if (svgQRec && (!allow11014 || qRecNow < 0.05)) {
-        // allinea badge se ferme (evita verde/0)
-        if (!allow11014) svgQRec.textContent = "0.0";
+      if (svgQRec && (estop14 || !allow11014 || qRecNow < 0.05)) {
+        if (estop14 || !allow11014) svgQRec.textContent = "0.0";
       }
 
-      // P11019 A/B/C: verdi se consenso livello TK-11007 (start/stop svuotamento) — non dalle membrane
-      const run11019 = go && p11019Allowed();
-      const q19Live = Math.max(0, Number(__flowLive.qP11019) || num("qP11019") || 0);
+      // P11019 A/B/C
+      const run11019 = go && p11019Allowed() && !estop19;
+      const q19Live = estop19 ? 0 : Math.max(0, Number(__flowLive.qP11019) || num("qP11019") || 0);
       const q19Each = run11019 ? q19Live / 3 : 0;
       ["A", "B", "C"].forEach((L) => {
-        paintOnePump("svgPump11019" + L, "svgPump11019" + L + "Arrow", null, run11019, false, q19Each);
+        paintOnePump("svgPump11019" + L, "svgPump11019" + L + "Arrow", null, run11019, estop19, q19Each);
       });
       const lab19 = el("svgPump11019Label");
-      if (lab19) lab19.setAttribute("fill", run11019 ? DEV_COL.run.lab : DEV_COL.stop.lab);
+      if (lab19) lab19.setAttribute("fill", estop19 ? DEV_COL.off.lab : (run11019 ? DEV_COL.run.lab : DEV_COL.stop.lab));
       const badge19 = el("svgQP11019Badge");
-      if (badge19) badge19.setAttribute("stroke", run11019 ? DEV_COL.run.stroke : DEV_COL.stop.stroke);
+      if (badge19) badge19.setAttribute("stroke", estop19 ? DEV_COL.off.stroke : (run11019 ? DEV_COL.run.stroke : DEV_COL.stop.stroke));
       try { paintP11019SplitUI(); } catch (_) { /* ignore */ }
       try { paintCarbWashUI(); } catch (_) { /* ignore */ }
       // P-11040 A/B/C = relativa osmosi; D sempre ferma
@@ -8483,6 +8626,7 @@
 
     /** Riciclo effettivo 11014: ferme → 0; in marcia + riciclo Auto → almeno Q_RECYCLE_MIN. */
     function qRecycleEffective(running14, qWanted) {
+      if (pumpEstopped("riciclo")) return 0;
       if (!running14) return 0;
       const w = Math.max(0, Number(qWanted) || 0);
       if (ricicloAutoControlled()) return round1(Math.max(Q_RECYCLE_MIN, w));
@@ -8698,10 +8842,10 @@
       const qIn = qInEffective(qInSet);
       // Marcia/arresto SEMPRE da livelli (auto e manuale). In manuale il setpoint digitato resta nel campo.
       // Portate VIVE: __flowLive (dopo snap a Start), fallback campo — non il solo num a 0.
-      const qPump = p11011Allowed()
+      const qPump = (!pumpEstopped("pompa") && p11011Allowed())
         ? Math.max(0, Number(__flowLive.qPump) || num("qPump") || 0)
         : 0;
-      const qMandata = __run11036
+      const qMandata = (!pumpEstopped("mandata") && __run11036)
         ? Math.max(0, Number(__flowLive.qMandata) || num("qMandata") || 0)
         : 0;
       const liv20 = num("livelloAttuale");
@@ -8729,7 +8873,9 @@
       updateTk11021Interlocks(livU);
       updateTk11007PumpInterlocks(livP);
       applyP11019RunFromLevel();
-      const qP19 = Math.max(0, Number(__flowLive.qP11019) || num("qP11019") || 0);
+      const qP19 = pumpEstopped("p11019")
+        ? 0
+        : Math.max(0, Number(__flowLive.qP11019) || num("qP11019") || 0);
       // OUT osmosi da TK 11021: solo linee in marcia (isteresi P-11040 sul livello)
       updateOsmosiTk11021Interlocks(livU);
       // In TIME: se i set osmosi ci sono già, non riallinearli a qIn ogni minuto (11021 piatto).
@@ -9002,7 +9148,10 @@
       try {
       const step = pumpStepForNeed(pumpFloorForIngresso(num("qIn")));
       const q = step.q;
-      if (deviceAutoControlled("pompa") && p11011Allowed()) {
+      if (pumpEstopped("pompa")) {
+        if (deferToStep) __flowDesire.qPump = 0;
+        else commitFlow("qPump", 0, { instant: snap });
+      } else if (deviceAutoControlled("pompa") && p11011Allowed()) {
         rememberFlowSetpoint("qPump", q);
         // forceUi: aggiorna Hz anche se numpad aperto (ritorno Aut istantaneo)
         if (forceUi || !isEditing("freqHz")) {
@@ -9025,7 +9174,10 @@
           if (svgHz0) svgHz0.textContent = "0";
         }
       }
-      if (deviceAutoControlled("mandata")) {
+      if (pumpEstopped("mandata")) {
+        if (deferToStep) __flowDesire.qMandata = 0;
+        else commitFlow("qMandata", 0, { instant: snap });
+      } else if (deviceAutoControlled("mandata")) {
         if (el("equiparaMandata")) {
           el("equiparaMandata").checked = true;
           if (el("qMandata")) el("qMandata").disabled = true;
@@ -9040,7 +9192,10 @@
           else commitFlow("qMandata", 0, { instant: snap });
         }
       }
-      if (ricicloAutoControlled() && p11011Allowed()) {
+      if (pumpEstopped("riciclo")) {
+        if (deferToStep) __flowDesire.qRecycle = 0;
+        else commitFlow("qRecycle", 0, { instant: true });
+      } else if (ricicloAutoControlled() && p11011Allowed()) {
         const qRec = Math.max(Q_RECYCLE_MIN, round1(Math.max(0, q - num("qIn"))));
         rememberFlowSetpoint("qRecycle", qRec);
         if (deferToStep) __flowDesire.qRecycle = qRec;
@@ -12338,6 +12493,11 @@
       __inlineSuppressLive = false;
       const corr = el("flowEditCorr");
       if (corr) corr.hidden = true;
+      const estopBtn = el("flowEditEstop");
+      if (estopBtn) {
+        estopBtn.hidden = true;
+        estopBtn.classList.remove("is-stopped");
+      }
       try { if (inlineInp) inlineInp.blur(); } catch (_) { /* ignore */ }
       syncScrollLock();
     }
@@ -12962,6 +13122,7 @@
         flowEditUnit.textContent = (field === "freqHz" || field === "freqHzMand") ? "Hz" : "m³/h";
       }
       syncFlowEditDevMode(field);
+      syncFlowEditEstopBtn();
       updateFlowEditCorr();
       __flowNumpadFresh = true;
       if (isTouchUi()) {
@@ -13044,6 +13205,14 @@
       e.preventDefault();
       playCasioClick();
       commitInline();
+    });
+    el("flowEditEstop")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const field = inlineCtx && inlineCtx.field;
+      const key = pumpEstopKeyForField(field);
+      if (!key) return;
+      setPumpEstop(key, !pumpEstopped(key));
     });
     el("flowEditCancel")?.addEventListener("click", (e) => {
       e.preventDefault();
