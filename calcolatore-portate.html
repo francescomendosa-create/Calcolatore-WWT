@@ -1638,7 +1638,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v195</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v196</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -7746,7 +7746,6 @@
 
     /** True solo se la linea è in marcia E riceve portata (≥ min in Auto). */
     function osmLineFeeding(letter) {
-      if (pumpEstopped("osmosi")) return false;
       const L = String(letter || "").toUpperCase();
       if (!osmLineRunning(L)) return false;
       if (!deviceAutoControlled("osmosi")) return true;
@@ -7845,14 +7844,14 @@
       off: { fill: "#7f1d1d", stroke: "#f87171", inner: "#991b1b", arrow: "#fecaca", lab: "#fda4af" },
     };
     /** Stop emergenza da numpad pompe (true = ferma e rossa). */
-    const __pumpEstop = { pompa: false, mandata: false, riciclo: false, p11019: false, osmosi: false };
+    const __pumpEstop = { pompa: false, mandata: false, riciclo: false, p11019: false };
     function pumpEstopKeyForField(field) {
       const f = String(field || "");
       if (f === "qPump" || f === "freqHz") return "pompa";
       if (f === "qMandata" || f === "freqHzMand") return "mandata";
       if (f === "qRecycle") return "riciclo";
       if (f === "qP11019" || f === "qP11019Ias" || f === "qP11019Impianto") return "p11019";
-      if (f.startsWith("qOsmosi")) return "osmosi";
+      /* Osmosi: niente Stop numpad — si usano le linee ON/OFF esistenti */
       return "";
     }
     function pumpEstopped(key) {
@@ -7921,16 +7920,6 @@
             commitFlow("qP11019", q, { setpoint: sp > 0.05 ? sp : q, instant: true });
           } catch (_) { /* ok */ }
         }
-      } else if (key === "osmosi") {
-        try {
-          if (stopped) {
-            ["A", "B", "C"].forEach((L) => { __osmMeas[L] = 0; });
-            syncOsmosiSvg();
-          } else if (typeof applyOsmosiAutoFlows === "function") {
-            applyOsmosiAutoFlows(typeof permeateDemandOut === "function" ? permeateDemandOut() : 0);
-          }
-        } catch (_) { /* ok */ }
-      }
     }
     function setPumpEstop(key, stopped) {
       if (!key || !Object.prototype.hasOwnProperty.call(__pumpEstop, key)) return;
@@ -8022,10 +8011,9 @@
     function paintOsmosiRunUI() {
       updateOsmosiTk11021Interlocks(numOrNull("livelloAttualeTk11021") ?? 91);
       paintOsmosiEnableUI();
-      const osmEstop = pumpEstopped("osmosi");
       ["A", "B", "C"].forEach((L) => {
-        const run = plantIsStarted() && osmLineFeeding(L) && !osmEstop;
-        const disabled = !osmLineEnabled(L) || osmEstop;
+        const run = plantIsStarted() && osmLineFeeding(L);
+        const disabled = !osmLineEnabled(L);
         const node = document.querySelector(`g.node[aria-label="Osmosi ${L}"]`);
         if (node) paintOsmMiniSketch(node, run, disabled);
         const popMini = el("osmRow" + L)?.querySelector(".osm-mini");
@@ -8041,14 +8029,14 @@
           "svgPump11040" + L + "Label",
           plantIsStarted() && run,
           disabled,
-          osmEstop ? 0 : osmQinEffective(L)
+          osmQinEffective(L)
         );
       });
-      paintOnePump("svgPump11040D", "svgPump11040DArrow", "svgPump11040DLabel", false, osmEstop, 0);
+      paintOnePump("svgPump11040D", "svgPump11040DArrow", "svgPump11040DLabel", false, false, 0);
       const labGroup = el("svgPump11040Label");
       if (labGroup) {
-        const any = plantIsStarted() && osmFeedingCount() > 0 && !osmEstop;
-        labGroup.setAttribute("fill", osmEstop ? DEV_COL.off.lab : (any ? DEV_COL.run.lab : DEV_COL.stop.lab));
+        const any = plantIsStarted() && osmFeedingCount() > 0;
+        labGroup.setAttribute("fill", any ? DEV_COL.run.lab : DEV_COL.stop.lab);
       }
       const liv = numOrNull("livelloAttualeTk11021") ?? 91;
       const parts = ["A", "B", "C"].map((L) => {
