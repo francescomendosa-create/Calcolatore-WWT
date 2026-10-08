@@ -1638,7 +1638,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v199</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v200</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -4434,6 +4434,26 @@
             syncOpenFlowEditValue("freqHzMand", step.hz);
             syncOpenFlowEditValue("qMandata", qM);
           } catch (_) { /* ok */ }
+        } else if (dev === "membrane") {
+          // Come P11011: Aut → subito totale auto (anche numpad aperto)
+          try {
+            const de = dutyEffective();
+            const dAvg = de.dAvg != null ? de.dAvg : duty().d;
+            const qIn = Math.max(0, num("qIn"));
+            let totOn = roundMem(dAvg > 0.05 ? qIn / dAvg : qIn);
+            const qMin = roundMem(Math.max(0, qMemMinTotaleForQin(qIn).qMemMin));
+            if (totOn < qMin) totOn = qMin;
+            if (totOn > 0.05) {
+              rememberFlowSetpoint("qMemTotale", totOn);
+              setVal("qMemTotale", totOn, { force: true });
+              setMemEqual(totOn);
+              const svgSp = el("svgQMemSp");
+              if (svgSp) svgSp.textContent = String(totOn);
+              try { kickMemPermTween(totOn); } catch (_) { /* ok */ }
+              syncOpenFlowEditValue("qMemTotale", totOn);
+              try { paintMemMinHint(); } catch (_) { /* ok */ }
+            }
+          } catch (_) { /* ok */ }
         } else if (dev === "ultra") {
           try {
             let q = ufAutoTargetTotal();
@@ -4468,7 +4488,7 @@
       }
       if (next === "auto" && isAutoMode() && (dev === "pompa" || dev === "mandata" || dev === "riciclo" || dev === "membrane")) {
         try { ensurePumpsFlowing({ instant: true, forceUi: true }); } catch (_) { /* ok */ }
-        try { ensureMembranesAutoMin(); } catch (_) { /* ok */ }
+        try { ensureMembranesAutoMin({ forceUi: true }); } catch (_) { /* ok */ }
       }
       const balSrc = ({ membrane: "membrana", ultra: "ultra", osmosi: "osmosi", riciclo: "pompa", pompa: "pompa", mandata: "mandata", ingresso: "ingresso" })[dev] || "pompa";
       applyBalance(balSrc);
@@ -6666,15 +6686,18 @@
      * alza solo il deficit sulle linee ON — senza resettare/ripartire i set già impostati.
      * Disabilitare una membrana NON deve cambiare la portata delle altre.
      */
-    function ensureMembranesAutoMin() {
+    function ensureMembranesAutoMin(opts) {
+      opts = opts || {};
+      const forceUi = !!opts.forceUi;
       if (!isAutoMode()) return;
       if (!deviceAutoControlled("membrane")) return;
-      if (isEditing("qMemTotale")) return;
+      if (isEditing("qMemTotale") && !forceUi) return;
       const info = qMemMinTotaleForQin(Math.max(0, num("qIn")));
       const qMin = roundMem(Math.max(0, info.qMemMin));
       const cur = roundMem(sumMems());
-      if (!isEditing("qMemTotale")) setVal("qMemTotale", cur, { force: true });
+      setVal("qMemTotale", cur, { force: true });
       if (cur + 0.05 >= qMin) {
+        if (forceUi) syncOpenFlowEditValue("qMemTotale", cur);
         try { paintMemMinHint(); } catch (_) { /* ok */ }
         return;
       }
@@ -6691,7 +6714,9 @@
         if (extra > 0) { q += 1; extra -= 1; }
         inp.value = String(Math.max(0, q));
       });
-      if (!isEditing("qMemTotale")) setVal("qMemTotale", sumMems(), { force: true });
+      const next = roundMem(sumMems());
+      setVal("qMemTotale", next, { force: true });
+      if (forceUi) syncOpenFlowEditValue("qMemTotale", next);
       try { paintMemMinHint(); } catch (_) { /* ok */ }
     }
     function paintMemMinHint() {
