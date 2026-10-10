@@ -1675,7 +1675,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v213</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v214</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -5312,7 +5312,7 @@
         if (livU >= stopUV - 0.05) allowUf = false;
         else if (livU <= startUV + 0.05) allowUf = true;
 
-        const run11036 = run11036Tank && allow11036ByMbr;
+        const run11036 = run11036Tank && allow11036ByMbr && !blockP11;
         const pumpOn = pumpBy20 && !blockP11;
         const qPump = pumpOn ? qPumpSp : 0;
         const qMand = run11036 ? qMandSp : 0;
@@ -6972,11 +6972,15 @@
         net = delta; // permeato > mandata → svuota MBR
       }
 
+      // Pompe/membrane ferme: livello MBR fermo (niente scarico-pausa fantasma).
+      if (qIn < 0.05 && qOutPerm < 0.05) return 0;
+
       const cycle = Math.max(0.2, cal.lavoro + cal.pausa);
       const fracPause = Math.max(0.05, cal.pausa / cycle);
       const rPauseAvg = cal.rateDrain * fracPause;
-      // Drenaggio di ciclo = scarichi → A11004: spento se A11004 è pieno
-      let r = ratePctPerMinFromVolume(net, V) - (hFull ? 0 : rPauseAvg);
+      // Scarico di pausa solo con permeato attivo
+      const pauseDrain = (!hFull && qOutPerm > 0.05) ? rPauseAvg : 0;
+      let r = ratePctPerMinFromVolume(net, V) - pauseDrain;
 
       if (!Number.isFinite(r)) return 0;
       return Math.max(-RATE_PCT_CLAMP_VOL, Math.min(RATE_PCT_CLAMP_VOL, r));
@@ -7117,7 +7121,10 @@
     }
 
     function syncRun11036() {
-      __run11036 = !!__run11036Tank && !!__allow11036ByMbr;
+      // A10611 alto ha fermato P11011: tieni ferme anche le 11036.
+      // Altrimenti svuotano A10611, riparte P11011 e A10620 non arriva mai al blocco chimico
+      // (membrane troppo basse vs chimico = oscillazione infinita senza blocco).
+      __run11036 = !!__run11036Tank && !!__allow11036ByMbr && !__blockP11011By11;
       return __run11036;
     }
 
@@ -9147,19 +9154,34 @@
 
       // Solo bilanciamento reale (niente rClimb forzato: era quello che mandava subito a 95% / blocco)
       let r20 = rateA10620PctPerMin(qIn, qPump, qRecycleDisp);
-      const r11 = estimateA10611RatePctPerMin(qPump, qMandata);
+      let r11 = estimateA10611RatePctPerMin(qPump, qMandata);
       const hFull = a11004IsFull(livH);
       const qScaricoH = mbrScaricoToH(qMandata, qPerm, livMbr, livH);
-      const rH = estimateRicHRatePctPerMin(qScaricoH, qRecycleForH);
+      let rH = estimateRicHRatePctPerMin(qScaricoH, qRecycleForH);
       const hBackedUp = !hFull && (livH >= 94 || qScaricoH > qRecycleForH + 2);
-      const rMbr = estimateMbrRatePctPerMin(qMandata, qPerm, livMbr, {
+      let rMbr = estimateMbrRatePctPerMin(qMandata, qPerm, livMbr, {
         backedUp: hBackedUp,
         qRecycle: qRecycleForH,
         hFull,
         livH,
       });
-      const rP = estimateTk11007RatePctPerMin(qPerm, qP19);
-      const rU = estimateTk11021RatePctPerMin(qUfIn, qOsmOut);
+      let rP = estimateTk11007RatePctPerMin(qPerm, qP19);
+      let rU = estimateTk11021RatePctPerMin(qUfIn, qOsmOut);
+
+      // Tutte le portate processo a zero: niente sali-scendi fantasma.
+      // Resta solo A10620 se il chimico e' ancora aperto.
+      const allProcOff = (
+        qPump < 0.05 && qMandata < 0.05 && qRecycleDisp < 0.05
+        && qPerm < 0.05 && qP19 < 0.05 && qUfIn < 0.05 && qOsmOut < 0.05
+      );
+      if (allProcOff) {
+        r11 = 0;
+        rH = 0;
+        rMbr = 0;
+        rP = 0;
+        rU = 0;
+        r20 = rateA10620PctPerMin(qIn, 0, 0);
+      }
 
       let n20 = round2(Math.max(0, Math.min(100, liv20 + r20 * dtMin)));
       let n11 = round2(Math.max(0, Math.min(100, liv11 + r11 * dtMin)));
