@@ -1675,7 +1675,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v222</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v223</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -3892,7 +3892,7 @@
     let __resetReaffirmTimers = [];
     const SIM_RESET_LIV = 90; // livelli stabili al Reset
     const SIM_STEP_MIN = 1;   // passo TIME (minuti) — Start: 1 s reale = 1′
-    const BLOCK_FORECAST_HORIZON = 720; // previsione blocchi chimico: 12 ore (allineata a prove TIME lunghe)
+    const BLOCK_FORECAST_HORIZON = 480; // previsione blocchi chimico: 8 ore
     const RATE_PCT_CLAMP = 2.5; // tetto %/min prove empiriche (calibrazioni vecchie)
     const RATE_PCT_CLAMP_VOL = 12; // tetto %/min da volume reale (A10620 ecc.)
     const round2 = (v) => Math.round(Number(v) * 100) / 100;
@@ -4914,7 +4914,8 @@
         if (regOk) {
           cls = "status is-ok";
           text = "Regolato bene · nessun blocco chimico";
-          bar.title = "Sim livelli A10620/MBR/valle: nessun stop riempimento nell'orizzonte (clic)";
+          if (adv && adv.barNote) text += " · " + adv.barNote;
+          bar.title = "Sim 8 ore: il chimico-fisico non si chiude (clic)";
           warnBadge = "0";
         } else {
           cls = "status danger is-bad";
@@ -5608,14 +5609,12 @@
           if (hzOk || qSpOk) pumpRegBad = false;
         }
       } catch (_) { /* ok */ }
-      // Riciclo/membrane "Male + timer" SOLO se la sim livelli prevede stop chimico A10620.
-      // Il solo set sotto minimo tecnico non basta (falso countdown mentre TIME non blocca).
+      // Rosso solo se la sim 8 ore chiude il chimico. Membrane basse senza blocco restano verdi.
       let recBad = !flowMeetsNeed(qHaveRec, qRecNeed)
         && (fc.qScaricoNeed != null && fc.qScaricoNeed > 2)
         && !fc.ok;
       const memSoftLow = !memOk;
-      // Membrane << chimico = sempre Male (anche se la sim non ha ancora firstBlockMin)
-      let memRegBad = memSoftLow;
+      let memRegBad = memSoftLow && !fc.ok;
       let mandRegBad = !flowMeetsNeed(qHaveMand, qMandTarget);
       try {
         // In Auto mandata/riciclo seguono il cervello: non allarmare sulla rampa
@@ -5624,21 +5623,34 @@
         }
         if (ricicloAutoControlled() && !pumpRegBad) recBad = false;
       } catch (_) { /* ok */ }
-      const regOk = !pumpRegBad && !mandRegBad && !recBad && !memRegBad;
-
-      // Sim senza blocco chimico → verde (timer solo con firstBlockMin reale).
-      if (regOk) {
+      // Nessuno stop chimico nelle 8 ore → sempre verde, anche con membrane basse o al minimo.
+      if (fc.ok) {
         const horizLbl = fmtForecastWhen(fc.horizonMin || BLOCK_FORECAST_HORIZON);
+        let barNote = "";
+        let stress = "";
+        if (qMemTarget > 0.5 && qHaveMem <= qMemTarget + 2) {
+          if (qHaveMem + 0.6 >= qMemTarget) {
+            barNote = "membrane al minimo tecnico";
+            stress = ` Segnalazione: membrane al minimo tecnico (<strong>${fmtQ(qHaveMem)} m³/h</strong>).`;
+          } else {
+            barNote = "membrane sotto minimo tecnico";
+            stress = ` Segnalazione: membrane sotto il minimo tecnico (<strong>${fmtQ(qHaveMem)}</strong> vs <strong class="flow-val">${fmtQ(qMemTarget)} m³/h</strong>).`;
+          }
+          stress += ` Non chiudono il chimico-fisico nelle ${horizLbl}.`;
+        }
         return {
           ok: true,
           regOk: true,
           focus: "",
+          barNote,
           forecastHtml: `<div class="block-forecast is-ok"><strong>Regolato bene — nessun blocco chimico in ${horizLbl}</strong><br>`
-            + `Impianto in marcia: chimico <strong>${fmtQ(qInSp)}</strong> · P11011 <strong>${havePumpLbl}</strong>`
+            + `Il chimico-fisico <strong>non si chiude</strong> nelle ${horizLbl}. `
+            + `Chimico <strong>${fmtQ(qInSp)}</strong> · P11011 <strong>${havePumpLbl}</strong>`
             + ` · MP 11036 <strong>${fmtQ(qHaveMand)}</strong> · membrane <strong>${fmtQ(qHaveMem)}</strong>`
             + ` (uscita media ≈ <strong>${fmtQ(qPermHave)}</strong>)`
             + ` · riciclo <strong>${fmtQ(qHaveRec)}</strong> (scarico MBR ≈ ${fmtQ(fc.qScaricoNeed)}). `
-            + `Nessuna regolazione obbligatoria — A10620 non raggiunge lo stop riempimento.`
+            + `A10620 non raggiunge lo stop riempimento.`
+            + stress
             + `</div>`,
           verdict: "",
           action: "",
@@ -5648,7 +5660,7 @@
           forceAlt: false,
           qSafeSamePumps: qInSp,
           qRecNeed,
-          memSoftLow: false,
+          memSoftLow,
         };
       }
 
@@ -5657,8 +5669,8 @@
         ? fmtForecastWhen(fc.firstBlockMin)
         : null;
       const whenHtml = when
-        ? ` Blocco chimico previsto tra <strong>${when}</strong>.`
-        : ` La sim livelli non ha ancora un istante di blocco certo — correggi i set.`;
+        ? ` Blocco chimico previsto tra <strong>${when}</strong> (chimico-fisico chiuso).`
+        : "";
 
       let device = "P11011 A/B";
       let target = qPumpTarget;
@@ -5740,9 +5752,7 @@
         verdict = `Male: regolazione pompe ok (<strong>P11011 ${havePumpLbl}</strong>), ma `
           + `<strong>membrane a ${fmtQ(qHaveMem)}</strong> (uscita ≈ ${fmtQ(qPermHave)}) &lt; chimico <strong>${fmtQ(qInSp)}</strong>`
           + ` (minimo tecnico <strong class="flow-val">${fmtQ(qMemTarget)}</strong>).`
-          + (when
-            ? whenHtml
-            : ` Con uscita &lt; ingresso il chimico andrà in blocco — alza le membrane o scendi il chimico.`);
+          + whenHtml;
         action = `Membrane → <span class="flow-val">${fmtQ(qMemTarget)} m³/h</span> `
           + `(minimo tecnico vs chimico ${fmtQ(qInSp)}; P11011 resta ${havePumpLbl}).`;
         askQ = `È possibile portare le <strong>membrane</strong> al minimo tecnico `
@@ -5852,7 +5862,7 @@
       return {
         ok: false,
         regOk: false,
-        forecastHtml: `<div class="block-forecast is-bad"><strong>${fc.firstBlockMin != null ? ("Blocco chimico entro " + fmtForecastWhen(fc.horizonMin || BLOCK_FORECAST_HORIZON)) : "Regolazione insufficiente"}</strong><br>${verdict}</div>`,
+        forecastHtml: `<div class="block-forecast is-bad"><strong>Blocco chimico tra ${when || "—"}</strong><br>${verdict}</div>`,
         verdict,
         action,
         ask,
@@ -6242,7 +6252,9 @@
         } else if (adv) {
           html += adv.forecastHtml;
           if (adv.ok) {
-            html += `<div class="block-action ok-line">Portate coerenti: nessuna regolazione, impianto in marcia per 8 ore.</div>`;
+            html += `<div class="block-action ok-line">Impianto in marcia per 8 ore: il chimico-fisico non si chiude.`
+              + (adv.barNote ? ` ${adv.barNote.charAt(0).toUpperCase()}${adv.barNote.slice(1)}.` : "")
+              + `</div>`;
             __blockQaKey = `ok-${fmtQ(fc.qInSp)}-${fmtQ(fc.qPumpSp)}-${fmtQ(fc.qMandSp)}-${fmtQ(fc.qMemSp)}`;
             __blockQaAnswer = null;
           } else {
