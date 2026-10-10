@@ -1675,7 +1675,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v208</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v209</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -6757,6 +6757,24 @@
     }
 
     /**
+     * Manuale: il totale digitato è la verità (anche sotto minimo tecnico → allarme OK).
+     * Non tenere un __memAutoTotSp più alto che “rimbalza” il SET al valore precedente.
+     */
+    function applyMembraneManualTot(tot) {
+      const t = roundMem(Math.max(0, Number(tot) || 0));
+      __memAutoTotSp = t;
+      setVal("qMemTotale", t, { force: true });
+      try { setMemEqual(t); } catch (_) { /* ok */ }
+      const svgSp = el("svgQMemSp");
+      if (svgSp) svgSp.textContent = String(t);
+      if (!__simPlaying && !__simBusy) {
+        try { paintMemPermLive(t); } catch (_) { /* ok */ }
+      }
+      try { paintMemMinHint(); } catch (_) { /* ok */ }
+      return t;
+    }
+
+    /**
      * In Automatico: se il totale abilitate è sotto il minimo tecnico vs chimico,
      * alza solo il deficit sulle linee ON — senza resettare/ripartire i set già impostati.
      * Disabilitare una membrana NON deve cambiare la portata delle altre.
@@ -10692,8 +10710,14 @@
         if (svgQMemSp) {
           let memSp = 0;
           try {
-            memSp = Math.max(0, num("qMemTotale") || 0, Number(__memAutoTotSp) || 0);
-            if (deviceAutoControlled("membrane")) memSp = Math.max(memSp, membraneAutoTargetTot());
+            // Manuale: solo il set digitato (anche basso → dicitura allarme).
+            // Auto: max campo / memoria / target tecnico.
+            if (deviceIsManual("membrane")) {
+              memSp = Math.max(0, num("qMemTotale") || 0);
+            } else {
+              memSp = Math.max(0, num("qMemTotale") || 0, Number(__memAutoTotSp) || 0);
+              memSp = Math.max(memSp, membraneAutoTargetTot());
+            }
           } catch (_) {
             memSp = Math.max(0, num("qMemTotale") || 0);
           }
@@ -12896,9 +12920,7 @@
         return;
       }
       if (field === "qMemTotale") {
-        const tot = roundMem(v);
-        setVal("qMemTotale", tot, { force: true });
-        setMemEqual(tot);
+        applyMembraneManualTot(v);
         applyBalance("totale");
         return;
       }
@@ -13051,9 +13073,7 @@
         return;
       }
       if (field === "qMemTotale") {
-        const tot = roundMem(v);
-        setVal("qMemTotale", tot, { force: true });
-        setMemEqual(tot);
+        applyMembraneManualTot(v);
         applyBalance("totale");
         return;
       }
@@ -13234,13 +13254,18 @@
           if (el("qUfTotale")) setVal("qUfTotale", val, { force: true });
         }
       } else if (field === "qMemTotale") {
-        val = Math.max(
-          0,
-          num("qMemTotale") || 0,
-          parseFloat(String(el("svgQMemSp")?.textContent || "").replace(",", ".")) || 0,
-          Number(__memAutoTotSp) || 0
-        );
-        if (!deviceIsManual("membrane")) {
+        if (deviceIsManual("membrane")) {
+          // Manuale: apri col set reale (anche basso). Mai Math.max col vecchio auto.
+          val = Math.max(0, num("qMemTotale") || 0);
+          const spTxt = parseFloat(String(el("svgQMemSp")?.textContent || "").replace(",", "."));
+          if (!(val > 0.05) && Number.isFinite(spTxt) && spTxt >= 0) val = spTxt;
+        } else {
+          val = Math.max(
+            0,
+            num("qMemTotale") || 0,
+            parseFloat(String(el("svgQMemSp")?.textContent || "").replace(",", ".")) || 0,
+            Number(__memAutoTotSp) || 0
+          );
           try { val = Math.max(val, membraneAutoTargetTot()); } catch (_) { /* ok */ }
         }
       } else {
