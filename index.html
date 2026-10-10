@@ -1675,7 +1675,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v209</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v210</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -5493,7 +5493,11 @@
           if (hzOk || qSpOk) pumpRegBad = false;
         }
       } catch (_) { /* ok */ }
-      let recBad = !flowMeetsNeed(qHaveRec, qRecNeed) && (fc.qScaricoNeed != null && fc.qScaricoNeed > 2);
+      // Riciclo “basso” solo se davvero sotto lo scarico MBR E la sim 8h non regge.
+      // Altrimenti overview dice Male e Previsioni dicono OK (incongruenza).
+      let recBad = !flowMeetsNeed(qHaveRec, qRecNeed)
+        && (fc.qScaricoNeed != null && fc.qScaricoNeed > 2)
+        && !fc.ok;
       let mandRegBad = !flowMeetsNeed(qHaveMand, qMandTarget);
       try {
         // In Auto mandata/riciclo seguono il cervello: non allarmare sulla rampa
@@ -10734,8 +10738,8 @@
         refreshProcViews();
 
         updateLevelRangeUI(qInEff, qPumpEff2, qMandata, qRecycle, totAvg);
-        // Tick sim/livelli: preview con isteresi. Cambio operatore: immediato (userChange).
-        const autoTick = source === "sim" || source === "livello";
+        // Solo tick TIME/sim: isteresi. Digita riciclo/set/livelli a mano → aggiorna subito la barra.
+        const autoTick = source === "sim";
         try {
           scheduleRegPreview({
             delay: autoTick ? (__simPlaying ? 150 : 80) : 0,
@@ -12881,7 +12885,9 @@
           setVal("qRecycle", qRec, { force: true });
           const svgQRec = el("svgQRec");
           if (svgQRec) svgQRec.textContent = String(qRec);
-          applyBalance("livello");
+          const svgQRecSp = el("svgQRecSp");
+          if (svgQRecSp) svgQRecSp.textContent = String(qRec);
+          applyBalance("riciclo");
           return;
         }
         // Automatico riciclo: alza P11011 al Hz di tabella che dà ≥ ingresso + riciclo
@@ -13033,7 +13039,10 @@
           setVal("qRecycle", qRec, { force: true });
           const svgQRec = el("svgQRec");
           if (svgQRec) svgQRec.textContent = String(qRec);
-          applyBalance("livello");
+          const svgQRecSp = el("svgQRecSp");
+          if (svgQRecSp) svgQRecSp.textContent = String(qRec);
+          applyBalance("riciclo");
+          try { scheduleRegPreview({ immediate: true, userChange: true }); } catch (_) { /* ok */ }
           return;
         }
         // Automatico riciclo: alza P11011 al Hz di tabella che dà ≥ ingresso + riciclo
@@ -13046,6 +13055,7 @@
         rememberFlowSetpoint("qRecycle", qRecSet);
         if (el("equiparaMandata")?.checked) rememberFlowSetpoint("qMandata", step.q);
         applyBalance("freq");
+        try { scheduleRegPreview({ immediate: true, userChange: true }); } catch (_) { /* ok */ }
         return;
       }
       if (field === "qUfTotale") {
