@@ -1675,7 +1675,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v220</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v222</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -3668,6 +3668,17 @@
             <input type="number" id="viewStopSvuotTk11007c" readonly placeholder="—" inputmode="decimal" />
           </label>
         </div>
+        <p class="mini">Basso TK-11007: stop svuotamento ferma le P11019, start le fa ripartire.</p>
+        <h4 style="margin-top:10px">TK 11021 — stop riempimento (da quel serbatoio)</h4>
+        <div class="row">
+          <label><strong>Start riempimento % → P11019 possono ripartire</strong>
+            <input type="number" id="viewStartRiempTk11021p19" readonly placeholder="—" inputmode="decimal" />
+          </label>
+          <label><strong>Stop riempimento % → P11019 OFF</strong>
+            <input type="number" id="viewStopRiempTk11021p19" readonly placeholder="—" inputmode="decimal" />
+          </label>
+        </div>
+        <p class="mini">Alto TK-11021: lo stop riempimento ferma le P11019 (sono le pompe che lo riempiono). Ripartono allo start.</p>
       </div>
       <div class="actions"><button type="button" data-close>Applica</button></div>
     </div>
@@ -3809,6 +3820,7 @@
     let __chimicoBlockCount = 0;   // quante volte il chimico è andato in blocco (dal Reset)
     let __chimicoBlockLog = [];    // ultimi eventi blocco (motivo + portate)
     let __blockQaAnswer = null;    // null | 'yes' | 'no' — risposta quesito nel popup blocco
+    let __blockQaFollow = null;    // null | 'yes' | 'no' — seconda domanda (produzione chimico)
     let __blockQaKey = "";         // chiave quesito corrente (reset risposta se cambia)
     let __blockP11011By11 = false; // isteresi alto A10611 (96/90) → ferma P11011
     let __runMbrByLevel = true;  // isteresi membrane su livello MBR (start 85 / stop 77)
@@ -4993,10 +5005,33 @@
         + `(con <strong>${device}</strong> a ${fmtQ(haveNow)}, senza blocco per 8 ore).`;
     }
 
+    /** Produzione chimico intera che regge con le membrane attuali (non “≤”). */
+    function qInProdExact(qSafe) {
+      const n = Math.floor(Number(qSafe) + 1e-6);
+      return Math.max(0, n);
+    }
+
+    function memProdNoPack(qMem, qSafe) {
+      const mem = Math.max(0, Math.round(Number(qMem) || 0));
+      const prod = qInProdExact(qSafe);
+      return {
+        noHtml: `Con le membrane a <strong>${mem} m³/h</strong> il chimico-fisico per funzionare è <strong class="fix-val">${prod} m³/h</strong>.`,
+        noAsk: {
+          key: `cf-prod-${prod}-mem-${mem}`,
+          q: `Vuoi metterlo a quella produzione (<strong class="flow-val">${prod} m³/h</strong>)?`,
+          applyField: "qIn",
+          applyValue: prod,
+          yesHtml: `Ok: chimico-fisico impostato a <strong class="flow-val">${prod} m³/h</strong>.`,
+          noHtml: `Chimico-fisico lasciato com’è. Con queste membrane la produzione è <strong class="fix-val">${prod} m³/h</strong>.`,
+        },
+      };
+    }
+
     function resetChimicoBlockCount() {
       __chimicoBlockCount = 0;
       __chimicoBlockLog = [];
       __blockQaAnswer = null;
+      __blockQaFollow = null;
       __blockQaKey = "";
       updateChimicoBlockUI();
     }
@@ -5633,6 +5668,9 @@
       let askQ = "";
       let yesHtml = "";
       let noHtml = "";
+      let memNoAsk = null;
+      let yesApplyField = "";
+      let yesApplyValue = null;
       let verdict = "";
       let action = "";
       let fault = "";
@@ -5711,7 +5749,13 @@
           + `<strong class="flow-val">${fmtQ(qMemTarget)} m³/h</strong> `
           + `(ora ${fmtQ(qHaveMem)})?`;
         yesHtml = `Ok: membrane → <strong class="flow-val">${fmtQ(qMemTarget)} m³/h</strong> (minimo tecnico).`;
-        noHtml = cfLowerNoHtml(qSafeSamePumps, "membrane", qHaveMem);
+        {
+          const pack = memProdNoPack(qHaveMem, qSafeSamePumps);
+          noHtml = pack.noHtml;
+          memNoAsk = pack.noAsk;
+          yesApplyField = "qMemTotale";
+          yesApplyValue = roundMem(qMemTarget);
+        }
       } else if (fc.reason === "valley") {
         // Solo se membrane già ok e il loop ha bloccato A10620 per valle — non per flag export 120 vs 160.
         focus = "osm";
@@ -5790,6 +5834,9 @@
           yesHtml,
           noHtml,
           hideAltOnNo: false,
+          noAsk: memNoAsk,
+          applyField: yesApplyField,
+          applyValue: yesApplyValue,
         };
       } else if (focus === "cf") {
         ask = {
@@ -5918,17 +5965,23 @@
               q: `È possibile portare le <strong>membrane</strong> al minimo tecnico `
                 + `<strong class="flow-val">${fmtQ(qMemTarget)} m³/h</strong>?`,
               yesHtml: `Ok: membrane → <span class="flow-val">${fmtQ(qMemTarget)}</span> (minimo), MP 11036 ≥ <span class="flow-val">${fmtQ(qMandTarget)}</span>.`,
-              noHtml: cfLowerNoHtml(Math.min(ev.qInSp, qSafe8h), "membrane", qHaveMem),
+              ...memProdNoPack(qHaveMem, Math.min(ev.qInSp, qSafe8h)),
+              applyField: "qMemTotale",
+              applyValue: roundMem(qMemTarget),
               hideAltOnNo: false,
             };
           } else {
-            alt = cfLowerNoHtml(Math.min(ev.qInSp, qSafe8h), "membrane", qHaveMem);
+            const packOk = memProdNoPack(qHaveMem, Math.min(ev.qInSp, qSafe8h));
+            alt = packOk.noHtml;
             ask = {
               key: `mem-ok-${fmtQ(qMemTarget)}-${fmtQ(ev.qInSp)}`,
               q: `È possibile portare le <strong>membrane</strong> al minimo tecnico `
                 + `<strong class="flow-val">${fmtQ(qMemTarget)} m³/h</strong>?`,
               yesHtml: `Ok: membrane → <span class="flow-val">${fmtQ(qMemTarget)}</span> (minimo), MP 11036 ≥ <span class="flow-val">${fmtQ(qMandTarget)}</span>.`,
-              noHtml: alt,
+              noHtml: packOk.noHtml,
+              noAsk: packOk.noAsk,
+              applyField: "qMemTotale",
+              applyValue: roundMem(qMemTarget),
               hideAltOnNo: false,
             };
           }
@@ -6083,28 +6136,66 @@
       resetModalDragPos(el("blocchiPanel"));
     }
 
+    function applyAttr(field, value) {
+      if (!field || value == null || value === "") return "";
+      return ` data-apply-field="${field}" data-apply-value="${value}"`;
+    }
+
     function renderBlockAskHtml(ask) {
       if (!ask) return "";
       const key = String(ask.key || "");
       if (key && key !== __blockQaKey) {
         __blockQaKey = key;
         __blockQaAnswer = null;
+        __blockQaFollow = null;
       }
       const ans = __blockQaAnswer;
       let html = `<div class="block-qa" data-qa-key="${key}">`;
       html += `<p>${ask.q}</p>`;
       html += `<div class="block-qa-btns">`;
-      html += `<button type="button" data-block-qa="yes"${ans === "yes" ? ' class="is-picked"' : ""}>Sì</button>`;
+      html += `<button type="button" data-block-qa="yes"${applyAttr(ask.applyField, ask.applyValue)}${ans === "yes" ? ' class="is-picked"' : ""}>Sì</button>`;
       html += `<button type="button" data-block-qa="no"${ans === "no" ? ' class="is-picked"' : ""}>No</button>`;
       html += `</div></div>`;
       if (ans === "yes") {
         html += `<div class="block-action" data-block-qa-result="yes">${ask.yesHtml || "Ok."}</div>`;
       } else if (ans === "no") {
         html += `<div class="block-alt" data-block-qa-result="no">${ask.noHtml || "Ok."}</div>`;
+        if (ask.noAsk) {
+          const f = ask.noAsk;
+          const fans = __blockQaFollow;
+          html += `<div class="block-qa" data-qa-follow="1">`;
+          html += `<p>${f.q}</p>`;
+          html += `<div class="block-qa-btns">`;
+          html += `<button type="button" data-block-qa="follow-yes"${applyAttr(f.applyField, f.applyValue)}${fans === "yes" ? ' class="is-picked"' : ""}>Sì</button>`;
+          html += `<button type="button" data-block-qa="follow-no"${fans === "no" ? ' class="is-picked"' : ""}>No</button>`;
+          html += `</div></div>`;
+          if (fans === "yes") {
+            html += `<div class="block-action" data-block-qa-result="yes">${f.yesHtml || "Ok."}</div>`;
+          } else if (fans === "no") {
+            html += `<div class="block-alt">${f.noHtml || "Ok."}</div>`;
+          }
+        }
       } else {
         html += `<p class="mini">Rispondi Sì o No: sotto compare subito il consiglio. Puoi cambiare risposta quando vuoi.</p>`;
       }
       return html;
+    }
+
+    /** Scrive il numero nel campo e lancia lo stesso aggiornamento dell’invio. */
+    function commitAdviceSetpoint(field, value) {
+      const id = String(field || "");
+      const n = Math.max(0, Math.round(Number(value) || 0));
+      if (id === "qMemTotale") {
+        try { applyMembraneManualTot(n); } catch (_) { setVal("qMemTotale", n, { force: true }); }
+      } else if (id === "qIn") {
+        const node = el("qIn");
+        if (node) node.value = String(n);
+        else setVal("qIn", n, { force: true });
+      } else {
+        return;
+      }
+      const node = el(id);
+      if (node) node.dispatchEvent(new Event("input", { bubbles: true }));
     }
 
     function paintBlocchiExplain() {
@@ -6224,7 +6315,21 @@
           const k = wrap.getAttribute("data-qa-key");
           if (k) __blockQaKey = k;
         }
-        __blockQaAnswer = ans === "no" ? "no" : "yes";
+        const applyField = btn.getAttribute("data-apply-field");
+        const applyValue = btn.getAttribute("data-apply-value");
+        if (ans === "follow-yes" || ans === "follow-no") {
+          __blockQaAnswer = "no";
+          __blockQaFollow = ans === "follow-yes" ? "yes" : "no";
+          if (ans === "follow-yes" && applyField) {
+            try { commitAdviceSetpoint(applyField, applyValue); } catch (_) { /* ok */ }
+          }
+        } else {
+          __blockQaFollow = null;
+          __blockQaAnswer = ans === "no" ? "no" : "yes";
+          if (ans !== "no" && applyField) {
+            try { commitAdviceSetpoint(applyField, applyValue); } catch (_) { /* ok */ }
+          }
+        }
         try { paintBlocchiExplain(); } catch (err) {
           console.warn("[calcolatore] block-qa", err);
         }
@@ -12244,6 +12349,8 @@
         ["viewStopSvuotOsmB2", "stopSvuotOsmB"],
         ["viewStartSvuotOsmC2", "startSvuotOsmC"],
         ["viewStopSvuotOsmC2", "stopSvuotOsmC"],
+        ["viewStartRiempTk11021p19", "startRiempTk11021"],
+        ["viewStopRiempTk11021p19", "stopRiempTk11021"],
         ["viewStartRicicloA10620", "startRicicloA10620"],
         ["viewStopRicicloA10620", "stopRicicloA10620"],
       ];

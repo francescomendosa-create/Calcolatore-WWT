@@ -1,0 +1,12 @@
+---
+description: Regole di processo su ogni serbatoio, non solo nel pannello PROCESSO
+alwaysApply: true
+---
+
+# Processo su ogni serbatoio
+
+Le soglie di marcia/fermo stanno nel pannello PROCESSO e anche nel popup di ogni serbatoio (clic sullo schema). Prima di cambiare un interblocco, leggi entrambi.
+
+Se una regola c’è sul serbatoio e manca nel pannello generale, vale lo stesso: il codice la deve rispettare.
+
+Non spegnere una macchina per un livello che quel serbatoio non comanda, e non ignorare uno stop/start scritto sul suo popup.
