@@ -1675,7 +1675,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v215</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v216</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -4154,6 +4154,16 @@
       return 0;
     }
 
+
+    /** Azzera misura+desiderata (processo fermo): niente rampa che “manda” ancora ai livelli. */
+    function snapFlowClosed(id) {
+      const key = String(id || "");
+      if (!key) return;
+      __flowDesire[key] = 0;
+      __flowAnimFrom[key] = 0;
+      __flowAnimTo[key] = 0;
+      try { paintFlowLive(key, 0); } catch (_) { __flowLive[key] = 0; }
+    }
 
     /** Aggiorna campo + occhio SVG con la portata viva (senza toccare il setpoint popup). */
     function paintFlowLive(id, v) {
@@ -6668,6 +6678,8 @@
       const outR = cal.qMandRef > 0 ? Math.max(0, qOutEff / cal.qMandRef) : 0;
       // inR=1,outR=0 → rateOff (sale); inR=1,outR=1 → rateOn (scende); tutto fermo → 0
       let r = inR * cal.rateOff + outR * (cal.rateOn - cal.rateOff);
+      // Senza P11011 (qIn=0) A10611 NON può salire — solo restare o scendere con 11036.
+      if (qInEff < 0.05 && r > 0) r = 0;
       if (!Number.isFinite(r)) return 0;
       return Math.max(-RATE_PCT_CLAMP, Math.min(RATE_PCT_CLAMP, r));
     }
@@ -6932,12 +6944,12 @@
       }
     }
 
-    /** A11004 pieno: non può ricevere altro liquido → scarico MBR bloccato. */
+    /** A11004 quasi pieno: non riceve più scarico MBR (prima era 99.95% → mai “pieno”, livelli eterni). */
     function a11004IsFull(livHOpt) {
       const h = livHOpt != null && Number.isFinite(Number(livHOpt))
         ? Number(livHOpt)
         : (numOrNull("livelloAttualeH") ?? 90);
-      return Number.isFinite(h) && h >= 99.95;
+      return Number.isFinite(h) && h >= 97 - 1e-9;
     }
 
     /**
@@ -6995,10 +7007,18 @@
      */
     function mbrScaricoToH(qMandata, qPerm, livMbrOpt, livHOpt) {
       if (a11004IsFull(livHOpt)) return 0;
+      const h = livHOpt != null && Number.isFinite(Number(livHOpt))
+        ? Number(livHOpt)
+        : (numOrNull("livelloAttualeH") ?? 90);
       const qM = Math.max(0, Number(qMandata) || 0);
       const qP = Math.max(0, Number(qPerm) || 0);
       const excess = Math.max(0, qM - qP);
-      return round1(excess * MBR_SCARICO_TO_H_FRAC);
+      // Vicino al pieno: riduci scarico → eccesso resta in MBR → sale a stop 11036
+      let frac = MBR_SCARICO_TO_H_FRAC;
+      if (Number.isFinite(h) && h >= 94) {
+        frac *= Math.max(0, Math.min(1, (97 - h) / 3));
+      }
+      return round1(excess * frac);
     }
 
     /** Minuti stimati da livello attuale → stop riempimento MBR (11036 fermano). null se non sale. */
@@ -9077,7 +9097,9 @@
       applyBalance("sim");
       const qInSet = num("qIn");
       const qIn = qInEffective(qInSet);
-      // Marcia/arresto SEMPRE da livelli. Portate = MISURA (flowMeasureOf): live 0 resta 0.
+      // Processo fermo → misura a 0 SUBITO (niente rampa che riempie A10611 a P11011 rosse).
+      if (pumpEstopped("pompa") || !p11011Allowed()) snapFlowClosed("qPump");
+      if (pumpEstopped("mandata") || !__run11036) snapFlowClosed("qMandata");
       const qPump = flowMeasureOf("qPump");
       const qMandata = flowMeasureOf("qMandata");
       const liv20 = num("livelloAttuale");
@@ -9414,7 +9436,7 @@
       } else if (deviceAutoControlled("pompa")) {
         // Pompe ferme: viva → 0, setpoint resta (popup)
         if (deferToStep) __flowDesire.qPump = 0;
-        else commitFlow("qPump", 0, { instant: snap });
+        else snapFlowClosed("qPump");
         if (forceUi || !isEditing("freqHz")) {
           const hzNode = el("freqHz");
           if (hzNode) hzNode.value = "0";
@@ -9749,9 +9771,11 @@
         ? rate11 / cal11.k
         : (qPump - qMandata);
       let net11 = round1(net11FromCalib);
-      if (totAvg + 0.25 < qMandata) {
+      // Override valle solo se P11011 manda davvero — altrimenti “sale” fantasma a pompe ferme
+      if (qPump > 0.05 && totAvg + 0.25 < qMandata) {
         net11 = round1(Math.max(net11, qMandata - totAvg));
       }
+      if (qPump < 0.05) net11 = Math.min(net11, 0);
 
       // Rosso / “blocco” A10620 solo a stop riempimento (95%), NON a start svuotamento (92%)
       const stopRiemp20 = numOrNull("stopRiempA10620");
@@ -10423,7 +10447,7 @@
           // P11011 FERME: viva → 0; setpoint resta per il popup
           if (!pumpOn && !isEditing("qPump")) {
             qPump = 0;
-            commitFlow("qPump", 0, { instant: true });
+            snapFlowClosed("qPump");
             if (!isEditing("freqHz")) {
               const hzNode = el("freqHz");
               if (hzNode) hzNode.value = "0";
@@ -10459,7 +10483,10 @@
         // Manuale: a pompe ON la viva = setpoint (da Hz o digitato). Non ricalcolare se arriva da freq (già fatto).
         if (!autoPump && !isEditing("qPump") && source !== "freq" && qFromFreqThisPass == null) {
           if (pumpOn) commitFlow("qPump", qPumpSet, { setpoint: qPumpSet });
-          else commitFlow("qPump", 0, { setpoint: qPumpSet, instant: true });
+          else {
+            rememberFlowSetpoint("qPump", qPumpSet);
+            snapFlowClosed("qPump");
+          }
         }
         // Target effettivo (comando). La portata VIVA resta in campo/SVG via commitFlow.
         const qPumpEff = !pumpOn
@@ -10522,9 +10549,7 @@
         // Effettiva mandata: 0 se processo ferma 11036 (niente rampa fantasma verso le MBR)
         if (!__run11036) {
           qMandata = 0;
-          if (__flowLive.qMandata && __flowLive.qMandata > 0.05) {
-            try { paintFlowLive("qMandata", 0); } catch (_) { /* ok */ }
-          }
+          snapFlowClosed("qMandata");
         }
 
         // Equilibrio permeato / boost: solo Automatico
@@ -10616,7 +10641,7 @@
             : Math.max(0, Number(__flowLive.qPump) || 0));
         // Automatico: azzera solo la VIVA se OFF. Setpoint (popup) resta.
         if (autoPump && !pumpOn) {
-          if (!isEditing("qPump")) commitFlow("qPump", 0, { instant: true });
+          if (!isEditing("qPump")) snapFlowClosed("qPump");
           qPumpEff2 = 0;
         }
         if (autoMand && !__run11036) {
@@ -10835,7 +10860,13 @@
         if (svgHz && !isEditing("freqHz")) svgHz.textContent = String(Math.round(num("freqHz")));
         refreshProcViews();
 
-        updateLevelRangeUI(qInEff, qPumpEff2, qMandata, qRecycle, totAvg);
+        updateLevelRangeUI(
+          qInEff,
+          flowMeasureOf("qPump"),
+          flowMeasureOf("qMandata"),
+          flowMeasureOf("qRecycle"),
+          totAvg
+        );
         // Solo tick TIME/sim: isteresi. Digita riciclo/set/livelli a mano → aggiorna subito la barra.
         const autoTick = source === "sim";
         try {
