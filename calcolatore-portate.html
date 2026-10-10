@@ -1675,7 +1675,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v214</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v215</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -4149,7 +4149,9 @@
         } catch (_) { /* ok */ }
         return round1(Math.max(0, Number(__qMemPermLive) || 0));
       }
-      return round1(Math.max(0, Number(__flowLive[key]) || num(key) || 0));
+      const live = Number(__flowLive[key]);
+      if (Number.isFinite(live)) return round1(Math.max(0, live));
+      return 0;
     }
 
 
@@ -4760,7 +4762,8 @@
       const plantGo = !!(plantIsStarted() || __simBusy || __simMin > 0);
       const pumpOn = !!(pumpAllowed && plantGo);
       const qPumpSp = Math.max(0, flowSetpointOf("qPump"));
-      const qPumpLive = Math.max(0, Number(__flowLive.qPump) || qPumpSp);
+      // MISURA: live 0 resta 0 (mai || setpoint — altrimenti livelli “vivi” a pompe ferme)
+      const qPumpLive = Math.max(0, Number(__flowLive.qPump) || 0);
       const qOut = pumpOn ? qPumpLive : 0;
       const qMandSp = Math.max(0, flowSetpointOf("qMandata"));
       const qMandLive = Math.max(0, Number(__flowLive.qMandata) || 0);
@@ -4887,24 +4890,17 @@
         const regOk = !!(adv && (adv.ok || adv.regOk));
         let warnBadge = "1";
         if (regOk) {
-          if (adv && adv.memSoftLow) {
-            cls = "status warn";
-            text = "Regolato bene · membrane sotto minimo (no blocco)";
-            bar.title = "Sim livelli: nessun blocco chimico nell'orizzonte — membrane sotto set tecnico (clic)";
-            warnBadge = "0";
-          } else {
-            cls = "status is-ok";
-            text = "Regolato bene · nessun blocco chimico";
-            bar.title = "Sim livelli A10620/MBR/valle: nessun stop riempimento nell'orizzonte (clic)";
-            warnBadge = "0";
-          }
+          cls = "status is-ok";
+          text = "Regolato bene · nessun blocco chimico";
+          bar.title = "Sim livelli A10620/MBR/valle: nessun stop riempimento nell'orizzonte (clic)";
+          warnBadge = "0";
         } else {
           cls = "status danger is-bad";
           text = shortRegPreviewBad(adv, fc);
           bar.title = (adv.verdict || "Regolazione da correggere") + " — clic per dettaglio / Sì-No";
         }
         const stateKey = regOk
-          ? (adv && adv.memSoftLow ? "ok-memsoft" : "ok")
+          ? "ok"
           : `bad:${(adv && adv.focus) || "x"}`;
         const now = Date.now();
         const userJustChanged = __regUserBumpAt > 0 && (now - __regUserBumpAt) < 900;
@@ -5153,9 +5149,24 @@
       // Mai confondere con la misura istantanea (che a pompe rosse è 0).
       let qPumpSp = opts.qPump != null ? Math.max(0, Number(opts.qPump) || 0) : flowSetpointOf("qPump");
       let qMandSp = opts.qMand != null ? Math.max(0, Number(opts.qMand) || 0) : flowSetpointOf("qMandata");
-      const qMemSp = opts.qMem != null
-        ? Math.max(0, Number(opts.qMem) || 0)
-        : Math.max(0, num("qMemTotale") || 0, Number(__memAutoTotSp) || 0);
+      // SET membrane reale (campo/comando). NON max con __memAutoTotSp:
+      // se l'utente ha messo 40 e l'auto-sp era 100, il forecast deve vedere 40.
+      let qMemSp;
+      if (opts.qMem != null) {
+        qMemSp = Math.max(0, Number(opts.qMem) || 0);
+      } else {
+        qMemSp = Math.max(0, num("qMemTotale") || 0);
+        try {
+          const spMem = Math.max(0, Number(__flowSetpoint.qMemTotale) || 0);
+          if (spMem > 0.05) qMemSp = spMem;
+        } catch (_) { /* ok */ }
+        // Solo in Auto membrane senza SET esplicito: usa floor auto
+        try {
+          if (deviceAutoControlled("membrane") && qMemSp < 0.05 && Number(__memAutoTotSp) > 0.05) {
+            qMemSp = Math.max(0, Number(__memAutoTotSp) || 0);
+          }
+        } catch (_) { /* ok */ }
+      }
       let qRecSp = opts.qRec != null ? Math.max(0, Number(opts.qRec) || 0) : flowSetpointOf("qRecycle");
 
       let dutyAvg = 0.875;
@@ -5555,7 +5566,8 @@
         && (fc.qScaricoNeed != null && fc.qScaricoNeed > 2)
         && !fc.ok;
       const memSoftLow = !memOk;
-      let memRegBad = memSoftLow && !fc.ok;
+      // Membrane << chimico = sempre Male (anche se la sim non ha ancora firstBlockMin)
+      let memRegBad = memSoftLow;
       let mandRegBad = !flowMeetsNeed(qHaveMand, qMandTarget);
       try {
         // In Auto mandata/riciclo seguono il cervello: non allarmare sulla rampa
@@ -5569,37 +5581,26 @@
       // Sim senza blocco chimico → verde (timer solo con firstBlockMin reale).
       if (regOk) {
         const horizLbl = fmtForecastWhen(fc.horizonMin || BLOCK_FORECAST_HORIZON);
-        let noteMem = "";
-        if (memSoftLow) {
-          noteMem = ` Membrane a <strong>${fmtQ(qHaveMem)}</strong> sotto minimo tecnico `
-            + `(${fmtQ(qMemTarget)} vs chimico ${fmtQ(qInSp)}), ma <strong>nessun blocco chimico</strong> `
-            + `nei prossimi ${horizLbl} — i livelli reggono.`;
-        }
         return {
           ok: true,
           regOk: true,
-          focus: memSoftLow ? "mem-soft" : "",
+          focus: "",
           forecastHtml: `<div class="block-forecast is-ok"><strong>Regolato bene — nessun blocco chimico in ${horizLbl}</strong><br>`
             + `Impianto in marcia: chimico <strong>${fmtQ(qInSp)}</strong> · P11011 <strong>${havePumpLbl}</strong>`
             + ` · MP 11036 <strong>${fmtQ(qHaveMand)}</strong> · membrane <strong>${fmtQ(qHaveMem)}</strong>`
             + ` (uscita media ≈ <strong>${fmtQ(qPermHave)}</strong>)`
             + ` · riciclo <strong>${fmtQ(qHaveRec)}</strong> (scarico MBR ≈ ${fmtQ(fc.qScaricoNeed)}). `
-            + (memSoftLow
-              ? noteMem
-              : `Nessuna regolazione obbligatoria — A10620 non raggiunge lo stop riempimento.`)
+            + `Nessuna regolazione obbligatoria — A10620 non raggiunge lo stop riempimento.`
             + `</div>`,
           verdict: "",
-          action: memSoftLow
-            ? `Opzionale: membrane → <span class="flow-val">${fmtQ(qMemTarget)} m³/h</span> (minimo tecnico). `
-              + `Non è un blocco previsto.`
-            : "",
+          action: "",
           ask: null,
           fault: "",
           alt: "",
           forceAlt: false,
           qSafeSamePumps: qInSp,
           qRecNeed,
-          memSoftLow,
+          memSoftLow: false,
         };
       }
 
@@ -5678,7 +5679,7 @@
         yesHtml = `Ok: riciclo → <strong class="flow-val">${fmtQ(qRecNeed)} m³/h</strong>.`;
         noHtml = cfLowerNoHtml(qSafeSamePumps, "riciclo 11014", qHaveRec);
       } else if (memRegBad) {
-        // Solo se la sim livelli prevede blocco chimico con membrane sotto minimo.
+        // Membrane sotto minimo tecnico vs chimico → sempre Male (timer se firstBlockMin c'è).
         focus = "mem";
         device = "membrane";
         target = qMemTarget;
@@ -5688,7 +5689,9 @@
         verdict = `Male: regolazione pompe ok (<strong>P11011 ${havePumpLbl}</strong>), ma `
           + `<strong>membrane a ${fmtQ(qHaveMem)}</strong> (uscita ≈ ${fmtQ(qPermHave)}) &lt; chimico <strong>${fmtQ(qInSp)}</strong>`
           + ` (minimo tecnico <strong class="flow-val">${fmtQ(qMemTarget)}</strong>).`
-          + whenHtml;
+          + (when
+            ? whenHtml
+            : ` Con uscita &lt; ingresso il chimico andrà in blocco — alza le membrane o scendi il chimico.`);
         action = `Membrane → <span class="flow-val">${fmtQ(qMemTarget)} m³/h</span> `
           + `(minimo tecnico vs chimico ${fmtQ(qInSp)}; P11011 resta ${havePumpLbl}).`;
         askQ = `È possibile portare le <strong>membrane</strong> al minimo tecnico `
@@ -8725,7 +8728,7 @@
 
       // P11019 A/B/C
       const run11019 = go && p11019Allowed() && !estop19;
-      const q19Live = estop19 ? 0 : Math.max(0, Number(__flowLive.qP11019) || num("qP11019") || 0);
+      const q19Live = flowMeasureOf("qP11019");
       const q19Each = run11019 ? q19Live / 3 : 0;
       ["A", "B", "C"].forEach((L) => {
         paintOnePump("svgPump11019" + L, "svgPump11019" + L + "Arrow", null, run11019, estop19, q19Each);
@@ -9074,14 +9077,9 @@
       applyBalance("sim");
       const qInSet = num("qIn");
       const qIn = qInEffective(qInSet);
-      // Marcia/arresto SEMPRE da livelli (auto e manuale). In manuale il setpoint digitato resta nel campo.
-      // Portate VIVE: __flowLive (dopo snap a Start), fallback campo — non il solo num a 0.
-      const qPump = (!pumpEstopped("pompa") && p11011Allowed())
-        ? Math.max(0, Number(__flowLive.qPump) || num("qPump") || 0)
-        : 0;
-      const qMandata = (!pumpEstopped("mandata") && __run11036)
-        ? Math.max(0, Number(__flowLive.qMandata) || num("qMandata") || 0)
-        : 0;
+      // Marcia/arresto SEMPRE da livelli. Portate = MISURA (flowMeasureOf): live 0 resta 0.
+      const qPump = flowMeasureOf("qPump");
+      const qMandata = flowMeasureOf("qMandata");
       const liv20 = num("livelloAttuale");
       const liv11 = num("livelloAttualeA10611");
       let livH = numOrNull("livelloAttualeH");
@@ -9107,9 +9105,7 @@
       updateTk11021Interlocks(livU);
       updateTk11007PumpInterlocks(livP);
       applyP11019RunFromLevel();
-      const qP19 = pumpEstopped("p11019")
-        ? 0
-        : Math.max(0, Number(__flowLive.qP11019) || num("qP11019") || 0);
+      const qP19 = flowMeasureOf("qP11019");
       // OUT osmosi da TK 11021: solo linee in marcia (isteresi P-11040 sul livello)
       updateOsmosiTk11021Interlocks(livU);
       // In TIME: se i set osmosi ci sono già, non riallinearli a qIn ogni minuto (11021 piatto).
@@ -10616,8 +10612,8 @@
         let qPumpEff2 = !pumpOn
           ? 0
           : (auto
-            ? (!isEditing("qPump") ? Math.max(0, num("qPump")) : qPumpEff)
-            : Math.max(0, num("qPump") || qPumpSet));
+            ? (!isEditing("qPump") ? Math.max(0, Number(__flowLive.qPump) || 0) : qPumpEff)
+            : Math.max(0, Number(__flowLive.qPump) || 0));
         // Automatico: azzera solo la VIVA se OFF. Setpoint (popup) resta.
         if (autoPump && !pumpOn) {
           if (!isEditing("qPump")) commitFlow("qPump", 0, { instant: true });
