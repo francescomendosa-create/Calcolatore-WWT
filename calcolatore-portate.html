@@ -2008,7 +2008,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v261</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v262</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -4288,7 +4288,7 @@
     ];
     /** Ingresso minimo per linea in marcia (demi). Concentrato fisso = +15 → totale min 35. */
     const OSM_IN_MIN = 20;
-    /** In Automatico: quali linee ricevono davvero portata (≥ OSM_IN_MIN). */
+    /** In Automatico il distributore non spezzetta sotto 20 m³/h. Un set scritto a mano lavora a qualsiasi portata. */
     const __osmFeedOk = { A: false, B: false, C: false };
     const __ufEnabled = { A: true, B: true, C: true, D: true };
     let __mbrCycleMin = 0;       // orologio ciclo lavoro/pausa (si congela se livello ferma tutte)
@@ -9688,7 +9688,7 @@
       if (deviceIsManual("osmosi")) {
         letters.forEach((L, i) => {
           paintProcSetpointField(ids[i]);
-          if (osmLineRunning(L) && procSetpointOf(ids[i]) >= OSM_IN_MIN - 0.05) __osmFeedOk[L] = true;
+          if (osmLineRunning(L) && procSetpointOf(ids[i]) > 0.05) __osmFeedOk[L] = true;
         });
         syncOsmosiSvg();
         paintOsmosiRunUI();
@@ -9701,7 +9701,7 @@
           const id = ids[i];
           paintProcSetpointField(id);
           const sp = Math.max(0, procSetpointOf(id));
-          if (osmLineRunning(L) && sp >= OSM_IN_MIN - 0.05) __osmFeedOk[L] = true;
+          if (osmLineRunning(L) && sp > 0.05) __osmFeedOk[L] = true;
         });
         syncOsmosiSvg();
         paintOsmosiRunUI();
@@ -13374,7 +13374,7 @@
         if (Math.abs(v1 - (Number(__osmValveTarget[L]) || 0)) > 0.08) need = true;
         if (Math.abs(base1 - (Number(__osmMeasTarget[L]) || 0)) > 0.05) need = true;
         const qLive = live ? shown : 0;
-        osmTotLive += qLive + (qLive >= OSM_IN_MIN - 0.05 ? 15 : 0);
+        osmTotLive += qLive;
         const node = el({ A: "svgQOsmA", B: "svgQOsmB", C: "svgQOsmC" }[L]);
         if (node) node.textContent = round1(qLive).toFixed(1);
       });
@@ -13526,9 +13526,8 @@
         const enabled = osmLineEnabled(L);
         const feeding = osmLineFeeding(L);
         const sp = Math.max(0, procSetpointOf("qOsmosi" + L));
-        const run = plantIsStarted() && enabled && feeding && sp >= OSM_IN_MIN - 0.05;
+        const run = plantIsStarted() && enabled && feeding && sp > 0.05;
         const w = __osmWobble[L];
-        const measNow = Number(__osmMeas[L]) || 0;
 
         if (!run) {
           __osmValveTarget[L] = 0;
@@ -13545,19 +13544,10 @@
             valveTarget = 100;
             qAim = Math.max(0, share);
           } else {
+            // Qualsiasi set > 0: apertura proporzionale e misura = set. Niente minimo a 20 m³/h.
             const ff = valveOpenPctForSet(sp, q100);
-            const err = sp - measNow;
-            // Vicino al set: valvola ferma. La misura può scostarsi di qualche decimo.
-            if (Math.abs(err) <= 0.6) {
-              valveTarget = Math.max(1, Math.min(100, Math.round(ff)));
-              qAim = Math.min(share, sp);
-            } else {
-              valveTarget = ff + err * 10;
-              if (measNow + 0.4 < sp) valveTarget = Math.max(valveTarget, ff + 6);
-              valveTarget = Math.max(10, Math.min(100, valveTarget));
-              const qHyd = Math.min(share, q100 * (Math.max(0, valveTarget) / 100));
-              qAim = qHyd;
-            }
+            valveTarget = Math.max(0, Math.min(100, ff));
+            qAim = Math.min(share, sp);
           }
 
           __osmValveTarget[L] = Math.max(0, Math.min(100, valveTarget));
