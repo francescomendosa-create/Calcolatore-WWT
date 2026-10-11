@@ -1102,6 +1102,7 @@
       stroke-width: 4;
       stroke-linecap: round;
       stroke-linejoin: round;
+      pointer-events: none;
     }
     .pipe-main { stroke: #38bdf8; }
     .pipe-rec { stroke: #fb7185; }
@@ -2007,7 +2008,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v258</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v259</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -2484,7 +2485,7 @@
             <rect id="svgUfValveA" class="uf-valve-fill" x="613" y="381" width="0" height="4" rx="1" />
             <text id="svgUfValvePctA" class="uf-valve-pct" x="686" y="385" text-anchor="middle">0%</text>
           </g>
-          <path class="pipe pipe-main" data-flow="uf" d="M620 372 H506" />
+          <path class="pipe pipe-main" data-flow="uf" d="M608 372 H506" />
           <path class="pipe pipe-main" data-flow="uf" d="M506 372 V365" />
 
           <path class="pipe pipe-main" data-flow="uf" d="M688 415 H612" />
@@ -2497,7 +2498,7 @@
             <rect id="svgUfValveB" class="uf-valve-fill" x="613" y="424" width="0" height="4" rx="1" />
             <text id="svgUfValvePctB" class="uf-valve-pct" x="686" y="428" text-anchor="middle">0%</text>
           </g>
-          <path class="pipe pipe-main" data-flow="uf" d="M620 415 H528" />
+          <path class="pipe pipe-main" data-flow="uf" d="M608 415 H528" />
           <path class="pipe pipe-main" data-flow="uf" d="M528 415 V365" />
 
           <path class="pipe pipe-main" data-flow="uf" d="M688 458 H612" />
@@ -2510,7 +2511,7 @@
             <rect id="svgUfValveC" class="uf-valve-fill" x="613" y="467" width="0" height="4" rx="1" />
             <text id="svgUfValvePctC" class="uf-valve-pct" x="686" y="471" text-anchor="middle">0%</text>
           </g>
-          <path class="pipe pipe-main" data-flow="uf" d="M620 458 H550" />
+          <path class="pipe pipe-main" data-flow="uf" d="M608 458 H550" />
           <path class="pipe pipe-main" data-flow="uf" d="M550 458 V365" />
 
           <path class="pipe pipe-main" data-flow="uf" d="M688 500 H612" />
@@ -2523,7 +2524,7 @@
             <rect id="svgUfValveD" class="uf-valve-fill" x="613" y="510" width="0" height="4" rx="1" />
             <text id="svgUfValvePctD" class="uf-valve-pct" x="686" y="514" text-anchor="middle">0%</text>
           </g>
-          <path class="pipe pipe-main" data-flow="uf" d="M620 500 H572" />
+          <path class="pipe pipe-main" data-flow="uf" d="M608 500 H572" />
           <path class="pipe pipe-main" data-flow="uf" d="M572 500 V365" />
 
           <!-- Colonne UF A–D: a sinistra dei badge portata, centrate nello spazio verso TK-11021 -->
@@ -4519,11 +4520,11 @@
       const fld = numOrNull(f);
       if (fld != null && fld > 0.05) best = Math.max(best, fld);
       if (f === "qUfTotale") {
-        best = Math.max(best, ufAutoTargetTotal());
+        if (!deviceIsManual("ultra")) best = Math.max(best, ufAutoTargetTotal());
         const spTxt = parseFloat(String(el("svgQUfSp")?.textContent || "").replace(",", "."));
-        if (Number.isFinite(spTxt) && spTxt > 0.05) best = Math.max(best, round1(spTxt));
+        if (!deviceIsManual("ultra") && Number.isFinite(spTxt) && spTxt > 0.05) best = Math.max(best, round1(spTxt));
       } else if (/^qUf[A-D]$/.test(f)) {
-        if (best < 0.05) {
+        if (!deviceIsManual("ultra") && best < 0.05) {
           let tot = ufAutoTargetTotal();
           if (tot > 0.05) {
             const nOn = UF_LINES.filter((L) => ufLineEnabled(L)).length || UF_LINES.length;
@@ -4534,8 +4535,14 @@
         const live = numOrNull(f);
         if (live != null && live > 0.05) best = Math.max(best, live);
       }
+      if (deviceIsManual("ultra") && (f === "qUfTotale" || /^qUf[A-D]$/.test(f))) {
+        const typed = numOrNull(f);
+        if (typed != null) best = Math.max(0, typed);
+      }
       best = round1(Math.max(0, best));
-      if (best > 0.05 && Object.prototype.hasOwnProperty.call(__procSetpoint, f)) {
+      if (deviceIsManual("ultra") && (f === "qUfTotale" || /^qUf[A-D]$/.test(f))) {
+        rememberProcSetpoint(f, best, { allowZero: true });
+      } else if (best > 0.05 && Object.prototype.hasOwnProperty.call(__procSetpoint, f)) {
         rememberProcSetpoint(f, best);
         if (f === "qUfTotale" || /^qUf[A-D]$/.test(f)) {
           if (f === "qUfTotale") __ufAutoTotSp = Math.max(__ufAutoTotSp, best);
@@ -5555,11 +5562,12 @@
       const qCarb = Math.max(0, Number(fc && fc.qImpSp) || 0);
       const qIas = Math.max(0, Number(fc && fc.qIasSp) || 0);
       const qUfSp = Math.max(0, Number(fc && fc.qUfSp) || 0);
-      const qPass = (qUfSp > 0.5) ? Math.min(qCarb, qUfSp) : qCarb;
-      const qUfNom = round1(qPass * 0.88);
+      const ufManual = !!(fc && fc.ufManual);
+      const qPass = (ufManual || qUfSp > 0.05) ? Math.min(qCarb, qUfSp) : qCarb;
+      const qUfNom = round1(Math.max(0, qPass) * 0.88);
       const osmShort = qIn > 0.5 && qOsm + 0.5 < qIn;
       const carbShort = qIn > 0.5 && qCarb + 0.5 < qIn;
-      const ufShort = qUfSp > 0.5 && qIn > 0.5 && qUfSp + 0.5 < qIn && qUfSp + 0.5 < qCarb;
+      const ufShort = qIn > 0.5 && (ufManual || qUfSp > 0.05) && qUfSp + 0.5 < qIn && qUfSp + 0.5 < qCarb;
       const osmBacksUp = qUfNom > 0.5 && qOsm + 0.5 < qUfNom;
       const ufClosed = !!(fc && fc.snap && fc.snap.allowUf === false);
       let cause = "";
@@ -5581,13 +5589,14 @@
       try { qOsm = osmExportCapacityStable(); } catch (_) { qOsm = 0; }
       try { qCarb = qP11019ImpiantoSetpoint(); } catch (_) { qCarb = 0; }
       try { qIas = Math.max(0, Number(__flowSetpoint.qP11019Ias) || 0); } catch (_) { qIas = 0; }
-      try { qUfSp = procSetpointOf("qUfTotale"); } catch (_) { qUfSp = 0; }
+      try { qUfSp = ufSetpointSum(); } catch (_) { qUfSp = 0; }
       const fc = {
         qInSp: chemicalSetpointNow(),
         qOsmCap: qOsm,
         qImpSp: qCarb,
         qIasSp: qIas,
         qUfSp: qUfSp,
+        ufManual: (typeof deviceIsManual === "function") && deviceIsManual("ultra"),
         snap: {
           allowUf: __allowUfByTk11021 !== false,
           livU: numOrNull("livelloAttualeTk11021"),
@@ -6141,9 +6150,14 @@
       if (opts.qOsm != null) qOsmCap = Math.max(0, Number(opts.qOsm) || 0);
       const qImpSp = Math.max(0, round1(qP19Sp - qIasSp));
       let qUfSp = 0;
-      try { qUfSp = Math.max(0, procSetpointOf("qUfTotale") || 0); } catch (_) { qUfSp = 0; }
+      try { qUfSp = ufSetpointSum(); } catch (_) { qUfSp = 0; }
+      if (!(qUfSp > 0.05)) {
+        try { qUfSp = Math.max(0, procSetpointOf("qUfTotale") || 0); } catch (_) { qUfSp = 0; }
+      }
       if (opts.qUf != null) qUfSp = Math.max(0, Number(opts.qUf) || 0);
-      const qPassSp = (qUfSp > 0.5) ? Math.min(qImpSp, qUfSp) : qImpSp;
+      const ufManual = (typeof deviceIsManual === "function") && deviceIsManual("ultra");
+      const ufCmd = ufManual || qUfSp > 0.05;
+      const qPassSp = ufCmd ? Math.min(qImpSp, qUfSp) : qImpSp;
 
       let chimicoOn = opts.chimicoOn != null ? !!opts.chimicoOn : (__chimicoAllowFill !== false);
       // Prima dello Start la misura è 0, ma la previsione deve marciare sul set finché non è allo stop.
@@ -6161,7 +6175,7 @@
       const qUfNom = round1(Math.max(0, qPassSp) * 0.88);
       const osmShortNow = qInSp > 0.5 && qOsmCap + 0.5 < qInSp;
       const carbShortNow = qInSp > 0.5 && qImpSp + 0.5 < qInSp;
-      const ufShortNow = qUfSp > 0.5 && qInSp > 0.5 && qUfSp + 0.5 < qInSp && qUfSp + 0.5 < qImpSp;
+      const ufShortNow = qInSp > 0.5 && ufCmd && qUfSp + 0.5 < qInSp && qUfSp + 0.5 < qImpSp;
       const osmBacksUpNow = qUfNom > 0.5 && qOsmCap + 0.5 < qUfNom;
       const qSiteExport = round1(qOsmCap + qIasSp);
       const valleyClosed = qOsmCap < 0.05 && qPassSp < 0.05;
@@ -6261,8 +6275,10 @@
         // Duty lavaggi UF medi (~backwash): non azzerare la valle a ogni istante di wash
         const UF_WASH_DUTY_AVG = 0.88;
         if (runP19By07 && allowUf) {
-          qP19Out = qP19Sp;
-          qUf = round1(qPassSp * UF_WASH_DUTY_AVG);
+          const qToUf = Math.max(0, qPassSp);
+          const qIasOut = Math.max(0, qP19Sp - qImpSp);
+          qP19Out = round1(Math.min(qP19Sp, qToUf + qIasOut));
+          qUf = round1(qToUf * UF_WASH_DUTY_AVG);
         }
         // Osmosi: capacità stabile anche con UF in pausa isteresi — svuota 11021 e riapre la valle
         const qOsm = livU > 8 ? qOsmCap : 0;
@@ -6400,6 +6416,7 @@
         qIasSp: round1(qIasSp),
         qImpSp: round1(qImpSp),
         qUfSp: round1(qUfSp),
+        ufManual: !!ufManual,
         qSiteExport: round1(qSiteExport),
         valleyClosed: !!valleyClosed,
         valleyShort: !!valleyShort,
@@ -12650,16 +12667,10 @@
       const enabled = UF_LINES.filter((L) => ufLineEnabled(L));
       const n = enabled.length || UF_LINES.length;
       const each = round1(tot / n);
-      if (tot > 0.05) {
-        rememberProcSetpoint("qUfTotale", tot);
-        UF_LINES.forEach((L) => {
-          rememberProcSetpoint("qUf" + L, ufLineEnabled(L) ? each : procSetpointOf("qUf" + L));
-        });
-      }
-      if (tot < 0.05) {
-        paintUfPopupSetpoints();
-        return;
-      }
+      rememberProcSetpoint("qUfTotale", tot, { allowZero: true });
+      UF_LINES.forEach((L) => {
+        if (ufLineEnabled(L)) rememberProcSetpoint("qUf" + L, each, { allowZero: true });
+      });
       document.querySelectorAll(".uf-q").forEach((inp) => {
         if (document.activeElement === inp) return;
         const L = String(inp.id || "").replace(/^qUf/, "");
@@ -12671,19 +12682,23 @@
 
     function paintUfPopupSetpoints() {
       let totSp = procSetpointOf("qUfTotale");
-      if (totSp > 0.05) {
-        rememberProcSetpoint("qUfTotale", totSp);
+      if (deviceIsManual("ultra")) {
+        try { totSp = ufSetpointSum(); } catch (_) { /* ok */ }
+        rememberProcSetpoint("qUfTotale", totSp, { allowZero: true });
+      }
+      if (totSp > 0.05 || deviceIsManual("ultra")) {
+        if (!deviceIsManual("ultra") && totSp > 0.05) rememberProcSetpoint("qUfTotale", totSp);
         if (!isEditing("qUfTotale")) setVal("qUfTotale", totSp, { force: true });
       }
       UF_LINES.forEach((L) => {
         const id = "qUf" + L;
         let sp = procSetpointOf(id);
-        if (sp < 0.05 && totSp > 0.05) {
+        if (!deviceIsManual("ultra") && sp < 0.05 && totSp > 0.05) {
           const nOn = UF_LINES.filter((x) => ufLineEnabled(x)).length || UF_LINES.length;
           sp = round1(totSp / nOn);
         }
-        if (sp > 0.05) {
-          rememberProcSetpoint(id, sp);
+        if (sp > 0.05 || deviceIsManual("ultra")) {
+          if (sp > 0.05) rememberProcSetpoint(id, sp);
           const node = el(id);
           if (node && document.activeElement !== node && !isEditing(id)) node.value = String(sp);
         }
@@ -13137,6 +13152,15 @@
     }
 
     /** Somma setpoint UF linee abilitate (non in lavaggio). */
+    function ufSetpointSum() {
+      let s = 0;
+      UF_LINES.forEach((L) => {
+        if (!ufLineEnabled(L)) return;
+        s += Math.max(0, procSetpointOf("qUf" + L));
+      });
+      return round1(s);
+    }
+
     function ufDemandSetpointTotal() {
       let s = 0;
       UF_LINES.forEach((L) => {
@@ -13763,20 +13787,15 @@
       const totRaw = numOrNull("qUfTotale");
       if (source === "uf-totale" && totRaw === null) return;
       if (source === "uf-totale") {
-        if ((totRaw || 0) > 0.05) setUfEqual(totRaw);
-        else paintUfPopupSetpoints();
+        setUfEqual(totRaw || 0);
       } else if (source === "uf-linea") {
         const totLines = round1(sumUfs());
-        if (totLines > 0.05) {
-          rememberProcSetpoint("qUfTotale", totLines);
-          UF_LINES.forEach((L) => {
-            const node = el("qUf" + L);
-            if (node) rememberProcSetpoint("qUf" + L, Math.max(0, parseFloat(node.value) || 0));
-          });
-          setVal("qUfTotale", totLines, { force: !isEditing("qUfTotale") });
-        } else {
-          paintUfPopupSetpoints();
-        }
+        rememberProcSetpoint("qUfTotale", totLines, { allowZero: true });
+        UF_LINES.forEach((L) => {
+          const node = el("qUf" + L);
+          if (node) rememberProcSetpoint("qUf" + L, Math.max(0, parseFloat(node.value) || 0), { allowZero: true });
+        });
+        setVal("qUfTotale", totLines, { force: !isEditing("qUfTotale") });
       }
       // Popup = setpoint; schema = viva per linea (0 in lavaggio / blocco)
       paintUfPopupSetpoints();
@@ -14232,10 +14251,9 @@
           }
           if (name === "ultra") {
             paintUfPopupSetpoints();
-            syncUf("uf-totale");
             paintUfSvgLive();
             const line = opts && opts.ufLine;
-            if (line) setTimeout(() => focusUfRow(line), 40);
+            if (line) setTimeout(() => focusUfRow(line), 600);
             else document.querySelectorAll(".uf-row").forEach((row) => row.classList.remove("is-focus"));
           }
           if (name === "osmosi") {
@@ -14841,7 +14859,7 @@
         return;
       }
       if (field === "qUfA" || field === "qUfB" || field === "qUfC" || field === "qUfD") {
-        if (v > 0.05) rememberProcSetpoint(field, v);
+        rememberProcSetpoint(field, v, { allowZero: true });
         setVal(field, v, { force: true });
         syncUf("uf-linea");
         el(field).dispatchEvent(new Event("input", { bubbles: true }));
@@ -15191,7 +15209,7 @@
       ) {
         // SEMPRE il setpoint automatico/overview (mai 0 se c’è portata valle)
         val = readProcEditSeed(field);
-        if ((field === "qUfTotale" || /^qUf[A-D]$/.test(field)) && !(val > 0.05)) {
+        if ((field === "qUfTotale" || /^qUf[A-D]$/.test(field)) && !(val > 0.05) && !deviceIsManual("ultra")) {
           val = field === "qUfTotale"
             ? ufAutoTargetTotal()
             : round1(ufAutoTargetTotal() / (UF_LINES.filter((L) => ufLineEnabled(L)).length || 4));
