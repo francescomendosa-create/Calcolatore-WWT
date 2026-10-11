@@ -1730,7 +1730,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v245</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v246</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -4980,6 +4980,9 @@
     let __lastRegAdv = null;
     let __blocchiRefreshTimer = 0;
     let __regPreviewSeq = 0;
+    let __qSafeJob = 0;
+    let __qSafeBusy = false;
+    let __qSafeCache = { key: "", val: null };
     /** Timestamp ultimo cambio operatore (set/Hz/modo): preview immediata, niente isteresi. */
     let __regUserBumpAt = 0;
     /** Stato mostrato in barra (anti-sfarfallio bene↔male su pause/lavaggi). */
@@ -5030,10 +5033,12 @@
         // Un tocco interrompe il conto da 8 ore già in corso, così il numpad resta libero.
         __forecastAsyncGen++;
         __forecastPumping = false;
+        __qSafeJob++;
+        __qSafeBusy = false;
       }
       const delay = opts.delay != null
         ? opts.delay
-        : (opts.userChange ? 180 : 70);
+        : (opts.userChange ? 16 : 70);
       if (__regPreviewTimer) clearTimeout(__regPreviewTimer);
       if (!opts.userChange && __forecastPumping) {
         __forecastRerun = true;
@@ -5070,16 +5075,19 @@
       try { scheduleRegPreview({ delay: 40 }); } catch (_) { /* ok */ }
     }
 
-    /** Bene/Male: coerente e stabile (niente sfarfallio su pause/lavaggi); immediato se cambi tu. */
+    /** Bene/Male: il conto da 8 ore non tiene il filo. La frase arriva appena è pronta. */
     function paintRegPreviewBar() {
       const bar = el("statusBar");
       if (!bar) return;
       bar.setAttribute("data-clickable", "1");
       const seq = ++__regPreviewSeq;
       try {
-        const fc = forecastChimicoHorizon(BLOCK_FORECAST_HORIZON);
-        if (seq !== __regPreviewSeq || !fc) return;
-        paintRegPreviewFromForecast(bar, fc, seq);
+        forecastChimicoHorizon(BLOCK_FORECAST_HORIZON, {
+          onDone(fc) {
+            if (seq !== __regPreviewSeq || !fc) return;
+            paintRegPreviewFromForecast(bar, fc, seq);
+          },
+        });
       } catch (_) {
         if (seq !== __regPreviewSeq) return;
         bar.className = "status warn";
@@ -5121,7 +5129,12 @@
         if (seq !== __regPreviewSeq) return;
         const etaMin = lockedBlockRemainMin(fc);
         if (fc) fc.displayBlockMin = etaMin;
-        const adv = buildHorizonAdvice(fc);
+        // La barra non fa la ricerca del chimico massimo sul filo: o è già in cache, o arriva dopo.
+        const qCached = qSafeCached(fc);
+        const adv = buildHorizonAdvice(fc, {
+          skipSafeSearch: true,
+          qSafe: qCached,
+        });
         __lastRegFc = fc;
         __lastRegAdv = adv;
         let text;
@@ -5157,6 +5170,9 @@
               : `Regolazione da correggere (~${fmtForecastWhen(fc.displayBlockMin != null ? fc.displayBlockMin : fc.firstBlockMin)}) — clic`;
           }
         }
+        if (!regOk && qCached == null && !__simPlaying) {
+          scheduleQSafeFill(fc, seq);
+        }
       } catch (_) {
         if (seq !== __regPreviewSeq) return;
         bar.className = "status warn";
@@ -5169,10 +5185,13 @@
       const eta = fc && fc.displayBlockMin != null ? fc.displayBlockMin : (fc && fc.firstBlockMin);
       const when = (eta != null && Number(eta) <= BLOCK_FORECAST_HORIZON) ? fmtForecastWhen(eta) : null;
       const whenBit = when ? ` · blocco tra ${when}` : "";
-      const qSafe = adv && adv.qSafeSamePumps != null ? fmtQ(adv.qSafeSamePumps) : "—";
+      const qSafeNum = adv && adv.qSafeSamePumps != null ? Number(adv.qSafeSamePumps) : NaN;
+      const qSafe = Number.isFinite(qSafeNum) ? fmtQ(qSafeNum) : "";
       const focus = (adv && adv.focus) || "";
       if (focus === "mand") {
-        return `Male · MP 11036 bassa · o chimico ≤ ${qSafe}${whenBit}`;
+        return qSafe
+          ? `Male · MP 11036 bassa · o chimico ≤ ${qSafe}${whenBit}`
+          : `Male · MP 11036 bassa${whenBit}`;
       }
       if (focus === "mem") {
         const have = fc && fc.qMemSp != null ? fmtQ(fc.qMemSp) : "—";
@@ -5186,10 +5205,12 @@
         return `Male · riciclo basso (serve ≥ ${qRecNeed})${whenBit}`;
       }
       if (focus === "cf") {
-        return `Male · scendi chimico ≤ ${qSafe}${whenBit}`;
+        return qSafe ? `Male · scendi chimico ≤ ${qSafe}${whenBit}` : `Male · blocco chimico${whenBit}`;
       }
       if (focus === "p11") {
-        return `Male · ripristina P11011 (Hz) · o chimico ≤ ${qSafe}${whenBit}`;
+        return qSafe
+          ? `Male · ripristina P11011 (Hz) · o chimico ≤ ${qSafe}${whenBit}`
+          : `Male · ripristina P11011 (Hz)${whenBit}`;
       }
       if (focus === "levels") {
         return when ? `Regolazione OK · attenzione livelli ~${when}` : `Regolazione OK · attenzione livelli`;
@@ -5200,7 +5221,9 @@
         const qIn = fc && fc.qInSp != null ? fmtQ(fc.qInSp) : "—";
         return `Male · valle corta (export ${qExp} < chimico ${qIn})${whenBit}`;
       }
-      return `Male · regola impianto · o chimico ≤ ${qSafe}${whenBit}`;
+      return qSafe
+        ? `Male · regola impianto · o chimico ≤ ${qSafe}${whenBit}`
+        : `Male · regola impianto${whenBit}`;
     }
 
     /** Se rispondi No (non puoi alzare la pompa): quanto scendere il chimico. */
@@ -5535,6 +5558,7 @@
 
     function forecastChimicoHorizon(horizonMin, opts) {
       opts = opts || {};
+      const stopAtFirst = !!(opts && opts.stopAtFirstBlock);
       // Ogni previsione rilegge le membrane ora: non il totale di un conto precedente.
       __permRows = null;
       __permRowsTs = 0;
@@ -5866,6 +5890,11 @@
             });
           }
           blocks.push(t);
+          // Ricerca del chimico massimo: il primo stop basta. Il conto in barra fa sempre le 8 ore.
+          if (stopAtFirst && firstBlockMin != null) {
+            t = H + 1;
+            return true;
+          }
         } else if (!chimicoOn && liv20 <= start + 0.05) {
           chimicoOn = true;
         }
@@ -5938,10 +5967,10 @@
           __forecastPumpGen = gen;
           let done = false;
           if (__inlineLiveTimer || performance.now() < __uiHotUntil) {
-            setTimeout(pumpFc, 80);
+            setTimeout(pumpFc, 48);
             return;
           }
-          try { done = stepForecastBudget(8); }
+          try { done = stepForecastBudget(12); }
           catch (_) {
             __forecastPumping = false;
             return;
@@ -5951,17 +5980,17 @@
             return;
           }
           if (!done) {
-            setTimeout(pumpFc, 32);
+            setTimeout(pumpFc, 0);
             return;
           }
           __forecastPumping = false;
           try { opts.onDone(packForecast()); } catch (_) { /* ok */ }
-          if (__forecastRerun) {
+          if (__forecastRerun && !__qSafeBusy) {
             __forecastRerun = false;
             try { scheduleRegPreview({ delay: 900 }); } catch (_) { /* ok */ }
           }
         };
-        requestAnimationFrame(pumpFc);
+        setTimeout(pumpFc, 0);
         return null;
       }
       stepForecastBudget(0);
@@ -5971,13 +6000,24 @@
     function maxQinSafeForHorizon(horizonMin, opts) {
       opts = opts || {};
       const cur = Math.max(0, opts.qIn != null ? Number(opts.qIn) : num("qIn"));
-      const base = { ...opts };
+      const base = { ...opts, stopAtFirstBlock: true };
       delete base.qIn;
-      if (forecastChimicoHorizon(horizonMin, { ...base, qIn: cur }).ok) return round1(cur);
+      const finish = (v) => {
+        const out = round1(v);
+        rememberQSafe({
+          qPumpSp: base.qPump,
+          qMandSp: base.qMand,
+          qMemSp: base.qMem,
+          qRecSp: base.qRec,
+        }, out);
+        return out;
+      };
+      if (forecastChimicoHorizon(horizonMin, { ...base, qIn: cur }).ok) return finish(cur);
       let lo = 0;
       let hi = cur;
       let best = 0;
-      for (let i = 0; i < 20; i++) {
+      for (let i = 0; i < 12; i++) {
+        if (hi - lo < 0.25) break;
         const mid = (lo + hi) / 2;
         if (forecastChimicoHorizon(horizonMin, { ...base, qIn: mid }).ok) {
           best = mid;
@@ -5986,7 +6026,111 @@
           hi = mid;
         }
       }
-      return round1(best);
+      return finish(best);
+    }
+
+    function qSafeKey(fc) {
+      const lv = (id) => {
+        const n = num(id);
+        return Number.isFinite(n) ? n.toFixed(1) : "0";
+      };
+      const r = (v) => round1(Math.max(0, Number(v) || 0));
+      return [
+        r(fc && fc.qPumpSp), r(fc && fc.qMandSp), r(fc && fc.qMemSp), r(fc && fc.qRecSp),
+        lv("livelloAttuale"), lv("livelloAttualeA10611"), lv("livelloAttualeH"),
+        lv("livelloAttualeMbr"), lv("livelloAttualeTk11007"), lv("livelloAttualeTk11021"),
+        lv("stopRiempA10620"),
+      ].join("|");
+    }
+
+    function rememberQSafe(fc, val) {
+      const n = Number(val);
+      if (!fc || !Number.isFinite(n)) return;
+      __qSafeCache = { key: qSafeKey(fc), val: round1(n) };
+    }
+
+    function qSafeCached(fc) {
+      if (!fc || __qSafeCache.key !== qSafeKey(fc) || __qSafeCache.val == null) return null;
+      return __qSafeCache.val;
+    }
+
+    /** Chimico massimo a pompe ferme: a fette, mai sul tocco del numpad. */
+    function scheduleQSafeFill(fc, seq) {
+      if (!fc || __simPlaying) return;
+      const key = qSafeKey(fc);
+      if (__qSafeCache.key === key && __qSafeCache.val != null) return;
+      const job = ++__qSafeJob;
+      __qSafeBusy = true;
+      const base = {
+        qPump: fc.qPumpSp,
+        qMand: fc.qMandSp,
+        qMem: fc.qMemSp,
+        qRec: fc.qRecSp,
+        forceManualFlows: true,
+        stopAtFirstBlock: true,
+      };
+      const cur = Math.max(0, Number(fc.qInSp) || 0);
+      let lo = 0;
+      let hi = cur;
+      let best = 0;
+      let i = 0;
+      const stopJob = () => {
+        if (job === __qSafeJob) __qSafeBusy = false;
+      };
+      const done = (v) => {
+        if (job !== __qSafeJob) return;
+        __qSafeBusy = false;
+        __forecastRerun = false;
+        const out = round1(v);
+        __qSafeCache = { key, val: out };
+        if (seq !== __regPreviewSeq || !__lastRegFc) return;
+        if (qSafeKey(__lastRegFc) !== key) return;
+        const bar = el("statusBar");
+        if (!bar) return;
+        paintRegPreviewFromForecast(bar, __lastRegFc, seq);
+        const pop = el("popBlocchi");
+        if (pop && pop.classList.contains("show")) {
+          try { paintBlocchiExplain(); } catch (_) { /* ok */ }
+        }
+      };
+      const probe = () => {
+        if (job !== __qSafeJob) return;
+        if (seq !== __regPreviewSeq) {
+          stopJob();
+          return;
+        }
+        if (__simPlaying || __inlineLiveTimer || performance.now() < __uiHotUntil) {
+          setTimeout(probe, 48);
+          return;
+        }
+        if (i >= 12 || hi - lo < 0.25) {
+          done(best);
+          return;
+        }
+        i += 1;
+        const mid = (lo + hi) / 2;
+        __forecastRerun = false;
+        forecastChimicoHorizon(BLOCK_FORECAST_HORIZON, {
+          ...base,
+          qIn: mid,
+          onDone(got) {
+            __forecastRerun = false;
+            if (job !== __qSafeJob) return;
+            if (seq !== __regPreviewSeq || !got) {
+              stopJob();
+              return;
+            }
+            if (got.ok) {
+              best = mid;
+              lo = mid;
+            } else {
+              hi = mid;
+            }
+            setTimeout(probe, 0);
+          },
+        });
+      };
+      setTimeout(probe, 0);
     }
 
     function fmtForecastWhen(min) {
@@ -5998,7 +6142,8 @@
     }
 
     /** Diagnosi + previsione 8 ore: spicciola, quesito, CF solo su No (mai su anomalia). */
-    function buildHorizonAdvice(fc) {
+    function buildHorizonAdvice(fc, adviceOpts) {
+      adviceOpts = adviceOpts || {};
       const qInSp = fc.qInSp;
       let qMax = 334;
       try { qMax = getPumpMax(); } catch (_) { /* ok */ }
@@ -6049,13 +6194,6 @@
       const nearPump = isNearMissFlow(qHavePump, qPumpTarget);
       const nearMand = isNearMissFlow(qHaveMand, qMandTarget);
       const nearMem = isNearMissFlow(qHaveMem, qMemTarget);
-      const qSafeSamePumps = maxQinSafeForHorizon(fc.horizonMin || BLOCK_FORECAST_HORIZON, {
-        qPump: fc.qPumpSp,
-        qMand: fc.qMandSp,
-        qMem: fc.qMemSp,
-        qRec: fc.qRecSp,
-        forceManualFlows: true,
-      });
       const qRecNeed = round1(Math.max(
         Q_RECYCLE_MIN,
         fc.qScaricoNeed != null ? fc.qScaricoNeed : 0
@@ -6136,6 +6274,19 @@
           qRecNeed,
           memSoftLow,
         };
+      }
+
+      let qSafeSamePumps = null;
+      if (adviceOpts.qSafe != null && Number.isFinite(Number(adviceOpts.qSafe))) {
+        qSafeSamePumps = round1(adviceOpts.qSafe);
+      } else if (!adviceOpts.skipSafeSearch) {
+        qSafeSamePumps = maxQinSafeForHorizon(fc.horizonMin || BLOCK_FORECAST_HORIZON, {
+          qPump: fc.qPumpSp,
+          qMand: fc.qMandSp,
+          qMem: fc.qMemSp,
+          qRec: fc.qRecSp,
+          forceManualFlows: true,
+        });
       }
 
       // Timer ufficiale: solo minuti della sim 8 ore (o ETA ancorato in barra).
@@ -6696,12 +6847,25 @@
 
       let html = "";
       let fc = null;
-      try { fc = forecastChimicoHorizon(BLOCK_FORECAST_HORIZON); } catch (_) { fc = null; }
+      const qInNowPop = chemicalSetpointNow();
+      const qMemNowPop = Math.max(0, num("qMemTotale") || 0);
+      const reuseFc = __lastRegFc && __lastRegAdv && !__forecastPumping
+        && Math.abs((Number(__lastRegFc.qInSp) || 0) - qInNowPop) <= 0.6
+        && Math.abs((Number(__lastRegFc.qMemSp) || 0) - qMemNowPop) <= 0.6
+        && (__lastRegFc.ok || __lastRegAdv.ok || (
+          __lastRegAdv.qSafeSamePumps != null && Number.isFinite(Number(__lastRegAdv.qSafeSamePumps))
+        ));
+      if (reuseFc) {
+        fc = __lastRegFc;
+      } else {
+        try { fc = forecastChimicoHorizon(BLOCK_FORECAST_HORIZON); } catch (_) { fc = null; }
+      }
       if (fc) {
         try { fc.displayBlockMin = lockedBlockRemainMin(fc); } catch (_) { fc.displayBlockMin = fc.firstBlockMin; }
       }
       let adv = null;
-      try { adv = fc ? buildHorizonAdvice(fc) : null; } catch (_) { adv = null; }
+      if (reuseFc) adv = __lastRegAdv;
+      else try { adv = fc ? buildHorizonAdvice(fc) : null; } catch (_) { adv = null; }
       if (fc) {
         const barNow = el("statusBar");
         if (barNow) {
@@ -13564,6 +13728,8 @@
         __forecastAsyncGen++;
         __forecastPumping = false;
         __forecastRerun = false;
+        __qSafeJob++;
+        __qSafeBusy = false;
         if (__regPreviewTimer) {
           clearTimeout(__regPreviewTimer);
           __regPreviewTimer = 0;
