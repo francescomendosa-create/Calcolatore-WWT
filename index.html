@@ -1725,7 +1725,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v232</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v233</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -1952,15 +1952,16 @@
             <text id="svgMemHHint" x="897" y="117" text-anchor="middle" fill="#fda4af" font-size="6" font-weight="600">off</text>
             <rect class="mem-hit" x="880" y="88" width="34" height="36" rx="4" />
           </g>
-          <!-- collettore scarichi → A11004: 8 attacchi uguali (A–H). Solo sul collettore, senza salire alle vaschette. -->
+          <!-- collettore unico y=140: A–H tutti uniti, poi verso A11004 -->
+          <path class="pipe pipe-rec" data-flow="scar" d="M774 140 H922" fill="none" />
           <path class="pipe pipe-rec" data-flow="scar" d="M774 128 V140" fill="none" />
-          <path class="pipe pipe-rec" data-flow="scar" d="M783 128 V140 H897 V128" fill="none" />
+          <path class="pipe pipe-rec" data-flow="scar" d="M783 128 V140" fill="none" />
           <path class="pipe pipe-rec" data-flow="scar" d="M812 128 V140" fill="none" />
           <path class="pipe pipe-rec" data-flow="scar" d="M821 128 V140" fill="none" />
           <path class="pipe pipe-rec" data-flow="scar" d="M850 128 V140" fill="none" />
           <path class="pipe pipe-rec" data-flow="scar" d="M859 128 V140" fill="none" />
           <path class="pipe pipe-rec" data-flow="scar" d="M888 128 V140" fill="none" />
-          <path class="pipe pipe-rec" data-flow="scar" d="M840 140 H922" fill="none" />
+          <path class="pipe pipe-rec" data-flow="scar" d="M897 128 V140" fill="none" />
           <polygon points="914,135 926,140 914,145" fill="#fb7185" />
           <circle class="sludge-valve" id="svgSludgeA" cx="774" cy="126.5" r="1.7" />
           <circle class="sludge-valve" id="svgSludgeB" cx="812" cy="126.5" r="1.7" />
@@ -3833,8 +3834,8 @@
     const Q_FREQ_ABS_MIN = 0; // Manuale: puoi impostare anche sotto 42 Hz
     const Q_RECYCLE_MIN = 100; // Automatico: riciclo fanghi minimo (P11011 − ingresso)
     /** Scarico MBR → A11004: frazione dell’eccesso (mandata − permeato). Was 0.90→0.85; step soft 0.80 → meno verso 11004, più ritenzione MBR. */
-    const MBR_SCARICO_TO_H_FRAC = 0.80;
-    const MBR_RETAIN_FRAC = 1 - MBR_SCARICO_TO_H_FRAC; // 0.20
+    const MBR_SCARICO_TO_H_FRAC = 1;
+    const MBR_RETAIN_FRAC = 1 - MBR_SCARICO_TO_H_FRAC;
     const Q_P11019_DEFAULT = 140; // avvio / set vuoto
     const Q_P11019_MAX = 165;     // tetto set pompe (non si supera)
     /** @deprecated alias di Q_P11019_DEFAULT (retrocompat) */
@@ -4981,8 +4982,8 @@
       const absNew = nowSim + Math.max(0, Math.round(raw));
       if (__regEtaLock.absSim == null || __regEtaLock.setKey !== key) {
         __regEtaLock = { absSim: absNew, setKey: key, simAt: nowSim };
-      } else if (Math.abs(absNew - __regEtaLock.absSim) > 5) {
-        // Solo se la sim cambia di molto (livelli davvero diversi): riallinea
+      } else if (Math.abs(absNew - __regEtaLock.absSim) > 2) {
+        // Oscillazioni di 1–2 min restano sul countdown. Oltre, riallinea al minuto della sim.
         __regEtaLock.absSim = absNew;
         __regEtaLock.simAt = nowSim;
       }
@@ -5326,23 +5327,30 @@
     }
 
     /**
-     * Mette m³ mancanti a monte: MBR → A10611 → A10620.
+     * Mette i m³ mancanti dove arriva lo scarico: A11004 (fino al 97%) → MBR → A10611 → A10620.
      * Il riciclo non esporta: ciò che non esce come permeato resta in impianto.
      */
     function absorbUpstreamVolumeM3(liv, leftM3, opts) {
       opts = opts || {};
       let left = Math.max(0, Number(leftM3) || 0);
+      let livH = Number(liv.livH);
       let livMbr = Number(liv.livMbr);
       let liv11 = Number(liv.liv11);
       let liv20 = Number(liv.liv20);
       if (!(left > 1e-9)) {
-        return { livMbr, liv11, liv20, left: 0 };
+        return { livH, livMbr, liv11, liv20, left: 0 };
       }
+      const capH = 97;
       const stopM = opts.stopMbrFill != null ? Number(opts.stopMbrFill) : (numOrNull("stopRiempMbr") ?? 92);
       const hiB = opts.hiBlock11 != null ? Number(opts.hiBlock11) : (numOrNull("stopAltoA10611") ?? 96);
+      const Vh = Math.max(1, getA11004Volume().V);
       const Vm = Math.max(1, getMbrCommonVolume().V);
       const V11 = a10611VolumeM3();
       const V20 = Math.max(1, getA10620Geom().V);
+      const roomH = Math.max(0, (capH - (Number.isFinite(livH) ? livH : 90)) / 100 * Vh);
+      const putH = Math.min(left, roomH);
+      livH = (Number.isFinite(livH) ? livH : 90) + putH / Vh * 100;
+      left -= putH;
       const roomM = Math.max(0, (stopM - livMbr) / 100 * Vm);
       const putM = Math.min(left, roomM);
       livMbr += putM / Vm * 100;
@@ -5354,6 +5362,7 @@
       liv20 += left / V20 * 100;
       left = 0;
       return {
+        livH: Math.max(0, Math.min(100, livH)),
         livMbr: Math.max(0, Math.min(100, livMbr)),
         liv11: Math.max(0, Math.min(100, liv11)),
         liv20: Math.max(0, Math.min(100, liv20)),
@@ -5363,7 +5372,7 @@
 
     /**
      * Correzione unica TIME = previsione: ΔV a monte = (qIn − qPerm)·dt.
-     * Se i tassi empirici “perdono” acqua, la rimettiamo in MBR→A10611→A10620.
+     * Se i tassi empirici “perdono” acqua, la rimettiamo in A11004→MBR→A10611→A10620.
      */
     function correctUpstreamMassBalance(before, after, qIn, qPerm, dtMin, opts) {
       const dt = Math.max(0, Number(dtMin) || 1);
@@ -5381,7 +5390,7 @@
         };
       }
       const put = absorbUpstreamVolumeM3(
-        { livMbr: after.livMbr, liv11: after.liv11, liv20: after.liv20 },
+        { livH: after.livH, livMbr: after.livMbr, liv11: after.liv11, liv20: after.liv20 },
         miss,
         opts
       );
@@ -5389,7 +5398,7 @@
         liv20: put.liv20,
         liv11: put.liv11,
         livMbr: put.livMbr,
-        livH: after.livH,
+        livH: put.livH,
         miss,
       };
     }
@@ -7333,7 +7342,7 @@
 
     /**
      * Livello MBR: volume = N vaschette.
-     * Scarico → A11004: MBR_SCARICO_TO_H_FRAC dell’eccesso (mandata − permeato).
+     * Scarico → A11004: tutto l’eccesso (mandata − permeato) delle valvole aperte.
      * Se A11004 è al 100%: scarico = 0, eccesso resta in MBR (sale con mandata; non scende per scarico).
      * Sotto 100%: riprende lo scarico. Il riciclo 11014 aspira da A11004, non dalle vaschette.
      */
@@ -7465,7 +7474,7 @@
     }
 
     /**
-     * Scarico MBR → A11004 (m³/h): MBR_SCARICO_TO_H_FRAC di max(0, mandata − permeato).
+     * Scarico MBR → A11004 (m³/h): tutto max(0, mandata − permeato) delle valvole aperte.
      * A11004 al 100% → 0 (non può ricevere). Sotto 100% riprende.
      */
     function mbrScaricoToH(qMandata, qPerm, livMbrOpt, livHOpt, tMinOpt) {
@@ -7527,7 +7536,7 @@
         ? `<strong>A11004 PIENO (100%)</strong> — scarico MBR→A11004 = <strong>0</strong>. Eccesso resta in MBR. `
         : (fermi
           ? `<strong>Membrane FERME</strong> (OUT permeato 0). Mandata IN <strong class="flow-val">${fmtQ(qM)}</strong> → `
-            + `scarico→A11004 ≈ <strong>${fmtQ(qH)}</strong> (stesso modo: ~${Math.round(MBR_SCARICO_TO_H_FRAC * 100)}% eccesso) · resta in MBR ≈ ${fmtQ(qM * MBR_RETAIN_FRAC)}. `
+            + `scarico→A11004 ≈ <strong>${fmtQ(qH)}</strong> (tutto l’eccesso delle valvole aperte, sul collettore). `
             + `<em>11014 aspira solo A11004</em>, non le vaschette. `
           : `Membrane in estrazione: IN mandata <strong>${fmtQ(qM)}</strong> · OUT permeato <strong class="flow-val">${fmtQ(qP)}</strong> `
             + `· scarico→A11004 ≈ ${fmtQ(qH)} · netto in MBR (dopo scarico) guida il livello. `))
