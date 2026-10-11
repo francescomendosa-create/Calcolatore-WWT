@@ -1725,7 +1725,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v230</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v231</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -4950,10 +4950,43 @@
     let __regBarShown = { key: "", cls: "", text: "", title: "", warn: "0" };
     let __regBarPending = { key: "", since: 0 };
     const REG_BAR_HOLD_MS = 2800;
+    /** Timer blocco ancorato: scende col TIME, non ricalcola a ogni oscillazione di livello. */
+    let __regEtaLock = { absSim: null, setKey: "", simAt: 0 };
 
     function bumpRegUserChange() {
       __regUserBumpAt = Date.now();
       __regBarPending = { key: "", since: 0 };
+      __regEtaLock = { absSim: null, setKey: "", simAt: 0 };
+    }
+
+    function regEtaSetKey(fc) {
+      return [
+        Math.round(Number(fc && fc.qInSp) || 0),
+        Math.round(Number(fc && fc.qMemSp) || 0),
+        Math.round(Number(fc && fc.qPumpSp) || 0),
+        Math.round(Number(fc && fc.qMandSp) || 0),
+        Math.round(Number(fc && fc.qRecSp) || 0),
+      ].join("|");
+    }
+
+    /** Minuti al blocco da mostrare: solo se la sim 8 ore lo ha trovato. Stabile. */
+    function lockedBlockRemainMin(fc) {
+      const raw = fc && fc.firstBlockMin != null ? Number(fc.firstBlockMin) : null;
+      if (raw == null || !Number.isFinite(raw) || raw > BLOCK_FORECAST_HORIZON + 0.5) {
+        __regEtaLock = { absSim: null, setKey: "", simAt: 0 };
+        return null;
+      }
+      const key = regEtaSetKey(fc);
+      const nowSim = Math.max(0, Number(__simMin) || 0);
+      const absNew = nowSim + Math.max(0, Math.round(raw));
+      if (__regEtaLock.absSim == null || __regEtaLock.setKey !== key) {
+        __regEtaLock = { absSim: absNew, setKey: key, simAt: nowSim };
+      } else if (Math.abs(absNew - __regEtaLock.absSim) > 5) {
+        // Solo se la sim cambia di molto (livelli davvero diversi): riallinea
+        __regEtaLock.absSim = absNew;
+        __regEtaLock.simAt = nowSim;
+      }
+      return Math.max(0, Math.round(__regEtaLock.absSim - nowSim));
     }
 
     /** Aggiorna subito (o quasi) bene/male + popup previsioni se aperto. */
@@ -5002,6 +5035,8 @@
       try {
         const fc = forecastChimicoHorizon(BLOCK_FORECAST_HORIZON);
         if (seq !== __regPreviewSeq) return; // risposta obsoleta
+        const etaMin = lockedBlockRemainMin(fc);
+        if (fc) fc.displayBlockMin = etaMin;
         const adv = buildHorizonAdvice(fc);
         let text;
         let cls;
@@ -5020,7 +5055,7 @@
         }
         const stateKey = regOk
           ? "ok"
-          : `bad:${(adv && adv.focus) || "x"}`;
+          : `bad:${(adv && adv.focus) || "x"}:${etaMin != null ? Math.floor(etaMin / 5) : "x"}`;
         const now = Date.now();
         const userJustChanged = __regUserBumpAt > 0 && (now - __regUserBumpAt) < 900;
         let apply = false;
@@ -5052,7 +5087,7 @@
           if (__chimicoBlockCount === 0) {
             badge.title = warnBadge === "0"
               ? "Nessun blocco chimico-fisico — regolato bene — clic"
-              : `Regolazione da correggere (~${fmtForecastWhen(fc.firstBlockMin)}) — clic`;
+              : `Regolazione da correggere (~${fmtForecastWhen(fc.displayBlockMin != null ? fc.displayBlockMin : fc.firstBlockMin)}) — clic`;
           }
         }
       } catch (_) {
@@ -5064,8 +5099,9 @@
     }
 
     function shortRegPreviewBad(adv, fc) {
-      const when = (fc && fc.firstBlockMin != null) ? fmtForecastWhen(fc.firstBlockMin) : null;
-      const whenBit = when ? ` · blocco ~${when}` : "";
+      const eta = fc && fc.displayBlockMin != null ? fc.displayBlockMin : (fc && fc.firstBlockMin);
+      const when = (eta != null && Number(eta) <= BLOCK_FORECAST_HORIZON) ? fmtForecastWhen(eta) : null;
+      const whenBit = when ? ` · blocco tra ${when}` : "";
       const qSafe = adv && adv.qSafeSamePumps != null ? fmtQ(adv.qSafeSamePumps) : "—";
       const focus = (adv && adv.focus) || "";
       if (focus === "mand") {
@@ -5643,9 +5679,9 @@
         }
       }
 
-      // Niente blocco “sintetico” su valle/mem/riciclo: se il loop al minuto (stessa
-      // fisica della simulazione TIME) non ha toccato stop A10620 / H alto, l’impianto
-      // regge — non inventare “Male tra 1 h” con una formula a deficit che la sim smentisce.
+      // Solo blocco chimico A10620 trovato nel loop minuto-per-minuto entro H (8 ore).
+      // Mai inventare tempi oltre l’orizzonte e mai stime grezze tipo “35 ore”.
+      if (firstBlockMin != null && firstBlockMin > H) firstBlockMin = null;
 
       return {
         ok: firstBlockMin == null,
@@ -5703,25 +5739,6 @@
       const h = Math.floor(m / 60);
       const r = m % 60;
       return r ? (h + " h " + r + "′") : (h + " h");
-    }
-
-    /**
-     * Minuti allo stop chimico se l’uscita media (totale ON × duty) è sotto l’ingresso.
-     * Il surplus non lascia l’impianto: prima il poco volume libero di MBR e A10611, poi A10620.
-     */
-    function minutesToBlockByPermDeficit(qIn, qPerm, liv20) {
-      const def = Math.max(0, Number(qIn) - Number(qPerm));
-      if (!(def > 0.2)) return null;
-      const stopV = numOrNull("stopRiempA10620") ?? 95;
-      const liv = Number.isFinite(Number(liv20)) ? Number(liv20) : (numOrNull("livelloAttuale") ?? 90);
-      const livM = numOrNull("livelloAttualeMbr") ?? 90;
-      const liv11 = numOrNull("livelloAttualeA10611") ?? 90;
-      const stopM = numOrNull("stopRiempMbr") ?? 92;
-      const hi11 = numOrNull("stopAltoA10611") ?? 96;
-      const free = Math.max(0, (stopV - liv) / 100) * Math.max(1, getA10620Geom().V)
-        + Math.max(0, (stopM - livM) / 100) * Math.max(1, getMbrCommonVolume().V)
-        + Math.max(0, (hi11 - liv11) / 100) * a10611VolumeM3();
-      return Math.max(1, Math.round(free / def * 60));
     }
 
     /** Diagnosi + previsione 8 ore: spicciola, quesito, CF solo su No (mai su anomalia). */
@@ -5809,13 +5826,8 @@
         && (fc.qScaricoNeed != null && fc.qScaricoNeed > 2)
         && !fc.ok;
       const memSoftLow = !memOk;
-      // Uscita media (totale ON × duty 7/8) sotto il chimico: non può restare in marcia.
-      const permShort = qInSp > 0.5 && qPermHave + 0.5 < qInSp;
-      if (permShort && fc.firstBlockMin == null) {
-        const est = minutesToBlockByPermDeficit(qInSp, qPermHave, fc.endLiv20);
-        if (est != null) fc.firstBlockMin = est;
-      }
-      let memRegBad = permShort || (memSoftLow && !fc.ok);
+      // Rosso membrane solo se la sim 8 ore chiude davvero il chimico (niente stime oltre 8 h).
+      let memRegBad = memSoftLow && !fc.ok;
       let mandRegBad = !flowMeetsNeed(qHaveMand, qMandTarget);
       try {
         // In Auto mandata/riciclo seguono il cervello: non allarmare sulla rampa
@@ -5824,12 +5836,17 @@
         }
         if (ricicloAutoControlled() && !pumpRegBad) recBad = false;
       } catch (_) { /* ok */ }
-      // Verde solo se la media di ciclo copre il chimico e la sim 8 ore non chiude l’ingresso.
-      if (fc.ok && !permShort) {
+      // Nessuno stop chimico nelle 8 ore → verde (marcia). Nota soft se membrane al minimo.
+      if (fc.ok) {
         const horizLbl = fmtForecastWhen(fc.horizonMin || BLOCK_FORECAST_HORIZON);
         let barNote = "";
         let stress = "";
-        if (qMemTarget > 0.5 && qHaveMem <= qMemTarget + 2) {
+        if (qInSp > 0.5 && qPermHave + 0.5 < qInSp) {
+          barNote = "membrane sotto uscita media";
+          stress = ` Segnalazione: uscita media ≈ <strong>${fmtQ(qPermHave)}</strong> &lt; chimico <strong>${fmtQ(qInSp)}</strong>`
+            + ` (minimo tecnico <strong class="flow-val">${fmtQ(qMemTarget)} m³/h</strong>).`
+            + ` Nelle ${horizLbl} il chimico non si chiude.`;
+        } else if (qMemTarget > 0.5 && qHaveMem <= qMemTarget + 2) {
           if (qHaveMem + 0.6 >= qMemTarget) {
             barNote = "membrane al minimo tecnico";
             stress = ` Segnalazione: membrane al minimo tecnico (<strong>${fmtQ(qHaveMem)} m³/h</strong>).`;
@@ -5865,9 +5882,10 @@
         };
       }
 
-      // Timer ufficiale: solo minuti reali al blocco chimico dalla sim livelli.
-      const when = fc.firstBlockMin != null
-        ? fmtForecastWhen(fc.firstBlockMin)
+      // Timer ufficiale: solo minuti della sim 8 ore (o ETA ancorato in barra).
+      const etaShow = fc.displayBlockMin != null ? fc.displayBlockMin : fc.firstBlockMin;
+      const when = (etaShow != null && etaShow <= BLOCK_FORECAST_HORIZON)
+        ? fmtForecastWhen(etaShow)
         : null;
       const whenHtml = when
         ? ` Blocco chimico previsto tra <strong>${when}</strong> (chimico-fisico chiuso).`
@@ -6063,7 +6081,7 @@
       return {
         ok: false,
         regOk: false,
-        forecastHtml: `<div class="block-forecast is-bad"><strong>Blocco chimico tra ${when || "—"}</strong><br>${verdict}</div>`,
+        forecastHtml: `<div class="block-forecast is-bad"><strong>${when ? ("Blocco chimico tra " + when) : "Blocco chimico entro 8 ore"}</strong><br>${verdict}</div>`,
         verdict,
         action,
         ask,
@@ -6423,6 +6441,9 @@
       let html = "";
       let fc = null;
       try { fc = forecastChimicoHorizon(BLOCK_FORECAST_HORIZON); } catch (_) { fc = null; }
+      if (fc) {
+        try { fc.displayBlockMin = lockedBlockRemainMin(fc); } catch (_) { fc.displayBlockMin = fc.firstBlockMin; }
+      }
       let adv = null;
       try { adv = fc ? buildHorizonAdvice(fc) : null; } catch (_) { adv = null; }
 
@@ -6467,7 +6488,7 @@
               html += `<div class="block-alt"><strong>Obbligatorio</strong><br>${adv.alt}</div>`;
             }
             if (fc && fc.snap) {
-              html += `<div class="block-meta"><div><strong>Previsione</strong> · primo blocco a ${fmtForecastWhen(fc.firstBlockMin)}`
+              html += `<div class="block-meta"><div><strong>Previsione</strong> · primo blocco a ${fmtForecastWhen(fc.displayBlockMin != null ? fc.displayBlockMin : fc.firstBlockMin)}`
                 + ` · A10620→${fmtBlockPct(fc.snap.liv20)} · A10611→${fmtBlockPct(fc.snap.liv11)}</div>`
                 + `<div>Chimico ${fmtQ(fc.qInSp)} · P11011 ${fmtQ(fc.qPumpSp)} · MP 11036 ${fmtQ(fc.qMandSp)} · membrane ${fmtQ(fc.qMemSp)}</div></div>`;
             }
