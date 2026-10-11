@@ -1730,7 +1730,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v244</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v245</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -5097,7 +5097,7 @@
         return;
       }
       // In TIME il conto alla rovescia non deve restare su un set vecchio.
-      const qInNow = Math.max(0, num("qIn") || 0);
+      const qInNow = chemicalSetpointNow();
       const qMemNow = Math.max(0, num("qMemTotale") || 0);
       const drifted = Math.abs((Number(__lastRegFc.qInSp) || 0) - qInNow) > 0.6
         || Math.abs((Number(__lastRegFc.qMemSp) || 0) - qMemNow) > 0.6;
@@ -5518,6 +5518,21 @@
       };
     }
 
+    /**
+     * Setpoint chimico-fisico. Mai la misura bianca (svgQIn / __qInMeter):
+     * prima dello Start quella è 0, il set resta sul campo e sul badge giallo.
+     */
+    function chemicalSetpointNow() {
+      const field = Math.max(0, num("qIn") || 0);
+      let badge = NaN;
+      try {
+        badge = parseFloat(String(el("svgQInSp")?.textContent || "").replace(",", "."));
+      } catch (_) { badge = NaN; }
+      if (field > 0.05) return field;
+      if (Number.isFinite(badge) && badge > 0.05) return badge;
+      return field;
+    }
+
     function forecastChimicoHorizon(horizonMin, opts) {
       opts = opts || {};
       // Ogni previsione rilegge le membrane ora: non il totale di un conto precedente.
@@ -5548,15 +5563,10 @@
       const stopMbrFill = stopRiempMbr !== null ? stopRiempMbr : 92;
       const startMbrFill = startRiempMbr !== null ? startRiempMbr : 85;
 
-      const qInField = Math.max(0, num("qIn"));
-      let qInBadge = NaN;
-      try {
-        qInBadge = parseFloat(String(el("svgQInSp")?.textContent || "").replace(",", "."));
-      } catch (_) { qInBadge = NaN; }
       // Setpoint chimico (campo o badge giallo). Mai la misura bianca, che prima dello Start è 0.
       const qInSp = opts.qIn != null
         ? Math.max(0, Number(opts.qIn) || 0)
-        : (qInField > 0.05 ? qInField : (Number.isFinite(qInBadge) && qInBadge > 0.05 ? qInBadge : qInField));
+        : chemicalSetpointNow();
       // Previsione usa i SET (comando a pompe ON). Il loop azzera se processo ferma.
       // Mai confondere con la misura istantanea (che a pompe rosse è 0).
       let qPumpSp = opts.qPump != null ? Math.max(0, Number(opts.qPump) || 0) : flowSetpointOf("qPump");
@@ -5612,6 +5622,7 @@
       let livP = opts.livP != null ? Number(opts.livP) : (numOrNull("livelloAttualeTk11007") ?? 91);
       let livU = opts.livU != null ? Number(opts.livU) : (numOrNull("livelloAttualeTk11021") ?? 91);
       if (!Number.isFinite(liv20)) liv20 = 90;
+      const liv20Start = liv20;
       if (!Number.isFinite(liv11)) liv11 = 90;
       if (!Number.isFinite(livMbr)) livMbr = 90;
       if (!Number.isFinite(livH)) livH = 90;
@@ -5655,6 +5666,8 @@
       const qImpSp = Math.max(0, round1(qP19Sp - qIasSp));
 
       let chimicoOn = opts.chimicoOn != null ? !!opts.chimicoOn : (__chimicoAllowFill !== false);
+      // Prima dello Start la misura è 0, ma la previsione deve marciare sul set finché non è allo stop.
+      if (opts.chimicoOn == null && qInSp > 0.5 && liv20 < stop - 0.05) chimicoOn = true;
       let pumpBy20 = opts.pumpBy20 != null ? !!opts.pumpBy20 : (__runP11011By20 !== false);
       let blockP11 = opts.blockP11 != null ? !!opts.blockP11 : !!__blockP11011By11;
       let run11036Tank = opts.run11036 != null ? !!opts.run11036 : (__run11036Tank !== false);
@@ -5866,6 +5879,23 @@
       // Mai inventare tempi oltre l’orizzonte e mai stime grezze tipo “35 ore”.
       const packForecast = () => {
       if (firstBlockMin != null && firstBlockMin > H) firstBlockMin = null;
+      // Il loop può non vedere il set (misura a 0, righe membrane vecchie).
+      // Se il set chimico supera l’uscita media del set membrane, e l’A10620
+      // arriva allo stop entro 8 ore, il blocco c’è lo stesso.
+      if (firstBlockMin == null && qInSp > 0.5) {
+        const deliver = Math.max(0, Number(qPermAvg) || 0);
+        const gap = qInSp - deliver;
+        if (gap > 1) {
+          let V20 = 450;
+          try { V20 = Math.max(1, getA10620Geom().V); } catch (_) { V20 = 450; }
+          const room = Math.max(0, (stop - liv20Start) / 100 * V20);
+          const mins = (room / gap) * 60;
+          if (mins <= H + 0.5) {
+            firstBlockMin = Math.max(1, Math.round(mins));
+            if (!reason) reason = "mem";
+          }
+        }
+      }
 
       return {
         ok: firstBlockMin == null,
