@@ -546,6 +546,26 @@
       color: #94a3b8;
       margin-bottom: 6px;
     }
+    details.sludge-fold {
+      margin-top: 12px;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      background: #0f172a88;
+      padding: 8px 10px;
+    }
+    details.sludge-fold > summary {
+      cursor: pointer;
+      font-weight: 700;
+      color: #e2e8f0;
+      list-style: none;
+    }
+    details.sludge-fold > summary::-webkit-details-marker { display: none; }
+    details.sludge-fold > summary::before {
+      content: "▸ ";
+      color: #94a3b8;
+    }
+    details.sludge-fold[open] > summary::before { content: "▾ "; }
+    details.sludge-fold > summary:hover { color: #f8fafc; }
     #popBlocchi .block-action.ok-line {
       margin: 8px 0 0;
       padding: 10px 12px;
@@ -1675,7 +1695,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v225</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v226</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -3217,7 +3237,6 @@
         <p class="mini">TK 11007: a stop riempimento (97%) le membrane FERMANO; a start (90%) ripartono.</p>
       </div>
       <p class="mini">Ciclo a coppie sfalsate: A+D, B+G, C+E, F sola — ciascuna 7′ lavoro + 1′ pausa, non tutte insieme. Blocco livello / TK 11007: tutte ferme.</p>
-      <p class="mini" id="sludgeMemHint">Scarico fanghi verso A11004: tempi valvole in PROCESSO. Bordo ambra = valvola di scarico aperta.</p>
       <label><strong>TOTALE membrane ON (m³/h)</strong>
         <input type="number" id="qMemTotale" class="tot-mem" min="0" max="500" step="1" value="171" inputmode="numeric" />
       </label>
@@ -3232,6 +3251,18 @@
           <input type="number" id="qInFromMem" readonly />
         </label>
       </div>
+      <details class="sludge-fold">
+        <summary>Ciclo estrazione fanghi A11004</summary>
+        <p class="mini" id="sludgeMemHint" style="margin-top:8px">Stessi tempi di PROCESSO. Bordo ambra = valvola di scarico aperta.</p>
+        <div class="row"><label><strong>A · XV-11008 · apertura (s)</strong><input type="number" id="sludgeOpenAMbr" min="1" max="20000" step="1" value="1927" inputmode="numeric" /></label><label><strong>Attesa avvio (min)</strong><input type="number" id="sludgeWaitAMbr" min="0" max="120" step="0.1" value="2" inputmode="decimal" /></label></div>
+        <div class="row"><label><strong>B · XV-11014 · apertura (s)</strong><input type="number" id="sludgeOpenBMbr" min="1" max="20000" step="1" value="2917" inputmode="numeric" /></label><label><strong>Attesa avvio (min)</strong><input type="number" id="sludgeWaitBMbr" min="0" max="120" step="0.1" value="2" inputmode="decimal" /></label></div>
+        <div class="row"><label><strong>C · XV-11020 · apertura (s)</strong><input type="number" id="sludgeOpenCMbr" min="1" max="20000" step="1" value="2208" inputmode="numeric" /></label><label><strong>Attesa avvio (min)</strong><input type="number" id="sludgeWaitCMbr" min="0" max="120" step="0.1" value="2" inputmode="decimal" /></label></div>
+        <div class="row"><label><strong>D · XV-11026 · apertura (s)</strong><input type="number" id="sludgeOpenDMbr" min="1" max="20000" step="1" value="2088" inputmode="numeric" /></label><label><strong>Attesa avvio (min)</strong><input type="number" id="sludgeWaitDMbr" min="0" max="120" step="0.1" value="2" inputmode="decimal" /></label></div>
+        <div class="row"><label><strong>E · XV-04202E · apertura (s)</strong><input type="number" id="sludgeOpenEMbr" min="1" max="20000" step="1" value="3200" inputmode="numeric" /></label><label><strong>Attesa avvio (min)</strong><input type="number" id="sludgeWaitEMbr" min="0" max="120" step="0.1" value="2" inputmode="decimal" /></label></div>
+        <div class="row"><label><strong>F · XV-04202F · apertura (s)</strong><input type="number" id="sludgeOpenFMbr" min="1" max="20000" step="1" value="1927" inputmode="numeric" /></label><label><strong>Attesa avvio (min)</strong><input type="number" id="sludgeWaitFMbr" min="0" max="120" step="0.1" value="2" inputmode="decimal" /></label></div>
+        <div class="row"><label><strong>G · XV-04202G · apertura (s)</strong><input type="number" id="sludgeOpenGMbr" min="1" max="20000" step="1" value="1577" inputmode="numeric" /></label><label><strong>Attesa avvio (min)</strong><input type="number" id="sludgeWaitGMbr" min="0" max="120" step="0.1" value="2" inputmode="decimal" /></label></div>
+        <div class="row"><label><strong>H · XV-04202H · apertura (s)</strong><input type="number" id="sludgeOpenHMbr" min="1" max="20000" step="1" value="1594" inputmode="numeric" /></label><label><strong>Attesa avvio (min)</strong><input type="number" id="sludgeWaitHMbr" min="0" max="120" step="0.1" value="2" inputmode="decimal" /></label></div>
+      </details>
       <div class="actions"><button type="button" data-close>Applica</button></div>
     </div>
   </div>
@@ -7224,6 +7255,27 @@
       if (tMinOpt != null && Number.isFinite(Number(tMinOpt))) return sludgeOpenFraction(Number(tMinOpt), false);
       if (__simBusy || __simPlaying || __simMin > 0) return sludgeOpenFraction(__mbrCycleMin, false);
       return sludgeOpenFraction(0, true);
+    }
+
+    let __sludgeSync = false;
+    /** Gli stessi secondi/minuti: PROCESSO e popup MBR. */
+    function syncSludgeMirrors(toMirror) {
+      if (__sludgeSync) return;
+      __sludgeSync = true;
+      try {
+        MBR_ALL_IDS.forEach((L) => {
+          ["sludgeOpen", "sludgeWait"].forEach((kind) => {
+            const src = el(kind + L);
+            const dst = el(kind + L + "Mbr");
+            if (!src || !dst) return;
+            const from = toMirror ? src : dst;
+            const to = toMirror ? dst : src;
+            if (to.value !== from.value) to.value = from.value;
+          });
+        });
+      } finally {
+        __sludgeSync = false;
+      }
     }
 
     function paintSludgeCycleHint(cycleMin) {
@@ -12713,6 +12765,9 @@
           resetModalDragPos(panel);
         } catch (_) { /* ok */ }
         popups[name].classList.add("show");
+        if (name === "membrane") {
+          try { syncSludgeMirrors(true); } catch (_) { /* ok */ }
+        }
         try { popups[name].scrollTop = 0; } catch (_) { /* ignore */ }
         // Riblur dopo il paint: Android a volte rifocalizza il primo input
         blurAnyInput(popups[name]);
@@ -14316,8 +14371,23 @@
       const node = el(id);
       if (!node) return;
       node.addEventListener("input", () => {
+        if (String(id).indexOf("sludge") === 0) {
+          try { syncSludgeMirrors(true); } catch (_) { /* ok */ }
+        }
         refreshProcViews();
         applyBalance("livello");
+      });
+    });
+    MBR_ALL_IDS.forEach((L) => {
+      ["sludgeOpen", "sludgeWait"].forEach((kind) => {
+        const mirror = el(kind + L + "Mbr");
+        const src = el(kind + L);
+        if (!mirror || !src) return;
+        mirror.addEventListener("input", () => {
+          if (__sludgeSync) return;
+          if (src.value !== mirror.value) src.value = mirror.value;
+          src.dispatchEvent(new Event("input", { bubbles: true }));
+        });
       });
     });
 
