@@ -1726,7 +1726,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v235</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v236</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -4948,6 +4948,8 @@
     let __forecastPumping = false;
     let __forecastPumpGen = 0;
     let __forecastRerun = false;
+    let __lastRegFc = null;
+    let __lastRegAdv = null;
     let __blocchiRefreshTimer = 0;
     let __regPreviewSeq = 0;
     /** Timestamp ultimo cambio operatore (set/Hz/modo): preview immediata, niente isteresi. */
@@ -5062,12 +5064,33 @@
       }
     }
 
+    function paintRegCountdownOnly() {
+      const bar = el("statusBar");
+      if (!bar || !__lastRegFc || !__lastRegAdv) {
+        if (!__forecastPumping && !__regPreviewTimer) {
+          try { scheduleRegPreview({ delay: 280 }); } catch (_) { /* ok */ }
+        }
+        return;
+      }
+      const eta = lockedBlockRemainMin(__lastRegFc);
+      __lastRegFc.displayBlockMin = eta;
+      const adv = __lastRegAdv;
+      const regOk = !!(adv.ok || adv.regOk);
+      let text = regOk
+        ? ("Regolato bene · nessun blocco chimico" + (adv.barNote ? " · " + adv.barNote : ""))
+        : shortRegPreviewBad(adv, __lastRegFc);
+      if (__simPlaying || __simMin > 0) text = `t=${__simMin}′ · ` + String(text).replace(/^t=\d+′ · /, "");
+      if (bar.textContent !== text) bar.textContent = text;
+    }
+
     function paintRegPreviewFromForecast(bar, fc, seq) {
       try {
         if (seq !== __regPreviewSeq) return;
         const etaMin = lockedBlockRemainMin(fc);
         if (fc) fc.displayBlockMin = etaMin;
         const adv = buildHorizonAdvice(fc);
+        __lastRegFc = fc;
+        __lastRegAdv = adv;
         let text;
         let cls;
         const regOk = !!(adv && (adv.ok || adv.regOk));
@@ -5806,7 +5829,12 @@
           __forecastPumping = true;
           __forecastPumpGen = gen;
           let done = false;
-          try { done = stepForecastBudget(20); }
+          if (__inlineLiveTimer) {
+            __forecastPumping = false;
+            __forecastRerun = true;
+            return;
+          }
+          try { done = stepForecastBudget(8); }
           catch (_) {
             __forecastPumping = false;
             return;
@@ -5816,17 +5844,17 @@
             return;
           }
           if (!done) {
-            setTimeout(pumpFc, 0);
+            requestAnimationFrame(pumpFc);
             return;
           }
           __forecastPumping = false;
           try { opts.onDone(packForecast()); } catch (_) { /* ok */ }
           if (__forecastRerun) {
             __forecastRerun = false;
-            try { scheduleRegPreview({ delay: 0 }); } catch (_) { /* ok */ }
+            try { scheduleRegPreview({ delay: 900 }); } catch (_) { /* ok */ }
           }
         };
-        setTimeout(pumpFc, 0);
+        requestAnimationFrame(pumpFc);
         return null;
       }
       stepForecastBudget(0);
@@ -8968,17 +8996,30 @@
      * processOn = false → 0 (blocco livello), senza leggere i flag globali:
      * la previsione deve usare gli stessi flag del passo che sta simulando.
      */
-    function qPermConfiguredAt(cycleMin, processOn) {
-      if (!processOn) return 0;
-      const inputs = Array.from(document.querySelectorAll(".mem-q"));
-      let s = 0;
-      inputs.forEach((inp, i) => {
+    let __permRows = null;
+    let __permRowsTs = 0;
+    function permRowsNow() {
+      const n = Date.now();
+      if (__permRows && n - __permRowsTs < 900) return __permRows;
+      const rows = [];
+      document.querySelectorAll(".mem-q").forEach((inp, i) => {
         const letter = String(inp.dataset.mem || MEMBRANE[i] || "").toUpperCase();
         if (!letter || !memLineEnabled(letter)) return;
-        if (membraneIsPaused(cycleMin, letter, { ignoreProcess: true })) return;
         const v = parseFloat(String(inp.value ?? "").replace(",", "."));
-        if (Number.isFinite(v) && v > 0) s += v;
+        if (Number.isFinite(v) && v > 0) rows.push({ letter, q: v });
       });
+      __permRows = rows;
+      __permRowsTs = n;
+      return rows;
+    }
+    function qPermConfiguredAt(cycleMin, processOn) {
+      if (!processOn) return 0;
+      const rows = permRowsNow();
+      let s = 0;
+      for (let i = 0; i < rows.length; i++) {
+        if (membraneIsPaused(cycleMin, rows[i].letter, { ignoreProcess: true })) continue;
+        s += rows[i].q;
+      }
       return round1(s);
     }
 
@@ -11461,14 +11502,18 @@
           flowMeasureOf("qRecycle"),
           totAvg
         );
-        // Solo tick TIME/sim: isteresi. Digita riciclo/set/livelli a mano → aggiorna subito la barra.
+        // In TIME il minuto in barra scende da solo. Il conto da 8 ore non riparte a ogni minuto:
+        // altrimenti tiene fermo numpad e giri delle pompe.
         const autoTick = source === "sim";
         try {
-          scheduleRegPreview({
-            delay: autoTick ? (__simPlaying ? 150 : 80) : 0,
-            userChange: !autoTick,
-            immediate: !autoTick,
-          });
+          if (autoTick && (__simPlaying || __simMin > 0)) paintRegCountdownOnly();
+          else {
+            scheduleRegPreview({
+              delay: 0,
+              userChange: true,
+              immediate: true,
+            });
+          }
         } catch (_) { /* ok */ }
       } finally {
         endFlowStep();
@@ -13314,7 +13359,7 @@
       __inlineLiveTimer = setTimeout(() => {
         __inlineLiveTimer = 0;
         try { applyInlineLive(); } catch (_) { /* ok */ }
-      }, 160);
+      }, 90);
     }
     let __flowEditGuardUntil = 0; // evita chiusura fantasma al rilascio dito su tablet
     // inlineCtx dichiarato in alto (condiviso con isEditing / applyBalance)
@@ -14136,12 +14181,26 @@
     function bindFlowStepBtn(id, dir) {
       const btn = el(id);
       if (!btn) return;
+      let hold = 0;
+      let rep = 0;
+      const stop = () => {
+        if (hold) { clearTimeout(hold); hold = 0; }
+        if (rep) { clearInterval(rep); rep = 0; }
+      };
       btn.addEventListener("pointerdown", (e) => {
         if (e.button != null && e.button !== 0) return;
         e.preventDefault();
         e.stopPropagation();
+        stop();
         nudgeFlowEdit(dir);
+        hold = setTimeout(() => {
+          hold = 0;
+          rep = setInterval(() => nudgeFlowEdit(dir), 50);
+        }, 260);
       });
+      btn.addEventListener("pointerup", stop);
+      btn.addEventListener("pointercancel", stop);
+      btn.addEventListener("pointerleave", stop);
     }
     bindFlowStepBtn("flowEditUp", 1);
     bindFlowStepBtn("flowEditDown", -1);
