@@ -1675,7 +1675,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v223</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v225</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -2632,6 +2632,17 @@
               </label>
             </div>
             <p class="mini">MP 11036 A/B riempiono le membrane fino a stop (92%), poi si fermano. Ripartono solo quando il livello MBR scende a start (85%). Servono anche A10611 OK (start/stop svuotamento proprio serbatoio).</p>
+            <h4 style="margin-top:12px">Ciclo estrazione fanghi → A11004</h4>
+            <p class="mini">Valvole di scarico, in ordine dalla membrana <strong>A</strong> alla <strong>H</strong>. Ogni valvola aspetta, poi resta aperta per i secondi indicati, poi ricomincia. Verso A11004 passa solo lo scarico delle valvole aperte.</p>
+            <div class="row"><label><strong>A · XV-11008 · apertura (s)</strong><input type="number" id="sludgeOpenA" min="1" max="20000" step="1" value="1927" inputmode="numeric" /></label><label><strong>Attesa avvio (min)</strong><input type="number" id="sludgeWaitA" min="0" max="120" step="0.1" value="2" inputmode="decimal" /></label></div>
+            <div class="row"><label><strong>B · XV-11014 · apertura (s)</strong><input type="number" id="sludgeOpenB" min="1" max="20000" step="1" value="2917" inputmode="numeric" /></label><label><strong>Attesa avvio (min)</strong><input type="number" id="sludgeWaitB" min="0" max="120" step="0.1" value="2" inputmode="decimal" /></label></div>
+            <div class="row"><label><strong>C · XV-11020 · apertura (s)</strong><input type="number" id="sludgeOpenC" min="1" max="20000" step="1" value="2208" inputmode="numeric" /></label><label><strong>Attesa avvio (min)</strong><input type="number" id="sludgeWaitC" min="0" max="120" step="0.1" value="2" inputmode="decimal" /></label></div>
+            <div class="row"><label><strong>D · XV-11026 · apertura (s)</strong><input type="number" id="sludgeOpenD" min="1" max="20000" step="1" value="2088" inputmode="numeric" /></label><label><strong>Attesa avvio (min)</strong><input type="number" id="sludgeWaitD" min="0" max="120" step="0.1" value="2" inputmode="decimal" /></label></div>
+            <div class="row"><label><strong>E · XV-04202E · apertura (s)</strong><input type="number" id="sludgeOpenE" min="1" max="20000" step="1" value="3200" inputmode="numeric" /></label><label><strong>Attesa avvio (min)</strong><input type="number" id="sludgeWaitE" min="0" max="120" step="0.1" value="2" inputmode="decimal" /></label></div>
+            <div class="row"><label><strong>F · XV-04202F · apertura (s)</strong><input type="number" id="sludgeOpenF" min="1" max="20000" step="1" value="1927" inputmode="numeric" /></label><label><strong>Attesa avvio (min)</strong><input type="number" id="sludgeWaitF" min="0" max="120" step="0.1" value="2" inputmode="decimal" /></label></div>
+            <div class="row"><label><strong>G · XV-04202G · apertura (s)</strong><input type="number" id="sludgeOpenG" min="1" max="20000" step="1" value="1577" inputmode="numeric" /></label><label><strong>Attesa avvio (min)</strong><input type="number" id="sludgeWaitG" min="0" max="120" step="0.1" value="2" inputmode="decimal" /></label></div>
+            <div class="row"><label><strong>H · XV-04202H · apertura (s)</strong><input type="number" id="sludgeOpenH" min="1" max="20000" step="1" value="1594" inputmode="numeric" /></label><label><strong>Attesa avvio (min)</strong><input type="number" id="sludgeWaitH" min="0" max="120" step="0.1" value="2" inputmode="decimal" /></label></div>
+            <p class="mini" id="sludgeCycleHint">All’avvio ogni valvola attende 2 min, poi scarica verso A11004 per i suoi secondi.</p>
             <h4 style="margin-top:12px">Gestione — TK 11007 permeato</h4>
             <p class="mini">Serbatoio permeato sotto le membrane. Stop riempimento ferma le membrane; start/stop svuotamento comando le pompe P11019 A/B/C (aspirazione).</p>
             <div class="row">
@@ -3206,6 +3217,7 @@
         <p class="mini">TK 11007: a stop riempimento (97%) le membrane FERMANO; a start (90%) ripartono.</p>
       </div>
       <p class="mini">Ciclo a coppie sfalsate: A+D, B+G, C+E, F sola — ciascuna 7′ lavoro + 1′ pausa, non tutte insieme. Blocco livello / TK 11007: tutte ferme.</p>
+      <p class="mini" id="sludgeMemHint">Scarico fanghi verso A11004: tempi valvole in PROCESSO. Bordo ambra = valvola di scarico aperta.</p>
       <label><strong>TOTALE membrane ON (m³/h)</strong>
         <input type="number" id="qMemTotale" class="tot-mem" min="0" max="500" step="1" value="171" inputmode="numeric" />
       </label>
@@ -3905,6 +3917,17 @@
       ["C", "E"],
       ["F", "H"],
     ];
+    /** Ciclo estrazione fanghi: valvola, secondi di apertura, minuti di attesa prima del ciclo. A→H. */
+    const MBR_SLUDGE_DEFAULT = {
+      A: { valve: "XV-11008", openSec: 1927, waitMin: 2 },
+      B: { valve: "XV-11014", openSec: 2917, waitMin: 2 },
+      C: { valve: "XV-11020", openSec: 2208, waitMin: 2 },
+      D: { valve: "XV-11026", openSec: 2088, waitMin: 2 },
+      E: { valve: "XV-04202E", openSec: 3200, waitMin: 2 },
+      F: { valve: "XV-04202F", openSec: 1927, waitMin: 2 },
+      G: { valve: "XV-04202G", openSec: 1577, waitMin: 2 },
+      H: { valve: "XV-04202H", openSec: 1594, waitMin: 2 },
+    };
     const __memEnabled = { A: true, B: true, C: true, D: true, E: true, F: true, G: true, H: false };
     let __flowMode = "auto"; // "auto" = bilancia portate · "manual" = portate libere
 
@@ -4976,7 +4999,11 @@
         return `Male · MP 11036 bassa · o chimico ≤ ${qSafe}${whenBit}`;
       }
       if (focus === "mem") {
-        return `Male · membrane basse · o chimico ≤ ${qSafe}${whenBit}`;
+        const have = fc && fc.qMemSp != null ? fmtQ(fc.qMemSp) : "—";
+        const inn = fc && fc.qInSp != null ? fmtQ(fc.qInSp) : "—";
+        return when
+          ? `Male · membrane ${have} vs chimico ${inn} · blocco tra ${when}`
+          : `Male · membrane ${have} vs chimico ${inn}`;
       }
       if (focus === "rec") {
         const qRecNeed = adv && adv.qRecNeed != null ? fmtQ(adv.qRecNeed) : "—";
@@ -5165,6 +5192,59 @@
      * se mandata − permeato ≫ riciclo, A11004 (e poi MBR) salgono → blocco.
      * Prodotto: permeato medio ≥ chimico, altrimenti inventario impianto sale.
      */
+    /** Volume A10611 dalla prova a MP 11036 ferme (solo arrivo P11011). */
+    function a10611VolumeM3() {
+      const cal = getA10611Calib();
+      const rate = Math.abs(Number(cal.rateOff) || 0);
+      if (!(rate > 0.02) || !(cal.qPumpRef > 1)) return 80;
+      return Math.max(1, (cal.qPumpRef * 100) / (60 * rate));
+    }
+
+    /**
+     * Surplus che il SET membrane non copre: chimico − (totale × duty).
+     * La pausa di ciclo è già nel duty: al minimo tecnico il surplus è 0.
+     * L’acqua non esce: prima riempie il MBR fino allo stop delle 11036,
+     * poi A10611 fino allo stop alto, poi A10620 (lì si chiude il chimico).
+     */
+    function absorbMembraneCapacityGap(liv, opts) {
+      opts = opts || {};
+      const qInSp = Math.max(0, Number(opts.qInSp) || 0);
+      const qMemSp = Math.max(0, Number(opts.qMemSp) || 0);
+      let d = 0.875;
+      try {
+        const du = duty();
+        if (du && du.d > 0.05) d = du.d;
+      } catch (_) { /* ok */ }
+      if (opts.duty != null && Number(opts.duty) > 0.05) d = Number(opts.duty);
+      const gapH = Math.max(0, qInSp - qMemSp * d);
+      const dt = Math.max(0, Number(opts.dtMin) || 1);
+      let left = opts.chimicoOn === false ? 0 : gapH * (dt / 60);
+      let livMbr = Number(liv.livMbr);
+      let liv11 = Number(liv.liv11);
+      let liv20 = Number(liv.liv20);
+      if (!(left > 1e-6)) return { livMbr, liv11, liv20, gapH };
+      const stopM = opts.stopMbrFill != null ? Number(opts.stopMbrFill) : (numOrNull("stopRiempMbr") ?? 92);
+      const hiB = opts.hiBlock11 != null ? Number(opts.hiBlock11) : (numOrNull("stopAltoA10611") ?? 96);
+      const Vm = Math.max(1, getMbrCommonVolume().V);
+      const V11 = a10611VolumeM3();
+      const V20 = Math.max(1, getA10620Geom().V);
+      const roomM = Math.max(0, (stopM - livMbr) / 100 * Vm);
+      const putM = Math.min(left, roomM);
+      livMbr += putM / Vm * 100;
+      left -= putM;
+      const room11 = Math.max(0, (hiB - liv11) / 100 * V11);
+      const put11 = Math.min(left, room11);
+      liv11 += put11 / V11 * 100;
+      left -= put11;
+      liv20 += left / V20 * 100;
+      return {
+        livMbr: Math.max(0, Math.min(100, livMbr)),
+        liv11: Math.max(0, Math.min(100, liv11)),
+        liv20: Math.max(0, Math.min(100, liv20)),
+        gapH,
+      };
+    }
+
     function forecastChimicoHorizon(horizonMin, opts) {
       opts = opts || {};
       const H = Math.max(1, Math.round(Number(horizonMin) || BLOCK_FORECAST_HORIZON));
@@ -5202,10 +5282,13 @@
         qMemSp = Math.max(0, Number(opts.qMem) || 0);
       } else {
         qMemSp = Math.max(0, num("qMemTotale") || 0);
-        try {
-          const spMem = Math.max(0, Number(__flowSetpoint.qMemTotale) || 0);
-          if (spMem > 0.05) qMemSp = spMem;
-        } catch (_) { /* ok */ }
+        // Il numero sul campo è il comando. Il setpoint vecchio non deve rialzarlo.
+        if (qMemSp < 0.05) {
+          try {
+            const spMem = Math.max(0, Number(__flowSetpoint.qMemTotale) || 0);
+            if (spMem > 0.05) qMemSp = spMem;
+          } catch (_) { /* ok */ }
+        }
         // Solo in Auto membrane senza SET esplicito: usa floor auto
         try {
           if (deviceAutoControlled("membrane") && qMemSp < 0.05 && Number(__memAutoTotSp) > 0.05) {
@@ -5305,7 +5388,7 @@
       const valleyClosed = qSiteExport < 0.05;
       let valleyShort = qInSp > 0.5 && qSiteExport + 0.5 < qInSp;
       if (tk21Draining && qSiteExport + 0.5 >= Math.min(qInSp, qP19Sp) - 0.5) valleyShort = false;
-      const qScaricoNeed = mbrScaricoToH(qMandSp, qPermAvg, livMbr, livH);
+      const qScaricoNeed = mbrScaricoToH(qMandSp, qPermAvg, livMbr, livH, "avg");
 
       const blocks = [];
       let firstBlockMin = null;
@@ -5403,14 +5486,14 @@
         const qOsm = livU > 8 ? qOsmCap : 0;
 
         const hFull = a11004IsFull(livH);
-        const qScarico = mbrScaricoToH(qMand, qPerm, livMbr, livH);
+        const qScarico = mbrScaricoToH(qMand, qPerm, livMbr, livH, t);
         const hBackedUp = !hFull && (livH >= 94 || qScarico > qRec + 2);
 
         const r20 = rateA10620PctPerMin(qIn, qPump, qRec);
         const r11 = estimateA10611RatePctPerMin(qPump, qMand);
         const rH = estimateRicHRatePctPerMin(qScarico, qRec);
         const rMbr = estimateMbrRatePctPerMin(qMand, qPerm, livMbr, {
-          backedUp: hBackedUp, qRecycle: qRec, hFull, livH,
+          backedUp: hBackedUp, qRecycle: qRec, hFull, livH, tMin: t,
         });
         const rP = estimateTk11007RatePctPerMin(qPerm, qP19Out);
         let rU = 0;
@@ -5425,6 +5508,22 @@
         livMbr = Math.max(0, Math.min(100, livMbr + rMbr * dt));
         livP = Math.max(0, Math.min(100, livP + rP * dt));
         livU = Math.max(0, Math.min(100, livU + rU * dt));
+
+        // Set membrane sotto il minimo tecnico: l'uscita media non copre il chimico.
+        // Quel surplus resta in impianto (MBR → A10611 → A10620), non sparisce nel loop.
+        {
+          const gap = absorbMembraneCapacityGap(
+            { livMbr, liv11, liv20 },
+            {
+              qInSp, qMemSp, duty: dutyAvg, dtMin: dt,
+              chimicoOn: chimicoOn && qIn > 0.5,
+              stopMbrFill, hiBlock11: hiB,
+            }
+          );
+          livMbr = gap.livMbr;
+          liv11 = gap.liv11;
+          liv20 = gap.liv20;
+        }
 
         if (livMbr >= stopMbrFill - 0.05) {
           livMbr = Math.min(livMbr, stopMbrFill);
@@ -7078,6 +7177,73 @@
      * Se A11004 è al 100%: scarico = 0, eccesso resta in MBR (sale con mandata; non scende per scarico).
      * Sotto 100%: riprende lo scarico. Il riciclo 11014 aspira da A11004, non dalle vaschette.
      */
+    function sludgeCfg(letter) {
+      const L = String(letter || "A").toUpperCase();
+      const def = MBR_SLUDGE_DEFAULT[L] || { valve: "", openSec: 60, waitMin: 2 };
+      const openRaw = numOrNull("sludgeOpen" + L);
+      const waitRaw = numOrNull("sludgeWait" + L);
+      return {
+        letter: L,
+        valve: def.valve,
+        openSec: Math.max(1, Math.round(openRaw != null ? openRaw : def.openSec)),
+        waitMin: Math.max(0, waitRaw != null ? waitRaw : def.waitMin),
+      };
+    }
+
+    /** true se la valvola di scarico di quella membrana è aperta al minuto di impianto tMin. */
+    function sludgeValveOpen(letter, tMin) {
+      const L = String(letter || "").toUpperCase();
+      if (!memLineEnabled(L)) return false;
+      const cfg = sludgeCfg(L);
+      const waitSec = Math.max(0, cfg.waitMin) * 60;
+      const period = waitSec + cfg.openSec;
+      if (!(period > 0)) return false;
+      const tSec = Math.max(0, Number(tMin) || 0) * 60;
+      return (tSec % period) >= waitSec;
+    }
+
+    /** Quota di membrane abilitate con valvola aperta. useAverage = duty del ciclo, non l’istante. */
+    function sludgeOpenFraction(tMin, useAverage) {
+      const en = memIdsEnabled();
+      if (!en.length) return 0;
+      if (useAverage) {
+        let s = 0;
+        en.forEach((L) => {
+          const c = sludgeCfg(L);
+          const period = c.waitMin * 60 + c.openSec;
+          s += period > 0 ? c.openSec / period : 0;
+        });
+        return s / en.length;
+      }
+      let n = 0;
+      en.forEach((L) => { if (sludgeValveOpen(L, tMin)) n++; });
+      return n / en.length;
+    }
+
+    function sludgeFracNow(tMinOpt) {
+      if (tMinOpt != null && Number.isFinite(Number(tMinOpt))) return sludgeOpenFraction(Number(tMinOpt), false);
+      if (__simBusy || __simPlaying || __simMin > 0) return sludgeOpenFraction(__mbrCycleMin, false);
+      return sludgeOpenFraction(0, true);
+    }
+
+    function paintSludgeCycleHint(cycleMin) {
+      const go = typeof plantIsStarted === "function" && plantIsStarted();
+      const clk = cycleMin != null ? cycleMin : __mbrCycleMin;
+      const parts = MBR_ALL_IDS.map((L) => {
+        const c = sludgeCfg(L);
+        if (!memLineEnabled(L)) return L + " off";
+        if (!go) return L + " " + c.valve;
+        return L + (sludgeValveOpen(L, clk) ? " aperta" : " chiusa");
+      });
+      const line = go
+        ? ("Scarico fanghi → A11004: " + parts.join(" · "))
+        : ("Ciclo fermo. All’avvio ogni valvola attende, poi apre. " + parts.join(" · "));
+      const a = el("sludgeCycleHint");
+      const b = el("sludgeMemHint");
+      if (a) a.textContent = line;
+      if (b) b.textContent = line + " · bordo ambra = valvola aperta.";
+    }
+
     function estimateMbrRatePctPerMin(qMandata, qPerm, livMbrOpt, opts) {
       opts = opts || {};
       const { V } = getMbrCommonVolume();
@@ -7092,15 +7258,18 @@
       // un’altra volta in %/min: non entrava in A11004 e faceva sparire decine di m³/h
       // (membrane 40 vs chimico 100 restavano “in linea” per ore).
       const delta = qIn - qOutPerm;
+      const openFrac = sludgeFracNow(opts.tMin);
+      const leaveFrac = MBR_SCARICO_TO_H_FRAC * openFrac;
       let net;
       if (hFull) {
         net = delta;
       } else if (delta >= 0) {
-        let retainFrac = MBR_RETAIN_FRAC;
+        // Resta in MBR ciò che le valvole chiuse non mandano a A11004.
+        let retainFrac = 1 - leaveFrac;
         if (backedUp) {
-          const wantToH = delta * MBR_SCARICO_TO_H_FRAC;
+          const wantToH = delta * leaveFrac;
           const unsunk = Math.max(0, wantToH - qRec);
-          retainFrac = Math.min(0.85, MBR_RETAIN_FRAC + (wantToH > 0.5 ? unsunk / Math.max(wantToH, 1) * 0.75 : 0.6));
+          retainFrac = Math.min(1, retainFrac + (wantToH > 0.5 ? unsunk / Math.max(wantToH, 1) * 0.75 : (leaveFrac > 0 ? 0.6 : 0)));
         }
         net = delta * retainFrac;
       } else {
@@ -7118,7 +7287,7 @@
      * Scarico MBR → A11004 (m³/h): MBR_SCARICO_TO_H_FRAC di max(0, mandata − permeato).
      * A11004 al 100% → 0 (non può ricevere). Sotto 100% riprende.
      */
-    function mbrScaricoToH(qMandata, qPerm, livMbrOpt, livHOpt) {
+    function mbrScaricoToH(qMandata, qPerm, livMbrOpt, livHOpt, tMinOpt) {
       if (a11004IsFull(livHOpt)) return 0;
       const h = livHOpt != null && Number.isFinite(Number(livHOpt))
         ? Number(livHOpt)
@@ -7131,7 +7300,12 @@
       if (Number.isFinite(h) && h >= 94) {
         frac *= Math.max(0, Math.min(1, (97 - h) / 3));
       }
-      return round1(excess * frac);
+      const openFrac = tMinOpt === "avg"
+        ? sludgeOpenFraction(0, true)
+        : ((tMinOpt != null && Number.isFinite(Number(tMinOpt)))
+          ? sludgeOpenFraction(Number(tMinOpt), false)
+          : sludgeFracNow());
+      return round1(excess * frac * openFrac);
     }
 
     /** Minuti stimati da livello attuale → stop riempimento MBR (11036 fermano). null se non sale. */
@@ -8567,14 +8741,25 @@
         if (!node) return;
         const disabled = !memLineEnabled(letter);
         const run = go && !disabled && processGo && !membraneIsPaused(clk, letter);
+        const valve = go && !disabled && sludgeValveOpen(letter, clk);
         const c = deviceCol(disabled, run);
         node.setAttribute("fill", c.fill);
-        node.setAttribute("stroke", c.stroke);
-        node.setAttribute("stroke-width", disabled ? "1.2" : "1.4");
+        node.setAttribute("stroke", valve ? "#fbbf24" : c.stroke);
+        node.setAttribute("stroke-width", valve ? "2.4" : (disabled ? "1.2" : "1.4"));
+        const cfg = sludgeCfg(letter);
+        let tip = node.querySelector("title");
+        if (!tip) {
+          tip = document.createElementNS("http://www.w3.org/2000/svg", "title");
+          node.appendChild(tip);
+        }
+        tip.textContent = letter + " · " + cfg.valve
+          + " · scarico " + (valve ? "APERTO" : "chiuso")
+          + " · apertura " + cfg.openSec + " s · attesa " + cfg.waitMin + " min";
         if (disabled) node.setAttribute("stroke-dasharray", "3 2");
         else node.removeAttribute("stroke-dasharray");
       });
       paintMemEnableUI();
+      try { paintSludgeCycleHint(clk); } catch (_) { /* ok */ }
     }
 
     /**
@@ -9272,7 +9457,7 @@
       let r20 = rateA10620PctPerMin(qIn, qPump, qRecycleDisp);
       let r11 = estimateA10611RatePctPerMin(qPump, qMandata);
       const hFull = a11004IsFull(livH);
-      const qScaricoH = mbrScaricoToH(qMandata, qPerm, livMbr, livH);
+      const qScaricoH = mbrScaricoToH(qMandata, qPerm, livMbr, livH, __mbrCycleMin);
       let rH = estimateRicHRatePctPerMin(qScaricoH, qRecycleForH);
       const hBackedUp = !hFull && (livH >= 94 || qScaricoH > qRecycleForH + 2);
       let rMbr = estimateMbrRatePctPerMin(qMandata, qPerm, livMbr, {
@@ -9280,6 +9465,7 @@
         qRecycle: qRecycleForH,
         hFull,
         livH,
+        tMin: __mbrCycleMin,
       });
       let rP = estimateTk11007RatePctPerMin(qPerm, qP19);
       let rU = estimateTk11021RatePctPerMin(qUfIn, qOsmOut);
@@ -9303,6 +9489,26 @@
       let n11 = round2(Math.max(0, Math.min(100, liv11 + r11 * dtMin)));
       let nH = round2(Math.max(0, Math.min(100, livH + rH * dtMin)));
       let nMbr = round2(Math.max(0, Math.min(100, livMbr + rMbr * dtMin)));
+      // Stesso conto della previsione: set membrane × duty sotto il chimico → surplus nei livelli.
+      {
+        let qMemSpNow = Math.max(0, num("qMemTotale") || 0);
+        try {
+          const spMem = Math.max(0, Number(__flowSetpoint.qMemTotale) || 0);
+          if (spMem > 0.05) qMemSpNow = spMem;
+        } catch (_) { /* ok */ }
+        const gap = absorbMembraneCapacityGap(
+          { livMbr: nMbr, liv11: n11, liv20: n20 },
+          {
+            qInSp: qInSet,
+            qMemSp: qMemSpNow,
+            dtMin,
+            chimicoOn: __chimicoAllowFill !== false && qIn > 0.5,
+          }
+        );
+        nMbr = round2(gap.livMbr);
+        n11 = round2(gap.liv11);
+        n20 = round2(gap.liv20);
+      }
       let nP = round2(Math.max(0, Math.min(100, livP + rP * dtMin)));
       let nU = round2(Math.max(0, Math.min(100, livU + rU * dtMin)));
 
@@ -14103,7 +14309,10 @@
       applyBalance("livello");
     });
 
-    ["startRiempA10620", "stopRiempA10620", "startSvuotA10620", "stopSvuotA10620", "startRiempA10611", "stopRiempA10611", "startSvuotA10611", "stopSvuotA10611", "stopAltoA10611", "ripartenzaP11011A10611", "startSvuotA11004", "stopSvuotA11004", "startSvuotMbr", "stopSvuotMbr", "startRiempMbr", "stopRiempMbr", "startRiempTk11007", "stopRiempTk11007", "startSvuotTk11007", "stopSvuotTk11007", "startRiempTk11021", "stopRiempTk11021", "startSvuotOsmA", "stopSvuotOsmA", "startSvuotOsmB", "stopSvuotOsmB", "startSvuotOsmC", "stopSvuotOsmC", "startRicicloA10620", "stopRicicloA10620"].forEach((id) => {
+    ["startRiempA10620", "stopRiempA10620", "startSvuotA10620", "stopSvuotA10620", "startRiempA10611", "stopRiempA10611", "startSvuotA10611", "stopSvuotA10611", "stopAltoA10611", "ripartenzaP11011A10611", "startSvuotA11004", "stopSvuotA11004", "startSvuotMbr", "stopSvuotMbr", "startRiempMbr", "stopRiempMbr", "startRiempTk11007", "stopRiempTk11007", "startSvuotTk11007", "stopSvuotTk11007", "startRiempTk11021", "stopRiempTk11021", "startSvuotOsmA", "stopSvuotOsmA", "startSvuotOsmB", "stopSvuotOsmB", "startSvuotOsmC", "stopSvuotOsmC", "startRicicloA10620", "stopRicicloA10620",
+      "sludgeOpenA", "sludgeWaitA", "sludgeOpenB", "sludgeWaitB", "sludgeOpenC", "sludgeWaitC", "sludgeOpenD", "sludgeWaitD",
+      "sludgeOpenE", "sludgeWaitE", "sludgeOpenF", "sludgeWaitF", "sludgeOpenG", "sludgeWaitG", "sludgeOpenH", "sludgeWaitH",
+    ].forEach((id) => {
       const node = el(id);
       if (!node) return;
       node.addEventListener("input", () => {
@@ -14196,7 +14405,12 @@
       "ufAcidoOreA", "ufAcidoOreB", "ufAcidoOreC", "ufAcidoOreD",
       "carbLavoroOreA", "carbLavoroOreB", "carbCtrlMinA", "carbCtrlMinB",
       "carbLavMinA", "carbLavMinB", "carbCtrlQ", "carbLavQ",
-      "cicloLavoro", "cicloPausa", "freqHz", "freqMaxHz", "freqHzMand", "freqMaxHzMand",
+      "cicloLavoro", "cicloPausa",
+      "sludgeOpenA", "sludgeWaitA", "sludgeOpenB", "sludgeWaitB",
+      "sludgeOpenC", "sludgeWaitC", "sludgeOpenD", "sludgeWaitD",
+      "sludgeOpenE", "sludgeWaitE", "sludgeOpenF", "sludgeWaitF",
+      "sludgeOpenG", "sludgeWaitG", "sludgeOpenH", "sludgeWaitH",
+      "freqHz", "freqMaxHz", "freqHzMand", "freqMaxHzMand",
       "livelloAttuale", "livelloAttualeA10611",
       "startRiempA10620", "stopRiempA10620", "startSvuotA10620", "stopSvuotA10620",
       "startRiempA10611", "stopRiempA10611", "startSvuotA10611", "stopSvuotA10611",
