@@ -715,6 +715,10 @@
       animation: flow-down 1.7s linear infinite;
       stroke: #bae6fd;
     }
+    /* Lavaggi chimici UF: solo le linee che scorrono */
+    .flow-water.flow-chem-acido.is-flowing .flow-line { stroke: #fb7185; }
+    .flow-water.flow-chem-soda.is-flowing .flow-line { stroke: #fde047; }
+    .flow-water.flow-chem-ipo.is-flowing .flow-line { stroke: #f6c08a; }
     .carb-bubbles { pointer-events: none; }
     .carb-bubbles .carb-bubble {
       fill: #e0f2fe;
@@ -1726,7 +1730,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v240</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v243</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -1798,21 +1802,21 @@
 
         <!-- Chimico fisico -->
         <g class="node" tabindex="0" data-popup="ingresso" role="button" aria-label="Ingresso TOT OUT">
-          <rect class="tank-body" id="svgChimicoBody" x="18" y="45" width="88" height="126" rx="8" fill="#14532d" stroke="#4ade80" stroke-width="1.5" />
-          <text x="62" y="75" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700" id="svgChimicoT1">CHIMICO</text>
-          <text x="62" y="90" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700" id="svgChimicoT2">FISICO</text>
+          <rect class="tank-body" id="svgChimicoBody" x="18" y="37" width="88" height="126" rx="8" fill="#14532d" stroke="#4ade80" stroke-width="1.5" />
+          <text x="62" y="67" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700" id="svgChimicoT1">CHIMICO</text>
+          <text x="62" y="82" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700" id="svgChimicoT2">FISICO</text>
           <g class="flow-edit" data-field="qIn" data-source="ingresso">
-            <rect class="badge" x="26" y="105" width="72" height="34" rx="5" stroke="#4ade80" id="svgChimicoBadge" />
-            <text class="badge-label" x="62" y="118" text-anchor="middle">TOT OUT</text>
-            <text class="badge-val" x="50" y="133" text-anchor="middle" id="svgQIn">150</text>
-            <text class="badge-unit" x="78" y="133" text-anchor="middle">m³/h</text>
+            <rect class="badge" x="26" y="97" width="72" height="34" rx="5" stroke="#4ade80" id="svgChimicoBadge" />
+            <text class="badge-label" x="62" y="110" text-anchor="middle">TOT OUT</text>
+            <text class="badge-val" x="50" y="125" text-anchor="middle" id="svgQIn">0.0</text>
+            <text class="badge-unit" x="78" y="125" text-anchor="middle">m³/h</text>
           </g>
           <g class="flow-edit" data-field="qIn" data-source="ingresso" aria-label="Setpoint chimico-fisico">
-            <rect class="badge" x="26" y="141" width="72" height="24" rx="5" stroke="#fbbf24" />
-            <text class="badge-sp" x="50" y="157" text-anchor="middle" id="svgQInSp">150</text>
-            <text class="badge-unit badge-unit-set" x="78" y="157" text-anchor="middle">set</text>
+            <rect class="badge" x="26" y="133" width="72" height="24" rx="5" stroke="#fbbf24" />
+            <text class="badge-sp" x="50" y="149" text-anchor="middle" id="svgQInSp">150</text>
+            <text class="badge-unit badge-unit-set" x="78" y="149" text-anchor="middle">set</text>
           </g>
-          <text id="svgManIngresso" class="svg-man-mark" data-dev="ingresso" x="124" y="128" text-anchor="start" role="button" tabindex="0" aria-label="Modo ingresso">M</text>
+          <text id="svgManIngresso" class="svg-man-mark" data-dev="ingresso" x="124" y="120" text-anchor="start" role="button" tabindex="0" aria-label="Modo ingresso">M</text>
         </g>
 
         <!-- Tasto PROCESSO (sotto chimico fisico, distaccato) -->
@@ -3990,6 +3994,14 @@
     let __qInWobblePhase = Math.random() * Math.PI * 2;
     let __qInWobbleBias = 0;
     let __qInLive = null;
+    /** Misura sul disegno: non insegue il set finché non parte lo Start. */
+    let __qInMeter = 0;
+    let __qInMeterFrom = 0;
+    let __qInMeterTo = 0;
+    let __qInMeterStart = 0;
+    let __qInMeterDur = FLOW_RAMP_MS;
+    let __qInMeterRaf = null;
+    let __qInMeterRamping = false;
     let __resetGuardUntil = 0; // dopo Reset, ignora sync remoto che ripristina livelli vecchi
     /** Timeout “reaffirm” post-Reset: NON devono sparare a sim già avviata (altrimenti livelli → 90 fissi). */
     let __resetReaffirmTimers = [];
@@ -6774,6 +6786,62 @@
       openPopup("blocchi"); // fill asincrono in openPopup (apertura immediata)
     }
 
+    function paintQInMeter(v) {
+      __qInMeter = Math.max(0, round1(Number(v) || 0));
+      const node = el("svgQIn");
+      if (node) node.textContent = __qInMeter.toFixed(1);
+    }
+
+    function cancelQInMeterRamp() {
+      if (__qInMeterRaf != null) cancelAnimationFrame(__qInMeterRaf);
+      __qInMeterRaf = null;
+      __qInMeterRamping = false;
+    }
+
+    /** Sale o scende verso il set con la stessa rampa delle pompe. Solo il misuratore. */
+    function kickQInMeterTo(target) {
+      const tgt = Math.max(0, round1(Number(target) || 0));
+      if (Math.abs((__qInMeter || 0) - tgt) < 0.15) {
+        cancelQInMeterRamp();
+        paintQInMeter(tgt);
+        return;
+      }
+      __qInMeterFrom = __qInMeter || 0;
+      __qInMeterTo = tgt;
+      __qInMeterStart = performance.now();
+      const delta = Math.abs(tgt - __qInMeterFrom);
+      __qInMeterDur = Math.max(FLOW_RAMP_MS_MIN, Math.min(FLOW_RAMP_MS_MAX, 550 + delta * 1.2));
+      __qInMeterRamping = true;
+      if (__qInMeterRaf == null) __qInMeterRaf = requestAnimationFrame(tickQInMeter);
+    }
+
+    function tickQInMeter(ts) {
+      const t = Math.min(1, (ts - __qInMeterStart) / Math.max(1, __qInMeterDur));
+      const e = 1 - Math.pow(1 - t, 3);
+      paintQInMeter(__qInMeterFrom + (__qInMeterTo - __qInMeterFrom) * e);
+      if (t < 1) {
+        __qInMeterRaf = requestAnimationFrame(tickQInMeter);
+        return;
+      }
+      __qInMeterRaf = null;
+      __qInMeterRamping = false;
+      paintQInMeter(__qInMeterTo);
+    }
+
+    /** Prima dello Start il misuratore resta dov’è. In marcia torna l’oscillazione già usata. */
+    function syncChimicoMeter(qInEff) {
+      const node = el("svgQIn");
+      if (!node || __qInMeterRamping) return;
+      const running = !!(__simPlaying || __simBusy);
+      if (!running) {
+        node.textContent = (Math.max(0, __qInMeter) || 0).toFixed(1);
+        return;
+      }
+      const shown = round1(Math.max(0, Number(qInEff) || 0));
+      __qInMeter = shown;
+      node.textContent = shown.toFixed(1);
+    }
+
     /** Avanza oscillazione lenta intorno al setpoint digitato (tipicamente ±1…2 m³/h, max ±2.5). */
     function advanceQInWobble(dtMin) {
       const set = Math.max(0, num("qIn"));
@@ -8836,15 +8904,16 @@
       return WATER_COL.stop;
     }
 
-    function setWaterFlow(root, on, dir) {
+    function setWaterFlow(root, on, dir, chem) {
       if (!root) return;
       const targets = [];
       if (root.classList && root.classList.contains("flow-water")) targets.push(root);
       root.querySelectorAll(".flow-water").forEach((g) => targets.push(g));
       targets.forEach((g) => {
         g.classList.toggle("is-flowing", !!on);
-        g.classList.remove("flow-rtl", "flow-up", "flow-down");
+        g.classList.remove("flow-rtl", "flow-up", "flow-down", "flow-chem-acido", "flow-chem-soda", "flow-chem-ipo");
         if (dir === "rtl" || dir === "up" || dir === "down") g.classList.add("flow-" + dir);
+        if (on && (chem === "acido" || chem === "soda" || chem === "ipo")) g.classList.add("flow-chem-" + chem);
       });
     }
 
@@ -9705,6 +9774,8 @@
       __simPlaying = true;
       try { keepScreenAwake(); } catch (_) { /* ok */ }
       softStartPlantFlows(); // no-op (non azzerare lo stato processo)
+      // Misuratore chimico: come le pompe, sale al set solo adesso
+      try { kickQInMeterTo(__chimicoAllowFill ? Math.max(0, num("qIn")) : 0); } catch (_) { /* ok */ }
       // Allinea viva ai campi attuali (setpoint/portate già impostati) — niente rampa da 0
       try { snapFlowLiveFromFields(); } catch (_) { /* ignore */ }
       advanceQInWobble(1);
@@ -10270,6 +10341,8 @@
       resetUfChem();
       resetCarbWash();
       resetQInWobble();
+      cancelQInMeterRamp();
+      paintQInMeter(0);
       if (__qMemPermRaf != null) {
         cancelAnimationFrame(__qMemPermRaf);
         __qMemPermRaf = null;
@@ -10310,8 +10383,7 @@
       setChimicoAllowFill(true, { silent: true });
       resetChimicoBlockCount();
       paintChimico(num("qIn") > 0.05);
-      const svgQIn0 = el("svgQIn");
-      if (svgQIn0) svgQIn0.textContent = round1(num("qIn")).toFixed(1);
+      paintQInMeter(0);
       const svgQInSp0 = el("svgQInSp");
       if (svgQInSp0) svgQInSp0.textContent = round1(num("qIn")).toFixed(1);
       paintPumpColors();
@@ -11506,8 +11578,8 @@
         }
 
         const svgQIn = el("svgQIn");
-        // Chimico: sullo schizzo la portata EFFETTIVA (0 se stop riempimento)
-        if (svgQIn) svgQIn.textContent = round1(qInEff).toFixed(1);
+        // Chimico: prima dello Start la misura non copia il set. In marcia resta l’oscillazione.
+        if (svgQIn) syncChimicoMeter(qInEff);
         const svgQInSp = el("svgQInSp");
         if (svgQInSp) svgQInSp.textContent = round1(Math.max(0, num("qIn"))).toFixed(1);
         // Occhio pompe: portata VIVA (in tween 0,5 s) — non sovrascrivere col target a scatto
@@ -11818,12 +11890,12 @@
       for (let i = 0; i < UF_CHEM_PHASES.length; i++) {
         const p = UF_CHEM_PHASES[i];
         if (t < p.sec - 1e-9) {
-          return { label: p.label, short: p.short || p.label, remainSec: Math.max(0, Math.ceil(p.sec - t)), totalSec: p.sec };
+          return { id: p.id, label: p.label, short: p.short || p.label, remainSec: Math.max(0, Math.ceil(p.sec - t)), totalSec: p.sec };
         }
         t -= p.sec;
       }
       const last = UF_CHEM_PHASES[UF_CHEM_PHASES.length - 1];
-      return last ? { label: last.label, short: last.short || last.label, remainSec: 0, totalSec: last.sec } : null;
+      return last ? { id: last.id, label: last.label, short: last.short || last.label, remainSec: 0, totalSec: last.sec } : null;
     }
     function ufAnyoneWashing() {
       ensureUfChem();
@@ -12610,9 +12682,16 @@
         if (badge) badge.setAttribute("stroke", deviceCol(off, runUf).stroke);
         const ufNode = document.querySelector(`g.node[data-uf-line="${L}"]`);
         const ufRow = el("ufRow" + L);
-        if (off || (!runUf && !washBw)) {
+        if (off || (!runUf && !washBw && !washChem)) {
           setWaterFlow(ufNode, false);
           setWaterFlow(ufRow, false);
+        } else if (washChem) {
+          const phs = stc && stc.wash ? ufChemPhaseAt(stc.wash.elapsedSec) : null;
+          const pid = phs && phs.id;
+          const reverse = pid === "alto1" || pid === "basso1" || pid === "alto2" || pid === "basso2";
+          const tone = kindNow === "acido" ? "acido" : (kindNow === "ceb" ? "soda" : "ipo");
+          setWaterFlow(ufNode, true, reverse ? "down" : "up", tone);
+          setWaterFlow(ufRow, true, reverse ? "down" : "up", tone);
         } else if (washBw) {
           setWaterFlow(ufNode, true, "down");
           setWaterFlow(ufRow, true, "down");
