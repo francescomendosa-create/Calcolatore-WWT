@@ -617,6 +617,14 @@
     #popMembrane details.proc-fold[open] > summary.proc-label {
       margin-bottom: 10px;
     }
+    /* Racconti di stato: il programma li aggiorna, nel popup non si vedono. */
+    #popMembrane .mbr-narration,
+    #popMembrane #devModeHintMembrane,
+    #popMembrane #mbrFillBalanceHint,
+    #popMembrane #memMinHint,
+    #popMembrane #sludgeMemHint {
+      display: none !important;
+    }
     #popBlocchi .block-action.ok-line {
       margin: 8px 0 0;
       padding: 10px 12px;
@@ -1754,7 +1762,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v249</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v250</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -3313,7 +3321,7 @@
               <input type="number" id="viewStopRiempMbr2" readonly placeholder="—" inputmode="decimal" />
             </label>
           </div>
-          <p class="mini">Svuotamento: membrane ON/OFF. Riempimento: MP 11036 A/B fermano a stop (92%) e ripartono a start (85%), se anche A10611 è OK.</p>
+          <p class="mini mbr-narration">Svuotamento: membrane ON/OFF. Riempimento: MP 11036 A/B fermano a stop (92%) e ripartono a start (85%), se anche A10611 è OK.</p>
           <p class="mini" id="mbrFillBalanceHint">Bilancio MBR: mandata IN − permeato OUT − scarico→A11004 (~80% eccesso; 0 se A11004 al 100%). Il riciclo 11014 aspira solo A11004.</p>
           <div class="row" style="margin-top:8px">
             <label><strong>Start riemp. TK 11007 %</strong>
@@ -3323,15 +3331,15 @@
               <input type="number" id="viewStopRiempTk11007b" readonly placeholder="—" inputmode="decimal" />
             </label>
           </div>
-          <p class="mini">TK 11007: a stop riempimento (97%) le membrane FERMANO; a start (90%) ripartono.</p>
+          <p class="mini mbr-narration">TK 11007: a stop riempimento (97%) le membrane FERMANO; a start (90%) ripartono.</p>
         </div>
-        <p class="mini">Ciclo a coppie sfalsate: A+D, B+G, C+E, F sola — ciascuna 7′ lavoro + 1′ pausa, non tutte insieme. Blocco livello / TK 11007: tutte ferme.</p>
+        <p class="mini mbr-narration">Ciclo a coppie sfalsate: A+D, B+G, C+E, F sola — ciascuna 7′ lavoro + 1′ pausa, non tutte insieme. Blocco livello / TK 11007: tutte ferme.</p>
       </details>
       <label><strong>TOTALE membrane ON (m³/h)</strong>
         <input type="number" id="qMemTotale" class="tot-mem" min="0" max="500" step="1" value="171" inputmode="numeric" />
       </label>
       <p class="mini" id="memMinHint">Set minimo vs chimico: totale ON × duty ≥ ingresso (calcolo automatico).</p>
-      <p class="mini">Variando il totale si ripartisce sulle membrane <strong>abilitate</strong>. <strong>H</strong> parte disattivata (rossa): tieni premuto sullo schema per riattivarla.</p>
+      <p class="mini mbr-narration">Variando il totale si ripartisce sulle membrane <strong>abilitate</strong>. <strong>H</strong> parte disattivata (rossa): tieni premuto sullo schema per riattivarla.</p>
       <div class="mem-grid" id="memInputs"></div>
       <div class="row" style="margin-top:8px">
         <label><strong>Media effettiva (con ciclo)</strong>
