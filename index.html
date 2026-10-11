@@ -1749,6 +1749,44 @@
       flex-basis: 100%;
       margin-left: 0;
     }
+    #popUltra .uf-chem-remain {
+      width: 100%;
+      text-align: left;
+      font: inherit;
+      font-weight: 800;
+      color: #fde68a;
+      background: #1c1408;
+      border: 1px solid #fbbf24;
+      border-radius: 8px;
+      padding: 8px 10px;
+      cursor: pointer;
+      font-variant-numeric: tabular-nums;
+    }
+    #popUfRemain.flow-edit-back { background: rgba(2, 8, 20, 0.72); z-index: 13100; }
+    #popUfRemain .flow-numpad { display: block; }
+    #popUfRemain .sim-jump-draft {
+      margin: 6px 0 8px;
+      min-height: 1.5em;
+      font-size: 1.45rem;
+      font-weight: 800;
+      color: #fde68a;
+      font-variant-numeric: tabular-nums;
+    }
+    #popUfRemain .sim-jump-enter {
+      width: 100%;
+      margin-top: 8px;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #14532d;
+      background: #166534;
+      color: #ecfdf5;
+      font-weight: 800;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+      flex-basis: 100%;
+      margin-left: 0;
+    }
     .osm-row, .uf-row {
       border: 1px solid var(--line);
       border-radius: 10px;
@@ -2050,7 +2088,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v263</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v264</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -2863,6 +2901,35 @@
         </div>
       </div>
       <button type="button" class="sim-jump-enter" id="simJumpEnter">Enter</button>
+    </div>
+  </div>
+
+  <div class="flow-edit-back" id="popUfRemain" role="dialog" aria-modal="true" aria-labelledby="ufRemainTitle">
+    <div class="flow-edit-panel">
+      <h3>
+        <span id="ufRemainTitle">Manca al lavaggio</span>
+        <button type="button" id="ufRemainClose" aria-label="Chiudi" style="float:right;background:transparent;border:0;color:#94a3b8;font-size:1.4rem;line-height:1;cursor:pointer">&times;</button>
+      </h3>
+      <p class="sim-jump-draft" id="ufRemainDraft">—</p>
+      <p class="mini">Ore. Punto, poi i minuti. 0 fa partire il lavaggio adesso.</p>
+      <div class="flow-numpad show" id="ufRemainPad" aria-label="Tastierino tempo rimanente">
+        <div class="flow-numpad-grid">
+          <button type="button" data-ur="7">7</button>
+          <button type="button" data-ur="8">8</button>
+          <button type="button" data-ur="9">9</button>
+          <button type="button" data-ur="4">4</button>
+          <button type="button" data-ur="5">5</button>
+          <button type="button" data-ur="6">6</button>
+          <button type="button" data-ur="1">1</button>
+          <button type="button" data-ur="2">2</button>
+          <button type="button" data-ur="3">3</button>
+          <button type="button" data-ur=".">.</button>
+          <button type="button" data-ur="0">0</button>
+          <button type="button" class="np-back" data-ur="back" aria-label="Cancella">⌫</button>
+          <button type="button" class="np-clear" data-ur="clear" style="grid-column:1/-1">Pulisci</button>
+        </div>
+      </div>
+      <button type="button" class="sim-jump-enter" id="ufRemainOk">OK</button>
     </div>
   </div>
 
@@ -13157,7 +13224,10 @@
           st.wash.elapsedSec += dt * 60;
           const dur = ufKindWashSec(L, st.wash.kind);
           if (st.wash.elapsedSec >= dur - 1e-6) {
-            st.remain[st.wash.kind] = ufKindLavoroMin(L, st.wash.kind);
+            const doneKind = st.wash.kind;
+            if ((Number(st.remain[doneKind]) || 0) <= 0.05) {
+              st.remain[doneKind] = ufKindLavoroMin(L, doneKind);
+            }
             st.wash = null;
           }
         }
@@ -13966,6 +14036,7 @@
           setWaterFlow(ufRow, true, "up");
         }
       });
+      try { paintUfChemRemains(); } catch (_) { /* ok */ }
       paintUfHeadWash();
     }
 
@@ -13976,6 +14047,158 @@
       if (kind === "acido") return "CEB acido";
       return "CEB";
     }
+
+    function fmtUfRemainMin(min) {
+      const n = Number(min);
+      if (!Number.isFinite(n)) return "—";
+      const sign = n < -0.05 ? "−" : "";
+      const total = Math.round(Math.abs(n));
+      const h = Math.floor(total / 60);
+      const mm = total % 60;
+      return sign + h + " h " + String(mm).padStart(2, "0");
+    }
+
+    function paintUfChemRemains() {
+      UF_LINES.forEach((L) => {
+        const st = ufSched(L);
+        UF_CHEM_KINDS.forEach((k) => {
+          const btn = el("ufChemRemain_" + k.id + "_" + L);
+          if (!btn) return;
+          const washing = !!(st && st.wash && st.wash.kind === k.id);
+          btn.textContent = washing ? "in corso" : fmtUfRemainMin(st ? Number(st.remain[k.id]) : NaN);
+        });
+      });
+    }
+
+    function ufChemRemainLabel(kind) {
+      if (kind === "cev") return "ipoclorito";
+      if (kind === "ceb") return "soda";
+      if (kind === "acido") return "acido";
+      return "lavaggio";
+    }
+
+    /** Scrive il tempo che manca. 0 avvia quel CEB se la linea è libera. */
+    function ufSetChemRemain(letter, kind, minutes) {
+      const L = String(letter || "").toUpperCase();
+      const st = ufSched(L);
+      if (!st || !UF_CHEM_KINDS.some((k) => k.id === kind)) return;
+      const m = Math.max(0, round2(Number(minutes) || 0));
+      st.remain[kind] = m;
+      if (m <= 1e-6 && ufLineEnabled(L) && !(st.wash && st.wash.kind === kind)) {
+        if (!st.wash && !ufAnyoneWashing()) {
+          st.wash = { kind, elapsedSec: 0 };
+          st.remain[kind] = 0;
+        }
+      }
+      try { paintUfWashUI(); } catch (_) { /* ok */ }
+      try { schedulePersist(); } catch (_) { /* ok */ }
+    }
+
+    let __ufRemainEdit = null;
+
+    function ufRemainParse(str) {
+      const s = String(str || "").trim();
+      if (!s || s === ".") return null;
+      const parts = s.split(".");
+      let h = parseInt(parts[0], 10);
+      if (!Number.isFinite(h)) return null;
+      h = Math.max(0, Math.min(720, h));
+      let mm = 0;
+      if (parts.length > 1 && parts[1] !== "") {
+        const frac = parts[1].slice(0, 2);
+        mm = parseInt(frac, 10);
+        if (!Number.isFinite(mm)) mm = 0;
+        if (frac.length === 1) mm *= 10;
+        mm = Math.max(0, Math.min(59, mm));
+      }
+      return h * 60 + mm;
+    }
+
+    function paintUfRemainDraft() {
+      const node = el("ufRemainDraft");
+      if (!node || !__ufRemainEdit) return;
+      if (!__ufRemainEdit.str) {
+        node.textContent = "—";
+        return;
+      }
+      const mins = ufRemainParse(__ufRemainEdit.str);
+      node.textContent = mins == null ? __ufRemainEdit.str : fmtUfRemainMin(mins);
+    }
+
+    function ufRemainKey(key) {
+      if (!__ufRemainEdit) return;
+      const k = String(key || "");
+      if (k === "clear") {
+        __ufRemainEdit.str = "";
+        __ufRemainEdit.fresh = true;
+        paintUfRemainDraft();
+        return;
+      }
+      if (k === "back") {
+        __ufRemainEdit.str = __ufRemainEdit.str.slice(0, -1);
+        __ufRemainEdit.fresh = false;
+        paintUfRemainDraft();
+        return;
+      }
+      if (__ufRemainEdit.fresh) {
+        __ufRemainEdit.str = "";
+        __ufRemainEdit.fresh = false;
+      }
+      if (k === ".") {
+        if (__ufRemainEdit.str.includes(".")) return;
+        __ufRemainEdit.str = (__ufRemainEdit.str || "0") + ".";
+      } else if (/^[0-9]$/.test(k)) {
+        const parts = __ufRemainEdit.str.split(".");
+        if (parts.length === 1) {
+          if (parts[0].length >= 3) return;
+          __ufRemainEdit.str += k;
+        } else if (parts[1].length >= 2) {
+          return;
+        } else {
+          __ufRemainEdit.str += k;
+        }
+      } else return;
+      paintUfRemainDraft();
+    }
+
+    function openUfRemainEdit(letter, kind) {
+      const L = String(letter || "").toUpperCase();
+      const st = ufSched(L);
+      const rem = st ? Number(st.remain[kind]) : 0;
+      const abs = Math.max(0, Number.isFinite(rem) ? rem : 0);
+      const h = Math.floor(abs / 60);
+      const mm = Math.floor(abs % 60);
+      __ufRemainEdit = {
+        L,
+        kind,
+        str: mm ? (h + "." + String(mm).padStart(2, "0")) : String(h),
+        fresh: true,
+      };
+      const title = el("ufRemainTitle");
+      if (title) title.textContent = "UF " + L + " · manca " + ufChemRemainLabel(kind);
+      const pop = el("popUfRemain");
+      if (pop) pop.classList.add("show");
+      paintUfRemainDraft();
+      try { syncScrollLock(); } catch (_) { /* ok */ }
+    }
+
+    function hideUfRemainEdit() {
+      __ufRemainEdit = null;
+      const pop = el("popUfRemain");
+      if (pop) pop.classList.remove("show");
+      try { syncScrollLock(); } catch (_) { /* ok */ }
+    }
+
+    function commitUfRemainEdit() {
+      if (!__ufRemainEdit) return;
+      const raw = String(__ufRemainEdit.str || "").trim();
+      const mins = raw === "" || raw === "." ? 0 : ufRemainParse(raw);
+      if (mins == null) return;
+      const edit = __ufRemainEdit;
+      hideUfRemainEdit();
+      ufSetChemRemain(edit.L, edit.kind, mins);
+    }
+
     /** Dicitura lunga del tipo lavaggio (niente BW / abbreviazioni). */
     function ufWashKindLong(kind) {
       if (kind === "bw") return "Lavaggio backwash";
@@ -14177,7 +14400,9 @@
         labWash.appendChild(inpWash);
         box.appendChild(labWash);
 
-        const addOre = (id, label, val) => {
+        const addOre = (id, label, val, kind) => {
+          const row = document.createElement("div");
+          row.className = "row";
           const lab = document.createElement("label");
           lab.innerHTML = `<strong>${label}</strong>`;
           const inp = document.createElement("input");
@@ -14193,11 +14418,29 @@
             schedulePersist();
           });
           lab.appendChild(inp);
-          box.appendChild(lab);
+          const labR = document.createElement("label");
+          labR.innerHTML = `<strong>Manca all’avvio</strong>`;
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "uf-chem-remain";
+          btn.id = "ufChemRemain_" + kind + "_" + m;
+          btn.dataset.ufLine = m;
+          btn.dataset.ufKind = kind;
+          btn.title = "Clic: modifica il tempo che manca. 0 avvia il lavaggio.";
+          btn.textContent = "—";
+          btn.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openUfRemainEdit(m, kind);
+          });
+          labR.appendChild(btn);
+          row.appendChild(lab);
+          row.appendChild(labR);
+          box.appendChild(row);
         };
-        addOre("ufCevOre" + m, "Tempo di lavoro per avvio CEB con ipoclorito (h)", 21);
-        addOre("ufCebOre" + m, "Tempo di lavoro per avvio CEB con soda (h)", 23);
-        addOre("ufAcidoOre" + m, "Tempo di lavoro per avvio CEB con acido (h)", 24);
+        addOre("ufCevOre" + m, "Tempo di lavoro per avvio CEB con ipoclorito (h)", 21, "cev");
+        addOre("ufCebOre" + m, "Tempo di lavoro per avvio CEB con soda (h)", 23, "ceb");
+        addOre("ufAcidoOre" + m, "Tempo di lavoro per avvio CEB con acido (h)", 24, "acido");
 
         const st = document.createElement("p");
         st.className = "mini";
@@ -14454,6 +14697,8 @@
       if (flowBack && flowBack.classList.contains("show")) return true;
       const jump = el("popSimJump");
       if (jump && jump.classList.contains("show")) return true;
+      const ufRem = el("popUfRemain");
+      if (ufRem && ufRem.classList.contains("show")) return true;
       const adj = el("popSludgeAdj");
       const pct = el("popSludgePct");
       const base = el("popSludgeBase");
@@ -15840,6 +16085,11 @@
     });
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
+        if (el("popUfRemain")?.classList.contains("show")) {
+          e.preventDefault();
+          hideUfRemainEdit();
+          return;
+        }
         if (el("popSimJump")?.classList.contains("show")) {
           e.preventDefault();
           if (!__simBusy) hideSimJump();
@@ -16079,6 +16329,57 @@
       e.stopPropagation();
       commitSimJump();
     });
+    el("ufRemainClose")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      hideUfRemainEdit();
+    });
+    el("popUfRemain")?.addEventListener("click", (e) => {
+      if (e.target !== el("popUfRemain")) return;
+      hideUfRemainEdit();
+    });
+    el("ufRemainPad")?.addEventListener("click", (e) => {
+      const b = e.target && e.target.closest ? e.target.closest("[data-ur]") : null;
+      if (!b) return;
+      e.preventDefault();
+      e.stopPropagation();
+      ufRemainKey(b.getAttribute("data-ur"));
+    });
+    el("ufRemainOk")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      commitUfRemainEdit();
+    });
+    document.addEventListener("keydown", (e) => {
+      const pop = el("popUfRemain");
+      if (!pop || !pop.classList.contains("show")) return;
+      if (e.key === "Enter") {
+        e.preventDefault();
+        e.stopPropagation();
+        commitUfRemainEdit();
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        hideUfRemainEdit();
+        return;
+      }
+      if (e.key === "Backspace") {
+        e.preventDefault();
+        ufRemainKey("back");
+        return;
+      }
+      if (e.key === "." || e.key === ",") {
+        e.preventDefault();
+        ufRemainKey(".");
+        return;
+      }
+      if (/^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+        ufRemainKey(e.key);
+      }
+    }, true);
     document.addEventListener("keydown", (e) => {
       const pop = el("popSimJump");
       if (!pop || !pop.classList.contains("show")) return;
