@@ -2008,7 +2008,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v259</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v260</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -5571,11 +5571,10 @@
       const osmBacksUp = qUfNom > 0.5 && qOsm + 0.5 < qUfNom;
       const ufClosed = !!(fc && fc.snap && fc.snap.allowUf === false);
       let cause = "";
-      if (ufShort && qOsm + 0.5 >= qUfSp && !osmBacksUp) cause = "uf";
-      else if (osmShort && (carbShort || ufShort)) cause = "both";
-      else if (osmShort || osmBacksUp) cause = "osm";
-      else if (ufShort) cause = "uf";
+      // Più vicino al chimico prima: ultrafiltrazione / carboni, poi osmosi.
+      if (ufShort) cause = "uf";
       else if (carbShort) cause = "carb";
+      else if (osmShort || osmBacksUp) cause = "osm";
       else if (ufClosed && qOsm + 0.5 < qIn) cause = "osm";
       return { cause, qIn, qOsm, qCarb, qIas, qUfSp, qPass, qUfNom, osmShort, carbShort, ufShort, osmBacksUp, ufClosed };
     }
@@ -5607,6 +5606,21 @@
 
     function paintInstantValleyIfBad(bar) {
       if (!bar) return;
+      const qIn = chemicalSetpointNow();
+      const qMem = Math.max(0, num("qMemTotale") || 0);
+      let dutyAvg = 0.875;
+      try {
+        const d = duty();
+        if (d && d.d > 0.05) dutyAvg = d.d;
+      } catch (_) { /* ok */ }
+      if (qIn > 0.5 && qMem * dutyAvg + 1 < qIn) {
+        let text = `Male · membrane ${fmtQ(qMem)} vs chimico ${fmtQ(qIn)} · tempo in calcolo`;
+        if (__simPlaying || __simMin > 0) text = `t=${__simMin}′ · ` + text;
+        bar.className = "status danger is-bad";
+        bar.textContent = text;
+        bar.title = "Membrane sotto il chimico-fisico — il tempo preciso arriva dal conto da 8 ore";
+        return;
+      }
       const snap = valleyNowSnapshot();
       if (!snap || !snap.v || !snap.v.cause) return;
       const text0 = shortRegPreviewBad({ focus: snap.v.cause }, snap.fc);
@@ -6790,13 +6804,9 @@
       let focus = "p11";
 
       /*
-       * PRIORITÀ consigli (come cervello Automatico):
-       * 1) P11011 Hz + m³/h rispetto al set Auto
-       * 2) MP 11036 allineata a P11011
-       * 3) riciclo vs scarico MBR
-       * 4) membrane (prima della valle: meno membrane → meno acqua a osmosi)
-       * 5) valle / export osmosi+IAS (solo se membrane già ok)
-       * 6) chimico — ultima spiaggia
+       * PRIORITÀ: dal chimico-fisico verso valle.
+       * 1) P11011  2) MP 11036  3) riciclo  4) membrane
+       * 5) ultrafiltrazione / carboni  6) osmosi  7) chimico
        */
       if (pumpRegBad) {
         focus = "p11";
@@ -6841,7 +6851,7 @@
         askQ = `È possibile aumentare il <strong>riciclo 11014</strong> a <strong class="flow-val">${fmtQ(qRecNeed)} m³/h</strong>?`;
         yesHtml = `Ok: riciclo → <strong class="flow-val">${fmtQ(qRecNeed)} m³/h</strong>.`;
         noHtml = cfLowerNoHtml(qSafeSamePumps, "riciclo 11014", qHaveRec);
-      } else if (memRegBad && !valleyCauseOf(fc).cause) {
+      } else if (memRegBad) {
         // Membrane sotto minimo tecnico vs chimico → sempre Male (timer se firstBlockMin c'è).
         focus = "mem";
         device = "membrane";
