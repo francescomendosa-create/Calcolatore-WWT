@@ -1730,7 +1730,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v247</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v248</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -3983,9 +3983,9 @@
     let __valveSmoothRaf = 0;
     let __valveSmoothLast = 0;
     const __osmWobble = {
-      A: { phase: Math.random() * Math.PI * 2, bias: 0 },
-      B: { phase: Math.random() * Math.PI * 2, bias: 0 },
-      C: { phase: Math.random() * Math.PI * 2, bias: 0 },
+      A: { bias: 0, goal: 0, until: 0 },
+      B: { bias: 0, goal: 0, until: 0 },
+      C: { bias: 0, goal: 0, until: 0 },
     };
     let __startupPumpHold = false; // dopo Reset: pompe ON finché non parti con +1′
     let __simMin = 0;
@@ -12525,6 +12525,34 @@
      * - niente oscillazioni artificiali vicino al set
      */
 
+    /**
+     * Misura osmosi: il setpoint non si muove.
+     * A tratti resta sulla misura giusta, a tratti sale o scende di qualche decimo.
+     */
+    function stepOsmWander(L, dtSec, active) {
+      const w = __osmWobble[L];
+      if (!w) return 0;
+      if (!active) {
+        w.goal = 0;
+        w.until = 0;
+        w.bias = approachLinear(w.bias, 0, 0.35, dtSec);
+        if (Math.abs(w.bias) < 0.02) w.bias = 0;
+        return w.bias;
+      }
+      const now = performance.now();
+      if (!w.until || now >= w.until) {
+        const roll = Math.random();
+        if (roll < 0.4) w.goal = 0;
+        else {
+          const mag = 0.2 + Math.random() * 0.2;
+          w.goal = roll < 0.7 ? mag : -mag;
+        }
+        w.until = now + 5000 + Math.random() * 8000;
+      }
+      w.bias = approachLinear(w.bias, w.goal, 0.12, dtSec);
+      return w.bias;
+    }
+
     function approachLinear(cur, target, ratePerSec, dtSec) {
       const c0 = Number(cur) || 0;
       const t0 = Number(target) || 0;
@@ -12571,12 +12599,16 @@
         const v0 = Number(__osmValvePct[L]) || 0;
         const m0 = Number(__osmMeas[L]) || 0;
         const v1 = approachLinear(v0, __osmValveTarget[L], VALVE_SMOOTH_PCT_S, dtSec);
-        const m1 = approachLinear(m0, __osmMeasTarget[L], MEAS_SMOOTH_Q_S, dtSec);
+        const prevBias = Number((__osmWobble[L] || {}).bias) || 0;
+        const base1 = approachLinear(m0 - prevBias, Number(__osmMeasTarget[L]) || 0, MEAS_SMOOTH_Q_S, dtSec);
         __osmValvePct[L] = v1;
-        __osmMeas[L] = m1;
+        const live = plantIsStarted() && osmLineFeeding(L) && (Number(__osmMeasTarget[L]) || 0) > 0.05;
+        const bias = stepOsmWander(L, dtSec, live);
+        const shown = Math.max(0, live ? base1 + bias : base1);
+        __osmMeas[L] = shown;
         if (Math.abs(v1 - (Number(__osmValveTarget[L]) || 0)) > 0.08) need = true;
-        if (Math.abs(m1 - (Number(__osmMeasTarget[L]) || 0)) > 0.05) need = true;
-        const qLive = (plantIsStarted() && osmLineFeeding(L)) ? Math.max(0, m1) : 0;
+        if (Math.abs(base1 - (Number(__osmMeasTarget[L]) || 0)) > 0.05) need = true;
+        const qLive = live ? shown : 0;
         osmTotLive += qLive + (qLive >= OSM_IN_MIN - 0.05 ? 15 : 0);
         const node = el({ A: "svgQOsmA", B: "svgQOsmB", C: "svgQOsmC" }[L]);
         if (node) node.textContent = round1(qLive).toFixed(1);
@@ -12750,11 +12782,10 @@
           } else {
             const ff = valveOpenPctForSet(sp, q100);
             const err = sp - measNow;
-            // Vicino al set: valvola fissa sul % di progetto, portata = set (niente oscillazioni).
+            // Vicino al set: valvola ferma. La misura può scostarsi di qualche decimo.
             if (Math.abs(err) <= 0.6) {
               valveTarget = Math.max(1, Math.min(100, Math.round(ff)));
               qAim = Math.min(share, sp);
-              w.bias = 0;
             } else {
               valveTarget = ff + err * 10;
               if (measNow + 0.4 < sp) valveTarget = Math.max(valveTarget, ff + 6);
@@ -12769,7 +12800,9 @@
         }
         if (dtSec > 0) {
           __osmValvePct[L] = approachLinear(Number(__osmValvePct[L]) || 0, Number(__osmValveTarget[L]) || 0, VALVE_SMOOTH_PCT_S, dtSec);
-          __osmMeas[L] = approachLinear(Number(__osmMeas[L]) || 0, Number(__osmMeasTarget[L]) || 0, MEAS_SMOOTH_Q_S, dtSec);
+          let meas = approachLinear(Number(__osmMeas[L]) || 0, Number(__osmMeasTarget[L]) || 0, MEAS_SMOOTH_Q_S, dtSec);
+          if (run) meas = Math.max(0, meas + (Number(w && w.bias) || 0));
+          __osmMeas[L] = meas;
         }
       });
     }
