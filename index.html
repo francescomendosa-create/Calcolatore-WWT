@@ -1730,7 +1730,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v246</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v247</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -3975,8 +3975,11 @@
     const __osmMeas = { A: 0, B: 0, C: 0 };
     const __osmValveTarget = { A: 0, B: 0, C: 0 };
     const __osmMeasTarget = { A: 0, B: 0, C: 0 };
-    const VALVE_SMOOTH_PCT_S = 70;   // %/s lineare valvola
-    const MEAS_SMOOTH_Q_S = 55;      // m³/h al secondo lineare portata
+    const VALVE_SMOOTH_PCT_S = 70;   // %/s lineare valvola (osmosi)
+    const MEAS_SMOOTH_Q_S = 55;      // m³/h al secondo lineare portata (osmosi)
+    // UF: più lente, così si vede la barra che apre e il numero che sale.
+    const UF_VALVE_PCT_S = 20;       // 0→100% in ~5 s
+    const UF_MEAS_Q_S = 12;          // una linea da ~30 m³/h ci mette ~2,5 s
     let __valveSmoothRaf = 0;
     let __valveSmoothLast = 0;
     const __osmWobble = {
@@ -12548,8 +12551,8 @@
       UF_LINES.forEach((L) => {
         const v0 = Number(__ufValvePct[L]) || 0;
         const m0 = Number(__ufMeas[L]) || 0;
-        const v1 = approachLinear(v0, __ufValveTarget[L], VALVE_SMOOTH_PCT_S, dtSec);
-        const m1 = approachLinear(m0, __ufMeasTarget[L], MEAS_SMOOTH_Q_S, dtSec);
+        const v1 = approachLinear(v0, __ufValveTarget[L], UF_VALVE_PCT_S, dtSec);
+        const m1 = approachLinear(m0, __ufMeasTarget[L], UF_MEAS_Q_S, dtSec);
         __ufValvePct[L] = v1;
         __ufMeas[L] = m1;
         if (Math.abs(v1 - (Number(__ufValveTarget[L]) || 0)) > 0.08) need = true;
@@ -12608,7 +12611,6 @@
      * Niente oscillazioni artificiali / caccia valvola.
      */
     function tickUfRegulationOnce(dt) {
-      const dtSec = Math.max(0, Number(dt) || 0) * 60; // passo TIME in secondi di rampa misura
       UF_LINES.forEach((L) => {
         const enabled = ufLineEnabled(L);
         const washing = ufLineInWash(L);
@@ -12648,12 +12650,8 @@
           __ufValveTarget[L] = Math.max(0, Math.min(100, valveTarget));
           __ufMeasTarget[L] = Math.max(0, starved ? Math.max(0, share) : sp);
         }
-        // Integra misura/valvola sul tempo SIM (non solo RAF): altrimenti bilanci TIME vedono sempre 0
-        if (dtSec > 0) {
-          __ufValvePct[L] = approachLinear(Number(__ufValvePct[L]) || 0, Number(__ufValveTarget[L]) || 0, VALVE_SMOOTH_PCT_S, dtSec);
-          __ufMeas[L] = approachLinear(Number(__ufMeas[L]) || 0, Number(__ufMeasTarget[L]) || 0, MEAS_SMOOTH_Q_S, dtSec);
-        }
       });
+      // Il minuto di TIME non consuma 60 s di rampa: valvola e portata salgono col RAF.
       try { paintUfInletHint(); } catch (_) { /* ok */ }
     }
 
