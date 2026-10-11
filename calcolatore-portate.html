@@ -2007,7 +2007,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v257</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v258</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -5439,6 +5439,7 @@
       if (!bar) return;
       bar.setAttribute("data-clickable", "1");
       const seq = ++__regPreviewSeq;
+      try { paintInstantValleyIfBad(bar); } catch (_) { /* ok */ }
       try {
         forecastChimicoHorizon(BLOCK_FORECAST_HORIZON, {
           onDone(fc) {
@@ -5465,8 +5466,17 @@
       // In TIME il conto alla rovescia non deve restare su un set vecchio.
       const qInNow = chemicalSetpointNow();
       const qMemNow = Math.max(0, num("qMemTotale") || 0);
+      let qOsmNow = 0;
+      let qCarbNow = 0;
+      let qUfNow = 0;
+      try { qOsmNow = osmExportCapacityStable(); } catch (_) { qOsmNow = 0; }
+      try { qCarbNow = qP11019ImpiantoSetpoint(); } catch (_) { qCarbNow = 0; }
+      try { qUfNow = procSetpointOf("qUfTotale"); } catch (_) { qUfNow = 0; }
       const drifted = Math.abs((Number(__lastRegFc.qInSp) || 0) - qInNow) > 0.6
-        || Math.abs((Number(__lastRegFc.qMemSp) || 0) - qMemNow) > 0.6;
+        || Math.abs((Number(__lastRegFc.qMemSp) || 0) - qMemNow) > 0.6
+        || Math.abs((Number(__lastRegFc.qOsmCap) || 0) - qOsmNow) > 0.6
+        || Math.abs((Number(__lastRegFc.qImpSp) || 0) - qCarbNow) > 0.6
+        || Math.abs((Number(__lastRegFc.qUfSp) || 0) - qUfNow) > 0.6;
       if (drifted) {
         try { scheduleRegPreview({ userChange: true }); } catch (_) { /* ok */ }
         return;
@@ -5544,16 +5554,68 @@
       const qOsm = Math.max(0, Number(fc && fc.qOsmCap) || 0);
       const qCarb = Math.max(0, Number(fc && fc.qImpSp) || 0);
       const qIas = Math.max(0, Number(fc && fc.qIasSp) || 0);
+      const qUfSp = Math.max(0, Number(fc && fc.qUfSp) || 0);
+      const qPass = (qUfSp > 0.5) ? Math.min(qCarb, qUfSp) : qCarb;
+      const qUfNom = round1(qPass * 0.88);
       const osmShort = qIn > 0.5 && qOsm + 0.5 < qIn;
       const carbShort = qIn > 0.5 && qCarb + 0.5 < qIn;
-      const osmBacksUp = qCarb > 0.5 && qOsm + 0.5 < qCarb;
+      const ufShort = qUfSp > 0.5 && qIn > 0.5 && qUfSp + 0.5 < qIn && qUfSp + 0.5 < qCarb;
+      const osmBacksUp = qUfNom > 0.5 && qOsm + 0.5 < qUfNom;
       const ufClosed = !!(fc && fc.snap && fc.snap.allowUf === false);
-      let cause = "osm";
-      if (osmShort && carbShort && osmBacksUp) cause = "both";
-      else if (osmShort || osmBacksUp || (ufClosed && qOsm + 0.5 < qIn)) cause = "osm";
+      let cause = "";
+      if (ufShort && qOsm + 0.5 >= qUfSp && !osmBacksUp) cause = "uf";
+      else if (osmShort && (carbShort || ufShort)) cause = "both";
+      else if (osmShort || osmBacksUp) cause = "osm";
+      else if (ufShort) cause = "uf";
       else if (carbShort) cause = "carb";
-      else if (ufClosed) cause = "osm";
-      return { cause, qIn, qOsm, qCarb, qIas, osmShort, carbShort, osmBacksUp, ufClosed };
+      else if (ufClosed && qOsm + 0.5 < qIn) cause = "osm";
+      return { cause, qIn, qOsm, qCarb, qIas, qUfSp, qPass, qUfNom, osmShort, carbShort, ufShort, osmBacksUp, ufClosed };
+    }
+
+    /** Appena i set osmosi / carboni / UF sono storti, la barra lo dice senza aspettare le 8 ore. */
+    function valleyNowSnapshot() {
+      let qOsm = 0;
+      let qCarb = 0;
+      let qIas = 0;
+      let qUfSp = 0;
+      try { qOsm = osmExportCapacityStable(); } catch (_) { qOsm = 0; }
+      try { qCarb = qP11019ImpiantoSetpoint(); } catch (_) { qCarb = 0; }
+      try { qIas = Math.max(0, Number(__flowSetpoint.qP11019Ias) || 0); } catch (_) { qIas = 0; }
+      try { qUfSp = procSetpointOf("qUfTotale"); } catch (_) { qUfSp = 0; }
+      const fc = {
+        qInSp: chemicalSetpointNow(),
+        qOsmCap: qOsm,
+        qImpSp: qCarb,
+        qIasSp: qIas,
+        qUfSp: qUfSp,
+        snap: {
+          allowUf: __allowUfByTk11021 !== false,
+          livU: numOrNull("livelloAttualeTk11021"),
+        },
+      };
+      return { fc, v: valleyCauseOf(fc) };
+    }
+
+    function paintInstantValleyIfBad(bar) {
+      if (!bar) return;
+      const snap = valleyNowSnapshot();
+      if (!snap || !snap.v || !snap.v.cause) return;
+      const text0 = shortRegPreviewBad({ focus: snap.v.cause }, snap.fc);
+      let text = /blocco tra/.test(text0) ? text0 : (text0 + " · tempo in calcolo");
+      if (__simPlaying || __simMin > 0) text = `t=${__simMin}′ · ` + String(text).replace(/^t=\d+′ · /, "");
+      bar.className = "status danger is-bad";
+      bar.textContent = text;
+      bar.title = "Set osmosi / ultrafiltrazione / carboni — il tempo preciso arriva dal conto da 8 ore";
+    }
+
+    let __valleySetKey = "";
+    function noteValleySetChanged() {
+      const snap = valleyNowSnapshot();
+      const v = snap.v;
+      const key = [round1(v.qIn), round1(v.qOsm), round1(v.qCarb), round1(v.qUfSp)].join("|");
+      if (key === __valleySetKey) return;
+      __valleySetKey = key;
+      try { scheduleRegPreview({ userChange: true }); } catch (_) { /* ok */ }
     }
 
     function shortRegPreviewBad(adv, fc) {
@@ -5590,15 +5652,24 @@
       if (focus === "levels") {
         return when ? `Regolazione OK · attenzione livelli ~${when}` : `Regolazione OK · attenzione livelli`;
       }
-      if (focus === "osm" || focus === "carb" || focus === "both") {
+      if (focus === "osm" || focus === "carb" || focus === "uf" || focus === "both" || focus === "valley") {
         const v = valleyCauseOf(fc);
         const use = focus;
         const qSafeBit = qSafe ? ` · oppure chimico ≤ ${qSafe}` : " · oppure scendi il chimico";
+        if (use === "uf") {
+          return `Male · ultrafiltrazione bassa (${fmtQ(v.qUfSp)} < chimico ${fmtQ(v.qIn)})${whenBit} · alza le UF${qSafeBit}`;
+        }
         if (use === "carb") {
           return `Male · filtri a carbone bassi (${fmtQ(v.qCarb)} < chimico ${fmtQ(v.qIn)})${whenBit} · alza i carboni${qSafeBit}`;
         }
         if (use === "both") {
-          return `Male · osmosi ${fmtQ(v.qOsm)} e carboni ${fmtQ(v.qCarb)} < chimico ${fmtQ(v.qIn)}${whenBit} · alza le osmosi${qSafeBit}`;
+          return `Male · osmosi ${fmtQ(v.qOsm)} e ultrafiltrazione/carboni ${fmtQ(v.qPass)} < chimico ${fmtQ(v.qIn)}${whenBit} · alza le osmosi${qSafeBit}`;
+        }
+        if (use === "valley") {
+          return `Male · TK 11021 pieno, ultrafiltrazione ferma${whenBit} · alza le osmosi${qSafeBit}`;
+        }
+        if (v.osmBacksUp && !v.osmShort) {
+          return `Male · osmosi ${fmtQ(v.qOsm)} < ultrafiltrazione ${fmtQ(v.qUfNom)}${whenBit} · il TK 11021 si riempie · alza le osmosi${qSafeBit}`;
         }
         return `Male · osmosi basse (${fmtQ(v.qOsm)} < chimico ${fmtQ(v.qIn)})${whenBit} · alza le osmosi${qSafeBit}`;
       }
@@ -6065,10 +6136,14 @@
       if (opts.qIas != null) qIasSp = Math.max(0, Number(opts.qIas) || 0);
       let qOsmCap = 0;
       try { qOsmCap = osmExportForForecast(); } catch (_) {
-        try { qOsmCap = osmExportSetpointTotal(); } catch (__) { qOsmCap = 0; }
+        try { qOsmCap = osmExportCapacityStable(); } catch (__) { qOsmCap = 0; }
       }
       if (opts.qOsm != null) qOsmCap = Math.max(0, Number(opts.qOsm) || 0);
       const qImpSp = Math.max(0, round1(qP19Sp - qIasSp));
+      let qUfSp = 0;
+      try { qUfSp = Math.max(0, procSetpointOf("qUfTotale") || 0); } catch (_) { qUfSp = 0; }
+      if (opts.qUf != null) qUfSp = Math.max(0, Number(opts.qUf) || 0);
+      const qPassSp = (qUfSp > 0.5) ? Math.min(qImpSp, qUfSp) : qImpSp;
 
       let chimicoOn = opts.chimicoOn != null ? !!opts.chimicoOn : (__chimicoAllowFill !== false);
       // Prima dello Start la misura è 0, ma la previsione deve marciare sul set finché non è allo stop.
@@ -6081,17 +6156,16 @@
       let allowUf = opts.allowUf != null ? !!opts.allowUf : (__allowUfByTk11021 !== false);
       let runP19By07 = opts.runP19 != null ? !!opts.runP19 : (__runP11019By07 !== false);
       let runMbrByLevel = opts.runMbrByLevel != null ? !!opts.runMbrByLevel : (__runMbrByLevel !== false);
-      // Export sito = (osmosi ∨ portata → carboni se valle aperta) + IAS.
-      // IAS esce senza carboni; Impianto→carboni è ciò che la valle deve smaltire.
-      // TK-11021 quasi vuoto ⇒ sta scaricando: non allarmare “valle corta” per lettura osmosi bassa.
-      const tk21Draining = livU <= 35 || livU + 0.5 < startUV - 25;
-      let qValleyOut = qOsmCap;
-      if (allowUf && qImpSp > 0.5) qValleyOut = Math.max(qValleyOut, qImpSp);
-      if (tk21Draining && qImpSp > 0.5) qValleyOut = Math.max(qValleyOut, qImpSp);
-      const qSiteExport = round1(qValleyOut + qIasSp);
-      const valleyClosed = qSiteExport < 0.05;
-      let valleyShort = qInSp > 0.5 && qSiteExport + 0.5 < qInSp;
-      if (tk21Draining && qSiteExport + 0.5 >= Math.min(qInSp, qP19Sp) - 0.5) valleyShort = false;
+      // Export che tiene la valle = set osmosi. I carboni/UF sono l'ingresso del TK 11021, non l'uscita.
+      // Un set osmosi basso non si nasconde dietro una portata carboni alta.
+      const qUfNom = round1(Math.max(0, qPassSp) * 0.88);
+      const osmShortNow = qInSp > 0.5 && qOsmCap + 0.5 < qInSp;
+      const carbShortNow = qInSp > 0.5 && qImpSp + 0.5 < qInSp;
+      const ufShortNow = qUfSp > 0.5 && qInSp > 0.5 && qUfSp + 0.5 < qInSp && qUfSp + 0.5 < qImpSp;
+      const osmBacksUpNow = qUfNom > 0.5 && qOsmCap + 0.5 < qUfNom;
+      const qSiteExport = round1(qOsmCap + qIasSp);
+      const valleyClosed = qOsmCap < 0.05 && qPassSp < 0.05;
+      const valleyShort = osmShortNow || carbShortNow || ufShortNow || osmBacksUpNow;
       const qScaricoNeed = mbrScaricoToH(qMandSp, qPermAvg, livMbr, livH, "avg");
 
       const blocks = [];
@@ -6188,7 +6262,7 @@
         const UF_WASH_DUTY_AVG = 0.88;
         if (runP19By07 && allowUf) {
           qP19Out = qP19Sp;
-          qUf = round1(qImpSp * UF_WASH_DUTY_AVG);
+          qUf = round1(qPassSp * UF_WASH_DUTY_AVG);
         }
         // Osmosi: capacità stabile anche con UF in pausa isteresi — svuota 11021 e riapre la valle
         const qOsm = livU > 8 ? qOsmCap : 0;
@@ -6325,6 +6399,7 @@
         qOsmCap: round1(qOsmCap),
         qIasSp: round1(qIasSp),
         qImpSp: round1(qImpSp),
+        qUfSp: round1(qUfSp),
         qSiteExport: round1(qSiteExport),
         valleyClosed: !!valleyClosed,
         valleyShort: !!valleyShort,
@@ -6418,6 +6493,7 @@
       const r = (v) => round1(Math.max(0, Number(v) || 0));
       return [
         r(fc && fc.qPumpSp), r(fc && fc.qMandSp), r(fc && fc.qMemSp), r(fc && fc.qRecSp),
+        r(fc && fc.qOsmCap), r(fc && fc.qImpSp), r(fc && fc.qUfSp),
         lv("livelloAttuale"), lv("livelloAttualeA10611"), lv("livelloAttualeH"),
         lv("livelloAttualeMbr"), lv("livelloAttualeTk11007"), lv("livelloAttualeTk11021"),
         lv("stopRiempA10620"),
@@ -6748,7 +6824,7 @@
         askQ = `È possibile aumentare il <strong>riciclo 11014</strong> a <strong class="flow-val">${fmtQ(qRecNeed)} m³/h</strong>?`;
         yesHtml = `Ok: riciclo → <strong class="flow-val">${fmtQ(qRecNeed)} m³/h</strong>.`;
         noHtml = cfLowerNoHtml(qSafeSamePumps, "riciclo 11014", qHaveRec);
-      } else if (memRegBad) {
+      } else if (memRegBad && !valleyCauseOf(fc).cause) {
         // Membrane sotto minimo tecnico vs chimico → sempre Male (timer se firstBlockMin c'è).
         focus = "mem";
         device = "membrane";
@@ -6773,9 +6849,9 @@
           yesApplyField = "qMemTotale";
           yesApplyValue = roundMem(qMemTarget);
         }
-      } else if (fc.reason === "valley") {
+      } else if (fc.reason === "valley" || valleyCauseOf(fc).cause) {
         const v = valleyCauseOf(fc);
-        focus = v.cause;
+        focus = v.cause || "valley";
         const qSafeBit = Number.isFinite(Number(qSafeSamePumps))
           ? ` a ≤ <strong class="flow-val">${fmtQ(qSafeSamePumps)} m³/h</strong>`
           : "";
@@ -6784,16 +6860,26 @@
           : `<strong>${fmtQ(v.qCarb)} m³/h</strong>`;
         const livUblk = fc.snap && fc.snap.livU != null ? fmtBlockPct(fc.snap.livU) : null;
         const tk21 = v.osmBacksUp
-          ? ` Il TK 11021 riceve dai filtri a carbone ${fmtQ(v.qCarb)} m³/h e le osmosi prelevano solo ${fmtQ(v.qOsm)}: si riempie`
-            + (livUblk ? ` (allo stop è a ${livUblk})` : "")
-            + ` e chiude UF e valle.`
+          ? ` Il TK 11021 riceve circa ${fmtQ(v.qUfNom)} m³/h (carboni/UF) e le osmosi prelevano solo ${fmtQ(v.qOsm)}: si riempie`
+            + (livUblk ? ` (ora ${livUblk})` : "")
+            + ` e chiude l’ultrafiltrazione.`
           : "";
-        const seen = ` Vede chimico <strong>${fmtQ(v.qIn)}</strong> · osmosi A B C <strong>${fmtQ(v.qOsm)}</strong> · verso carboni ${carbTxt} · IAS <strong>${fmtQ(v.qIas)}</strong>.`;
+        const ufBit = v.qUfSp > 0.5 ? ` · ultrafiltrazione <strong>${fmtQ(v.qUfSp)}</strong>` : "";
+        const seen = ` Vede chimico <strong>${fmtQ(v.qIn)}</strong> · osmosi A B C <strong>${fmtQ(v.qOsm)}</strong> · verso carboni ${carbTxt}${ufBit} · IAS <strong>${fmtQ(v.qIas)}</strong>.`;
         anomaly = true;
         near = false;
-        haveNow = v.cause === "carb" ? v.qCarb : v.qOsm;
+        haveNow = v.cause === "carb" ? v.qCarb : (v.cause === "uf" ? v.qUfSp : v.qOsm);
         target = Math.max(v.qIn, 1);
-        if (v.cause === "carb") {
+        if (v.cause === "uf") {
+          device = "ultrafiltrazione";
+          verdict = `Male: il problema è l’<strong>ultrafiltrazione</strong>, regolata bassa. Set UF <strong>${fmtQ(v.qUfSp)} m³/h</strong>, sotto il chimico <strong>${fmtQ(v.qIn)}</strong>. Le osmosi a <strong>${fmtQ(v.qOsm)}</strong> non sono il collo di bottiglia.`
+            + seen + whenHtml
+            + ` Soluzione: alza l’ultrafiltrazione a ≥ <strong class="flow-val">${fmtQ(v.qIn)} m³/h</strong>, oppure scendi il chimico-fisico${qSafeBit}.`;
+          action = `Ultrafiltrazione → ≥ <span class="flow-val">${fmtQ(v.qIn)} m³/h</span>, oppure chimico più basso.`;
+          askQ = `Puoi alzare l’<strong>ultrafiltrazione</strong> a ≥ <strong class="flow-val">${fmtQ(v.qIn)} m³/h</strong> (ora ${fmtQ(v.qUfSp)})?`;
+          yesHtml = `Ok: ultrafiltrazione ≥ <strong class="flow-val">${fmtQ(v.qIn)} m³/h</strong>.`;
+          noHtml = `Allora scendi il chimico-fisico${qSafeBit || ""}. L’ultrafiltrazione resta a <strong>${fmtQ(v.qUfSp)} m³/h</strong>.`;
+        } else if (v.cause === "carb") {
           device = "filtri a carbone";
           verdict = `Male: il problema sono i <strong>filtri a carbone</strong>. Verso carboni ${carbTxt}, sotto il chimico <strong>${fmtQ(v.qIn)}</strong>. Le osmosi a <strong>${fmtQ(v.qOsm)}</strong> non sono il collo di bottiglia.`
             + seen + tk21 + whenHtml
@@ -6803,22 +6889,34 @@
           yesHtml = `Ok: verso carboni ≥ <strong class="flow-val">${fmtQ(v.qIn)} m³/h</strong>.`;
           noHtml = `Allora scendi il chimico-fisico${qSafeBit || ""}. I carboni restano a <strong>${fmtQ(v.qCarb)} m³/h</strong>.`;
         } else if (v.cause === "both") {
-          device = "osmosi e carboni";
-          verdict = `Male: <strong>osmosi e filtri a carbone</strong> sono tutti e due sotto il chimico. Osmosi <strong>${fmtQ(v.qOsm)}</strong>, verso carboni ${carbTxt}, chimico <strong>${fmtQ(v.qIn)}</strong>.`
+          device = "osmosi e ultrafiltrazione";
+          verdict = `Male: <strong>osmosi e ultrafiltrazione/carboni</strong> sono sotto il chimico. Osmosi <strong>${fmtQ(v.qOsm)}</strong>, verso carboni ${carbTxt}, ultrafiltrazione <strong>${fmtQ(v.qUfSp)}</strong>, chimico <strong>${fmtQ(v.qIn)}</strong>.`
             + seen + tk21 + whenHtml
-            + ` Soluzione: alza le osmosi A B C a ≥ <strong class="flow-val">${fmtQ(v.qIn)} m³/h</strong> (e i carboni se restano sotto), oppure scendi il chimico-fisico${qSafeBit}.`;
+            + ` Soluzione: alza le osmosi A B C a ≥ <strong class="flow-val">${fmtQ(v.qIn)} m³/h</strong> (e UF/carboni se restano sotto), oppure scendi il chimico-fisico${qSafeBit}.`;
           action = `Osmosi → ≥ <span class="flow-val">${fmtQ(v.qIn)} m³/h</span>, oppure chimico più basso.`;
           askQ = `Puoi alzare le <strong>osmosi A B C</strong> a ≥ <strong class="flow-val">${fmtQ(v.qIn)} m³/h</strong> (ora ${fmtQ(v.qOsm)})?`;
           yesHtml = `Ok: osmosi ≥ <strong class="flow-val">${fmtQ(v.qIn)} m³/h</strong>.`;
           noHtml = `Allora scendi il chimico-fisico${qSafeBit || ""}. Osmosi <strong>${fmtQ(v.qOsm)}</strong> e carboni <strong>${fmtQ(v.qCarb)}</strong> restano così.`;
-        } else {
+        } else if (v.cause === "osm") {
           device = "osmosi A B C";
-          verdict = `Male: il problema sono le <strong>osmosi</strong>, regolate basse. A B C insieme fanno <strong>${fmtQ(v.qOsm)} m³/h</strong>, il chimico è <strong>${fmtQ(v.qIn)}</strong>.`
-            + seen + tk21 + whenHtml
-            + ` Soluzione: alza le osmosi A B C a ≥ <strong class="flow-val">${fmtQ(v.qIn)} m³/h</strong>, oppure scendi il chimico-fisico${qSafeBit}.`;
-          action = `Osmosi A B C → ≥ <span class="flow-val">${fmtQ(v.qIn)} m³/h</span>, oppure chimico più basso.`;
-          askQ = `Puoi alzare le <strong>osmosi A B C</strong> a ≥ <strong class="flow-val">${fmtQ(v.qIn)} m³/h</strong> (ora ${fmtQ(v.qOsm)})?`;
-          yesHtml = `Ok: osmosi A B C ≥ <strong class="flow-val">${fmtQ(v.qIn)} m³/h</strong>.`;
+          const head = (v.osmBacksUp && !v.osmShort)
+            ? `Male: il problema sono le <strong>osmosi</strong>. Prelevano <strong>${fmtQ(v.qOsm)} m³/h</strong> e l’ultrafiltrazione ne manda <strong>${fmtQ(v.qUfNom)}</strong>: il TK 11021 si riempie.`
+            : `Male: il problema sono le <strong>osmosi</strong>, regolate basse. A B C insieme fanno <strong>${fmtQ(v.qOsm)} m³/h</strong>, il chimico è <strong>${fmtQ(v.qIn)}</strong>.`;
+          verdict = head + seen + tk21 + whenHtml
+            + ` Soluzione: alza le osmosi A B C a ≥ <strong class="flow-val">${fmtQ(Math.max(v.qIn, v.qUfNom))} m³/h</strong>, oppure scendi il chimico-fisico${qSafeBit}.`;
+          action = `Osmosi A B C → ≥ <span class="flow-val">${fmtQ(Math.max(v.qIn, v.qUfNom))} m³/h</span>, oppure chimico più basso.`;
+          askQ = `Puoi alzare le <strong>osmosi A B C</strong> a ≥ <strong class="flow-val">${fmtQ(Math.max(v.qIn, v.qUfNom))} m³/h</strong> (ora ${fmtQ(v.qOsm)})?`;
+          yesHtml = `Ok: osmosi A B C ≥ <strong class="flow-val">${fmtQ(Math.max(v.qIn, v.qUfNom))} m³/h</strong>.`;
+          noHtml = `Allora scendi il chimico-fisico${qSafeBit || ""}. Le osmosi restano a <strong>${fmtQ(v.qOsm)} m³/h</strong>.`;
+        } else {
+          device = "TK 11021";
+          focus = "valley";
+          verdict = `Male: il TK 11021 è pieno e l’<strong>ultrafiltrazione è ferma</strong>. Osmosi ora a <strong>${fmtQ(v.qOsm)}</strong>, verso carboni ${carbTxt}.`
+            + seen + whenHtml
+            + ` Soluzione: alza le osmosi così il 11021 si svuota e la UF riparte, oppure scendi il chimico-fisico${qSafeBit}.`;
+          action = `Alza le osmosi (ora ${fmtQ(v.qOsm)}) oppure scendi il chimico.`;
+          askQ = `Puoi alzare le <strong>osmosi A B C</strong> sopra i carboni (ora osmosi ${fmtQ(v.qOsm)}, carboni ${fmtQ(v.qCarb)})?`;
+          yesHtml = `Ok: alza le osmosi così il TK 11021 si svuota.`;
           noHtml = `Allora scendi il chimico-fisico${qSafeBit || ""}. Le osmosi restano a <strong>${fmtQ(v.qOsm)} m³/h</strong>.`;
         }
       } else if (qPumpTarget > qMax + 0.05) {
@@ -6862,7 +6960,7 @@
           noHtml,
           hideAltOnNo: false,
         };
-      } else if ((focus === "osm" || focus === "carb" || focus === "both") && askQ) {
+      } else if ((focus === "osm" || focus === "carb" || focus === "both" || focus === "uf" || focus === "valley") && askQ) {
         ask = {
           key: `fc-osm-${fmtQ(target)}-${fmtQ(haveNow)}-${fmtQ(qInSp)}`,
           q: askQ,
@@ -8894,6 +8992,7 @@
       if (p11019Allowed()) commitFlow("qP11019", pump, { setpoint: pump });
       else commitFlow("qP11019", 0, { setpoint: pump });
       paintP11019SplitUI();
+      try { noteValleySetChanged(); } catch (_) { /* ok */ }
       try { syncDownstreamPermeate(null, "p11019"); } catch (_) { /* ignore */ }
       try { schedulePersist(); } catch (_) { /* ignore */ }
     }
@@ -9889,12 +9988,9 @@
       return round1(q);
     }
 
-    /** Export previsioni: capacità di set (stabile); la viva alza solo se maggiore, mai abbassa. */
+    /** Previsione: solo il set comandato. La misura viva non deve nascondere un set appena abbassato. */
     function osmExportForForecast() {
-      const cap = osmExportCapacityStable();
-      let live = 0;
-      try { live = osmExportLiveTotal(); } catch (_) { live = 0; }
-      return round1(Math.max(cap, live));
+      return osmExportCapacityStable();
     }
 
     function paintTk11021UI(livU, rateU, blocked) {
@@ -13702,6 +13798,7 @@
           if (typeof syncOsmosiSvg === "function") syncOsmosiSvg();
         }
       }
+      try { noteValleySetChanged(); } catch (_) { /* ok */ }
     }
 
     function buildUfInputs() {
@@ -13868,6 +13965,7 @@
       if (!isEditing("qOsmosiDemi")) setVal("qOsmosiDemi", totDemiSp, { force: true });
       if (!isEditing("qOsmosiTotConc")) setVal("qOsmosiTotConc", totConcSp, { force: true });
       paintOsmValveUI();
+      try { noteValleySetChanged(); } catch (_) { /* ok */ }
     }
 
     /* Popup open/close */
