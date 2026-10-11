@@ -1726,7 +1726,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v234</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v235</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -4947,6 +4947,7 @@
     let __forecastAsyncGen = 0;
     let __forecastPumping = false;
     let __forecastPumpGen = 0;
+    let __forecastRerun = false;
     let __blocchiRefreshTimer = 0;
     let __regPreviewSeq = 0;
     /** Timestamp ultimo cambio operatore (set/Hz/modo): preview immediata, niente isteresi. */
@@ -4986,8 +4987,8 @@
       const absNew = nowSim + Math.max(0, Math.round(raw));
       if (__regEtaLock.absSim == null || __regEtaLock.setKey !== key) {
         __regEtaLock = { absSim: absNew, setKey: key, simAt: nowSim };
-      } else if (Math.abs(absNew - __regEtaLock.absSim) > 2) {
-        // Oscillazioni di 1–2 min restano sul countdown. Oltre, riallinea al minuto della sim.
+      } else if (absNew !== __regEtaLock.absSim) {
+        // Il minuto nuovo della sim è quello vero: niente inerzia che lascia i “50 minuti” mentre il livello è già allo stop.
         __regEtaLock.absSim = absNew;
         __regEtaLock.simAt = nowSim;
       }
@@ -5005,7 +5006,10 @@
       }
       const delay = opts.immediate || opts.userChange ? 0 : (opts.delay != null ? opts.delay : 70);
       if (__regPreviewTimer) clearTimeout(__regPreviewTimer);
-      if (!opts.userChange && __forecastPumping) return;
+      if (!opts.userChange && __forecastPumping) {
+        __forecastRerun = true;
+        return;
+      }
       __regPreviewTimer = setTimeout(() => {
         __regPreviewTimer = 0;
         try { paintRegPreviewBar(); } catch (_) { /* ok */ }
@@ -5657,7 +5661,8 @@
           if (qRecSp > 0.05) qRec = qRecSp;
           else if (ricicloAutoControlled()) qRec = Math.max(Q_RECYCLE_MIN, round1(Math.max(0, qPumpSp - qInSp)));
         }
-        const qPerm = (runMbrByLevel && allowMbrByPerm) ? qPermAvg : 0;
+        const cycleMin = (Number(__mbrCycleMin) || 0) + t;
+        const qPerm = qPermConfiguredAt(cycleMin, runMbrByLevel && allowMbrByPerm);
         // P11019: OUT dal 11007 = pompe intere (IAS + carboni).
         // Verso impianto/UF = solo Impianto (carboni); IAS esce altrove e non entra in valle.
         let qP19Out = 0;
@@ -5672,14 +5677,14 @@
         const qOsm = livU > 8 ? qOsmCap : 0;
 
         const hFull = a11004IsFull(livH);
-        const qScarico = mbrScaricoToH(qMand, qPerm, livMbr, livH, t);
+        const qScarico = mbrScaricoToH(qMand, qPerm, livMbr, livH, cycleMin);
         const hBackedUp = !hFull && (livH >= 94 || qScarico > qRec + 2);
 
         const r20 = rateA10620PctPerMin(qIn, qPump, qRec);
         const r11 = estimateA10611RatePctPerMin(qPump, qMand);
         const rH = estimateRicHRatePctPerMin(qScarico, qRec);
         const rMbr = estimateMbrRatePctPerMin(qMand, qPerm, livMbr, {
-          backedUp: hBackedUp, qRecycle: qRec, hFull, livH, tMin: t,
+          backedUp: hBackedUp, qRecycle: qRec, hFull, livH, tMin: cycleMin,
         });
         const rP = estimateTk11007RatePctPerMin(qPerm, qP19Out);
         let rU = 0;
@@ -5816,6 +5821,10 @@
           }
           __forecastPumping = false;
           try { opts.onDone(packForecast()); } catch (_) { /* ok */ }
+          if (__forecastRerun) {
+            __forecastRerun = false;
+            try { scheduleRegPreview({ delay: 0 }); } catch (_) { /* ok */ }
+          }
         };
         setTimeout(pumpFc, 0);
         return null;
@@ -8925,10 +8934,10 @@
     }
 
     /** true = in pausa (rossa / portata 0). Coppie sfalsate; blocchi processo → tutte ferme. */
-    function membraneIsPaused(cycleMin, letter) {
+    function membraneIsPaused(cycleMin, letter, opts) {
       const L = String(letter || "").toUpperCase();
       if (!memLineEnabled(L)) return true;
-      if (!membranesProcessAllowed()) return true;
+      if (!(opts && opts.ignoreProcess) && !membranesProcessAllowed()) return true;
       const { lavoro, pausa, cycle } = membraneCycleLen();
       const lavoroR = Math.max(1, Math.round(lavoro));
       const pausaR = Math.max(0, Math.round(pausa));
@@ -8952,6 +8961,25 @@
         ? MBR_MEM_IDS[indexOrLetter]
         : String(indexOrLetter || "A");
       return membraneIsPaused(cycleMin, letter) ? "pause" : "work";
+    }
+
+    /**
+     * Permeato di questo minuto di ciclo: solo le membrane in lavoro.
+     * processOn = false → 0 (blocco livello), senza leggere i flag globali:
+     * la previsione deve usare gli stessi flag del passo che sta simulando.
+     */
+    function qPermConfiguredAt(cycleMin, processOn) {
+      if (!processOn) return 0;
+      const inputs = Array.from(document.querySelectorAll(".mem-q"));
+      let s = 0;
+      inputs.forEach((inp, i) => {
+        const letter = String(inp.dataset.mem || MEMBRANE[i] || "").toUpperCase();
+        if (!letter || !memLineEnabled(letter)) return;
+        if (membraneIsPaused(cycleMin, letter, { ignoreProcess: true })) return;
+        const v = parseFloat(String(inp.value ?? "").replace(",", "."));
+        if (Number.isFinite(v) && v > 0) s += v;
+      });
+      return round1(s);
     }
 
     /** Portata membrane ON in questo minuto = somma portate delle sole membrane in lavoro.
@@ -9641,11 +9669,19 @@
       applyBalance("sim");
       const qInSet = num("qIn");
       const qIn = qInEffective(qInSet);
+      const qInMass = (__chimicoAllowFill && qInSet > 0.05) ? qInSet : 0;
       // Processo fermo → misura a 0 SUBITO (niente rampa che riempie A10611 a P11011 rosse).
       if (pumpEstopped("pompa") || !p11011Allowed()) snapFlowClosed("qPump");
       if (pumpEstopped("mandata") || !__run11036) snapFlowClosed("qMandata");
-      const qPump = flowMeasureOf("qPump");
-      const qMandata = flowMeasureOf("qMandata");
+      // Bilancio sul comando (setpoint se la macchina è in marcia), non sulla rampa grafica.
+      // La rampa è solo il disegno: se il conto usa la portata a metà animazione, A10620
+      // si riempie in pochi minuti mentre la previsione, sui setpoint, dice ancora ~50′.
+      const qPump = (p11011Allowed() && !pumpEstopped("pompa"))
+        ? Math.max(0, flowSetpointOf("qPump"))
+        : 0;
+      const qMandata = (__run11036 && !pumpEstopped("mandata"))
+        ? Math.max(0, flowSetpointOf("qMandata"))
+        : 0;
       const liv20 = num("livelloAttuale");
       const liv11 = num("livelloAttualeA10611");
       let livH = numOrNull("livelloAttualeH");
@@ -9664,14 +9700,15 @@
       // Consenso 11014 → portata; ferme → 0
       const qRecycleDisp = qRecycleEffective(run14.running, qRecycleWanted);
       const qRecycleForH = qRecycleDisp;
-      const de = dutyEffective();
-      // Uscita permeato membrane (istantanea: pause ciclo = meno portata in ingresso al TK)
-      const qPerm = round1(de.qPermInstant != null ? de.qPermInstant : sumMemsRunning(__mbrCycleMin));
+      // Stesso permeato della previsione: ciclo reale (coppie in pausa), non la media.
+      const qPerm = qPermConfiguredAt(__mbrCycleMin, membranesProcessAllowed());
       // Valle prima: 11021 pieno → UF stop → P11019 non scaricano Impianto (11007 non si svuota a vuoto)
       updateTk11021Interlocks(livU);
       updateTk11007PumpInterlocks(livP);
       applyP11019RunFromLevel();
-      const qP19 = flowMeasureOf("qP11019");
+      const qP19 = (p11019Allowed() && !pumpEstopped("p11019"))
+        ? Math.max(0, flowSetpointOf("qP11019"))
+        : 0;
       // OUT osmosi da TK 11021: solo linee in marcia (isteresi P-11040 sul livello)
       updateOsmosiTk11021Interlocks(livU);
       // In TIME: se i set osmosi ci sono già, non riallinearli a qIn ogni minuto (11021 piatto).
@@ -9715,7 +9752,7 @@
       const stopRv = stopRiemp !== null ? stopRiemp : 95;
 
       // Solo bilanciamento reale (niente rClimb forzato: era quello che mandava subito a 95% / blocco)
-      let r20 = rateA10620PctPerMin(qIn, qPump, qRecycleDisp);
+      let r20 = rateA10620PctPerMin(qInMass, qPump, qRecycleDisp);
       let r11 = estimateA10611RatePctPerMin(qPump, qMandata);
       const hFull = a11004IsFull(livH);
       const qScaricoH = mbrScaricoToH(qMandata, qPerm, livMbr, livH, __mbrCycleMin);
@@ -9743,7 +9780,7 @@
         rMbr = 0;
         rP = 0;
         rU = 0;
-        r20 = rateA10620PctPerMin(qIn, 0, 0);
+        r20 = rateA10620PctPerMin(qInMass, 0, 0);
       }
 
       const beforeUp = { liv20, liv11, livMbr, livH };
@@ -9756,7 +9793,7 @@
         const corr = correctUpstreamMassBalance(
           beforeUp,
           { liv20: n20, liv11: n11, livMbr: nMbr, livH: nH },
-          qIn,
+          qInMass,
           qPerm,
           dtMin,
           {}
@@ -13267,6 +13304,7 @@
       try {
         __forecastAsyncGen++;
         __forecastPumping = false;
+        __forecastRerun = false;
         if (__regPreviewTimer) {
           clearTimeout(__regPreviewTimer);
           __regPreviewTimer = 0;
