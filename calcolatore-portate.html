@@ -1730,7 +1730,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v243</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v244</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -5096,6 +5096,15 @@
         }
         return;
       }
+      // In TIME il conto alla rovescia non deve restare su un set vecchio.
+      const qInNow = Math.max(0, num("qIn") || 0);
+      const qMemNow = Math.max(0, num("qMemTotale") || 0);
+      const drifted = Math.abs((Number(__lastRegFc.qInSp) || 0) - qInNow) > 0.6
+        || Math.abs((Number(__lastRegFc.qMemSp) || 0) - qMemNow) > 0.6;
+      if (drifted) {
+        try { scheduleRegPreview({ userChange: true }); } catch (_) { /* ok */ }
+        return;
+      }
       const eta = lockedBlockRemainMin(__lastRegFc);
       __lastRegFc.displayBlockMin = eta;
       const adv = __lastRegAdv;
@@ -5511,6 +5520,10 @@
 
     function forecastChimicoHorizon(horizonMin, opts) {
       opts = opts || {};
+      // Ogni previsione rilegge le membrane ora: non il totale di un conto precedente.
+      __permRows = null;
+      __permRowsTs = 0;
+      __permRowsTot = null;
       const anchorSim = Math.max(0, Number(__simMin) || 0);
       const H = Math.max(1, Math.round(Number(horizonMin) || BLOCK_FORECAST_HORIZON));
       const dt = 1;
@@ -5535,7 +5548,15 @@
       const stopMbrFill = stopRiempMbr !== null ? stopRiempMbr : 92;
       const startMbrFill = startRiempMbr !== null ? startRiempMbr : 85;
 
-      const qInSp = opts.qIn != null ? Math.max(0, Number(opts.qIn) || 0) : Math.max(0, num("qIn"));
+      const qInField = Math.max(0, num("qIn"));
+      let qInBadge = NaN;
+      try {
+        qInBadge = parseFloat(String(el("svgQInSp")?.textContent || "").replace(",", "."));
+      } catch (_) { qInBadge = NaN; }
+      // Setpoint chimico (campo o badge giallo). Mai la misura bianca, che prima dello Start è 0.
+      const qInSp = opts.qIn != null
+        ? Math.max(0, Number(opts.qIn) || 0)
+        : (qInField > 0.05 ? qInField : (Number.isFinite(qInBadge) && qInBadge > 0.05 ? qInBadge : qInField));
       // Previsione usa i SET (comando a pompe ON). Il loop azzera se processo ferma.
       // Mai confondere con la misura istantanea (che a pompe rosse è 0).
       let qPumpSp = opts.qPump != null ? Math.max(0, Number(opts.qPump) || 0) : flowSetpointOf("qPump");
@@ -9117,9 +9138,11 @@
      */
     let __permRows = null;
     let __permRowsTs = 0;
+    let __permRowsTot = null;
     function permRowsNow() {
+      const tot = Math.round(Math.max(0, num("qMemTotale") || 0));
       const n = Date.now();
-      if (__permRows && n - __permRowsTs < 900) return __permRows;
+      if (__permRows && __permRowsTot === tot && n - __permRowsTs < 900) return __permRows;
       const rows = [];
       document.querySelectorAll(".mem-q").forEach((inp, i) => {
         const letter = String(inp.dataset.mem || MEMBRANE[i] || "").toUpperCase();
@@ -9128,6 +9151,7 @@
         if (Number.isFinite(v) && v > 0) rows.push({ letter, q: v });
       });
       __permRows = rows;
+      __permRowsTot = tot;
       __permRowsTs = n;
       return rows;
     }
@@ -9135,10 +9159,15 @@
       if (!processOn) return 0;
       const rows = permRowsNow();
       let s = 0;
+      let all = 0;
       for (let i = 0; i < rows.length; i++) {
+        all += rows[i].q;
         if (membraneIsPaused(cycleMin, rows[i].letter, { ignoreProcess: true })) continue;
         s += rows[i].q;
       }
+      // Il totale in REGOLAZIONE / SET è il comando. Se le righe sono ancora quelle di prima, scala.
+      const tot = Math.max(0, num("qMemTotale") || 0);
+      if (tot > 0.5 && all > 0.5 && Math.abs(all - tot) > 0.6) s *= tot / all;
       return round1(s);
     }
 
@@ -10954,6 +10983,9 @@
         if (rem > 0) { q += 1; rem -= 1; }
         inp.value = String(q);
       });
+      __permRows = null;
+      __permRowsTs = 0;
+      __permRowsTot = null;
       // Disabilitate: NON azzerare il set in memoria (serve se le riattivi)
     }
 
