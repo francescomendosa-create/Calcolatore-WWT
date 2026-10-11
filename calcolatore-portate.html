@@ -2088,7 +2088,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v269</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v270</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -9925,6 +9925,7 @@
         btn.addEventListener("click", (e) => {
           e.preventDefault();
           e.stopPropagation();
+          if (Date.now() < __ufToggleGuardUntil) return;
           const L = btn.getAttribute("data-uf-line");
           setUfLineEnabled(L, btn.getAttribute("data-uf-en") !== "0");
           focusUfRow(L);
@@ -9950,6 +9951,7 @@
           holdTimer = setTimeout(() => {
             holdTimer = null;
             holdFired = true;
+            if (Date.now() < __ufToggleGuardUntil) return;
             const L = lineOf();
             if (!L) return;
             toggleUfLineEnabled(L);
@@ -9966,10 +9968,7 @@
             return;
           }
           const L = lineOf();
-          if (!L) return;
-          openedByPtr = true;
-          startFieldInlineEdit("qUf" + L, "uf-linea");
-          setTimeout(() => { openedByPtr = false; }, 500);
+          if (L) focusUfRow(L);
         });
         svg.addEventListener("pointercancel", () => {
           clearHold();
@@ -9983,7 +9982,7 @@
             return;
           }
           const L = lineOf();
-          if (L) startFieldInlineEdit("qUf" + L, "uf-linea");
+          if (L) focusUfRow(L);
         });
         svg.addEventListener("contextmenu", (e) => e.preventDefault());
       });
@@ -14530,7 +14529,7 @@
         const head = document.createElement("div");
         head.className = "uf-row-head";
         head.innerHTML = `
-          <svg class="uf-mini" viewBox="0 0 28 90" role="button" tabindex="0" title="Clic: numpad. Tieni premuto: accendi o spegni">
+          <svg class="uf-mini" viewBox="0 0 28 90" role="button" tabindex="0" title="Tieni premuto: accendi o spegni">
             <rect class="uf-mini-body" x="6" y="12" width="16" height="72" rx="3" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
             <rect class="uf-mini-fill" x="9" y="30" width="10" height="48" rx="1" fill="#0ea5e9" opacity="0.55" />
             <clipPath id="clipUfPop${m}"><rect x="8" y="16" width="12" height="64" rx="2" /></clipPath>
@@ -15077,8 +15076,12 @@
     }
     /** Evita chiusura fantasma: il click che apre il nodo arriva anche sullo sfondo del modal. */
     let __popupIgnoreCloseUntil = 0;
+    let __ufToggleGuardUntil = 0;
     function armPopupCloseGuard(ms) {
       __popupIgnoreCloseUntil = Date.now() + Math.max(200, Number(ms) || 450);
+    }
+    function armUfToggleGuard(ms) {
+      __ufToggleGuardUntil = Date.now() + Math.max(200, Number(ms) || 700);
     }
 
     function closePopups() {
@@ -15144,14 +15147,10 @@
         return undefined;
       };
       const openNow = () => {
-        if (ufLine) {
-          try { startFieldInlineEdit("qUf" + ufLine, "uf-linea"); } catch (_) { /* ok */ }
-          if (node.blur) node.blur();
-          return;
-        }
         const name = node.getAttribute("data-popup") || node.dataset.popup;
         if (!name) return;
-        armPopupCloseGuard(500);
+        armPopupCloseGuard(700);
+        if (name === "ultra") armUfToggleGuard(700);
         openPopup(name, popupOpts());
         if (node.blur) node.blur();
       };
