@@ -2088,7 +2088,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v270</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v272</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -2399,16 +2399,16 @@
             <text id="svgPump11014Label" x="949" y="242" text-anchor="middle" fill="#86efac" font-size="9" font-weight="700">11014 A/B</text>
           </g>
           <g class="flow-edit" data-field="qRecycle" data-source="riciclo-inline">
-            <rect class="badge" x="912" y="248" width="74" height="32" rx="5" stroke="#fb7185" />
-            <text class="badge-val" x="936" y="269" text-anchor="middle" id="svgQRec">170.8</text>
-            <text class="badge-unit" x="966" y="269" text-anchor="middle">m³/h</text>
+            <rect class="badge" x="834" y="248" width="74" height="32" rx="5" stroke="#fb7185" />
+            <text class="badge-val" x="858" y="269" text-anchor="middle" id="svgQRec">170.8</text>
+            <text class="badge-unit" x="888" y="269" text-anchor="middle">m³/h</text>
           </g>
           <g class="flow-edit" data-field="qRecycle" data-source="riciclo-inline" aria-label="Setpoint 11014">
-            <rect class="badge" x="912" y="284" width="74" height="32" rx="5" stroke="#fbbf24" />
-            <text class="badge-sp" x="936" y="305" text-anchor="middle" id="svgQRecSp">171</text>
-            <text class="badge-unit badge-unit-set" x="966" y="305" text-anchor="middle">set</text>
+            <rect class="badge" x="912" y="248" width="74" height="32" rx="5" stroke="#fbbf24" />
+            <text class="badge-sp" x="936" y="269" text-anchor="middle" id="svgQRecSp">171</text>
+            <text class="badge-unit badge-unit-set" x="966" y="269" text-anchor="middle">set</text>
           </g>
-          <text id="svgManRiciclo" class="svg-man-mark" data-dev="riciclo" x="990" y="305" text-anchor="start" role="button" tabindex="0" aria-label="Modo riciclo">M</text>
+          <text id="svgManRiciclo" class="svg-man-mark" data-dev="riciclo" x="990" y="269" text-anchor="start" role="button" tabindex="0" aria-label="Modo riciclo">M</text>
         </g>
 
         <!-- TK-11007 permeato — click → popup livello + setpoints -->
@@ -8039,6 +8039,21 @@
       if (svg) svg.textContent = String(hz);
     }
 
+    /** Hz in schema = setpoint (curva). La portata viva può andare a 0: la frequenza no. */
+    function paintHzForSetpoint(kind, force) {
+      const mand = kind === "mand";
+      const field = mand ? "freqHzMand" : "freqHz";
+      if (!force && isEditing(field)) return;
+      const qSp = Math.max(
+        0,
+        flowSetpointOf(mand ? "qMandata" : "qPump"),
+        Number(mand ? lastQMandata : lastQPump) || 0
+      );
+      if (qSp < 0.05) return;
+      if (mand) syncFreqFromMand(qSp);
+      else syncFreqFromPump(qSp);
+    }
+
     function fmtPct(v) {
       if (v === null || !Number.isFinite(v)) return "—";
       return round1(v).toFixed(1) + "%";
@@ -11538,12 +11553,7 @@
         // Pompe ferme: viva → 0, setpoint resta (popup)
         if (deferToStep) __flowDesire.qPump = 0;
         else snapFlowClosed("qPump");
-        if (forceUi || !isEditing("freqHz")) {
-          const hzNode = el("freqHz");
-          if (hzNode) hzNode.value = "0";
-          const svgHz0 = el("svgFreqHz");
-          if (svgHz0) svgHz0.textContent = "0";
-        }
+        if (forceUi || !isEditing("freqHz")) paintHzForSetpoint("pump", forceUi);
       }
       if (pumpEstopped("mandata")) {
         if (deferToStep) __flowDesire.qMandata = 0;
@@ -12733,12 +12743,7 @@
           if (!pumpOn && !isEditing("qPump")) {
             qPump = 0;
             snapFlowClosed("qPump");
-            if (!isEditing("freqHz")) {
-              const hzNode = el("freqHz");
-              if (hzNode) hzNode.value = "0";
-              const svgHz0 = el("svgFreqHz");
-              if (svgHz0) svgHz0.textContent = "0";
-            }
+            paintHzForSetpoint("pump");
           }
         }
 
@@ -12948,29 +12953,15 @@
           qMandata = __run11036 ? Math.max(0, num("qMandata")) : 0;
         }
 
-        // Portata → Hz (curva): Auto sempre; Manuale se cambi portata (non se stai editando Hz)
+        // Hz = setpoint (curva). Non segue la viva: a pompa ferma la portata va a 0, gli Hz restano.
         if (source !== "freq" && !isEditing("freqHz") && qFromFreqThisPass == null) {
-          if (pumpOn && qPumpEff2 > 0.05) {
-            if (autoPump || source === "pompa") syncFreqFromPump(qPumpEff2);
-          } else if (!pumpOn) {
-            if (autoPump) {
-              const hzNode = el("freqHz");
-              if (hzNode) hzNode.value = "0";
-              const svgHz0 = el("svgFreqHz");
-              if (svgHz0) svgHz0.textContent = "0";
-            }
-          }
+          paintHzForSetpoint("pump");
         }
         if (source !== "freqMand" && !isEditing("freqHzMand") && qFromFreqMandThisPass == null) {
-          if (__run11036 && qMandata > 0.05) {
-            if (!autoMand || source === "mandata" || !(el("equiparaMandata")?.checked)) {
-              syncFreqFromMand(qMandataSet != null ? qMandataSet : qMandata);
-            }
-          } else if (!__run11036 && autoMand) {
-            const hzNode = el("freqHzMand");
-            if (hzNode && !isEditing("freqHzMand")) hzNode.value = "0";
-            const svgHz0 = el("svgFreqHzMand");
-            if (svgHz0 && !isEditing("freqHzMand")) svgHz0.textContent = "0";
+          if (__run11036 && qMandata > 0.05 && (source === "mandata" || !(el("equiparaMandata")?.checked))) {
+            syncFreqFromMand(qMandataSet != null ? qMandataSet : qMandata);
+          } else {
+            paintHzForSetpoint("mand");
           }
         }
 
