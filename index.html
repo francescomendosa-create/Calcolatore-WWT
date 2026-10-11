@@ -2008,7 +2008,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v260</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v261</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -2644,14 +2644,14 @@
         <!-- OSMOSI A B C — totali in alto · linea → misuratore → osmosi -->
         <g aria-label="Osmosi A B C">
           <text x="163" y="286" text-anchor="middle" fill="#bae6fd" font-size="9" font-weight="700">OSMOSI</text>
-          <!-- Totale osmosi: misura + set identici (click → popup osmosi) -->
-          <g class="node" tabindex="0" data-popup="osmosi" role="button" aria-label="Totale osmosi misura">
+          <!-- Totale e SET: stesso numpad. Il totale si divide su A B C; ogni linea ricalcola la somma. -->
+          <g class="flow-edit" data-field="qOsmosiTotale" data-source="osm-totale" aria-label="Totale osmosi">
             <rect class="badge" x="88" y="292" width="74" height="34" rx="5" stroke="#7dd3fc" />
             <text class="badge-label" x="125" y="304" text-anchor="middle">TOTALE</text>
             <text class="badge-val" x="112" y="318" text-anchor="middle" id="svgQOsmTotale">0.0</text>
             <text class="badge-unit" x="142" y="318" text-anchor="middle">m³/h</text>
           </g>
-          <g class="node" tabindex="0" data-popup="osmosi" role="button" aria-label="Setpoint osmosi">
+          <g class="flow-edit" data-field="qOsmosiTotale" data-source="osm-totale" data-role="setpoint" aria-label="Setpoint osmosi">
             <rect class="badge" x="166" y="292" width="74" height="34" rx="5" stroke="#fbbf24" />
             <text class="badge-label" x="203" y="304" text-anchor="middle" fill="#fde68a">SET</text>
             <text class="badge-sp" x="190" y="318" text-anchor="middle" id="svgQOsmTotaleSp">0.0</text>
@@ -3835,7 +3835,7 @@
       <p class="mini osm-narration" id="devModeHintOsmosi">Modo osmosi: segue l’impianto (Automatico generale).</p>
       <div class="row osm-tot-row" style="grid-template-columns:1fr 1fr 1fr">
         <label><strong>TOTALE (m³/h)</strong>
-          <input type="number" id="qOsmosiTotale" class="tot-mem" readonly tabindex="-1" value="0" />
+          <input type="number" id="qOsmosiTotale" class="tot-mem" min="0" max="500" step="0.1" value="0" inputmode="decimal" />
         </label>
         <label><strong>DEMI (m³/h)</strong>
           <input type="number" id="qOsmosiDemi" class="tot-mem" readonly tabindex="-1" value="0" />
@@ -4230,7 +4230,7 @@
     /** Setpoint UF / osmosi (popup): restano anche a linee ferme / portata viva = 0. */
     const __procSetpoint = {
       qUfTotale: 0, qUfA: 0, qUfB: 0, qUfC: 0, qUfD: 0,
-      qOsmosiA: 0, qOsmosiB: 0, qOsmosiC: 0,
+      qOsmosiTotale: 0, qOsmosiA: 0, qOsmosiB: 0, qOsmosiC: 0,
     };
     /** Ultimo setpoint UF di automatismo (Impianto/carboni) — per seed numpad e ritorno Aut. */
     let __ufAutoTotSp = 0;
@@ -4491,7 +4491,8 @@
       const ok = cur === f
         || (f === "qPump" && cur === "freqHz")
         || (f === "qMandata" && cur === "freqHzMand")
-        || (f === "qUfTotale" && cur.startsWith("qUf"));
+        || (f === "qUfTotale" && cur.startsWith("qUf"))
+        || (f === "qOsmosiTotale" && cur.startsWith("qOsmosi"));
       if (!ok) return;
       const targetField = cur;
       const step = flowEditStep(targetField);
@@ -4503,6 +4504,10 @@
       // Linea UF singola: quota del totale
       if (/^qUf[A-D]$/.test(targetField) && f === "qUfTotale") {
         const nOn = UF_LINES.filter((L) => ufLineEnabled(L)).length || UF_LINES.length;
+        n = step >= 1 ? Math.round(n / nOn) : round1(n / nOn);
+      }
+      if (/^qOsmosi[ABC]$/.test(targetField) && f === "qOsmosiTotale") {
+        const nOn = OSM_LINES.filter((L) => osmLineEnabled(L)).length || OSM_LINES.length;
         n = step >= 1 ? Math.round(n / nOn) : round1(n / nOn);
       }
       const seed = String(n);
@@ -4531,16 +4536,29 @@
             best = round1(tot / nOn);
           }
         }
+      } else if (f === "qOsmosiTotale") {
+        best = osmSetpointSum();
       } else if (/^qOsmosi[ABC]$/.test(f)) {
-        const live = numOrNull(f);
-        if (live != null && live > 0.05) best = Math.max(best, live);
+        if (!deviceIsManual("osmosi")) {
+          const live = numOrNull(f);
+          if (live != null && live > 0.05) best = Math.max(best, live);
+        }
       }
       if (deviceIsManual("ultra") && (f === "qUfTotale" || /^qUf[A-D]$/.test(f))) {
         const typed = numOrNull(f);
         if (typed != null) best = Math.max(0, typed);
       }
+      if (deviceIsManual("osmosi") && (f === "qOsmosiTotale" || /^qOsmosi[ABC]$/.test(f))) {
+        if (f === "qOsmosiTotale") best = osmSetpointSum();
+        else {
+          const typed = numOrNull(f);
+          if (typed != null) best = Math.max(0, typed);
+        }
+      }
       best = round1(Math.max(0, best));
       if (deviceIsManual("ultra") && (f === "qUfTotale" || /^qUf[A-D]$/.test(f))) {
+        rememberProcSetpoint(f, best, { allowZero: true });
+      } else if (deviceIsManual("osmosi") && (f === "qOsmosiTotale" || /^qOsmosi[ABC]$/.test(f))) {
         rememberProcSetpoint(f, best, { allowZero: true });
       } else if (best > 0.05 && Object.prototype.hasOwnProperty.call(__procSetpoint, f)) {
         rememberProcSetpoint(f, best);
@@ -13956,6 +13974,75 @@
     function osmConcFor(qin) {
       return qin > 0 ? OSM_CONC_FISSO : 0;
     }
+
+    /** Somma setpoint ingressi osmosi abilitate (A+B+C). */
+    function osmSetpointSum() {
+      let s = 0;
+      OSM_LINES.forEach((L) => {
+        if (!osmLineEnabled(L)) return;
+        s += Math.max(0, procSetpointOf("qOsmosi" + L));
+      });
+      return round1(s);
+    }
+
+    /** Totale comandato: stessa quota su ogni osmosi abilitata. L’ultima prende il resto, così la somma resta il totale. */
+    function setOsmEqual(totale) {
+      const tot = Math.max(0, round1(Number(totale) || 0));
+      const enabled = OSM_LINES.filter((L) => osmLineEnabled(L));
+      const targets = enabled.length ? enabled : OSM_LINES.slice();
+      const n = targets.length;
+      let assigned = 0;
+      rememberProcSetpoint("qOsmosiTotale", tot, { allowZero: true });
+      targets.forEach((L, i) => {
+        const q = i === n - 1 ? round1(Math.max(0, tot - assigned)) : round1(tot / n);
+        assigned = round1(assigned + q);
+        const id = "qOsmosi" + L;
+        rememberProcSetpoint(id, q, { allowZero: true });
+        if (!isEditing(id)) setVal(id, q, { force: true });
+      });
+      if (!isEditing("qOsmosiTotale")) setVal("qOsmosiTotale", tot, { force: true });
+    }
+
+    /** osm-totale: divide il totale. osm-linea: il totale diventa la somma delle osmosi. */
+    function syncOsm(source) {
+      const totRaw = source === "osm-totale" ? numOrNull("qOsmosiTotale") : null;
+      const lineSnap = {};
+      if (source === "osm-linea") {
+        OSM_LINES.forEach((L) => {
+          const node = el("qOsmosi" + L);
+          lineSnap[L] = Math.max(0, parseFloat(node && node.value) || 0);
+        });
+      }
+      if (source === "osm-totale") {
+        if (totRaw === null) return;
+        const changed = Math.abs(totRaw - osmSetpointSum()) > 0.05;
+        if (changed && deviceAutoControlled("osmosi")) {
+          try { setDevMode("osmosi", "manual"); } catch (_) { /* ok */ }
+        }
+        if (changed) setOsmEqual(totRaw);
+        else if (!isEditing("qOsmosiTotale")) setVal("qOsmosiTotale", osmSetpointSum(), { force: true });
+      } else if (source === "osm-linea") {
+        let changed = false;
+        OSM_LINES.forEach((L) => {
+          const q = lineSnap[L] != null ? lineSnap[L] : 0;
+          if (Math.abs(q - procSetpointOf("qOsmosi" + L)) > 0.05) changed = true;
+        });
+        if (changed && deviceAutoControlled("osmosi")) {
+          try { setDevMode("osmosi", "manual"); } catch (_) { /* ok */ }
+        }
+        OSM_LINES.forEach((L) => {
+          const id = "qOsmosi" + L;
+          const q = lineSnap[L] != null ? lineSnap[L] : 0;
+          rememberProcSetpoint(id, q, { allowZero: true });
+          if (!isEditing(id)) setVal(id, q, { force: true });
+        });
+        const totLines = osmSetpointSum();
+        rememberProcSetpoint("qOsmosiTotale", totLines, { allowZero: true });
+        if (!isEditing("qOsmosiTotale")) setVal("qOsmosiTotale", totLines, { force: true });
+      }
+      syncOsmosiSvg();
+    }
+
     function syncOsmosiSvg() {
       let totDemiSp = 0;   // somma setpoint (popup)
       let totDemiLive = 0; // somma effettiva (schema / bilancio)
@@ -13972,10 +14059,12 @@
         const qLive = osmQinEffective(L);
         const concSp = osmConcFor(sp);
         const concLive = osmConcFor(qLive);
-        totDemiSp += sp;
-        totDemiLive += qLive;
-        totConcSp += concSp;
-        totConcLive += concLive;
+        if (osmLineEnabled(L)) {
+          totDemiSp += sp;
+          totDemiLive += qLive;
+          totConcSp += concSp;
+          totConcLive += concLive;
+        }
         const svg = el(["svgQOsmA", "svgQOsmB", "svgQOsmC"][i]);
         if (svg) svg.textContent = round1(qLive).toFixed(1);
         const concNode = el(OSM_CONC_IDS[i]);
@@ -13984,13 +14073,16 @@
       });
       totDemiSp = round1(totDemiSp);
       totConcSp = round1(totConcSp);
-      const totaleSp = round1(totDemiSp + totConcSp);
+      const totaleSp = totDemiSp;
       const totSvg = el("svgQOsmTotale");
-      if (totSvg) totSvg.textContent = round1(totDemiLive + totConcLive).toFixed(1);
+      if (totSvg) totSvg.textContent = round1(totDemiLive).toFixed(1);
       const totSpSvg = el("svgQOsmTotaleSp");
       if (totSpSvg) totSpSvg.textContent = totaleSp.toFixed(1);
-      // Popup: sempre i setpoint, mai azzerati perché le linee sono ferme
-      if (!isEditing("qOsmosiTotale")) setVal("qOsmosiTotale", totaleSp, { force: true });
+      // Popup: il totale è la somma degli ingressi A B C, non il concentrato
+      if (!isEditing("qOsmosiTotale")) {
+        rememberProcSetpoint("qOsmosiTotale", totaleSp, { allowZero: true });
+        setVal("qOsmosiTotale", totaleSp, { force: true });
+      }
       if (!isEditing("qOsmosiDemi")) setVal("qOsmosiDemi", totDemiSp, { force: true });
       if (!isEditing("qOsmosiTotConc")) setVal("qOsmosiTotConc", totConcSp, { force: true });
       paintOsmValveUI();
@@ -14536,6 +14628,7 @@
       qP11019Ias: "IAS",
       qP11019Impianto: "Carboni",
       qUfTotale: "Totale UF",
+      qOsmosiTotale: "Totale osmosi",
       qUfA: "UF A",
       qUfB: "UF B",
       qUfC: "UF C",
@@ -14875,14 +14968,20 @@
         el(field).dispatchEvent(new Event("input", { bubbles: true }));
         return;
       }
+      if (field === "qOsmosiTotale") {
+        rememberProcSetpoint("qOsmosiTotale", v, { allowZero: true });
+        setVal("qOsmosiTotale", v, { force: true });
+        syncOsm("osm-totale");
+        return;
+      }
       if (field === "qOsmosiD") {
         if (inlineInp) inlineInp.value = "0";
         return;
       }
       if (field === "qOsmosiA" || field === "qOsmosiB" || field === "qOsmosiC") {
+        rememberProcSetpoint(field, v, { allowZero: true });
         setVal(field, v, { force: true });
-        syncOsmosiSvg();
-        el(field).dispatchEvent(new Event("input", { bubbles: true }));
+        syncOsm("osm-linea");
         return;
       }
       if (field === "qMemTotale") {
@@ -14982,7 +15081,8 @@
         }
         if (field === "qUfTotale") { syncUf("uf-totale"); return; }
         if (field === "qUfA" || field === "qUfB" || field === "qUfC" || field === "qUfD") { syncUf("uf-linea"); return; }
-        if (field === "qOsmosiA" || field === "qOsmosiB" || field === "qOsmosiC") { syncOsmosiSvg(); return; }
+        if (field === "qOsmosiTotale") { syncOsm("osm-totale"); return; }
+        if (field === "qOsmosiA" || field === "qOsmosiB" || field === "qOsmosiC") { syncOsm("osm-linea"); return; }
         applyBalance(source === "riciclo-inline" ? "pompa" : source);
         return;
       }
@@ -15037,6 +15137,12 @@
         el(field).dispatchEvent(new Event("input", { bubbles: true }));
         return;
       }
+      if (field === "qOsmosiTotale") {
+        rememberProcSetpoint("qOsmosiTotale", v, { allowZero: true });
+        setVal("qOsmosiTotale", v, { force: true });
+        syncOsm("osm-totale");
+        return;
+      }
       if (field === "qOsmosiD") {
         // P11040 D sempre OFF — nessun write
         return;
@@ -15044,7 +15150,7 @@
       if (field === "qOsmosiA" || field === "qOsmosiB" || field === "qOsmosiC") {
         rememberProcSetpoint(field, v, { allowZero: true });
         setVal(field, v, { force: true });
-        syncOsmosiSvg();
+        syncOsm("osm-linea");
         el(field).dispatchEvent(new Event("input", { bubbles: true }));
         return;
       }
@@ -15215,6 +15321,7 @@
         val = 0; // P11040 D sempre ferma
       } else if (
         field === "qUfTotale" || field === "qUfA" || field === "qUfB" || field === "qUfC" || field === "qUfD"
+        || field === "qOsmosiTotale"
         || field === "qOsmosiA" || field === "qOsmosiB" || field === "qOsmosiC"
       ) {
         // SEMPRE il setpoint automatico/overview (mai 0 se c’è portata valle)
@@ -16046,8 +16153,16 @@
       OSM_IDS.forEach((id) => {
         const node = el(id);
         if (!node) return;
-        node.addEventListener("input", () => syncOsmosiSvg());
-        node.addEventListener("change", () => syncOsmosiSvg());
+        node.addEventListener("input", () => syncOsm("osm-linea"));
+        node.addEventListener("change", () => syncOsm("osm-linea"));
+      });
+      el("qOsmosiTotale")?.addEventListener("input", () => {
+        if (numOrNull("qOsmosiTotale") === null) return;
+        syncOsm("osm-totale");
+      });
+      el("qOsmosiTotale")?.addEventListener("blur", () => {
+        if (numOrNull("qOsmosiTotale") === null) setVal("qOsmosiTotale", 0, { force: true });
+        syncOsm("osm-totale");
       });
       document.querySelectorAll(".osm-enable button[data-osm-line]").forEach((btn) => {
         btn.addEventListener("click", (e) => {
@@ -16218,6 +16333,7 @@
         qUfB: __procSetpoint.qUfB,
         qUfC: __procSetpoint.qUfC,
         qUfD: __procSetpoint.qUfD,
+        qOsmosiTotale: __procSetpoint.qOsmosiTotale,
         qOsmosiA: __procSetpoint.qOsmosiA,
         qOsmosiB: __procSetpoint.qOsmosiB,
         qOsmosiC: __procSetpoint.qOsmosiC,
