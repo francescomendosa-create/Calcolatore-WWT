@@ -2088,7 +2088,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v264</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v265</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -2537,7 +2537,10 @@
 
         <!-- ULTRAFILTRAZIONE — IN A–D in ingresso · totale sopra -->
         <g aria-label="Ultrafiltrazione A B C D">
-          <text x="543" y="294" text-anchor="middle" fill="#bae6fd" font-size="9" font-weight="700">ULTRA FILTRAZIONE</text>
+          <g class="node" tabindex="0" data-popup="ultra" role="button" aria-label="Ultrafiltrazione impostazioni">
+            <rect x="468" y="278" width="160" height="16" fill="#000" opacity="0.001" pointer-events="all" />
+            <text x="543" y="294" text-anchor="middle" fill="#bae6fd" font-size="9" font-weight="700" pointer-events="none">ULTRA FILTRAZIONE</text>
+          </g>
           <g class="flow-edit" data-field="qUfTotale" data-source="uf-totale" aria-label="Totale UF misura">
             <rect class="badge" x="468" y="300" width="74" height="34" rx="5" stroke="#7dd3fc" />
             <text class="badge-label" x="505" y="312" text-anchor="middle">TOTALE</text>
@@ -9776,18 +9779,61 @@
         });
       });
       document.querySelectorAll(".uf-row .uf-mini").forEach((svg) => {
-        const toggle = (e) => {
+        let holdTimer = null;
+        let holdFired = false;
+        let openedByPtr = false;
+        const lineOf = () => svg.closest(".uf-row")?.getAttribute("data-uf-line");
+        const clearHold = () => {
+          if (holdTimer != null) {
+            clearTimeout(holdTimer);
+            holdTimer = null;
+          }
+        };
+        svg.addEventListener("pointerdown", (e) => {
+          if (e.button != null && e.button !== 0) return;
           e.preventDefault();
           e.stopPropagation();
-          const L = svg.closest(".uf-row")?.getAttribute("data-uf-line");
-          if (!L) return;
-          toggleUfLineEnabled(L);
-          focusUfRow(L);
-        };
-        svg.addEventListener("click", toggle);
-        svg.addEventListener("keydown", (e) => {
-          if (e.key === "Enter" || e.key === " ") toggle(e);
+          holdFired = false;
+          clearHold();
+          holdTimer = setTimeout(() => {
+            holdTimer = null;
+            holdFired = true;
+            const L = lineOf();
+            if (!L) return;
+            toggleUfLineEnabled(L);
+            focusUfRow(L);
+            try { if (navigator.vibrate) navigator.vibrate(18); } catch (_) { /* ok */ }
+          }, 480);
         });
+        svg.addEventListener("pointerup", (e) => {
+          clearHold();
+          e.preventDefault();
+          e.stopPropagation();
+          if (holdFired) {
+            setTimeout(() => { holdFired = false; }, 400);
+            return;
+          }
+          const L = lineOf();
+          if (!L) return;
+          openedByPtr = true;
+          startFieldInlineEdit("qUf" + L, "uf-linea");
+          setTimeout(() => { openedByPtr = false; }, 500);
+        });
+        svg.addEventListener("pointercancel", () => {
+          clearHold();
+          holdFired = false;
+        });
+        svg.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (openedByPtr || holdFired) {
+            holdFired = false;
+            return;
+          }
+          const L = lineOf();
+          if (L) startFieldInlineEdit("qUf" + L, "uf-linea");
+        });
+        svg.addEventListener("contextmenu", (e) => e.preventDefault());
       });
       paintUfEnableUI();
     }
@@ -14943,6 +14989,11 @@
         return undefined;
       };
       const openNow = () => {
+        if (ufLine) {
+          try { startFieldInlineEdit("qUf" + ufLine, "uf-linea"); } catch (_) { /* ok */ }
+          if (node.blur) node.blur();
+          return;
+        }
         const name = node.getAttribute("data-popup") || node.dataset.popup;
         if (!name) return;
         armPopupCloseGuard(500);
@@ -15012,8 +15063,8 @@
         }
         clearMemPress();
         if (holdOnNode && holdFired) {
-          holdFired = false;
           ptrDown = null;
+          setTimeout(() => { holdFired = false; }, 400);
           return;
         }
         const d = ptrDown;
