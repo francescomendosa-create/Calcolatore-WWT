@@ -716,6 +716,125 @@
       border-color: #fbbf24 !important;
       color: #fde68a;
     }
+    #popSludgeAdj,
+    #popSludgePct { z-index: 80; }
+    #popSludgePct { z-index: 100; }
+    #popSludgeAdj .modal,
+    #popSludgePct .modal { width: min(460px, 100%); }
+    #popSludgePct .modal { width: min(280px, 100%); }
+    .sludge-adj-head {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    #sludgeAdjX,
+    #sludgePctX {
+      border: 0;
+      background: var(--panel-2);
+      color: var(--text);
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+    .sludge-adj-pctbtn {
+      appearance: none;
+      min-width: 3.4rem;
+      border: 1px solid #fbbf24;
+      background: #422006;
+      color: #fde68a;
+      border-radius: 8px;
+      font-weight: 800;
+      font-size: 0.95rem;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-variant-numeric: tabular-nums;
+    }
+    .sludge-adj-row {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 8px;
+      align-items: center;
+      padding: 7px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .sludge-adj-left {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      min-width: 0;
+    }
+    .sludge-adj-name {
+      font-weight: 750;
+      color: #e2e8f0;
+      font-size: 0.84rem;
+    }
+    .sludge-adj-base,
+    .sludge-adj-res {
+      font-variant-numeric: tabular-nums;
+      font-weight: 800;
+    }
+    .sludge-adj-base { color: #cbd5e1; font-size: 0.95rem; }
+    .sludge-adj-res {
+      min-width: 4.2rem;
+      text-align: right;
+      color: #7dd3fc;
+      font-size: 1.05rem;
+    }
+    .sludge-pct-signs {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin: 8px 0 12px;
+    }
+    .sludge-pct-signs button {
+      flex: 1;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      color: var(--text);
+      font-size: 1.3rem;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .sludge-pct-signs button.is-on[data-sign="+"] {
+      background: #14532d;
+      border-color: #4ade80;
+      color: #bbf7d0;
+    }
+    .sludge-pct-signs button.is-on[data-sign="-"] {
+      background: #7f1d1d;
+      border-color: #f87171;
+      color: #fecaca;
+    }
+    .sludge-pct-spin {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .sludge-pct-spin button {
+      width: 64px;
+      height: 36px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      color: var(--text);
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    #sludgePctNum {
+      font-size: 2rem;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      color: #fde68a;
+      min-width: 3ch;
+      text-align: center;
+    }
     #popBlocchi .block-action.ok-line {
       margin: 8px 0 0;
       padding: 10px 12px;
@@ -1853,7 +1972,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v254</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v255</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -3453,8 +3572,42 @@
         <div class="row"><label><strong>F · XV-04202F · apertura (s)</strong><input type="number" id="sludgeOpenFMbr" min="1" max="20000" step="1" value="1927" inputmode="numeric" /></label><label><strong>Attesa avvio (min)</strong><input type="number" id="sludgeWaitFMbr" min="0" max="120" step="0.1" value="2" inputmode="decimal" /></label></div>
         <div class="row"><label><strong>G · XV-04202G · apertura (s)</strong><input type="number" id="sludgeOpenGMbr" min="1" max="20000" step="1" value="1577" inputmode="numeric" /></label><label><strong>Attesa avvio (min)</strong><input type="number" id="sludgeWaitGMbr" min="0" max="120" step="0.1" value="2" inputmode="decimal" /></label></div>
         <div class="row"><label><strong>H · XV-04202H · apertura (s)</strong><input type="number" id="sludgeOpenHMbr" min="1" max="20000" step="1" value="1594" inputmode="numeric" /></label><label><strong>Attesa avvio (min)</strong><input type="number" id="sludgeWaitHMbr" min="0" max="120" step="0.1" value="2" inputmode="decimal" /></label></div>
+        <div class="actions"><button type="button" id="sludgeAdjOpen">Modifica</button></div>
       </details>
       <div class="actions"><button type="button" data-close>Applica</button></div>
+    </div>
+  </div>
+
+  <!-- Modifica aperture ciclo fanghi: si chiude solo con X. Applica scrive i secondi. -->
+  <div class="modal-back" id="popSludgeAdj" role="dialog" aria-modal="true" aria-labelledby="sludgeAdjTitle">
+    <div class="modal">
+      <h3>
+        <span id="sludgeAdjTitle">Aperture valvole</span>
+        <span class="sludge-adj-head">
+          <button type="button" id="sludgeAdjPct" class="sludge-adj-pctbtn" title="Percentuale per tutte le valvole">0</button>
+          <button type="button" id="sludgeAdjX" aria-label="Chiudi">&times;</button>
+        </span>
+      </h3>
+      <div id="sludgeAdjRows"></div>
+      <div class="actions"><button type="button" id="sludgeAdjApply">Applica</button></div>
+    </div>
+  </div>
+  <div class="modal-back" id="popSludgePct" role="dialog" aria-modal="true" aria-label="Percentuale">
+    <div class="modal">
+      <h3>
+        <span>Percentuale</span>
+        <button type="button" id="sludgePctX" aria-label="Chiudi">&times;</button>
+      </h3>
+      <div class="sludge-pct-signs">
+        <button type="button" id="sludgePctMinus" data-sign="-">−</button>
+        <button type="button" id="sludgePctPlus" data-sign="+" class="is-on">+</button>
+      </div>
+      <div class="sludge-pct-spin">
+        <button type="button" id="sludgePctUp" aria-label="Aumenta">▲</button>
+        <div id="sludgePctNum">0</div>
+        <button type="button" id="sludgePctDown" aria-label="Diminuisci">▼</button>
+      </div>
+      <div class="actions"><button type="button" id="sludgePctOk">OK</button></div>
     </div>
   </div>
 
@@ -4137,6 +4290,21 @@
     const round2 = (v) => Math.round(Number(v) * 100) / 100;
     const MBR_ALL_IDS = ["A", "B", "C", "D", "E", "F", "G", "H"];
     const MBR_MEM_IDS = MBR_ALL_IDS;
+    const SLUDGE_VALVE_NAME = {
+      A: "A · XV-11008",
+      B: "B · XV-11014",
+      C: "C · XV-11020",
+      D: "D · XV-11026",
+      E: "E · XV-04202E",
+      F: "F · XV-04202F",
+      G: "G · XV-04202G",
+      H: "H · XV-04202H",
+    };
+    /** Bozza percentuali aperture: resta anche con la X. I secondi del ciclo cambiano solo con Applica. */
+    let __sludgeAdj = null;
+    let __sludgePctTarget = "all";
+    let __sludgePctSign = 1;
+    let __sludgePctN = 0;
     // Pause a coppie sfalsate: ciascuna fa 7′+1′, ma non tutte insieme
     const MBR_PAUSE_PAIRS = [
       ["A", "D"],
@@ -7974,6 +8142,153 @@
       } finally {
         __sludgeSync = false;
       }
+    }
+
+    function sludgeAdjFmtPct(sign, pct) {
+      const n = Math.max(0, Math.round(Number(pct) || 0));
+      if (!n) return "0";
+      return (sign < 0 ? "−" : "+") + n;
+    }
+
+    function sludgeAdjResult(row) {
+      const base = Math.max(0, Math.round(Number(row && row.base) || 0));
+      const pct = Math.max(0, Math.min(100, Math.round(Number(row && row.pct) || 0)));
+      const sign = row && row.sign < 0 ? -1 : 1;
+      let v = Math.round(base * (1 + sign * pct / 100));
+      if (v < 1) v = 1;
+      if (v > 20000) v = 20000;
+      return v;
+    }
+
+    function captureSludgeAdj() {
+      const rows = {};
+      MBR_ALL_IDS.forEach((L) => {
+        rows[L] = { base: Math.max(0, Math.round(num("sludgeOpen" + L) || 0)), sign: 1, pct: 0 };
+      });
+      return { globalSign: 1, globalPct: 0, rows };
+    }
+
+    function normalizeSludgeAdj(raw) {
+      const fresh = captureSludgeAdj();
+      if (!raw || typeof raw !== "object" || !raw.rows) return fresh;
+      const out = {
+        globalSign: raw.globalSign < 0 ? -1 : 1,
+        globalPct: Math.max(0, Math.min(100, Math.round(Number(raw.globalPct) || 0))),
+        rows: {},
+      };
+      MBR_ALL_IDS.forEach((L) => {
+        const r = raw.rows[L] || {};
+        const base = Math.round(Number(r.base));
+        out.rows[L] = {
+          base: Number.isFinite(base) ? Math.max(0, base) : fresh.rows[L].base,
+          sign: r.sign < 0 ? -1 : 1,
+          pct: Math.max(0, Math.min(100, Math.round(Number(r.pct) || 0))),
+        };
+      });
+      return out;
+    }
+
+    function paintSludgeAdj() {
+      if (!__sludgeAdj) return;
+      const pctBtn = el("sludgeAdjPct");
+      if (pctBtn) pctBtn.textContent = sludgeAdjFmtPct(__sludgeAdj.globalSign, __sludgeAdj.globalPct);
+      const host = el("sludgeAdjRows");
+      if (!host) return;
+      host.innerHTML = MBR_ALL_IDS.map((L) => {
+        const row = __sludgeAdj.rows[L];
+        const pct = sludgeAdjFmtPct(row.sign, row.pct);
+        const center = pct === "0" ? "0%" : pct + "%";
+        return (
+          '<div class="sludge-adj-row">' +
+            '<div class="sludge-adj-left">' +
+              '<span class="sludge-adj-name">' + SLUDGE_VALVE_NAME[L] + '</span>' +
+              '<span class="sludge-adj-base">' + row.base + '</span>' +
+            '</div>' +
+            '<button type="button" class="sludge-adj-pctbtn" data-sludge-pct="' + L + '">' + center + '</button>' +
+            '<span class="sludge-adj-res">' + sludgeAdjResult(row) + '</span>' +
+          '</div>'
+        );
+      }).join("");
+    }
+
+    function openSludgeAdj() {
+      if (!__sludgeAdj) __sludgeAdj = captureSludgeAdj();
+      else __sludgeAdj = normalizeSludgeAdj(__sludgeAdj);
+      paintSludgeAdj();
+      const pop = el("popSludgeAdj");
+      if (pop) pop.classList.add("show");
+      try { syncScrollLock(); } catch (_) { /* ok */ }
+    }
+
+    function hideSludgeAdj() {
+      const pop = el("popSludgeAdj");
+      if (pop) pop.classList.remove("show");
+      hideSludgePct();
+      try { syncScrollLock(); } catch (_) { /* ok */ }
+    }
+
+    function paintSludgePctPicker() {
+      const n = el("sludgePctNum");
+      if (n) n.textContent = String(__sludgePctN);
+      const plus = el("sludgePctPlus");
+      const minus = el("sludgePctMinus");
+      if (plus) plus.classList.toggle("is-on", __sludgePctSign > 0);
+      if (minus) minus.classList.toggle("is-on", __sludgePctSign < 0);
+    }
+
+    function openSludgePct(target) {
+      __sludgePctTarget = target || "all";
+      if (!__sludgeAdj) __sludgeAdj = captureSludgeAdj();
+      if (__sludgePctTarget === "all") {
+        __sludgePctSign = __sludgeAdj.globalSign < 0 ? -1 : 1;
+        __sludgePctN = Math.max(0, Math.round(Number(__sludgeAdj.globalPct) || 0));
+      } else {
+        const row = __sludgeAdj.rows[__sludgePctTarget] || { sign: 1, pct: 0 };
+        __sludgePctSign = row.sign < 0 ? -1 : 1;
+        __sludgePctN = Math.max(0, Math.round(Number(row.pct) || 0));
+      }
+      paintSludgePctPicker();
+      const pop = el("popSludgePct");
+      if (pop) pop.classList.add("show");
+      try { syncScrollLock(); } catch (_) { /* ok */ }
+    }
+
+    function hideSludgePct() {
+      const pop = el("popSludgePct");
+      if (pop) pop.classList.remove("show");
+      try { syncScrollLock(); } catch (_) { /* ok */ }
+    }
+
+    function commitSludgePct() {
+      if (!__sludgeAdj) __sludgeAdj = captureSludgeAdj();
+      const sign = __sludgePctSign < 0 ? -1 : 1;
+      const pct = Math.max(0, Math.min(100, Math.round(__sludgePctN) || 0));
+      if (__sludgePctTarget === "all") {
+        __sludgeAdj.globalSign = sign;
+        __sludgeAdj.globalPct = pct;
+        MBR_ALL_IDS.forEach((L) => {
+          __sludgeAdj.rows[L].sign = sign;
+          __sludgeAdj.rows[L].pct = pct;
+        });
+      } else if (__sludgeAdj.rows[__sludgePctTarget]) {
+        __sludgeAdj.rows[__sludgePctTarget].sign = sign;
+        __sludgeAdj.rows[__sludgePctTarget].pct = pct;
+      }
+      hideSludgePct();
+      paintSludgeAdj();
+      try { schedulePersist(); } catch (_) { /* ok */ }
+    }
+
+    function applySludgeAdj() {
+      if (!__sludgeAdj) return;
+      MBR_ALL_IDS.forEach((L) => {
+        const node = el("sludgeOpen" + L);
+        if (!node) return;
+        node.value = String(sludgeAdjResult(__sludgeAdj.rows[L]));
+        node.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      hideSludgeAdj();
+      try { schedulePersist(); } catch (_) { /* ok */ }
     }
 
     function paintSludgeCycleHint(cycleMin) {
@@ -13493,6 +13808,10 @@
     function anyOverlayOpen() {
       const flowBack = el("popFlowEdit");
       if (flowBack && flowBack.classList.contains("show")) return true;
+      const adj = el("popSludgeAdj");
+      const pct = el("popSludgePct");
+      if (adj && adj.classList.contains("show")) return true;
+      if (pct && pct.classList.contains("show")) return true;
       return Object.values(popups).some((p) => p && p.classList.contains("show"));
     }
 
@@ -14859,6 +15178,10 @@
     });
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
+        if (el("popSludgePct")?.classList.contains("show") || el("popSludgeAdj")?.classList.contains("show")) {
+          e.preventDefault();
+          return;
+        }
         __popupIgnoreCloseUntil = 0;
         closePopups();
       }
@@ -15262,6 +15585,92 @@
       });
     });
 
+    el("sludgeAdjOpen")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openSludgeAdj();
+    });
+    el("sludgeAdjX")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      hideSludgeAdj();
+      try { schedulePersist(); } catch (_) { /* ok */ }
+    });
+    el("sludgeAdjApply")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      applySludgeAdj();
+    });
+    el("sludgeAdjPct")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openSludgePct("all");
+    });
+    el("sludgeAdjRows")?.addEventListener("click", (e) => {
+      const btn = e.target && e.target.closest ? e.target.closest("[data-sludge-pct]") : null;
+      if (!btn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      openSludgePct(btn.getAttribute("data-sludge-pct"));
+    });
+    el("sludgePctX")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      hideSludgePct();
+    });
+    el("sludgePctOk")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      commitSludgePct();
+    });
+    el("sludgePctPlus")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      __sludgePctSign = 1;
+      paintSludgePctPicker();
+    });
+    el("sludgePctMinus")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      __sludgePctSign = -1;
+      paintSludgePctPicker();
+    });
+    function bindSludgePctStep(id, dir) {
+      const btn = el(id);
+      if (!btn) return;
+      let hold = 0;
+      let rep = 0;
+      const stop = () => {
+        if (hold) { clearTimeout(hold); hold = 0; }
+        if (rep) { clearInterval(rep); rep = 0; }
+      };
+      const step = () => {
+        __sludgePctN = Math.max(0, Math.min(100, __sludgePctN + dir));
+        paintSludgePctPicker();
+      };
+      btn.addEventListener("pointerdown", (e) => {
+        if (e.button != null && e.button !== 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        stop();
+        step();
+        hold = setTimeout(() => {
+          hold = 0;
+          rep = setInterval(step, 50);
+        }, 260);
+      });
+      btn.addEventListener("pointerup", stop);
+      btn.addEventListener("pointercancel", stop);
+      btn.addEventListener("pointerleave", stop);
+    }
+    bindSludgePctStep("sludgePctUp", 1);
+    bindSludgePctStep("sludgePctDown", -1);
+    ["popSludgeAdj", "popSludgePct"].forEach((id) => {
+      el(id)?.addEventListener("click", (e) => {
+        if (e.target === el(id)) e.stopPropagation();
+      });
+    });
+
     el("usaFrequenza")?.addEventListener("change", () => {
       const box = el("boxFrequenza");
       if (box && el("usaFrequenza")) {
@@ -15465,6 +15874,7 @@
       data.osmAlwaysOnBackup = __osmAlwaysOnBackup
         ? JSON.parse(JSON.stringify(__osmAlwaysOnBackup))
         : null;
+      data.sludgeAdj = __sludgeAdj ? JSON.parse(JSON.stringify(__sludgeAdj)) : null;
       if (bump) __calcSyncRevision += 1;
       data.syncRevision = __calcSyncRevision;
       data.updatedAt = Date.now();
@@ -15621,6 +16031,9 @@
           const imp = round1(Math.max(0, (qp19 > 0.05 ? qp19 : 0) - ias));
           rememberFlowSetpoint("qP11019Impianto", imp, { allowZero: true });
           sanitizeP11019SplitMem();
+        }
+        if (data.sludgeAdj && typeof data.sludgeAdj === "object") {
+          try { __sludgeAdj = normalizeSludgeAdj(data.sludgeAdj); } catch (_) { /* ok */ }
         }
         if (data.carbWash && typeof data.carbWash === "object") {
           __carbWash = JSON.parse(JSON.stringify(data.carbWash));
