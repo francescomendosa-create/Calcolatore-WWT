@@ -1726,7 +1726,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v236</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v237</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -4977,22 +4977,19 @@
       ].join("|");
     }
 
-    /** Minuti al blocco da mostrare: solo se la sim 8 ore lo ha trovato. Stabile. */
+    /** Minuti al blocco: il conto è ancorato all’istante della previsione e scende col TIME. */
     function lockedBlockRemainMin(fc) {
       const raw = fc && fc.firstBlockMin != null ? Number(fc.firstBlockMin) : null;
       if (raw == null || !Number.isFinite(raw) || raw > BLOCK_FORECAST_HORIZON + 0.5) {
-        __regEtaLock = { absSim: null, setKey: "", simAt: 0 };
+        __regEtaLock = { absSim: null, setKey: "", anchor: null };
         return null;
       }
       const key = regEtaSetKey(fc);
       const nowSim = Math.max(0, Number(__simMin) || 0);
-      const absNew = nowSim + Math.max(0, Math.round(raw));
-      if (__regEtaLock.absSim == null || __regEtaLock.setKey !== key) {
-        __regEtaLock = { absSim: absNew, setKey: key, simAt: nowSim };
-      } else if (absNew !== __regEtaLock.absSim) {
-        // Il minuto nuovo della sim è quello vero: niente inerzia che lascia i “50 minuti” mentre il livello è già allo stop.
-        __regEtaLock.absSim = absNew;
-        __regEtaLock.simAt = nowSim;
+      const anchor = Number.isFinite(Number(fc.anchorSim)) ? Number(fc.anchorSim) : nowSim;
+      const absNew = anchor + Math.max(0, Math.round(raw));
+      if (__regEtaLock.absSim == null || __regEtaLock.setKey !== key || __regEtaLock.anchor !== anchor) {
+        __regEtaLock = { absSim: absNew, setKey: key, anchor, simAt: nowSim };
       }
       return Math.max(0, Math.round(__regEtaLock.absSim - nowSim));
     }
@@ -5457,6 +5454,7 @@
 
     function forecastChimicoHorizon(horizonMin, opts) {
       opts = opts || {};
+      const anchorSim = Math.max(0, Number(__simMin) || 0);
       const H = Math.max(1, Math.round(Number(horizonMin) || BLOCK_FORECAST_HORIZON));
       const dt = 1;
       const stopR = numOrNull("stopRiempA10620");
@@ -5793,6 +5791,7 @@
       return {
         ok: firstBlockMin == null,
         horizonMin: H,
+        anchorSim,
         firstBlockMin,
         blockCount: blocks.length,
         reason,
@@ -5829,9 +5828,8 @@
           __forecastPumping = true;
           __forecastPumpGen = gen;
           let done = false;
-          if (__inlineLiveTimer) {
-            __forecastPumping = false;
-            __forecastRerun = true;
+          if (__inlineLiveTimer || performance.now() < __uiHotUntil) {
+            setTimeout(pumpFc, 80);
             return;
           }
           try { done = stepForecastBudget(8); }
@@ -5844,7 +5842,7 @@
             return;
           }
           if (!done) {
-            requestAnimationFrame(pumpFc);
+            setTimeout(pumpFc, 32);
             return;
           }
           __forecastPumping = false;
@@ -5887,7 +5885,7 @@
       if (m < 60) return m + "′";
       const h = Math.floor(m / 60);
       const r = m % 60;
-      return r ? (h + " h " + r + "′") : (h + " h");
+      return h + " h " + (r < 10 ? "0" : "") + r + "′";
     }
 
     /** Diagnosi + previsione 8 ore: spicciola, quesito, CF solo su No (mai su anomalia). */
@@ -13336,6 +13334,7 @@
     const flowNumpad = el("flowNumpad");
     let __flowNumpadFresh = false; // prossimo tasto numpad sostituisce il valore
     let __inlineLiveTimer = 0;
+    let __uiHotUntil = 0;
 
     function cancelScheduledInlineLive() {
       if (__inlineLiveTimer) {
@@ -13346,6 +13345,7 @@
 
     /** Il numero in schermo è già aggiornato. Il bilancio e i blocchi partono a raffica finita. */
     function scheduleInlineLive() {
+      __uiHotUntil = performance.now() + 520;
       try {
         __forecastAsyncGen++;
         __forecastPumping = false;
@@ -13359,7 +13359,7 @@
       __inlineLiveTimer = setTimeout(() => {
         __inlineLiveTimer = 0;
         try { applyInlineLive(); } catch (_) { /* ok */ }
-      }, 90);
+      }, 420);
     }
     let __flowEditGuardUntil = 0; // evita chiusura fantasma al rilascio dito su tablet
     // inlineCtx dichiarato in alto (condiviso con isEditing / applyBalance)
