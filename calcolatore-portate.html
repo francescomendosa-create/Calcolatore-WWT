@@ -683,6 +683,9 @@
     #popMembrane #sludgeMemHint {
       display: none !important;
     }
+    #popOsmosi .osm-narration {
+      display: none !important;
+    }
     #popBlocchi .block-action.ok-line {
       margin: 8px 0 0;
       padding: 10px 12px;
@@ -1820,7 +1823,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v251</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v252</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -3571,7 +3574,7 @@
     <div class="modal wide">
       <h3>
         <span class="modal-title-row">
-          <span class="modal-title-name">Osmosi A–C</span>
+          <span class="modal-title-name">Osmosi A B C</span>
           <span class="dev-mode" data-dev="osmosi" title="Override locale: prevale sul modo generale solo per l’osmosi">
             <button type="button" data-dev-mode="auto" class="is-on">Aut</button>
             <button type="button" data-dev-mode="manual">Man</button>
@@ -3581,9 +3584,8 @@
       </h3>
       <button type="button" class="proc-label" disabled style="cursor:default;opacity:.95">
         <span>PROCESSO — Osmosi</span>
-        <small>ingresso · concentrato fisso 15</small>
       </button>
-      <p class="mini" id="devModeHintOsmosi">Modo osmosi: segue l’impianto (Automatico generale).</p>
+      <p class="mini osm-narration" id="devModeHintOsmosi">Modo osmosi: segue l’impianto (Automatico generale).</p>
       <div class="row" style="grid-template-columns:1fr 1fr 1fr">
         <label><strong>TOTALE (m³/h)</strong>
           <input type="number" id="qOsmosiTotale" class="tot-mem" readonly tabindex="-1" value="0" />
@@ -3595,36 +3597,7 @@
           <input type="number" id="qOsmosiTotConc" class="tot-mem" readonly tabindex="-1" value="0" />
         </label>
       </div>
-      <p class="mini">Demi = somma ingressi. Concentrato fisso 15 m³/h per ogni osmosi in servizio (IN &gt; 0). Totale = Demi + Concentrato.</p>
-      <p class="mini">Clicca una linea sullo schema: il popup si posiziona su quella osmosi. <strong>Disabilita</strong> la spegne (rossa, non parte); <strong>Abilita</strong> la rimette in servizio (verde se il livello TK 11021 lo consente).</p>
-      <div class="settings-block show">
-        <h4>Svuotamento TK-11021 · P-11040 (da PROCESSO)</h4>
-        <p class="mini" id="osmosiRunHint">Ogni linea parte/ferma sul livello serbatoio (start/stop modificabili in PROCESSO).</p>
-        <div class="row">
-          <label><strong>Start A %</strong>
-            <input type="number" id="viewStartSvuotOsmA2" readonly placeholder="—" />
-          </label>
-          <label><strong>Stop A %</strong>
-            <input type="number" id="viewStopSvuotOsmA2" readonly placeholder="—" />
-          </label>
-        </div>
-        <div class="row">
-          <label><strong>Start B %</strong>
-            <input type="number" id="viewStartSvuotOsmB2" readonly placeholder="—" />
-          </label>
-          <label><strong>Stop B %</strong>
-            <input type="number" id="viewStopSvuotOsmB2" readonly placeholder="—" />
-          </label>
-        </div>
-        <div class="row">
-          <label><strong>Start C %</strong>
-            <input type="number" id="viewStartSvuotOsmC2" readonly placeholder="—" />
-          </label>
-          <label><strong>Stop C %</strong>
-            <input type="number" id="viewStopSvuotOsmC2" readonly placeholder="—" />
-          </label>
-        </div>
-      </div>
+      <p class="mini osm-narration" id="osmosiRunHint">Ogni linea parte/ferma sul livello serbatoio (start/stop modificabili in PROCESSO).</p>
       <div class="osm-row" id="osmRowA" data-osm-line="A">
         <div class="osm-row-head">
           <svg class="osm-mini" viewBox="0 0 100 28" role="button" tabindex="0" title="Tocca per Abilita / Disabilita">
@@ -3644,13 +3617,21 @@
             <button type="button" data-osm-line="A" data-osm-en="0">Disabilita</button>
           </span>
         </div>
-        <p class="mini" id="osmEnableHintA">Abilitata · segue livello TK 11021.</p>
+        <p class="mini osm-narration" id="osmEnableHintA">Abilitata · segue livello TK 11021.</p>
         <div class="row">
           <label><strong>Ingresso IN (m³/h)</strong>
             <input type="number" id="qOsmosiA" min="0" max="500" step="0.1" value="0" inputmode="decimal" />
           </label>
           <label><strong>Concentrato (m³/h)</strong>
             <input type="number" id="qOsmosiConcA" readonly tabindex="-1" value="0" />
+          </label>
+        </div>
+        <div class="row">
+          <label><strong>Start %</strong>
+            <input type="number" id="viewStartSvuotOsmA2" readonly placeholder="—" />
+          </label>
+          <label><strong>Stop %</strong>
+            <input type="number" id="viewStopSvuotOsmA2" readonly placeholder="—" />
           </label>
         </div>
       </div>
@@ -3673,13 +3654,21 @@
             <button type="button" data-osm-line="B" data-osm-en="0">Disabilita</button>
           </span>
         </div>
-        <p class="mini" id="osmEnableHintB">Abilitata · segue livello TK 11021.</p>
+        <p class="mini osm-narration" id="osmEnableHintB">Abilitata · segue livello TK 11021.</p>
         <div class="row">
           <label><strong>Ingresso IN (m³/h)</strong>
             <input type="number" id="qOsmosiB" min="0" max="500" step="0.1" value="0" inputmode="decimal" />
           </label>
           <label><strong>Concentrato (m³/h)</strong>
             <input type="number" id="qOsmosiConcB" readonly tabindex="-1" value="0" />
+          </label>
+        </div>
+        <div class="row">
+          <label><strong>Start %</strong>
+            <input type="number" id="viewStartSvuotOsmB2" readonly placeholder="—" />
+          </label>
+          <label><strong>Stop %</strong>
+            <input type="number" id="viewStopSvuotOsmB2" readonly placeholder="—" />
           </label>
         </div>
       </div>
@@ -3702,13 +3691,21 @@
             <button type="button" data-osm-line="C" data-osm-en="0">Disabilita</button>
           </span>
         </div>
-        <p class="mini" id="osmEnableHintC">Abilitata · segue livello TK 11021.</p>
+        <p class="mini osm-narration" id="osmEnableHintC">Abilitata · segue livello TK 11021.</p>
         <div class="row">
           <label><strong>Ingresso IN (m³/h)</strong>
             <input type="number" id="qOsmosiC" min="0" max="500" step="0.1" value="0" inputmode="decimal" />
           </label>
           <label><strong>Concentrato (m³/h)</strong>
             <input type="number" id="qOsmosiConcC" readonly tabindex="-1" value="0" />
+          </label>
+        </div>
+        <div class="row">
+          <label><strong>Start %</strong>
+            <input type="number" id="viewStartSvuotOsmC2" readonly placeholder="—" />
+          </label>
+          <label><strong>Stop %</strong>
+            <input type="number" id="viewStopSvuotOsmC2" readonly placeholder="—" />
           </label>
         </div>
       </div>
