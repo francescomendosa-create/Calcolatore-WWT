@@ -2088,7 +2088,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v268</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v269</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -2475,16 +2475,20 @@
         <!-- FILTRI CARB A · B — al centro tra collettore UF (688) e pompe P11019 (870) -->
         <g aria-label="Filtri carb A e B">
           <g class="flow-edit" data-field="qCarbA" data-source="carb-linea" aria-label="Portata filtro carbone A">
-            <rect class="badge" x="716" y="318" width="62" height="36" rx="5" stroke="#7dd3fc" />
-            <text class="badge-val" id="svgQCarbA" x="740" y="341" text-anchor="middle" font-size="12" font-weight="800">70</text>
-            <polygon id="svgCarbArrowDownA" points="758,328 770,328 764,338" fill="#fbbf24" visibility="hidden" pointer-events="none" />
-            <polygon id="svgCarbArrowLeftA" points="770,330 758,336 770,342" fill="#7dd3fc" visibility="hidden" pointer-events="none" />
+            <rect class="badge" x="700" y="300" width="74" height="34" rx="5" stroke="#7dd3fc" />
+            <text class="badge-label" x="737" y="312" text-anchor="middle">CARB A</text>
+            <text class="badge-val" x="724" y="326" text-anchor="middle" id="svgQCarbA">70.0</text>
+            <text class="badge-unit" x="754" y="326" text-anchor="middle">m³/h</text>
+            <polygon id="svgCarbArrowDownA" points="731,336 743,336 737,346" fill="#fbbf24" visibility="hidden" pointer-events="none" />
+            <polygon id="svgCarbArrowLeftA" points="743,337 731,343 743,349" fill="#7dd3fc" visibility="hidden" pointer-events="none" />
           </g>
           <g class="flow-edit" data-field="qCarbB" data-source="carb-linea" aria-label="Portata filtro carbone B">
-            <rect class="badge" x="782" y="318" width="62" height="36" rx="5" stroke="#7dd3fc" />
-            <text class="badge-val" id="svgQCarbB" x="806" y="341" text-anchor="middle" font-size="12" font-weight="800">70</text>
-            <polygon id="svgCarbArrowDownB" points="824,328 836,328 830,338" fill="#fbbf24" visibility="hidden" pointer-events="none" />
-            <polygon id="svgCarbArrowLeftB" points="836,330 824,336 836,342" fill="#7dd3fc" visibility="hidden" pointer-events="none" />
+            <rect class="badge" x="778" y="300" width="74" height="34" rx="5" stroke="#7dd3fc" />
+            <text class="badge-label" x="815" y="312" text-anchor="middle">CARB B</text>
+            <text class="badge-val" x="802" y="326" text-anchor="middle" id="svgQCarbB">70.0</text>
+            <text class="badge-unit" x="832" y="326" text-anchor="middle">m³/h</text>
+            <polygon id="svgCarbArrowDownB" points="809,336 821,336 815,346" fill="#fbbf24" visibility="hidden" pointer-events="none" />
+            <polygon id="svgCarbArrowLeftB" points="821,337 809,343 821,349" fill="#7dd3fc" visibility="hidden" pointer-events="none" />
           </g>
           <!-- Filtro A · x=724…774 -->
           <g class="node" tabindex="0" data-popup="carbone" data-carb-line="A" role="button" aria-label="Filtri carb A · gestione lavaggi">
@@ -9352,8 +9356,8 @@
       const d = carbDeliveredPair();
       const a = el("svgQCarbA");
       const b = el("svgQCarbB");
-      if (a && !isEditing("qCarbA")) a.textContent = String(d.a);
-      if (b && !isEditing("qCarbB")) b.textContent = String(d.b);
+      if (a && !isEditing("qCarbA")) a.textContent = round1(d.a).toFixed(1);
+      if (b && !isEditing("qCarbB")) b.textContent = round1(d.b).toFixed(1);
       let washA = false;
       let washB = false;
       try {
