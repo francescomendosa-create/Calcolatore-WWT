@@ -547,25 +547,51 @@
       margin-bottom: 6px;
     }
     details.sludge-fold {
-      margin-top: 12px;
-      border: 1px solid #334155;
-      border-radius: 8px;
-      background: #0f172a88;
-      padding: 8px 10px;
+      margin-top: 16px;
+      margin-bottom: 8px;
+      border: 1px solid #475569;
+      border-radius: 10px;
+      background: #0f172a;
+      padding: 0 0 4px;
+      overflow: hidden;
+    }
+    details.sludge-fold + .actions {
+      margin-top: 22px;
     }
     details.sludge-fold > summary {
       cursor: pointer;
+      text-align: center;
+      font-size: 1.08rem;
       font-weight: 700;
-      color: #e2e8f0;
+      letter-spacing: 0.02em;
+      color: #f8fafc;
+      background: #1e293b;
+      padding: 12px 16px;
       list-style: none;
+      user-select: none;
     }
     details.sludge-fold > summary::-webkit-details-marker { display: none; }
     details.sludge-fold > summary::before {
-      content: "▸ ";
-      color: #94a3b8;
+      content: "▸  ";
+      color: #7dd3fc;
     }
-    details.sludge-fold[open] > summary::before { content: "▾ "; }
-    details.sludge-fold > summary:hover { color: #f8fafc; }
+    details.sludge-fold[open] {
+      border-color: #38bdf8;
+    }
+    details.sludge-fold[open] > summary {
+      background: #0c4a6e;
+      color: #f0f9ff;
+      border-bottom: 2px solid #38bdf8;
+      margin-bottom: 8px;
+    }
+    details.sludge-fold[open] > summary::before { content: "▾  "; color: #fde68a; }
+    details.sludge-fold > summary:hover { background: #334155; }
+    details.sludge-fold[open] > summary:hover { background: #075985; }
+    details.sludge-fold > .mini,
+    details.sludge-fold > .row {
+      margin-left: 10px;
+      margin-right: 10px;
+    }
     #popBlocchi .block-action.ok-line {
       margin: 8px 0 0;
       padding: 10px 12px;
@@ -1695,7 +1721,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v226</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v227</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -3252,7 +3278,7 @@
         </label>
       </div>
       <details class="sludge-fold">
-        <summary>Ciclo estrazione fanghi A11004</summary>
+        <summary>Ciclo estrazione fanghi · A11004</summary>
         <p class="mini" id="sludgeMemHint" style="margin-top:8px">Stessi tempi di PROCESSO. Bordo ambra = valvola di scarico aperta.</p>
         <div class="row"><label><strong>A · XV-11008 · apertura (s)</strong><input type="number" id="sludgeOpenAMbr" min="1" max="20000" step="1" value="1927" inputmode="numeric" /></label><label><strong>Attesa avvio (min)</strong><input type="number" id="sludgeWaitAMbr" min="0" max="120" step="0.1" value="2" inputmode="decimal" /></label></div>
         <div class="row"><label><strong>B · XV-11014 · apertura (s)</strong><input type="number" id="sludgeOpenBMbr" min="1" max="20000" step="1" value="2917" inputmode="numeric" /></label><label><strong>Attesa avvio (min)</strong><input type="number" id="sludgeWaitBMbr" min="0" max="120" step="0.1" value="2" inputmode="decimal" /></label></div>
