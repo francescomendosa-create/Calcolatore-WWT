@@ -1143,6 +1143,7 @@
       max-width: none;
       margin: 0 auto;
     }
+    #flowEditUp, #flowEditDown { touch-action: manipulation; }
     .flow-numpad-grid button {
       appearance: none;
       height: 44px;
@@ -1725,7 +1726,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v233</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v234</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -4943,6 +4944,9 @@
     }
 
     let __regPreviewTimer = 0;
+    let __forecastAsyncGen = 0;
+    let __forecastPumping = false;
+    let __forecastPumpGen = 0;
     let __blocchiRefreshTimer = 0;
     let __regPreviewSeq = 0;
     /** Timestamp ultimo cambio operatore (set/Hz/modo): preview immediata, niente isteresi. */
@@ -4993,9 +4997,15 @@
     /** Aggiorna subito (o quasi) bene/male + popup previsioni se aperto. */
     function scheduleRegPreview(opts) {
       opts = opts || {};
-      if (opts.userChange) bumpRegUserChange();
+      if (opts.userChange) {
+        bumpRegUserChange();
+        // Un tocco interrompe il conto da 8 ore già in corso, così il numpad resta libero.
+        __forecastAsyncGen++;
+        __forecastPumping = false;
+      }
       const delay = opts.immediate || opts.userChange ? 0 : (opts.delay != null ? opts.delay : 70);
       if (__regPreviewTimer) clearTimeout(__regPreviewTimer);
+      if (!opts.userChange && __forecastPumping) return;
       __regPreviewTimer = setTimeout(() => {
         __regPreviewTimer = 0;
         try { paintRegPreviewBar(); } catch (_) { /* ok */ }
@@ -5034,8 +5044,23 @@
       bar.setAttribute("data-clickable", "1");
       const seq = ++__regPreviewSeq;
       try {
-        const fc = forecastChimicoHorizon(BLOCK_FORECAST_HORIZON);
-        if (seq !== __regPreviewSeq) return; // risposta obsoleta
+        forecastChimicoHorizon(BLOCK_FORECAST_HORIZON, {
+          onDone(fc) {
+            if (seq !== __regPreviewSeq || !fc) return;
+            paintRegPreviewFromForecast(bar, fc, seq);
+          },
+        });
+      } catch (_) {
+        if (seq !== __regPreviewSeq) return;
+        bar.className = "status warn";
+        bar.textContent = "Regolazione · in aggiornamento…";
+        bar.title = "Clic: dettaglio previsione 8 ore";
+      }
+    }
+
+    function paintRegPreviewFromForecast(bar, fc, seq) {
+      try {
+        if (seq !== __regPreviewSeq) return;
         const etaMin = lockedBlockRemainMin(fc);
         if (fc) fc.displayBlockMin = etaMin;
         const adv = buildHorizonAdvice(fc);
@@ -5590,7 +5615,10 @@
         };
       }
 
-      for (let t = dt; t <= H; t += dt) {
+      let t = dt;
+      const stepForecastBudget = (budgetMs) => {
+        const sliceEnd = budgetMs > 0 ? performance.now() + budgetMs : Infinity;
+        while (t <= H) {
         if (liv20 <= stopS + 0.05) pumpBy20 = false;
         else if (liv20 >= startS - 0.05) pumpBy20 = true;
 
@@ -5723,10 +5751,15 @@
         } else if (!chimicoOn && liv20 <= start + 0.05) {
           chimicoOn = true;
         }
-      }
+          t += dt;
+          if (performance.now() >= sliceEnd) return false;
+        }
+        return true;
+      };
 
       // Solo blocco chimico A10620 trovato nel loop minuto-per-minuto entro H (8 ore).
       // Mai inventare tempi oltre l’orizzonte e mai stime grezze tipo “35 ore”.
+      const packForecast = () => {
       if (firstBlockMin != null && firstBlockMin > H) firstBlockMin = null;
 
       return {
@@ -5756,6 +5789,39 @@
         endLivP: round2(livP),
         endLivU: round2(livU),
       };
+      };
+
+      if (opts && typeof opts.onDone === "function") {
+        const gen = ++__forecastAsyncGen;
+        const pumpFc = () => {
+          if (gen !== __forecastAsyncGen) {
+            if (__forecastPumpGen === gen) __forecastPumping = false;
+            return;
+          }
+          __forecastPumping = true;
+          __forecastPumpGen = gen;
+          let done = false;
+          try { done = stepForecastBudget(20); }
+          catch (_) {
+            __forecastPumping = false;
+            return;
+          }
+          if (gen !== __forecastAsyncGen) {
+            __forecastPumping = false;
+            return;
+          }
+          if (!done) {
+            setTimeout(pumpFc, 0);
+            return;
+          }
+          __forecastPumping = false;
+          try { opts.onDone(packForecast()); } catch (_) { /* ok */ }
+        };
+        setTimeout(pumpFc, 0);
+        return null;
+      }
+      stepForecastBudget(0);
+      return packForecast();
     }
 
     function maxQinSafeForHorizon(horizonMin, opts) {
@@ -13187,6 +13253,31 @@
     const flowEditUnit = el("flowEditUnit");
     const flowNumpad = el("flowNumpad");
     let __flowNumpadFresh = false; // prossimo tasto numpad sostituisce il valore
+    let __inlineLiveTimer = 0;
+
+    function cancelScheduledInlineLive() {
+      if (__inlineLiveTimer) {
+        clearTimeout(__inlineLiveTimer);
+        __inlineLiveTimer = 0;
+      }
+    }
+
+    /** Il numero in schermo è già aggiornato. Il bilancio e i blocchi partono a raffica finita. */
+    function scheduleInlineLive() {
+      try {
+        __forecastAsyncGen++;
+        __forecastPumping = false;
+        if (__regPreviewTimer) {
+          clearTimeout(__regPreviewTimer);
+          __regPreviewTimer = 0;
+        }
+      } catch (_) { /* ok */ }
+      if (__inlineLiveTimer) clearTimeout(__inlineLiveTimer);
+      __inlineLiveTimer = setTimeout(() => {
+        __inlineLiveTimer = 0;
+        try { applyInlineLive(); } catch (_) { /* ok */ }
+      }, 160);
+    }
     let __flowEditGuardUntil = 0; // evita chiusura fantasma al rilascio dito su tablet
     // inlineCtx dichiarato in alto (condiviso con isEditing / applyBalance)
 
@@ -13286,6 +13377,7 @@
       panel.style.transform = "";
     }
     function hideInline() {
+      cancelScheduledInlineLive();
       hideFlowNumpad();
       resetFlowEditPanelPos();
       if (flowEditBack) flowEditBack.classList.remove("show");
@@ -13441,7 +13533,7 @@
       if (inlineCtx.field === "freqHz") v = clampFreq(v);
       inlineInp.value = step >= 1 ? String(v) : String(v);
       __flowNumpadFresh = true;
-      applyInlineLive();
+      scheduleInlineLive();
       if (inlineCtx.field === "qP11019Ias") applyP11019SplitFrom("ias", v);
       else if (inlineCtx.field === "qP11019Impianto") applyP11019SplitFrom("impianto", v);
       updateFlowEditCorr();
@@ -13463,7 +13555,7 @@
         } else {
           inlineInp.value = cur.slice(0, -1);
         }
-        applyInlineLive();
+        scheduleInlineLive();
         return;
       }
       if (key === ".") {
@@ -13474,7 +13566,7 @@
         } else if (!cur.includes(".")) {
           inlineInp.value = (cur === "" ? "0" : cur) + ".";
         }
-        applyInlineLive();
+        scheduleInlineLive();
         return;
       }
       if (__flowNumpadFresh || Number(cur) > 500 || cur.length >= 4) {
@@ -13485,7 +13577,7 @@
         if (cur === "0" && key !== ".") inlineInp.value = key;
         else inlineInp.value = cur + key;
       }
-      applyInlineLive();
+      scheduleInlineLive();
       updateFlowEditCorr();
     }
 
@@ -13620,6 +13712,7 @@
     }
 
     function commitInline() {
+      cancelScheduledInlineLive();
       if (!inlineCtx) {
         if (flowEditBack) flowEditBack.classList.remove("show");
         return;
@@ -14002,16 +14095,18 @@
       });
     });
 
-    el("flowEditUp")?.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      nudgeFlowEdit(1);
-    });
-    el("flowEditDown")?.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      nudgeFlowEdit(-1);
-    });
+    function bindFlowStepBtn(id, dir) {
+      const btn = el(id);
+      if (!btn) return;
+      btn.addEventListener("pointerdown", (e) => {
+        if (e.button != null && e.button !== 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        nudgeFlowEdit(dir);
+      });
+    }
+    bindFlowStepBtn("flowEditUp", 1);
+    bindFlowStepBtn("flowEditDown", -1);
     el("flowEditOk")?.addEventListener("click", (e) => {
       e.preventDefault();
       playCasioClick();
@@ -14069,7 +14164,7 @@
         showFlowNumpad();
       }
     });
-    inlineInp.addEventListener("input", applyInlineLive);
+    inlineInp.addEventListener("input", scheduleInlineLive);
     inlineInp.addEventListener("keydown", (e) => {
       if (e.key === "Enter") { e.preventDefault(); commitInline(); }
       if (e.key === "Escape") {
@@ -14081,9 +14176,10 @@
       if (e.key === "ArrowDown") { e.preventDefault(); nudgeFlowEdit(-1); }
     });
 
-    flowNumpad?.addEventListener("click", (e) => {
+    flowNumpad?.addEventListener("pointerdown", (e) => {
       const btn = e.target.closest("button[data-np]");
       if (!btn) return;
+      if (e.button != null && e.button !== 0) return;
       e.preventDefault();
       e.stopPropagation();
       playCasioKey();
