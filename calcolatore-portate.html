@@ -1726,7 +1726,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v238</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v239</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -5003,7 +5003,9 @@
         __forecastAsyncGen++;
         __forecastPumping = false;
       }
-      const delay = opts.immediate || opts.userChange ? 0 : (opts.delay != null ? opts.delay : 70);
+      const delay = opts.delay != null
+        ? opts.delay
+        : (opts.userChange ? 180 : 70);
       if (__regPreviewTimer) clearTimeout(__regPreviewTimer);
       if (!opts.userChange && __forecastPumping) {
         __forecastRerun = true;
@@ -5047,12 +5049,9 @@
       bar.setAttribute("data-clickable", "1");
       const seq = ++__regPreviewSeq;
       try {
-        forecastChimicoHorizon(BLOCK_FORECAST_HORIZON, {
-          onDone(fc) {
-            if (seq !== __regPreviewSeq || !fc) return;
-            paintRegPreviewFromForecast(bar, fc, seq);
-          },
-        });
+        const fc = forecastChimicoHorizon(BLOCK_FORECAST_HORIZON);
+        if (seq !== __regPreviewSeq || !fc) return;
+        paintRegPreviewFromForecast(bar, fc, seq);
       } catch (_) {
         if (seq !== __regPreviewSeq) return;
         bar.className = "status warn";
@@ -5105,29 +5104,10 @@
         }
         const stateKey = regOk
           ? "ok"
-          : `bad:${(adv && adv.focus) || "x"}:${etaMin != null ? Math.floor(etaMin / 5) : "x"}`;
-        const now = Date.now();
-        const userJustChanged = __regUserBumpAt > 0 && (now - __regUserBumpAt) < 900;
-        let apply = false;
-        if (userJustChanged || !__regBarShown.key || stateKey === __regBarShown.key) {
-          apply = true;
-          __regBarPending = { key: stateKey, since: now };
-        } else if (__regBarPending.key === stateKey) {
-          if (now - __regBarPending.since >= REG_BAR_HOLD_MS) apply = true;
-        } else {
-          __regBarPending = { key: stateKey, since: now };
-        }
-        if (!apply) {
-          cls = __regBarShown.cls;
-          text = __regBarShown.text;
-          bar.title = __regBarShown.title;
-          warnBadge = __regBarShown.warn;
-        } else {
-          __regBarShown = { key: stateKey, cls, text, title: bar.title, warn: warnBadge };
-        }
+          : `bad:${(adv && adv.focus) || "x"}:${etaMin != null ? Math.round(etaMin) : "x"}`;
+        __regBarShown = { key: stateKey, cls, text, title: bar.title, warn: warnBadge };
         if (__simPlaying || __simMin > 0) {
-          const base = apply ? text : __regBarShown.text;
-          text = `t=${__simMin}′ · ` + String(base || text).replace(/^t=\d+′ · /, "");
+          text = `t=${__simMin}′ · ` + String(text).replace(/^t=\d+′ · /, "");
         }
         bar.className = cls;
         bar.textContent = text;
@@ -6643,6 +6623,12 @@
       }
       let adv = null;
       try { adv = fc ? buildHorizonAdvice(fc) : null; } catch (_) { adv = null; }
+      if (fc) {
+        const barNow = el("statusBar");
+        if (barNow) {
+          try { paintRegPreviewFromForecast(barNow, fc, __regPreviewSeq); } catch (_) { /* ok */ }
+        }
+      }
 
       // Prima dello Start (o non in blocco): priorità alla previsione 8 ore sui set attuali.
       // In blocco vivo: diagnosi immediata dell’evento.
@@ -11577,11 +11563,7 @@
         try {
           if (autoTick && (__simPlaying || __simMin > 0)) paintRegCountdownOnly();
           else {
-            scheduleRegPreview({
-              delay: 0,
-              userChange: true,
-              immediate: true,
-            });
+            scheduleRegPreview({ userChange: true });
           }
         } catch (_) { /* ok */ }
       } finally {
