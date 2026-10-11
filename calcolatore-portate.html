@@ -719,9 +719,11 @@
     #popSludgeAdj,
     #popSludgePct { z-index: 80; }
     #popSludgePct { z-index: 100; }
+    #popSludgeBase { z-index: 110; }
     #popSludgeAdj .modal,
     #popSludgePct .modal { width: min(460px, 100%); }
-    #popSludgePct .modal { width: min(280px, 100%); }
+    #popSludgePct .modal,
+    #popSludgeBase .modal { width: min(280px, 100%); }
     .sludge-adj-head {
       margin-left: auto;
       display: flex;
@@ -729,7 +731,8 @@
       gap: 8px;
     }
     #sludgeAdjX,
-    #sludgePctX {
+    #sludgePctX,
+    #sludgeBaseX {
       border: 0;
       background: var(--panel-2);
       color: var(--text);
@@ -777,7 +780,20 @@
       font-variant-numeric: tabular-nums;
       font-weight: 800;
     }
-    .sludge-adj-base { color: #cbd5e1; font-size: 0.95rem; }
+    .sludge-adj-base {
+      appearance: none;
+      justify-self: start;
+      border: 1px solid #38bdf8;
+      background: #0c4a6e;
+      color: #e0f2fe;
+      border-radius: 8px;
+      padding: 4px 10px;
+      cursor: pointer;
+      font: inherit;
+      font-variant-numeric: tabular-nums;
+      font-weight: 800;
+      font-size: 0.95rem;
+    }
     .sludge-adj-res {
       min-width: 4.2rem;
       text-align: right;
@@ -827,7 +843,8 @@
       font-size: 1rem;
       cursor: pointer;
     }
-    #sludgePctNum {
+    #sludgePctNum,
+    #sludgeBaseNum {
       font-size: 2rem;
       font-weight: 800;
       font-variant-numeric: tabular-nums;
@@ -835,6 +852,24 @@
       min-width: 3ch;
       text-align: center;
     }
+    .sludge-base-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      margin-top: 12px;
+    }
+    .sludge-base-grid button {
+      padding: 10px 0;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      color: var(--text);
+      font-weight: 800;
+      font-size: 1.05rem;
+      cursor: pointer;
+    }
+    .sludge-base-grid button.np-back { color: #fbbf24; }
+    .sludge-base-grid button.np-clear { color: #f87171; font-size: 0.82rem; }
     #popBlocchi .block-action.ok-line {
       margin: 8px 0 0;
       padding: 10px 12px;
@@ -1972,7 +2007,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v255</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v257</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -3610,6 +3645,34 @@
       <div class="actions"><button type="button" id="sludgePctOk">OK</button></div>
     </div>
   </div>
+  <div class="modal-back" id="popSludgeBase" role="dialog" aria-modal="true" aria-labelledby="sludgeBaseTitle">
+    <div class="modal">
+      <h3>
+        <span id="sludgeBaseTitle">Numero</span>
+        <button type="button" id="sludgeBaseX" aria-label="Chiudi">&times;</button>
+      </h3>
+      <div class="sludge-pct-spin">
+        <button type="button" id="sludgeBaseUp" aria-label="Aumenta">▲</button>
+        <div id="sludgeBaseNum">0</div>
+        <button type="button" id="sludgeBaseDown" aria-label="Diminuisci">▼</button>
+      </div>
+      <div class="sludge-base-grid" id="sludgeBasePad">
+        <button type="button" data-nb="1">1</button>
+        <button type="button" data-nb="2">2</button>
+        <button type="button" data-nb="3">3</button>
+        <button type="button" data-nb="4">4</button>
+        <button type="button" data-nb="5">5</button>
+        <button type="button" data-nb="6">6</button>
+        <button type="button" data-nb="7">7</button>
+        <button type="button" data-nb="8">8</button>
+        <button type="button" data-nb="9">9</button>
+        <button type="button" class="np-clear" data-nb="clear">C</button>
+        <button type="button" data-nb="0">0</button>
+        <button type="button" class="np-back" data-nb="back">⌫</button>
+      </div>
+      <div class="actions"><button type="button" id="sludgeBaseOk">OK</button></div>
+    </div>
+  </div>
 
   <!-- POPUP TK 11007 PERMEATO -->
   <div class="modal-back" id="popPermeato" role="dialog" aria-modal="true">
@@ -4305,6 +4368,9 @@
     let __sludgePctTarget = "all";
     let __sludgePctSign = 1;
     let __sludgePctN = 0;
+    let __sludgeBaseTarget = "";
+    let __sludgeBaseStr = "0";
+    let __sludgeBaseFresh = true;
     // Pause a coppie sfalsate: ciascuna fa 7′+1′, ma non tutte insieme
     const MBR_PAUSE_PAIRS = [
       ["A", "D"],
@@ -5473,6 +5539,23 @@
       }
     }
 
+    function valleyCauseOf(fc) {
+      const qIn = Math.max(0, Number(fc && fc.qInSp) || 0);
+      const qOsm = Math.max(0, Number(fc && fc.qOsmCap) || 0);
+      const qCarb = Math.max(0, Number(fc && fc.qImpSp) || 0);
+      const qIas = Math.max(0, Number(fc && fc.qIasSp) || 0);
+      const osmShort = qIn > 0.5 && qOsm + 0.5 < qIn;
+      const carbShort = qIn > 0.5 && qCarb + 0.5 < qIn;
+      const osmBacksUp = qCarb > 0.5 && qOsm + 0.5 < qCarb;
+      const ufClosed = !!(fc && fc.snap && fc.snap.allowUf === false);
+      let cause = "osm";
+      if (osmShort && carbShort && osmBacksUp) cause = "both";
+      else if (osmShort || osmBacksUp || (ufClosed && qOsm + 0.5 < qIn)) cause = "osm";
+      else if (carbShort) cause = "carb";
+      else if (ufClosed) cause = "osm";
+      return { cause, qIn, qOsm, qCarb, qIas, osmShort, carbShort, osmBacksUp, ufClosed };
+    }
+
     function shortRegPreviewBad(adv, fc) {
       const eta = fc && fc.displayBlockMin != null ? fc.displayBlockMin : (fc && fc.firstBlockMin);
       const when = (eta != null && Number(eta) <= BLOCK_FORECAST_HORIZON) ? fmtForecastWhen(eta) : null;
@@ -5507,11 +5590,17 @@
       if (focus === "levels") {
         return when ? `Regolazione OK · attenzione livelli ~${when}` : `Regolazione OK · attenzione livelli`;
       }
-      if (focus === "osm") {
-        const qExp = fc && fc.qSiteExport != null ? fmtQ(fc.qSiteExport)
-          : (fc && fc.qOsmCap != null ? fmtQ(fc.qOsmCap) : "—");
-        const qIn = fc && fc.qInSp != null ? fmtQ(fc.qInSp) : "—";
-        return `Male · valle corta (export ${qExp} < chimico ${qIn})${whenBit}`;
+      if (focus === "osm" || focus === "carb" || focus === "both") {
+        const v = valleyCauseOf(fc);
+        const use = focus;
+        const qSafeBit = qSafe ? ` · oppure chimico ≤ ${qSafe}` : " · oppure scendi il chimico";
+        if (use === "carb") {
+          return `Male · filtri a carbone bassi (${fmtQ(v.qCarb)} < chimico ${fmtQ(v.qIn)})${whenBit} · alza i carboni${qSafeBit}`;
+        }
+        if (use === "both") {
+          return `Male · osmosi ${fmtQ(v.qOsm)} e carboni ${fmtQ(v.qCarb)} < chimico ${fmtQ(v.qIn)}${whenBit} · alza le osmosi${qSafeBit}`;
+        }
+        return `Male · osmosi basse (${fmtQ(v.qOsm)} < chimico ${fmtQ(v.qIn)})${whenBit} · alza le osmosi${qSafeBit}`;
       }
       return qSafe
         ? `Male · regola impianto · o chimico ≤ ${qSafe}${whenBit}`
@@ -6685,27 +6774,53 @@
           yesApplyValue = roundMem(qMemTarget);
         }
       } else if (fc.reason === "valley") {
-        // Solo se membrane già ok e il loop ha bloccato A10620 per valle — non per flag export 120 vs 160.
-        focus = "osm";
-        device = "osmosi / IAS";
-        const qOsmHave = fc.qOsmCap != null ? fc.qOsmCap : 0;
-        const qIasHave = fc.qIasSp != null ? fc.qIasSp : 0;
-        const qExpHave = fc.qSiteExport != null ? fc.qSiteExport : round1(qOsmHave + qIasHave);
-        target = Math.max(qInSp, 1);
-        haveNow = qExpHave;
+        const v = valleyCauseOf(fc);
+        focus = v.cause;
+        const qSafeBit = Number.isFinite(Number(qSafeSamePumps))
+          ? ` a ≤ <strong class="flow-val">${fmtQ(qSafeSamePumps)} m³/h</strong>`
+          : "";
+        const carbTxt = v.qIas > 0.5
+          ? `<strong>${fmtQ(v.qCarb)} m³/h</strong> (IAS ne toglie <strong>${fmtQ(v.qIas)}</strong> dalle P11019)`
+          : `<strong>${fmtQ(v.qCarb)} m³/h</strong>`;
+        const livUblk = fc.snap && fc.snap.livU != null ? fmtBlockPct(fc.snap.livU) : null;
+        const tk21 = v.osmBacksUp
+          ? ` Il TK 11021 riceve dai filtri a carbone ${fmtQ(v.qCarb)} m³/h e le osmosi prelevano solo ${fmtQ(v.qOsm)}: si riempie`
+            + (livUblk ? ` (allo stop è a ${livUblk})` : "")
+            + ` e chiude UF e valle.`
+          : "";
+        const seen = ` Vede chimico <strong>${fmtQ(v.qIn)}</strong> · osmosi A B C <strong>${fmtQ(v.qOsm)}</strong> · verso carboni ${carbTxt} · IAS <strong>${fmtQ(v.qIas)}</strong>.`;
         anomaly = true;
         near = false;
-        verdict = `Male: <strong>valle corta</strong> — P11011 già a set (<strong>${havePumpLbl}</strong>), ma `
-          + `export sito <strong class="flow-val">${fmtQ(qExpHave)} m³/h</strong> `
-          + `(osmosi ${fmtQ(qOsmHave)} + IAS ${fmtQ(qIasHave)}) `
-          + `vs chimico <strong>${fmtQ(qInSp)}</strong> (manca ≈ <strong class="flow-val">${fmtQ(Math.max(0, qInSp - qExpHave))}</strong>).`
-          + whenHtml;
-        action = `Alza export sito (osmosi e/o IAS) a ≥ <span class="flow-val">${fmtQ(qInSp)} m³/h</span>, `
-          + `oppure scendi il chimico. Non toccare P11011/Hz se già in Automatico.`;
-        askQ = `Puoi portare l’export (osmosi + IAS) a ≥ <strong class="flow-val">${fmtQ(qInSp)} m³/h</strong> `
-          + `(ora ${fmtQ(qExpHave)})?`;
-        yesHtml = `Ok: export sito ≥ <strong class="flow-val">${fmtQ(qInSp)} m³/h</strong>.`;
-        noHtml = cfLowerNoHtml(qSafeSamePumps, "osmosi / IAS", qExpHave);
+        haveNow = v.cause === "carb" ? v.qCarb : v.qOsm;
+        target = Math.max(v.qIn, 1);
+        if (v.cause === "carb") {
+          device = "filtri a carbone";
+          verdict = `Male: il problema sono i <strong>filtri a carbone</strong>. Verso carboni ${carbTxt}, sotto il chimico <strong>${fmtQ(v.qIn)}</strong>. Le osmosi a <strong>${fmtQ(v.qOsm)}</strong> non sono il collo di bottiglia.`
+            + seen + tk21 + whenHtml
+            + ` Soluzione: alza la portata verso i carboni a ≥ <strong class="flow-val">${fmtQ(v.qIn)} m³/h</strong>, oppure scendi il chimico-fisico${qSafeBit}.`;
+          action = `Portata verso carboni → ≥ <span class="flow-val">${fmtQ(v.qIn)} m³/h</span>, oppure chimico più basso.`;
+          askQ = `Puoi alzare la portata verso i <strong>filtri a carbone</strong> a ≥ <strong class="flow-val">${fmtQ(v.qIn)} m³/h</strong> (ora ${fmtQ(v.qCarb)})?`;
+          yesHtml = `Ok: verso carboni ≥ <strong class="flow-val">${fmtQ(v.qIn)} m³/h</strong>.`;
+          noHtml = `Allora scendi il chimico-fisico${qSafeBit || ""}. I carboni restano a <strong>${fmtQ(v.qCarb)} m³/h</strong>.`;
+        } else if (v.cause === "both") {
+          device = "osmosi e carboni";
+          verdict = `Male: <strong>osmosi e filtri a carbone</strong> sono tutti e due sotto il chimico. Osmosi <strong>${fmtQ(v.qOsm)}</strong>, verso carboni ${carbTxt}, chimico <strong>${fmtQ(v.qIn)}</strong>.`
+            + seen + tk21 + whenHtml
+            + ` Soluzione: alza le osmosi A B C a ≥ <strong class="flow-val">${fmtQ(v.qIn)} m³/h</strong> (e i carboni se restano sotto), oppure scendi il chimico-fisico${qSafeBit}.`;
+          action = `Osmosi → ≥ <span class="flow-val">${fmtQ(v.qIn)} m³/h</span>, oppure chimico più basso.`;
+          askQ = `Puoi alzare le <strong>osmosi A B C</strong> a ≥ <strong class="flow-val">${fmtQ(v.qIn)} m³/h</strong> (ora ${fmtQ(v.qOsm)})?`;
+          yesHtml = `Ok: osmosi ≥ <strong class="flow-val">${fmtQ(v.qIn)} m³/h</strong>.`;
+          noHtml = `Allora scendi il chimico-fisico${qSafeBit || ""}. Osmosi <strong>${fmtQ(v.qOsm)}</strong> e carboni <strong>${fmtQ(v.qCarb)}</strong> restano così.`;
+        } else {
+          device = "osmosi A B C";
+          verdict = `Male: il problema sono le <strong>osmosi</strong>, regolate basse. A B C insieme fanno <strong>${fmtQ(v.qOsm)} m³/h</strong>, il chimico è <strong>${fmtQ(v.qIn)}</strong>.`
+            + seen + tk21 + whenHtml
+            + ` Soluzione: alza le osmosi A B C a ≥ <strong class="flow-val">${fmtQ(v.qIn)} m³/h</strong>, oppure scendi il chimico-fisico${qSafeBit}.`;
+          action = `Osmosi A B C → ≥ <span class="flow-val">${fmtQ(v.qIn)} m³/h</span>, oppure chimico più basso.`;
+          askQ = `Puoi alzare le <strong>osmosi A B C</strong> a ≥ <strong class="flow-val">${fmtQ(v.qIn)} m³/h</strong> (ora ${fmtQ(v.qOsm)})?`;
+          yesHtml = `Ok: osmosi A B C ≥ <strong class="flow-val">${fmtQ(v.qIn)} m³/h</strong>.`;
+          noHtml = `Allora scendi il chimico-fisico${qSafeBit || ""}. Le osmosi restano a <strong>${fmtQ(v.qOsm)} m³/h</strong>.`;
+        }
       } else if (qPumpTarget > qMax + 0.05) {
         forceAlt = true;
         focus = "cf";
@@ -6747,7 +6862,7 @@
           noHtml,
           hideAltOnNo: false,
         };
-      } else if (focus === "osm" && askQ) {
+      } else if ((focus === "osm" || focus === "carb" || focus === "both") && askQ) {
         ask = {
           key: `fc-osm-${fmtQ(target)}-${fmtQ(haveNow)}-${fmtQ(qInSp)}`,
           q: askQ,
@@ -8202,7 +8317,7 @@
           '<div class="sludge-adj-row">' +
             '<div class="sludge-adj-left">' +
               '<span class="sludge-adj-name">' + SLUDGE_VALVE_NAME[L] + '</span>' +
-              '<span class="sludge-adj-base">' + row.base + '</span>' +
+              '<button type="button" class="sludge-adj-base" data-sludge-base="' + L + '">' + row.base + '</button>' +
             '</div>' +
             '<button type="button" class="sludge-adj-pctbtn" data-sludge-pct="' + L + '">' + center + '</button>' +
             '<span class="sludge-adj-res">' + sludgeAdjResult(row) + '</span>' +
@@ -8224,6 +8339,7 @@
       const pop = el("popSludgeAdj");
       if (pop) pop.classList.remove("show");
       hideSludgePct();
+      hideSludgeBase();
       try { syncScrollLock(); } catch (_) { /* ok */ }
     }
 
@@ -8257,6 +8373,71 @@
       const pop = el("popSludgePct");
       if (pop) pop.classList.remove("show");
       try { syncScrollLock(); } catch (_) { /* ok */ }
+    }
+
+    function paintSludgeBasePicker() {
+      const n = el("sludgeBaseNum");
+      if (n) n.textContent = __sludgeBaseStr === "" ? "0" : __sludgeBaseStr;
+      const title = el("sludgeBaseTitle");
+      const name = SLUDGE_VALVE_NAME[__sludgeBaseTarget] || "Numero";
+      if (title) title.textContent = name;
+    }
+
+    function openSludgeBase(L) {
+      if (!__sludgeAdj || !__sludgeAdj.rows[L]) return;
+      __sludgeBaseTarget = L;
+      __sludgeBaseStr = String(Math.max(0, Math.round(Number(__sludgeAdj.rows[L].base) || 0)));
+      __sludgeBaseFresh = true;
+      paintSludgeBasePicker();
+      const pop = el("popSludgeBase");
+      if (pop) pop.classList.add("show");
+      try { syncScrollLock(); } catch (_) { /* ok */ }
+    }
+
+    function hideSludgeBase() {
+      const pop = el("popSludgeBase");
+      if (pop) pop.classList.remove("show");
+      try { syncScrollLock(); } catch (_) { /* ok */ }
+    }
+
+    function sludgeBaseApplyKey(key) {
+      if (key === "clear") {
+        __sludgeBaseStr = "";
+        __sludgeBaseFresh = false;
+      } else if (key === "back") {
+        __sludgeBaseStr = __sludgeBaseFresh ? "" : __sludgeBaseStr.slice(0, -1);
+        __sludgeBaseFresh = false;
+      } else {
+        let next = (__sludgeBaseFresh || __sludgeBaseStr === "0") ? key : (__sludgeBaseStr + key);
+        const n = parseInt(next, 10);
+        if (!Number.isFinite(n) || n > 20000) return;
+        __sludgeBaseStr = String(n);
+        __sludgeBaseFresh = false;
+      }
+      paintSludgeBasePicker();
+    }
+
+    function sludgeBaseStep(dir) {
+      let n = parseInt(__sludgeBaseStr, 10);
+      if (!Number.isFinite(n)) n = 0;
+      n = Math.max(0, Math.min(20000, n + dir));
+      __sludgeBaseStr = String(n);
+      __sludgeBaseFresh = true;
+      paintSludgeBasePicker();
+    }
+
+    function commitSludgeBase() {
+      if (!__sludgeAdj || !__sludgeAdj.rows[__sludgeBaseTarget]) {
+        hideSludgeBase();
+        return;
+      }
+      let n = parseInt(__sludgeBaseStr, 10);
+      if (!Number.isFinite(n)) n = 0;
+      n = Math.max(0, Math.min(20000, n));
+      __sludgeAdj.rows[__sludgeBaseTarget].base = n;
+      hideSludgeBase();
+      paintSludgeAdj();
+      try { schedulePersist(); } catch (_) { /* ok */ }
     }
 
     function commitSludgePct() {
@@ -13810,8 +13991,10 @@
       if (flowBack && flowBack.classList.contains("show")) return true;
       const adj = el("popSludgeAdj");
       const pct = el("popSludgePct");
+      const base = el("popSludgeBase");
       if (adj && adj.classList.contains("show")) return true;
       if (pct && pct.classList.contains("show")) return true;
+      if (base && base.classList.contains("show")) return true;
       return Object.values(popups).some((p) => p && p.classList.contains("show"));
     }
 
@@ -15178,7 +15361,7 @@
     });
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
-        if (el("popSludgePct")?.classList.contains("show") || el("popSludgeAdj")?.classList.contains("show")) {
+        if (el("popSludgePct")?.classList.contains("show") || el("popSludgeBase")?.classList.contains("show") || el("popSludgeAdj")?.classList.contains("show")) {
           e.preventDefault();
           return;
         }
@@ -15607,6 +15790,13 @@
       openSludgePct("all");
     });
     el("sludgeAdjRows")?.addEventListener("click", (e) => {
+      const baseBtn = e.target && e.target.closest ? e.target.closest("[data-sludge-base]") : null;
+      if (baseBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        openSludgeBase(baseBtn.getAttribute("data-sludge-base"));
+        return;
+      }
       const btn = e.target && e.target.closest ? e.target.closest("[data-sludge-pct]") : null;
       if (!btn) return;
       e.preventDefault();
@@ -15665,7 +15855,50 @@
     }
     bindSludgePctStep("sludgePctUp", 1);
     bindSludgePctStep("sludgePctDown", -1);
-    ["popSludgeAdj", "popSludgePct"].forEach((id) => {
+    el("sludgeBaseX")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      hideSludgeBase();
+    });
+    el("sludgeBaseOk")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      commitSludgeBase();
+    });
+    el("sludgeBasePad")?.addEventListener("click", (e) => {
+      const b = e.target && e.target.closest ? e.target.closest("[data-nb]") : null;
+      if (!b) return;
+      e.preventDefault();
+      e.stopPropagation();
+      sludgeBaseApplyKey(b.getAttribute("data-nb"));
+    });
+    function bindSludgeBaseStep(id, dir) {
+      const btn = el(id);
+      if (!btn) return;
+      let hold = 0;
+      let rep = 0;
+      const stop = () => {
+        if (hold) { clearTimeout(hold); hold = 0; }
+        if (rep) { clearInterval(rep); rep = 0; }
+      };
+      btn.addEventListener("pointerdown", (e) => {
+        if (e.button != null && e.button !== 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        stop();
+        sludgeBaseStep(dir);
+        hold = setTimeout(() => {
+          hold = 0;
+          rep = setInterval(() => sludgeBaseStep(dir), 50);
+        }, 260);
+      });
+      btn.addEventListener("pointerup", stop);
+      btn.addEventListener("pointercancel", stop);
+      btn.addEventListener("pointerleave", stop);
+    }
+    bindSludgeBaseStep("sludgeBaseUp", 1);
+    bindSludgeBaseStep("sludgeBaseDown", -1);
+    ["popSludgeAdj", "popSludgePct", "popSludgeBase"].forEach((id) => {
       el(id)?.addEventListener("click", (e) => {
         if (e.target === el(id)) e.stopPropagation();
       });
