@@ -1726,8 +1726,19 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v239</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v240</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
+    <script>
+      (function () {
+        var ua = navigator.userAgent || "";
+        var iPad = /iPad/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
+        var mobile = /Android|iPhone|iPod|Mobile|Tablet/i.test(ua);
+        var link = document.getElementById("wwtInstallLink");
+        if (!link || iPad || mobile) return;
+        link.textContent = "PC · App";
+        link.title = "Aperta da PC";
+      })();
+    </script>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
   </header>
@@ -1787,7 +1798,7 @@
 
         <!-- Chimico fisico -->
         <g class="node" tabindex="0" data-popup="ingresso" role="button" aria-label="Ingresso TOT OUT">
-          <rect class="tank-body" id="svgChimicoBody" x="18" y="45" width="88" height="105" rx="8" fill="#14532d" stroke="#4ade80" stroke-width="1.5" />
+          <rect class="tank-body" id="svgChimicoBody" x="18" y="45" width="88" height="126" rx="8" fill="#14532d" stroke="#4ade80" stroke-width="1.5" />
           <text x="62" y="75" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700" id="svgChimicoT1">CHIMICO</text>
           <text x="62" y="90" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700" id="svgChimicoT2">FISICO</text>
           <g class="flow-edit" data-field="qIn" data-source="ingresso">
@@ -1795,6 +1806,11 @@
             <text class="badge-label" x="62" y="118" text-anchor="middle">TOT OUT</text>
             <text class="badge-val" x="50" y="133" text-anchor="middle" id="svgQIn">150</text>
             <text class="badge-unit" x="78" y="133" text-anchor="middle">m³/h</text>
+          </g>
+          <g class="flow-edit" data-field="qIn" data-source="ingresso" aria-label="Setpoint chimico-fisico">
+            <rect class="badge" x="26" y="141" width="72" height="24" rx="5" stroke="#fbbf24" />
+            <text class="badge-sp" x="50" y="157" text-anchor="middle" id="svgQInSp">150</text>
+            <text class="badge-unit badge-unit-set" x="78" y="157" text-anchor="middle">set</text>
           </g>
           <text id="svgManIngresso" class="svg-man-mark" data-dev="ingresso" x="124" y="128" text-anchor="start" role="button" tabindex="0" aria-label="Modo ingresso">M</text>
         </g>
@@ -10296,6 +10312,8 @@
       paintChimico(num("qIn") > 0.05);
       const svgQIn0 = el("svgQIn");
       if (svgQIn0) svgQIn0.textContent = round1(num("qIn")).toFixed(1);
+      const svgQInSp0 = el("svgQInSp");
+      if (svgQInSp0) svgQInSp0.textContent = round1(num("qIn")).toFixed(1);
       paintPumpColors();
       paintA10608Passante();
       updateSimTimeUI();
@@ -11490,6 +11508,8 @@
         const svgQIn = el("svgQIn");
         // Chimico: sullo schizzo la portata EFFETTIVA (0 se stop riempimento)
         if (svgQIn) svgQIn.textContent = round1(qInEff).toFixed(1);
+        const svgQInSp = el("svgQInSp");
+        if (svgQInSp) svgQInSp.textContent = round1(Math.max(0, num("qIn"))).toFixed(1);
         // Occhio pompe: portata VIVA (in tween 0,5 s) — non sovrascrivere col target a scatto
         const svgQPump = el("svgQPump");
         if (svgQPump && !isEditing("qPump")) {
@@ -14075,6 +14095,8 @@
           const step = pumpStepForNeed(Math.max(flowSetpointOf("qMandata"), lastQMandata, 0));
           val = step.hz;
         }
+      } else if (field === "qIn") {
+        val = Math.max(0, num("qIn"));
       } else if (field === "qRecycle") {
         // Seed = set overview (in Aut = P11011 − ingresso; in Man = setpoint manuale)
         val = flowSetpointOf("qRecycle");
