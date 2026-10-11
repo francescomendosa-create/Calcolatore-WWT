@@ -593,29 +593,87 @@
       margin-left: 10px;
       margin-right: 10px;
     }
-    #popMembrane details.proc-fold {
-      margin: 0 0 12px;
+    #popMembrane details.proc-fold,
+    #popMembrane details.sludge-fold {
+      margin: 22px 0 0;
       border: none;
       background: transparent;
+      padding: 0;
+      overflow: visible;
     }
-    #popMembrane details.proc-fold > summary.proc-label {
-      list-style: none;
+    #popMembrane details.proc-fold > summary,
+    #popMembrane details.sludge-fold > summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      width: 100%;
+      box-sizing: border-box;
+      margin: 0;
+      padding: 13px 16px;
+      min-height: 54px;
+      border-radius: 12px;
+      border: 1px solid #7dd3fc;
+      border-bottom-color: #0369a1;
+      background: linear-gradient(180deg, #38bdf8 0%, #0284c7 42%, #0c4a6e 100%);
+      color: #f0f9ff;
+      font-size: 1.02rem;
+      font-weight: 800;
+      letter-spacing: 0.01em;
+      text-align: left;
       cursor: pointer;
+      list-style: none;
+      user-select: none;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.45),
+        inset 0 -2px 0 rgba(0, 0, 0, 0.22),
+        0 4px 0 #082f49,
+        0 8px 16px rgba(0, 0, 0, 0.35);
     }
-    #popMembrane details.proc-fold > summary.proc-label::-webkit-details-marker { display: none; }
-    #popMembrane details.proc-fold > summary.proc-label::after {
+    #popMembrane details.proc-fold > summary::-webkit-details-marker,
+    #popMembrane details.sludge-fold > summary::-webkit-details-marker { display: none; }
+    #popMembrane details.proc-fold > summary::before,
+    #popMembrane details.sludge-fold > summary::before,
+    #popMembrane details.proc-fold[open] > summary::before,
+    #popMembrane details.sludge-fold[open] > summary::before { content: none; }
+    #popMembrane details.proc-fold > summary::after,
+    #popMembrane details.sludge-fold > summary::after {
       content: "▸";
-      color: #7dd3fc;
-      font-size: 1.05rem;
+      color: #f0f9ff;
+      font-size: 1.2rem;
       line-height: 1;
       flex: 0 0 auto;
     }
-    #popMembrane details.proc-fold[open] > summary.proc-label::after {
+    #popMembrane details.proc-fold[open] > summary::after,
+    #popMembrane details.sludge-fold[open] > summary::after {
       content: "▾";
       color: #fde68a;
     }
-    #popMembrane details.proc-fold[open] > summary.proc-label {
-      margin-bottom: 10px;
+    #popMembrane details.proc-fold > summary:hover,
+    #popMembrane details.sludge-fold > summary:hover {
+      filter: brightness(1.06);
+    }
+    #popMembrane details.proc-fold[open] > summary,
+    #popMembrane details.sludge-fold[open] > summary {
+      background: linear-gradient(180deg, #075985 0%, #0c4a6e 100%);
+      border-color: #38bdf8;
+      box-shadow:
+        inset 0 3px 8px rgba(0, 0, 0, 0.4),
+        0 1px 0 #082f49;
+      transform: translateY(3px);
+      margin-bottom: 12px;
+    }
+    #popMembrane details.proc-fold > summary .mbr-fold-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+    #popMembrane details.proc-fold > summary small {
+      font-weight: 600;
+      color: #e0f2fe;
+      font-size: 0.72rem;
+      line-height: 1.25;
     }
     /* Racconti di stato: il programma li aggiorna, nel popup non si vedono. */
     #popMembrane .mbr-narration,
@@ -1762,7 +1820,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v250</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v251</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -3286,10 +3344,26 @@
         </span>
         <button type="button" data-close>&times;</button>
       </h3>
+      <label><strong>TOTALE membrane ON (m³/h)</strong>
+        <input type="number" id="qMemTotale" class="tot-mem" min="0" max="500" step="1" value="171" inputmode="numeric" />
+      </label>
+      <p class="mini" id="memMinHint">Set minimo vs chimico: totale ON × duty ≥ ingresso (calcolo automatico).</p>
+      <p class="mini mbr-narration">Variando il totale si ripartisce sulle membrane <strong>abilitate</strong>. <strong>H</strong> parte disattivata (rossa): tieni premuto sullo schema per riattivarla.</p>
+      <div class="mem-grid" id="memInputs"></div>
+      <div class="row" style="margin-top:8px">
+        <label><strong>Media effettiva (con ciclo)</strong>
+          <input type="number" id="qMemMedia" readonly />
+        </label>
+        <label><strong>Ingresso equilibrato</strong>
+          <input type="number" id="qInFromMem" readonly />
+        </label>
+      </div>
       <details class="proc-fold">
         <summary class="proc-label">
-          <span>PROCESSO — Membrane MBR</span>
-          <small>A–G abilitate · H parte disattivata · tieni premuto una vaschetta per on/off</small>
+          <span class="mbr-fold-text">
+            <span>PROCESSO — Membrane MBR</span>
+            <small>A–G abilitate · H parte disattivata · tieni premuto una vaschetta per on/off</small>
+          </span>
         </summary>
         <p class="mini" id="devModeHintMembrane">Modo membrane: segue l’impianto (Automatico generale).</p>
         <div class="row">
@@ -3335,20 +3409,6 @@
         </div>
         <p class="mini mbr-narration">Ciclo a coppie sfalsate: A+D, B+G, C+E, F sola — ciascuna 7′ lavoro + 1′ pausa, non tutte insieme. Blocco livello / TK 11007: tutte ferme.</p>
       </details>
-      <label><strong>TOTALE membrane ON (m³/h)</strong>
-        <input type="number" id="qMemTotale" class="tot-mem" min="0" max="500" step="1" value="171" inputmode="numeric" />
-      </label>
-      <p class="mini" id="memMinHint">Set minimo vs chimico: totale ON × duty ≥ ingresso (calcolo automatico).</p>
-      <p class="mini mbr-narration">Variando il totale si ripartisce sulle membrane <strong>abilitate</strong>. <strong>H</strong> parte disattivata (rossa): tieni premuto sullo schema per riattivarla.</p>
-      <div class="mem-grid" id="memInputs"></div>
-      <div class="row" style="margin-top:8px">
-        <label><strong>Media effettiva (con ciclo)</strong>
-          <input type="number" id="qMemMedia" readonly />
-        </label>
-        <label><strong>Ingresso equilibrato</strong>
-          <input type="number" id="qInFromMem" readonly />
-        </label>
-      </div>
       <details class="sludge-fold">
         <summary>Ciclo estrazione fanghi · A11004</summary>
         <p class="mini" id="sludgeMemHint" style="margin-top:8px">Stessi tempi di PROCESSO. Bordo ambra = valvola di scarico aperta.</p>
