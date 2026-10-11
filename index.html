@@ -1725,7 +1725,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v231</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v232</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -5313,29 +5313,31 @@
       return Math.max(1, (cal.qPumpRef * 100) / (60 * rate));
     }
 
+    /** Volume a monte del permeato: A10620 + A10611 + MBR + A11004. */
+    function upstreamPlantVolumeM3(liv20, liv11, livMbr, livH) {
+      const V20 = Math.max(1, getA10620Geom().V);
+      const V11 = a10611VolumeM3();
+      const Vm = Math.max(1, getMbrCommonVolume().V);
+      const Vh = Math.max(1, getA11004Volume().V);
+      return (Number(liv20) || 0) / 100 * V20
+        + (Number(liv11) || 0) / 100 * V11
+        + (Number(livMbr) || 0) / 100 * Vm
+        + (Number(livH) || 0) / 100 * Vh;
+    }
+
     /**
-     * Surplus che il SET membrane non copre: chimico − (totale × duty).
-     * La pausa di ciclo è già nel duty: al minimo tecnico il surplus è 0.
-     * L’acqua non esce: prima riempie il MBR fino allo stop delle 11036,
-     * poi A10611 fino allo stop alto, poi A10620 (lì si chiude il chimico).
+     * Mette m³ mancanti a monte: MBR → A10611 → A10620.
+     * Il riciclo non esporta: ciò che non esce come permeato resta in impianto.
      */
-    function absorbMembraneCapacityGap(liv, opts) {
+    function absorbUpstreamVolumeM3(liv, leftM3, opts) {
       opts = opts || {};
-      const qInSp = Math.max(0, Number(opts.qInSp) || 0);
-      const qMemSp = Math.max(0, Number(opts.qMemSp) || 0);
-      let d = 0.875;
-      try {
-        const du = duty();
-        if (du && du.d > 0.05) d = du.d;
-      } catch (_) { /* ok */ }
-      if (opts.duty != null && Number(opts.duty) > 0.05) d = Number(opts.duty);
-      const gapH = Math.max(0, qInSp - qMemSp * d);
-      const dt = Math.max(0, Number(opts.dtMin) || 1);
-      let left = opts.chimicoOn === false ? 0 : gapH * (dt / 60);
+      let left = Math.max(0, Number(leftM3) || 0);
       let livMbr = Number(liv.livMbr);
       let liv11 = Number(liv.liv11);
       let liv20 = Number(liv.liv20);
-      if (!(left > 1e-6)) return { livMbr, liv11, liv20, gapH };
+      if (!(left > 1e-9)) {
+        return { livMbr, liv11, liv20, left: 0 };
+      }
       const stopM = opts.stopMbrFill != null ? Number(opts.stopMbrFill) : (numOrNull("stopRiempMbr") ?? 92);
       const hiB = opts.hiBlock11 != null ? Number(opts.hiBlock11) : (numOrNull("stopAltoA10611") ?? 96);
       const Vm = Math.max(1, getMbrCommonVolume().V);
@@ -5350,11 +5352,45 @@
       liv11 += put11 / V11 * 100;
       left -= put11;
       liv20 += left / V20 * 100;
+      left = 0;
       return {
         livMbr: Math.max(0, Math.min(100, livMbr)),
         liv11: Math.max(0, Math.min(100, liv11)),
         liv20: Math.max(0, Math.min(100, liv20)),
-        gapH,
+        left,
+      };
+    }
+
+    /**
+     * Correzione unica TIME = previsione: ΔV a monte = (qIn − qPerm)·dt.
+     * Se i tassi empirici “perdono” acqua, la rimettiamo in MBR→A10611→A10620.
+     */
+    function correctUpstreamMassBalance(before, after, qIn, qPerm, dtMin, opts) {
+      const dt = Math.max(0, Number(dtMin) || 1);
+      const expect = Math.max(0, (Math.max(0, Number(qIn) || 0) - Math.max(0, Number(qPerm) || 0)) * (dt / 60));
+      const v0 = upstreamPlantVolumeM3(before.liv20, before.liv11, before.livMbr, before.livH);
+      const v1 = upstreamPlantVolumeM3(after.liv20, after.liv11, after.livMbr, after.livH);
+      const miss = expect - (v1 - v0);
+      if (!(miss > 1e-6)) {
+        return {
+          liv20: after.liv20,
+          liv11: after.liv11,
+          livMbr: after.livMbr,
+          livH: after.livH,
+          miss: 0,
+        };
+      }
+      const put = absorbUpstreamVolumeM3(
+        { livMbr: after.livMbr, liv11: after.liv11, liv20: after.liv20 },
+        miss,
+        opts
+      );
+      return {
+        liv20: put.liv20,
+        liv11: put.liv11,
+        livMbr: put.livMbr,
+        livH: after.livH,
+        miss,
       };
     }
 
@@ -5615,6 +5651,7 @@
           rU = ratePctPerMinFromVolume((allowUf ? qUf : 0) - qOsm, V21);
         } catch (_) { rU = 0; }
 
+        const beforeUp = { liv20, liv11, livMbr, livH };
         liv20 = Math.max(0, Math.min(100, liv20 + r20 * dt));
         liv11 = Math.max(0, Math.min(100, liv11 + r11 * dt));
         livH = Math.max(0, Math.min(100, livH + rH * dt));
@@ -5622,20 +5659,20 @@
         livP = Math.max(0, Math.min(100, livP + rP * dt));
         livU = Math.max(0, Math.min(100, livU + rU * dt));
 
-        // Set membrane sotto il minimo tecnico: l'uscita media non copre il chimico.
-        // Quel surplus resta in impianto (MBR → A10611 → A10620), non sparisce nel loop.
+        // Bilancio di massa: (qIn − permeato) resta a monte. Stesso conto del TIME.
         {
-          const gap = absorbMembraneCapacityGap(
-            { livMbr, liv11, liv20 },
-            {
-              qInSp, qMemSp, duty: dutyAvg, dtMin: dt,
-              chimicoOn: chimicoOn && qIn > 0.5,
-              stopMbrFill, hiBlock11: hiB,
-            }
+          const corr = correctUpstreamMassBalance(
+            beforeUp,
+            { liv20, liv11, livMbr, livH },
+            qIn,
+            qPerm,
+            dt,
+            { stopMbrFill, hiBlock11: hiB }
           );
-          livMbr = gap.livMbr;
-          liv11 = gap.liv11;
-          liv20 = gap.liv20;
+          liv20 = corr.liv20;
+          liv11 = corr.liv11;
+          livMbr = corr.livMbr;
+          livH = corr.livH;
         }
 
         if (livMbr >= stopMbrFill - 0.05) {
@@ -9634,25 +9671,25 @@
         r20 = rateA10620PctPerMin(qIn, 0, 0);
       }
 
+      const beforeUp = { liv20, liv11, livMbr, livH };
       let n20 = round2(Math.max(0, Math.min(100, liv20 + r20 * dtMin)));
       let n11 = round2(Math.max(0, Math.min(100, liv11 + r11 * dtMin)));
       let nH = round2(Math.max(0, Math.min(100, livH + rH * dtMin)));
       let nMbr = round2(Math.max(0, Math.min(100, livMbr + rMbr * dtMin)));
-      // Stesso conto della previsione: set membrane × duty sotto il chimico → surplus nei livelli.
+      // Stesso bilancio della previsione: ciò che non esce come permeato resta a monte.
       {
-        const qMemSpNow = Math.max(0, num("qMemTotale") || 0);
-        const gap = absorbMembraneCapacityGap(
-          { livMbr: nMbr, liv11: n11, liv20: n20 },
-          {
-            qInSp: qInSet,
-            qMemSp: qMemSpNow,
-            dtMin,
-            chimicoOn: __chimicoAllowFill !== false && qIn > 0.5,
-          }
+        const corr = correctUpstreamMassBalance(
+          beforeUp,
+          { liv20: n20, liv11: n11, livMbr: nMbr, livH: nH },
+          qIn,
+          qPerm,
+          dtMin,
+          {}
         );
-        nMbr = round2(gap.livMbr);
-        n11 = round2(gap.liv11);
-        n20 = round2(gap.liv20);
+        n20 = round2(corr.liv20);
+        n11 = round2(corr.liv11);
+        nMbr = round2(corr.livMbr);
+        nH = round2(corr.livH);
       }
       let nP = round2(Math.max(0, Math.min(100, livP + rP * dtMin)));
       let nU = round2(Math.max(0, Math.min(100, livU + rU * dtMin)));
