@@ -2088,7 +2088,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v267</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v268</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -2474,6 +2474,18 @@
 
         <!-- FILTRI CARB A · B — al centro tra collettore UF (688) e pompe P11019 (870) -->
         <g aria-label="Filtri carb A e B">
+          <g class="flow-edit" data-field="qCarbA" data-source="carb-linea" aria-label="Portata filtro carbone A">
+            <rect class="badge" x="716" y="318" width="62" height="36" rx="5" stroke="#7dd3fc" />
+            <text class="badge-val" id="svgQCarbA" x="740" y="341" text-anchor="middle" font-size="12" font-weight="800">70</text>
+            <polygon id="svgCarbArrowDownA" points="758,328 770,328 764,338" fill="#fbbf24" visibility="hidden" pointer-events="none" />
+            <polygon id="svgCarbArrowLeftA" points="770,330 758,336 770,342" fill="#7dd3fc" visibility="hidden" pointer-events="none" />
+          </g>
+          <g class="flow-edit" data-field="qCarbB" data-source="carb-linea" aria-label="Portata filtro carbone B">
+            <rect class="badge" x="782" y="318" width="62" height="36" rx="5" stroke="#7dd3fc" />
+            <text class="badge-val" id="svgQCarbB" x="806" y="341" text-anchor="middle" font-size="12" font-weight="800">70</text>
+            <polygon id="svgCarbArrowDownB" points="824,328 836,328 830,338" fill="#fbbf24" visibility="hidden" pointer-events="none" />
+            <polygon id="svgCarbArrowLeftB" points="836,330 824,336 836,342" fill="#7dd3fc" visibility="hidden" pointer-events="none" />
+          </g>
           <!-- Filtro A · x=724…774 -->
           <g class="node" tabindex="0" data-popup="carbone" data-carb-line="A" role="button" aria-label="Filtri carb A · gestione lavaggi">
             <rect x="720" y="365" width="58" height="155" fill="#000" opacity="0.001" pointer-events="all" />
@@ -2501,10 +2513,6 @@
             <ellipse id="svgCarbTopA" cx="749" cy="372" rx="25" ry="12" fill="#475569" stroke="#94a3b8" stroke-width="1.5" pointer-events="none" />
             <text x="749" y="408" text-anchor="middle" fill="#e2e8f0" font-size="7" font-weight="700" pointer-events="none">FILTRI</text>
             <text x="749" y="419" text-anchor="middle" fill="#e2e8f0" font-size="7" font-weight="700" pointer-events="none">CARB A</text>
-            <g class="flow-edit" data-field="qCarbA" data-source="carb-linea" aria-label="Portata filtro carbone A">
-              <rect class="badge" x="728" y="426" width="42" height="22" rx="3" stroke="#7dd3fc" />
-              <text class="badge-val" id="svgQCarbA" x="749" y="441" text-anchor="middle" font-size="10" font-weight="800">70</text>
-            </g>
           </g>
           <!-- Filtro B · gap ~10 px · x=784…834 -->
           <g class="node" tabindex="0" data-popup="carbone" data-carb-line="B" role="button" aria-label="Filtri carb B · gestione lavaggi">
@@ -2533,10 +2541,6 @@
             <ellipse id="svgCarbTopB" cx="809" cy="372" rx="25" ry="12" fill="#475569" stroke="#94a3b8" stroke-width="1.5" pointer-events="none" />
             <text x="809" y="408" text-anchor="middle" fill="#e2e8f0" font-size="7" font-weight="700" pointer-events="none">FILTRI</text>
             <text x="809" y="419" text-anchor="middle" fill="#e2e8f0" font-size="7" font-weight="700" pointer-events="none">CARB B</text>
-            <g class="flow-edit" data-field="qCarbB" data-source="carb-linea" aria-label="Portata filtro carbone B">
-              <rect class="badge" x="788" y="426" width="42" height="22" rx="3" stroke="#7dd3fc" />
-              <text class="badge-val" id="svgQCarbB" x="809" y="441" text-anchor="middle" font-size="10" font-weight="800">70</text>
-            </g>
           </g>
           <!-- Ponte tra i filtri / verso UF — NON attraversa i carboni (acqua nel dispositivo) -->
           <path class="pipe pipe-main" data-flow="carb" d="M784 415 H774" />
@@ -9350,6 +9354,20 @@
       const b = el("svgQCarbB");
       if (a && !isEditing("qCarbA")) a.textContent = String(d.a);
       if (b && !isEditing("qCarbB")) b.textContent = String(d.b);
+      let washA = false;
+      let washB = false;
+      try {
+        washA = !!carbPhase("A");
+        washB = !!carbPhase("B");
+      } catch (_) { /* ok */ }
+      const arrow = (letter, mode) => {
+        const down = el("svgCarbArrowDown" + letter);
+        const left = el("svgCarbArrowLeft" + letter);
+        if (down) down.setAttribute("visibility", mode === "down" ? "visible" : "hidden");
+        if (left) left.setAttribute("visibility", mode === "left" ? "visible" : "hidden");
+      };
+      arrow("A", washA ? "down" : (washB ? "left" : ""));
+      arrow("B", washB ? "down" : (washA ? "left" : ""));
     }
 
     /**
@@ -13627,6 +13645,7 @@
           ? `Impianto ${qIn.toFixed(1)} m³/h · lavaggio carbone ${consume.toFixed(1)} · verso UF ${toUf.toFixed(1)} m³/h`
           : `Impianto ${qIn.toFixed(1)} m³/h · nessun lavaggio · verso UF ${toUf.toFixed(1)} m³/h`;
       }
+      try { paintCarbFlows(); } catch (_) { /* ok */ }
     }
     function focusCarbRow(letter) {
       const L = String(letter || "").toUpperCase();
