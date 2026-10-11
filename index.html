@@ -2088,7 +2088,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v265</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v267</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -2501,6 +2501,10 @@
             <ellipse id="svgCarbTopA" cx="749" cy="372" rx="25" ry="12" fill="#475569" stroke="#94a3b8" stroke-width="1.5" pointer-events="none" />
             <text x="749" y="408" text-anchor="middle" fill="#e2e8f0" font-size="7" font-weight="700" pointer-events="none">FILTRI</text>
             <text x="749" y="419" text-anchor="middle" fill="#e2e8f0" font-size="7" font-weight="700" pointer-events="none">CARB A</text>
+            <g class="flow-edit" data-field="qCarbA" data-source="carb-linea" aria-label="Portata filtro carbone A">
+              <rect class="badge" x="728" y="426" width="42" height="22" rx="3" stroke="#7dd3fc" />
+              <text class="badge-val" id="svgQCarbA" x="749" y="441" text-anchor="middle" font-size="10" font-weight="800">70</text>
+            </g>
           </g>
           <!-- Filtro B · gap ~10 px · x=784…834 -->
           <g class="node" tabindex="0" data-popup="carbone" data-carb-line="B" role="button" aria-label="Filtri carb B · gestione lavaggi">
@@ -2529,6 +2533,10 @@
             <ellipse id="svgCarbTopB" cx="809" cy="372" rx="25" ry="12" fill="#475569" stroke="#94a3b8" stroke-width="1.5" pointer-events="none" />
             <text x="809" y="408" text-anchor="middle" fill="#e2e8f0" font-size="7" font-weight="700" pointer-events="none">FILTRI</text>
             <text x="809" y="419" text-anchor="middle" fill="#e2e8f0" font-size="7" font-weight="700" pointer-events="none">CARB B</text>
+            <g class="flow-edit" data-field="qCarbB" data-source="carb-linea" aria-label="Portata filtro carbone B">
+              <rect class="badge" x="788" y="426" width="42" height="22" rx="3" stroke="#7dd3fc" />
+              <text class="badge-val" id="svgQCarbB" x="809" y="441" text-anchor="middle" font-size="10" font-weight="800">70</text>
+            </g>
           </g>
           <!-- Ponte tra i filtri / verso UF — NON attraversa i carboni (acqua nel dispositivo) -->
           <path class="pipe pipe-main" data-flow="carb" d="M784 415 H774" />
@@ -2612,7 +2620,7 @@
 
           <!-- Colonne UF A–D: a sinistra dei badge portata, centrate nello spazio verso TK-11021 -->
           <g class="node" tabindex="0" data-popup="ultra" data-uf-line="A" role="button" aria-label="Ultrafiltrazione A" transform="translate(498,365)">
-            <rect x="-6" y="-14" width="28" height="110" fill="#000" opacity="0.001" pointer-events="all" />
+            <rect x="0" y="-12" width="16" height="104" fill="#000" opacity="0.001" pointer-events="all" />
             <rect id="svgUfBodyA" class="uf-mini-body" x="0" y="0" width="16" height="90" rx="3" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
             <rect id="svgUfFillA" class="uf-mini-fill" x="3" y="22" width="10" height="58" rx="1" fill="#0ea5e9" opacity="0.55" />
             <clipPath id="clipUfFlowA"><rect x="2" y="6" width="12" height="78" rx="2" /></clipPath>
@@ -2624,7 +2632,7 @@
             <text id="svgUfLabA" class="uf-mini-lab" x="8" y="-4" text-anchor="middle" fill="#7dd3fc" font-size="8" font-weight="700">A</text>
           </g>
           <g class="node" tabindex="0" data-popup="ultra" data-uf-line="B" role="button" aria-label="Ultrafiltrazione B" transform="translate(520,365)">
-            <rect x="-6" y="-14" width="28" height="110" fill="#000" opacity="0.001" pointer-events="all" />
+            <rect x="0" y="-12" width="16" height="104" fill="#000" opacity="0.001" pointer-events="all" />
             <rect id="svgUfBodyB" class="uf-mini-body" x="0" y="0" width="16" height="90" rx="3" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
             <rect id="svgUfFillB" class="uf-mini-fill" x="3" y="22" width="10" height="58" rx="1" fill="#0ea5e9" opacity="0.55" />
             <clipPath id="clipUfFlowB"><rect x="2" y="6" width="12" height="78" rx="2" /></clipPath>
@@ -2636,7 +2644,7 @@
             <text id="svgUfLabB" class="uf-mini-lab" x="8" y="-4" text-anchor="middle" fill="#7dd3fc" font-size="8" font-weight="700">B</text>
           </g>
           <g class="node" tabindex="0" data-popup="ultra" data-uf-line="C" role="button" aria-label="Ultrafiltrazione C" transform="translate(542,365)">
-            <rect x="-6" y="-14" width="28" height="110" fill="#000" opacity="0.001" pointer-events="all" />
+            <rect x="0" y="-12" width="16" height="104" fill="#000" opacity="0.001" pointer-events="all" />
             <rect id="svgUfBodyC" class="uf-mini-body" x="0" y="0" width="16" height="90" rx="3" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
             <rect id="svgUfFillC" class="uf-mini-fill" x="3" y="22" width="10" height="58" rx="1" fill="#0ea5e9" opacity="0.55" />
             <clipPath id="clipUfFlowC"><rect x="2" y="6" width="12" height="78" rx="2" /></clipPath>
@@ -2648,7 +2656,7 @@
             <text id="svgUfLabC" class="uf-mini-lab" x="8" y="-4" text-anchor="middle" fill="#7dd3fc" font-size="8" font-weight="700">C</text>
           </g>
           <g class="node" tabindex="0" data-popup="ultra" data-uf-line="D" role="button" aria-label="Ultrafiltrazione D" transform="translate(564,365)">
-            <rect x="-6" y="-14" width="28" height="110" fill="#000" opacity="0.001" pointer-events="all" />
+            <rect x="0" y="-12" width="16" height="104" fill="#000" opacity="0.001" pointer-events="all" />
             <rect id="svgUfBodyD" class="uf-mini-body" x="0" y="0" width="16" height="90" rx="3" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
             <rect id="svgUfFillD" class="uf-mini-fill" x="3" y="22" width="10" height="58" rx="1" fill="#0ea5e9" opacity="0.55" />
             <clipPath id="clipUfFlowD"><rect x="2" y="6" width="12" height="78" rx="2" /></clipPath>
@@ -4368,7 +4376,7 @@
     const __flowLive = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 140 };
     const __flowDesire = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 140 };
     /** Setpoint comando (popup modifica): resta anche a pompe ferme / portata viva = 0. */
-    const __flowSetpoint = { qPump: 345, qMandata: 345, qRecycle: 170.8, qP11019: 140, qP11019Ias: 0, qP11019Impianto: 140 };
+    const __flowSetpoint = { qPump: 345, qMandata: 345, qRecycle: 170.8, qP11019: 140, qP11019Ias: 0, qP11019Impianto: 140, qCarbA: 70, qCarbB: 70 };
     let __inlineSuppressLive = false; // non applicare 0 mentre si apre il tastierino
     /** Setpoint UF / osmosi (popup): restano anche a linee ferme / portata viva = 0. */
     const __procSetpoint = {
@@ -9039,10 +9047,10 @@
 
     /** Portata effettiva pompe P11019 (OUT TK-11007): 0 se stop svuotamento; altrimenti setpoint. */
     function qP11019Effective() {
-      if (pumpEstopped("p11019")) return 0;
+      if (pumpEstopped("p11019") || !p11019Allowed()) return 0;
       updateTk11007PumpInterlocks(numOrNull("livelloAttualeTk11007") ?? 91);
       if (!p11019Allowed()) return 0;
-      return qP11019Setpoint();
+      return qP11019OutNow();
     }
 
     /** Set pompe P11019 memorizzato (comando). Non è la viva a 0 con pompe ferme. */
@@ -9179,6 +9187,7 @@
       setVal("qP11019Impianto", Math.max(0, pump - ias), { force: !isEditing("qP11019Impianto") || which === "impianto" });
       if (p11019Allowed()) commitFlow("qP11019", pump, { setpoint: pump });
       else commitFlow("qP11019", 0, { setpoint: pump });
+      try { alignCarbCapsToImpianto(); } catch (_) { /* ok */ }
       paintP11019SplitUI();
       try { noteValleySetChanged(); } catch (_) { /* ok */ }
       try { syncDownstreamPermeate(null, "p11019"); } catch (_) { /* ignore */ }
@@ -9202,9 +9211,13 @@
       const popImp = el("svgPopP11019Imp");
       if (popImp) popImp.textContent = fmtSet(impSp);
 
-      // Overview: portata verso carboni (Impianto), non il totale pompe.
+      // Overview: acqua che sta passando verso i carboni (scende se l'UF lascia passare meno).
       const ov = el("svgQP11019");
-      if (ov) ov.textContent = round1(impSp).toFixed(1);
+      if (ov && !isEditing("qP11019Impianto")) {
+        let shown = impSp;
+        try { shown = carbDeliveredPair().tot; } catch (_) { /* ok */ }
+        ov.textContent = round1(shown).toFixed(1);
+      }
       const ovIas = el("svgQP11019Ias");
       if (ovIas) ovIas.textContent = round1(iasSp).toFixed(1);
       const iasBranch = el("svgP11019IasBranch");
@@ -9220,6 +9233,123 @@
           : `P11019 FERME · overview carboni ${impSp} · IAS ${iasSp} (set pompe ${pumpSp})`;
         hint.style.color = running ? "var(--ok)" : "var(--danger)";
       }
+      try { paintCarbFlows(); } catch (_) { /* ok */ }
+    }
+
+    /** Carico massimo di un filtro carbone (quello che si scrive nel numpad). */
+    function carbCap(letter) {
+      const id = "qCarb" + (String(letter || "A").toUpperCase() === "B" ? "B" : "A");
+      return Math.max(0, Math.round(Number(__flowSetpoint[id]) || 0));
+    }
+
+    /** Se i due carichi sono vuoti, partono a metà della portata verso i carboni. */
+    function ensureCarbCaps() {
+      const imp = Math.max(0, Math.round(qP11019ImpiantoSetpoint()));
+      const a = carbCap("A");
+      const b = carbCap("B");
+      if (a + b < 0.05) {
+        const aa = Math.floor(imp / 2);
+        rememberFlowSetpoint("qCarbA", aa, { allowZero: true });
+        rememberFlowSetpoint("qCarbB", Math.max(0, imp - aa), { allowZero: true });
+      }
+    }
+
+    /**
+     * Passaggio UF che i carboni possono davvero mandare.
+     * null = le UF non sono ancora un limite (nessun set, nessuna esclusa, nessun lavaggio).
+     * Altrimenti: somma dei set delle linee accese e non in lavaggio.
+     */
+    function ufPassageLimit() {
+      if (typeof UF_LINES === "undefined" || typeof ufLineEnabled !== "function") return null;
+      let pass = 0;
+      let configured = false;
+      UF_LINES.forEach((L) => {
+        if (!ufLineEnabled(L) || (typeof ufLineInWash === "function" && ufLineInWash(L))) {
+          configured = true;
+          return;
+        }
+        const sp = Math.max(0, procSetpointOf("qUf" + L));
+        if (sp > 0.05) configured = true;
+        pass += sp;
+      });
+      if (procSetpointOf("qUfTotale") > 0.05) configured = true;
+      if (!configured) return null;
+      return round1(pass);
+    }
+
+    /** Portata che passa ora, in proporzione al carico di ciascun filtro. La somma non viene pareggiata. */
+    function carbDeliveredPair() {
+      ensureCarbCaps();
+      const capA = carbCap("A");
+      const capB = carbCap("B");
+      const capSum = capA + capB;
+      let tot = capSum;
+      const lim = ufPassageLimit();
+      if (lim != null) tot = Math.min(capSum, Math.max(0, lim));
+      tot = Math.max(0, Math.round(tot));
+      if (capSum < 0.05 || tot < 0.05) return { a: 0, b: 0, tot: 0, capA, capB, capSum };
+      const a = Math.round(tot * capA / capSum);
+      const b = Math.max(0, tot - a);
+      return { a, b, tot: a + b, capA, capB, capSum };
+    }
+
+    /** OUT TK-11007: carboni (limitati dall'UF) + IAS. L'IAS non entra nei filtri. */
+    function qP11019OutNow() {
+      if (pumpEstopped("p11019") || !p11019Allowed()) return 0;
+      const ias = Math.max(0, qP11019IasSetpoint());
+      return round1(carbDeliveredPair().tot + ias);
+    }
+
+    /** Tiene il rapporto dei due carichi quando cambia il totale (IAS, pompe). Non li pareggia. */
+    function alignCarbCapsToImpianto() {
+      const imp = Math.max(0, Math.round(qP11019ImpiantoSetpoint()));
+      const a = carbCap("A");
+      const b = carbCap("B");
+      if (a + b < 0.05) {
+        const aa = Math.floor(imp / 2);
+        rememberFlowSetpoint("qCarbA", aa, { allowZero: true });
+        rememberFlowSetpoint("qCarbB", Math.max(0, imp - aa), { allowZero: true });
+        return;
+      }
+      if (Math.abs(a + b - imp) < 0.6) return;
+      const aa = Math.round(imp * a / (a + b));
+      const bb = Math.max(0, imp - aa);
+      rememberFlowSetpoint("qCarbA", aa, { allowZero: true });
+      rememberFlowSetpoint("qCarbB", bb, { allowZero: true });
+    }
+
+    /** Il totale scritto a mano si divide in due parti uguali. */
+    function equalizeCarbCaps(imp) {
+      const n = Math.max(0, Math.round(Number(imp) || 0));
+      const aa = Math.floor(n / 2);
+      rememberFlowSetpoint("qCarbA", aa, { allowZero: true });
+      rememberFlowSetpoint("qCarbB", Math.max(0, n - aa), { allowZero: true });
+      try { paintCarbFlows(); } catch (_) { /* ok */ }
+    }
+
+    function applyCarbTotal(raw) {
+      applyP11019SplitFrom("impianto", raw);
+      equalizeCarbCaps(qP11019ImpiantoSetpoint());
+    }
+
+    function applyCarbLine(letter, raw) {
+      const L = String(letter || "A").toUpperCase() === "B" ? "B" : "A";
+      const other = L === "A" ? "B" : "A";
+      ensureCarbCaps();
+      let v = Math.max(0, Math.round(Number(raw) || 0));
+      const otherV = carbCap(other);
+      if (v + otherV > Q_P11019_MAX) v = Math.max(0, Q_P11019_MAX - otherV);
+      rememberFlowSetpoint("qCarb" + L, v, { allowZero: true });
+      applyP11019SplitFrom("impianto", v + otherV);
+      try { paintCarbFlows(); } catch (_) { /* ok */ }
+    }
+
+    function paintCarbFlows() {
+      const d = carbDeliveredPair();
+      const a = el("svgQCarbA");
+      const b = el("svgQCarbB");
+      if (a && !isEditing("qCarbA")) a.textContent = String(d.a);
+      if (b && !isEditing("qCarbB")) b.textContent = String(d.b);
     }
 
     /**
@@ -11059,9 +11189,8 @@
       updateTk11021Interlocks(livU);
       updateTk11007PumpInterlocks(livP);
       applyP11019RunFromLevel();
-      const qP19 = (p11019Allowed() && !pumpEstopped("p11019"))
-        ? Math.max(0, flowSetpointOf("qP11019"))
-        : 0;
+      // OUT reale dopo i lavaggi UF: se il passaggio UF è più basso, esce meno e il TK sale.
+      let qP19 = 0;
       // OUT osmosi da TK 11021: solo linee in marcia (isteresi P-11040 sul livello)
       updateOsmosiTk11021Interlocks(livU);
       // In TIME: se i set osmosi ci sono già, non riallinearli a qIn ogni minuto (11021 piatto).
@@ -11091,6 +11220,7 @@
       tickUfWashes(dtMin);
       tickCarbWashes(dtMin);
       try { ensureCarboniMeetsUfDemand(); } catch (_) { /* ok */ }
+      qP19 = (p11019Allowed() && !pumpEstopped("p11019")) ? qP11019OutNow() : 0;
       // Valvole UF + osmosi (misura insegue set)
       tickUfRegulation(dtMin);
       tickOsmRegulation(dtMin);
@@ -13591,6 +13721,7 @@
       rememberFlowSetpoint("qP11019Impianto", wantImp, { allowZero: true });
       syncP11019SplitKeepIas();
       if (p11019Allowed()) commitFlow("qP11019", qP11019LiveTargetFromValley(), { setpoint: wantPump });
+      try { alignCarbCapsToImpianto(); } catch (_) { /* ok */ }
       try { paintP11019SplitUI(); } catch (_) { /* ok */ }
     }
 
@@ -14319,6 +14450,7 @@
       try { paintUfPopupSetpoints(); } catch (_) { /* ok */ }
       paintUfValveUI();
       paintUfWashUI();
+      try { paintCarbFlows(); } catch (_) { /* ok */ }
       return tot;
     }
     function sumUfs() {
@@ -14375,7 +14507,7 @@
         const head = document.createElement("div");
         head.className = "uf-row-head";
         head.innerHTML = `
-          <svg class="uf-mini" viewBox="0 0 28 90" role="button" tabindex="0" title="Tocca per Abilita / Disabilita">
+          <svg class="uf-mini" viewBox="0 0 28 90" role="button" tabindex="0" title="Clic: numpad. Tieni premuto: accendi o spegni">
             <rect class="uf-mini-body" x="6" y="12" width="16" height="72" rx="3" fill="#334155" stroke="#7dd3fc" stroke-width="1.4" />
             <rect class="uf-mini-fill" x="9" y="30" width="10" height="48" rx="1" fill="#0ea5e9" opacity="0.55" />
             <clipPath id="clipUfPop${m}"><rect x="8" y="16" width="12" height="64" rx="2" /></clipPath>
@@ -15082,11 +15214,19 @@
       });
 
       ["pointercancel", "lostpointercapture"].forEach((ev) => {
-        node.addEventListener(ev, () => {
+        node.addEventListener(ev, (e) => {
           clearHold();
           clearMemPress();
+          const d = ptrDown;
           ptrDown = null;
           if (isMemNode && !holdCommitted) holdFired = false;
+          if (!ufLine || holdFired || !d) return;
+          const dx = Math.abs((e.clientX || d.x) - d.x);
+          const dy = Math.abs((e.clientY || d.y) - d.y);
+          if (dx > 18 || dy > 18) return;
+          openedByPtr = true;
+          openNow();
+          setTimeout(() => { openedByPtr = false; }, 600);
         });
       });
       if (holdOnNode) {
@@ -15156,6 +15296,8 @@
       }, 420);
     }
     let __flowEditGuardUntil = 0; // evita chiusura fantasma al rilascio dito su tablet
+    let __flowNumpadAcceptAt = 0;
+    let __flowEditPressEl = null;
     // inlineCtx dichiarato in alto (condiviso con isEditing / applyBalance)
 
     const FLOW_EDIT_LABELS = {
@@ -15169,6 +15311,8 @@
       qP11019: "P11019 A/B/C",
       qP11019Ias: "IAS",
       qP11019Impianto: "Carboni",
+      qCarbA: "Carbone A",
+      qCarbB: "Carbone B",
       qUfTotale: "Totale UF",
       qOsmosiTotale: "Totale osmosi",
       qUfA: "UF A",
@@ -15225,6 +15369,7 @@
       if (f === "freqHz" || f === "freqHzMand" || f === "qIn" || f === "qRecycle"
         || f === "qP11019" || f === "qP11019Ias" || f === "qP11019Impianto"
         || f === "qUfTotale" || f.startsWith("qUf")
+        || f === "qCarbA" || f === "qCarbB"
         || f === "qOsmosiA" || f === "qOsmosiB" || f === "qOsmosiC"
         || f.startsWith("qOsmosi")
         || f === "qMemTotale") return 1;
@@ -15413,7 +15558,9 @@
       __flowNumpadFresh = true;
       scheduleInlineLive();
       if (inlineCtx.field === "qP11019Ias") applyP11019SplitFrom("ias", v);
-      else if (inlineCtx.field === "qP11019Impianto") applyP11019SplitFrom("impianto", v);
+      else if (inlineCtx.field === "qP11019Impianto") applyCarbTotal(v);
+      else if (inlineCtx.field === "qCarbA") applyCarbLine("A", v);
+      else if (inlineCtx.field === "qCarbB") applyCarbLine("B", v);
       updateFlowEditCorr();
     }
 
@@ -15568,7 +15715,11 @@
         return;
       }
       if (field === "qP11019Impianto") {
-        applyP11019SplitFrom("impianto", v);
+        applyCarbTotal(v);
+        return;
+      }
+      if (field === "qCarbA" || field === "qCarbB") {
+        applyCarbLine(field === "qCarbB" ? "B" : "A", v);
         return;
       }
       if (field === "qMandata") {
@@ -15618,7 +15769,11 @@
           return;
         }
         if (field === "qP11019Impianto") {
-          applyP11019SplitFrom("impianto", 0);
+          applyCarbTotal(0);
+          return;
+        }
+        if (field === "qCarbA" || field === "qCarbB") {
+          applyCarbLine(field === "qCarbB" ? "B" : "A", 0);
           return;
         }
         if (field === "qUfTotale") { syncUf("uf-totale"); return; }
@@ -15735,7 +15890,11 @@
         return;
       }
       if (field === "qP11019Impianto") {
-        applyP11019SplitFrom("impianto", v);
+        applyCarbTotal(v);
+        return;
+      }
+      if (field === "qCarbA" || field === "qCarbB") {
+        applyCarbLine(field === "qCarbB" ? "B" : "A", v);
         return;
       }
       if (field === "qMandata") {
@@ -15859,6 +16018,9 @@
       } else if (field === "qP11019Ias" || field === "qP11019Impianto") {
         paintP11019SplitUI();
         val = readP11019SplitEditVal(field);
+      } else if (field === "qCarbA" || field === "qCarbB") {
+        ensureCarbCaps();
+        val = carbCap(field === "qCarbB" ? "B" : "A");
       } else if (field === "qOsmosiD") {
         val = 0; // P11040 D sempre ferma
       } else if (
@@ -15908,7 +16070,7 @@
       const openValNum = Number.isFinite(val) ? (step >= 1 ? Math.round(val) : round1(val)) : 0;
       inlineCtx = { field, source, openVal: openValNum, openSeed: seed };
       __inlineSuppressLive = true;
-      __flowEditGuardUntil = Date.now() + 450;
+      __flowEditGuardUntil = Date.now() + 700;
       const releaseLive = () => { __inlineSuppressLive = false; };
       if (inlineInp) {
         inlineInp.step = String(step);
@@ -15928,6 +16090,9 @@
       syncFlowEditEstopBtn();
       updateFlowEditCorr();
       __flowNumpadFresh = true;
+      __flowEditGuardUntil = Date.now() + 700;
+      __flowNumpadAcceptAt = Date.now() + 320;
+      __flowEditPressEl = null;
       if (isTouchUi() || splitEdit) {
         // Mobile, e le portate Carboni/IAS: numpad diretto, niente tastiera di sistema
         if (inlineInp) {
@@ -16005,6 +16170,11 @@
       };
       btn.addEventListener("pointerdown", (e) => {
         if (e.button != null && e.button !== 0) return;
+        if (Date.now() < __flowNumpadAcceptAt) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
         e.preventDefault();
         e.stopPropagation();
         stop();
@@ -16020,8 +16190,18 @@
     }
     bindFlowStepBtn("flowEditUp", 1);
     bindFlowStepBtn("flowEditDown", -1);
+    el("flowEditOk")?.addEventListener("pointerdown", (e) => {
+      if (Date.now() < __flowNumpadAcceptAt) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      __flowEditPressEl = el("flowEditOk");
+    });
     el("flowEditOk")?.addEventListener("click", (e) => {
       e.preventDefault();
+      if (__flowEditPressEl !== el("flowEditOk") && Date.now() < __flowEditGuardUntil) return;
+      __flowEditPressEl = null;
       playCasioClick();
       commitInline();
     });
@@ -16033,8 +16213,18 @@
       if (!key) return;
       setPumpEstop(key, !pumpEstopped(key));
     });
+    el("flowEditCancel")?.addEventListener("pointerdown", (e) => {
+      if (Date.now() < __flowNumpadAcceptAt) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      __flowEditPressEl = el("flowEditCancel");
+    });
     el("flowEditCancel")?.addEventListener("click", (e) => {
       e.preventDefault();
+      if (__flowEditPressEl !== el("flowEditCancel") && Date.now() < __flowEditGuardUntil) return;
+      __flowEditPressEl = null;
       playCasioClick();
       hideInline();
       try { applyBalance("livello"); } catch (_) { /* ignore */ }
@@ -16093,6 +16283,11 @@
       const btn = e.target.closest("button[data-np]");
       if (!btn) return;
       if (e.button != null && e.button !== 0) return;
+      if (Date.now() < __flowNumpadAcceptAt) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
       e.preventDefault();
       e.stopPropagation();
       playCasioKey();
@@ -16949,6 +17144,8 @@
       data.equiparaMandata = !!el("equiparaMandata")?.checked;
       data.usaFrequenza = !!el("usaFrequenza")?.checked;
       data.flowMode = isAutoMode() ? "auto" : "manual";
+      data.qCarbA = Math.max(0, Math.round(Number(__flowSetpoint.qCarbA) || 0));
+      data.qCarbB = Math.max(0, Math.round(Number(__flowSetpoint.qCarbB) || 0));
       data.devMode = {
         membrane: __devMode.membrane === "manual" ? "manual" : "auto",
         ultra: __devMode.ultra === "manual" ? "manual" : "auto",
@@ -17160,6 +17357,13 @@
           const imp = round1(Math.max(0, (qp19 > 0.05 ? qp19 : 0) - ias));
           rememberFlowSetpoint("qP11019Impianto", imp, { allowZero: true });
           sanitizeP11019SplitMem();
+          if (data.qCarbA != null || data.qCarbB != null) {
+            rememberFlowSetpoint("qCarbA", Math.max(0, Math.round(Number(data.qCarbA) || 0)), { allowZero: true });
+            rememberFlowSetpoint("qCarbB", Math.max(0, Math.round(Number(data.qCarbB) || 0)), { allowZero: true });
+            try { alignCarbCapsToImpianto(); } catch (_) { /* ok */ }
+          } else {
+            try { equalizeCarbCaps(imp); } catch (_) { /* ok */ }
+          }
         }
         if (data.sludgeAdj && typeof data.sludgeAdj === "object") {
           try { __sludgeAdj = normalizeSludgeAdj(data.sludgeAdj); } catch (_) { /* ok */ }
