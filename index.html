@@ -593,6 +593,30 @@
       margin-left: 10px;
       margin-right: 10px;
     }
+    #popMembrane details.proc-fold {
+      margin: 0 0 12px;
+      border: none;
+      background: transparent;
+    }
+    #popMembrane details.proc-fold > summary.proc-label {
+      list-style: none;
+      cursor: pointer;
+    }
+    #popMembrane details.proc-fold > summary.proc-label::-webkit-details-marker { display: none; }
+    #popMembrane details.proc-fold > summary.proc-label::after {
+      content: "▸";
+      color: #7dd3fc;
+      font-size: 1.05rem;
+      line-height: 1;
+      flex: 0 0 auto;
+    }
+    #popMembrane details.proc-fold[open] > summary.proc-label::after {
+      content: "▾";
+      color: #fde68a;
+    }
+    #popMembrane details.proc-fold[open] > summary.proc-label {
+      margin-bottom: 10px;
+    }
     #popBlocchi .block-action.ok-line {
       margin: 8px 0 0;
       padding: 10px 12px;
@@ -1730,7 +1754,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v248</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v249</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -3254,53 +3278,55 @@
         </span>
         <button type="button" data-close>&times;</button>
       </h3>
-      <button type="button" class="proc-label" disabled style="cursor:default;opacity:.95">
-        <span>PROCESSO — Membrane MBR</span>
-        <small>A–G abilitate · H parte disattivata · tieni premuto una vaschetta per on/off</small>
-      </button>
-      <p class="mini" id="devModeHintMembrane">Modo membrane: segue l’impianto (Automatico generale).</p>
-      <div class="row">
-        <label><strong>Lavoro (min)</strong>
-          <input type="number" id="cicloLavoro" min="0.1" max="120" step="0.1" value="7" />
-        </label>
-        <label><strong>Pausa (min)</strong>
-          <input type="number" id="cicloPausa" min="0" max="60" step="0.1" value="1" />
-        </label>
-      </div>
-      <label><strong>Livello membrane (vaschette) %</strong>
-        <input type="number" id="livelloAttualeMbr" min="0" max="100" step="0.1" value="90.0" inputmode="decimal" />
-      </label>
-      <div class="settings-block show">
-        <h4>Gestione pompe — MBR</h4>
+      <details class="proc-fold">
+        <summary class="proc-label">
+          <span>PROCESSO — Membrane MBR</span>
+          <small>A–G abilitate · H parte disattivata · tieni premuto una vaschetta per on/off</small>
+        </summary>
+        <p class="mini" id="devModeHintMembrane">Modo membrane: segue l’impianto (Automatico generale).</p>
         <div class="row">
-          <label><strong>Start svuotamento MBR %</strong>
-            <input type="number" id="viewStartSvuotMbr" readonly placeholder="—" inputmode="decimal" />
+          <label><strong>Lavoro (min)</strong>
+            <input type="number" id="cicloLavoro" min="0.1" max="120" step="0.1" value="7" />
           </label>
-          <label><strong>Stop svuotamento MBR %</strong>
-            <input type="number" id="viewStopSvuotMbr" readonly placeholder="—" inputmode="decimal" />
-          </label>
-        </div>
-        <div class="row">
-          <label><strong>Start riemp. A11003 (→11036) %</strong>
-            <input type="number" id="viewStartRiempMbr2" readonly placeholder="—" inputmode="decimal" />
-          </label>
-          <label><strong>Stop riemp. A11003 (→11036) %</strong>
-            <input type="number" id="viewStopRiempMbr2" readonly placeholder="—" inputmode="decimal" />
+          <label><strong>Pausa (min)</strong>
+            <input type="number" id="cicloPausa" min="0" max="60" step="0.1" value="1" />
           </label>
         </div>
-        <p class="mini">Svuotamento: membrane ON/OFF. Riempimento: MP 11036 A/B fermano a stop (92%) e ripartono a start (85%), se anche A10611 è OK.</p>
-        <p class="mini" id="mbrFillBalanceHint">Bilancio MBR: mandata IN − permeato OUT − scarico→A11004 (~80% eccesso; 0 se A11004 al 100%). Il riciclo 11014 aspira solo A11004.</p>
-        <div class="row" style="margin-top:8px">
-          <label><strong>Start riemp. TK 11007 %</strong>
-            <input type="number" id="viewStartRiempTk11007b" readonly placeholder="—" inputmode="decimal" />
-          </label>
-          <label><strong>Stop riemp. TK 11007 %</strong>
-            <input type="number" id="viewStopRiempTk11007b" readonly placeholder="—" inputmode="decimal" />
-          </label>
+        <label><strong>Livello membrane (vaschette) %</strong>
+          <input type="number" id="livelloAttualeMbr" min="0" max="100" step="0.1" value="90.0" inputmode="decimal" />
+        </label>
+        <div class="settings-block show">
+          <h4>Gestione pompe — MBR</h4>
+          <div class="row">
+            <label><strong>Start svuotamento MBR %</strong>
+              <input type="number" id="viewStartSvuotMbr" readonly placeholder="—" inputmode="decimal" />
+            </label>
+            <label><strong>Stop svuotamento MBR %</strong>
+              <input type="number" id="viewStopSvuotMbr" readonly placeholder="—" inputmode="decimal" />
+            </label>
+          </div>
+          <div class="row">
+            <label><strong>Start riemp. A11003 (→11036) %</strong>
+              <input type="number" id="viewStartRiempMbr2" readonly placeholder="—" inputmode="decimal" />
+            </label>
+            <label><strong>Stop riemp. A11003 (→11036) %</strong>
+              <input type="number" id="viewStopRiempMbr2" readonly placeholder="—" inputmode="decimal" />
+            </label>
+          </div>
+          <p class="mini">Svuotamento: membrane ON/OFF. Riempimento: MP 11036 A/B fermano a stop (92%) e ripartono a start (85%), se anche A10611 è OK.</p>
+          <p class="mini" id="mbrFillBalanceHint">Bilancio MBR: mandata IN − permeato OUT − scarico→A11004 (~80% eccesso; 0 se A11004 al 100%). Il riciclo 11014 aspira solo A11004.</p>
+          <div class="row" style="margin-top:8px">
+            <label><strong>Start riemp. TK 11007 %</strong>
+              <input type="number" id="viewStartRiempTk11007b" readonly placeholder="—" inputmode="decimal" />
+            </label>
+            <label><strong>Stop riemp. TK 11007 %</strong>
+              <input type="number" id="viewStopRiempTk11007b" readonly placeholder="—" inputmode="decimal" />
+            </label>
+          </div>
+          <p class="mini">TK 11007: a stop riempimento (97%) le membrane FERMANO; a start (90%) ripartono.</p>
         </div>
-        <p class="mini">TK 11007: a stop riempimento (97%) le membrane FERMANO; a start (90%) ripartono.</p>
-      </div>
-      <p class="mini">Ciclo a coppie sfalsate: A+D, B+G, C+E, F sola — ciascuna 7′ lavoro + 1′ pausa, non tutte insieme. Blocco livello / TK 11007: tutte ferme.</p>
+        <p class="mini">Ciclo a coppie sfalsate: A+D, B+G, C+E, F sola — ciascuna 7′ lavoro + 1′ pausa, non tutte insieme. Blocco livello / TK 11007: tutte ferme.</p>
+      </details>
       <label><strong>TOTALE membrane ON (m³/h)</strong>
         <input type="number" id="qMemTotale" class="tot-mem" min="0" max="500" step="1" value="171" inputmode="numeric" />
       </label>
