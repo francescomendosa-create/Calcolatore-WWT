@@ -825,6 +825,16 @@
     .pipe-main { stroke: #38bdf8; }
     .pipe-rec { stroke: #fb7185; }
     .pipe[data-flow="scar"] { stroke-width: 3.4; }
+    .pipe-scar-thin {
+      fill: none;
+      stroke: #fb7185;
+      stroke-width: 1.35;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .sludge-valve { fill: #334155; stroke: #64748b; stroke-width: 0.6; }
+    .sludge-valve.is-open { fill: #fbbf24; stroke: #fde68a; stroke-width: 0.7; }
+    .sludge-valve.is-off { opacity: 0.3; }
     .pipe-water {
       fill: none;
       stroke-linecap: round;
@@ -1722,7 +1732,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v228</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v229</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -1949,12 +1959,24 @@
             <text id="svgMemHHint" x="897" y="117" text-anchor="middle" fill="#fda4af" font-size="6" font-weight="600">off</text>
             <rect class="mem-hit" x="880" y="88" width="34" height="36" rx="4" />
           </g>
-          <!-- collettore scarichi → A11004 (solo scarichi, non mandata): cade da E F G H -->
+          <!-- collettore scarichi → A11004: E F G H già presenti; A B C D sulle stesse quote, linea più sottile -->
+          <path class="pipe-scar-thin" d="M783 86 H764 V140 H783" />
+          <path class="pipe-scar-thin" d="M821 86 H802 V140" />
+          <path class="pipe-scar-thin" d="M859 86 H840 V140" />
+          <path class="pipe-scar-thin" d="M897 86 H878 V140" />
           <path class="pipe pipe-rec" data-flow="scar" d="M783 128 V140 H897 V128" fill="none" />
           <path class="pipe pipe-rec" data-flow="scar" d="M821 128 V140" fill="none" />
           <path class="pipe pipe-rec" data-flow="scar" d="M859 128 V140" fill="none" />
           <path class="pipe pipe-rec" data-flow="scar" d="M840 140 H922" fill="none" />
           <polygon points="914,135 926,140 914,145" fill="#fb7185" />
+          <circle class="sludge-valve" id="svgSludgeA" cx="783" cy="85" r="1.7" />
+          <circle class="sludge-valve" id="svgSludgeB" cx="821" cy="85" r="1.7" />
+          <circle class="sludge-valve" id="svgSludgeC" cx="859" cy="85" r="1.7" />
+          <circle class="sludge-valve" id="svgSludgeD" cx="897" cy="85" r="1.7" />
+          <circle class="sludge-valve" id="svgSludgeE" cx="783" cy="126.5" r="1.7" />
+          <circle class="sludge-valve" id="svgSludgeF" cx="821" cy="126.5" r="1.7" />
+          <circle class="sludge-valve" id="svgSludgeG" cx="859" cy="126.5" r="1.7" />
+          <circle class="sludge-valve" id="svgSludgeH" cx="897" cy="126.5" r="1.7" />
           <!-- permeato: parte dalle membrane (lato destro) -->
           <path class="pipe pipe-main" data-flow="perm" d="M914 68 H930" />
         </g>
@@ -7349,7 +7371,7 @@
       const a = el("sludgeCycleHint");
       const b = el("sludgeMemHint");
       if (a) a.textContent = line;
-      if (b) b.textContent = line + " · bordo ambra = valvola aperta.";
+      if (b) b.textContent = line + " · puntino giallo sulla linea di scarico = valvola aperta.";
     }
 
     function estimateMbrRatePctPerMin(qMandata, qPerm, livMbrOpt, opts) {
@@ -8852,17 +8874,22 @@
         const valve = go && !disabled && sludgeValveOpen(letter, clk);
         const c = deviceCol(disabled, run);
         node.setAttribute("fill", c.fill);
-        node.setAttribute("stroke", valve ? "#fbbf24" : c.stroke);
-        node.setAttribute("stroke-width", valve ? "2.4" : (disabled ? "1.2" : "1.4"));
+        node.setAttribute("stroke", c.stroke);
+        node.setAttribute("stroke-width", disabled ? "1.2" : "1.4");
         const cfg = sludgeCfg(letter);
-        let tip = node.querySelector("title");
-        if (!tip) {
-          tip = document.createElementNS("http://www.w3.org/2000/svg", "title");
-          node.appendChild(tip);
+        const dot = el("svgSludge" + letter);
+        if (dot) {
+          dot.classList.toggle("is-open", !!valve);
+          dot.classList.toggle("is-off", !!disabled);
+          let vtip = dot.querySelector("title");
+          if (!vtip) {
+            vtip = document.createElementNS("http://www.w3.org/2000/svg", "title");
+            dot.appendChild(vtip);
+          }
+          vtip.textContent = letter + " · " + cfg.valve
+            + " · scarico " + (valve ? "APERTO" : "chiuso")
+            + " · " + cfg.openSec + " s · attesa " + cfg.waitMin + " min";
         }
-        tip.textContent = letter + " · " + cfg.valve
-          + " · scarico " + (valve ? "APERTO" : "chiuso")
-          + " · apertura " + cfg.openSec + " s · attesa " + cfg.waitMin + " min";
         if (disabled) node.setAttribute("stroke-dasharray", "3 2");
         else node.removeAttribute("stroke-dasharray");
       });
