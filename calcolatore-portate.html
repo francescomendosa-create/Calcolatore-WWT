@@ -1722,7 +1722,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v227</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v228</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -5173,6 +5173,10 @@
      * Per livelli/tubi/TIME usare flowMeasureOf. Per SET puro: flowSetpointOf.
      */
     function liveFlowHave(fcVal, fieldId) {
+      if (fieldId === "qMemTotale") {
+        const field = Math.max(0, num("qMemTotale") || 0);
+        if (field > 0.05) return round1(field);
+      }
       let v = Math.max(0, Number(fcVal) || 0);
       try { v = Math.max(v, flowSetpointOf(fieldId)); } catch (_) { /* ok */ }
       return round1(v);
@@ -5686,6 +5690,25 @@
       return r ? (h + " h " + r + "′") : (h + " h");
     }
 
+    /**
+     * Minuti allo stop chimico se l’uscita media (totale ON × duty) è sotto l’ingresso.
+     * Il surplus non lascia l’impianto: prima il poco volume libero di MBR e A10611, poi A10620.
+     */
+    function minutesToBlockByPermDeficit(qIn, qPerm, liv20) {
+      const def = Math.max(0, Number(qIn) - Number(qPerm));
+      if (!(def > 0.2)) return null;
+      const stopV = numOrNull("stopRiempA10620") ?? 95;
+      const liv = Number.isFinite(Number(liv20)) ? Number(liv20) : (numOrNull("livelloAttuale") ?? 90);
+      const livM = numOrNull("livelloAttualeMbr") ?? 90;
+      const liv11 = numOrNull("livelloAttualeA10611") ?? 90;
+      const stopM = numOrNull("stopRiempMbr") ?? 92;
+      const hi11 = numOrNull("stopAltoA10611") ?? 96;
+      const free = Math.max(0, (stopV - liv) / 100) * Math.max(1, getA10620Geom().V)
+        + Math.max(0, (stopM - livM) / 100) * Math.max(1, getMbrCommonVolume().V)
+        + Math.max(0, (hi11 - liv11) / 100) * a10611VolumeM3();
+      return Math.max(1, Math.round(free / def * 60));
+    }
+
     /** Diagnosi + previsione 8 ore: spicciola, quesito, CF solo su No (mai su anomalia). */
     function buildHorizonAdvice(fc) {
       const qInSp = fc.qInSp;
@@ -5771,7 +5794,13 @@
         && (fc.qScaricoNeed != null && fc.qScaricoNeed > 2)
         && !fc.ok;
       const memSoftLow = !memOk;
-      let memRegBad = memSoftLow && !fc.ok;
+      // Uscita media (totale ON × duty 7/8) sotto il chimico: non può restare in marcia.
+      const permShort = qInSp > 0.5 && qPermHave + 0.5 < qInSp;
+      if (permShort && fc.firstBlockMin == null) {
+        const est = minutesToBlockByPermDeficit(qInSp, qPermHave, fc.endLiv20);
+        if (est != null) fc.firstBlockMin = est;
+      }
+      let memRegBad = permShort || (memSoftLow && !fc.ok);
       let mandRegBad = !flowMeetsNeed(qHaveMand, qMandTarget);
       try {
         // In Auto mandata/riciclo seguono il cervello: non allarmare sulla rampa
@@ -5780,8 +5809,8 @@
         }
         if (ricicloAutoControlled() && !pumpRegBad) recBad = false;
       } catch (_) { /* ok */ }
-      // Nessuno stop chimico nelle 8 ore → sempre verde, anche con membrane basse o al minimo.
-      if (fc.ok) {
+      // Verde solo se la media di ciclo copre il chimico e la sim 8 ore non chiude l’ingresso.
+      if (fc.ok && !permShort) {
         const horizLbl = fmtForecastWhen(fc.horizonMin || BLOCK_FORECAST_HORIZON);
         let barNote = "";
         let stress = "";
@@ -9570,11 +9599,7 @@
       let nMbr = round2(Math.max(0, Math.min(100, livMbr + rMbr * dtMin)));
       // Stesso conto della previsione: set membrane × duty sotto il chimico → surplus nei livelli.
       {
-        let qMemSpNow = Math.max(0, num("qMemTotale") || 0);
-        try {
-          const spMem = Math.max(0, Number(__flowSetpoint.qMemTotale) || 0);
-          if (spMem > 0.05) qMemSpNow = spMem;
-        } catch (_) { /* ok */ }
+        const qMemSpNow = Math.max(0, num("qMemTotale") || 0);
         const gap = absorbMembraneCapacityGap(
           { livMbr: nMbr, liv11: n11, liv20: n20 },
           {
