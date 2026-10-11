@@ -686,6 +686,36 @@
     #popOsmosi .osm-narration {
       display: none !important;
     }
+    #popOsmosi .osm-tot-row {
+      align-items: end;
+    }
+    #popOsmosi .osm-tot-row > label {
+      min-width: 0;
+      margin-bottom: 0;
+      container-type: inline-size;
+    }
+    #popOsmosi .osm-tot-row > label strong {
+      display: block;
+      white-space: nowrap;
+      line-height: 1.15;
+      font-size: 0.72rem;
+    }
+    #popOsmosi .osm-tot-row > label.osm-tot-conc strong {
+      font-size: clamp(0.5rem, 6.2cqi, 0.6rem);
+      letter-spacing: -0.03em;
+    }
+    #popOsmosi .osm-lvl {
+      margin-top: 2px;
+      padding: 8px 8px 2px;
+      border-radius: 8px;
+      background: #1c1408;
+      border: 1px solid #854d0e;
+    }
+    #popOsmosi .osm-lvl input {
+      background: #422006 !important;
+      border-color: #fbbf24 !important;
+      color: #fde68a;
+    }
     #popBlocchi .block-action.ok-line {
       margin: 8px 0 0;
       padding: 10px 12px;
@@ -1823,7 +1853,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v252</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v254</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -2160,7 +2190,7 @@
         <!-- 3 pompe P11019 A/B/C (da TK-1107 → filtri a carbone) — click → popup set + split IAS -->
         <g class="node" tabindex="0" data-popup="p11019" role="button" aria-label="P11019 A/B/C verso filtri a carbone">
           <!-- hit-area: in SVG lo spazio vuoto del <g> non riceve click -->
-          <rect x="848" y="352" width="120" height="186" fill="#000" opacity="0.001" pointer-events="all" />
+          <rect x="848" y="352" width="120" height="140" fill="#000" opacity="0.001" pointer-events="all" />
           <path class="pipe pipe-main" data-flow="p19" d="M940 415 H880" pointer-events="none" />
           <path class="pipe pipe-main" data-flow="p19" d="M880 375 V455" pointer-events="none" />
           <g transform="translate(880,375)" pointer-events="none">
@@ -2188,17 +2218,17 @@
             </g>
           </g>
           <text id="svgPump11019Label" x="910" y="485" text-anchor="middle" fill="#86efac" font-size="10" font-weight="700" pointer-events="none">P11019 A/B/C</text>
-          <!-- Overview: portata verso carboni (non il totale pompe) -->
-          <g pointer-events="none">
+          <!-- Overview: portata carboni — numpad diretto. Freccia a sinistra: i carboni sono a sinistra. -->
+          <g class="flow-edit" data-field="qP11019Impianto" data-source="p11019" aria-label="Portata verso carboni" pointer-events="all">
             <rect class="badge" id="svgQP11019Badge" x="848" y="494" width="88" height="36" rx="5" stroke="#4ade80" />
-            <text x="892" y="506" text-anchor="middle" fill="#86efac" font-size="7" font-weight="700">→ carboni</text>
+            <text x="892" y="506" text-anchor="middle" fill="#86efac" font-size="7" font-weight="700">← carboni</text>
             <text class="badge-val" x="880" y="522" text-anchor="middle" id="svgQP11019" font-size="12">140.0</text>
             <text class="badge-unit" x="914" y="522" text-anchor="middle">m³/h</text>
           </g>
-          <!-- Freccia + strumento IAS a destra della portata carboni -->
-          <g id="svgP11019IasBranch" pointer-events="none" aria-label="Portata verso IAS">
-            <path d="M938 512 H958" stroke="#fbbf24" stroke-width="2.2" fill="none" stroke-linecap="round" />
-            <polygon points="958,506 970,512 958,518" fill="#fbbf24" />
+          <!-- IAS a destra: numpad diretto. Alzare IAS sottrae dal totale carboni a sinistra. -->
+          <g id="svgP11019IasBranch" class="flow-edit" data-field="qP11019Ias" data-source="p11019" aria-label="Portata verso IAS" pointer-events="all">
+            <path d="M938 512 H958" stroke="#fbbf24" stroke-width="2.2" fill="none" stroke-linecap="round" pointer-events="none" />
+            <polygon points="958,506 970,512 958,518" fill="#fbbf24" pointer-events="none" />
             <rect class="badge" id="svgQP11019IasBadge" x="972" y="494" width="72" height="36" rx="5" stroke="#fbbf24" fill="#1e293b" />
             <text x="1008" y="506" text-anchor="middle" fill="#fde68a" font-size="8" font-weight="800">IAS</text>
             <text class="badge-val" x="998" y="522" text-anchor="middle" id="svgQP11019Ias" font-size="11" fill="#fef3c7">0.0</text>
@@ -3586,14 +3616,14 @@
         <span>PROCESSO — Osmosi</span>
       </button>
       <p class="mini osm-narration" id="devModeHintOsmosi">Modo osmosi: segue l’impianto (Automatico generale).</p>
-      <div class="row" style="grid-template-columns:1fr 1fr 1fr">
+      <div class="row osm-tot-row" style="grid-template-columns:1fr 1fr 1fr">
         <label><strong>TOTALE (m³/h)</strong>
           <input type="number" id="qOsmosiTotale" class="tot-mem" readonly tabindex="-1" value="0" />
         </label>
         <label><strong>DEMI (m³/h)</strong>
           <input type="number" id="qOsmosiDemi" class="tot-mem" readonly tabindex="-1" value="0" />
         </label>
-        <label><strong>TOT. CONCENTRATO (m³/h)</strong>
+        <label class="osm-tot-conc"><strong>TOT. CONCENTRATO (m³/h)</strong>
           <input type="number" id="qOsmosiTotConc" class="tot-mem" readonly tabindex="-1" value="0" />
         </label>
       </div>
@@ -3626,7 +3656,7 @@
             <input type="number" id="qOsmosiConcA" readonly tabindex="-1" value="0" />
           </label>
         </div>
-        <div class="row">
+        <div class="row osm-lvl">
           <label><strong>Start %</strong>
             <input type="number" id="viewStartSvuotOsmA2" readonly placeholder="—" />
           </label>
@@ -3663,7 +3693,7 @@
             <input type="number" id="qOsmosiConcB" readonly tabindex="-1" value="0" />
           </label>
         </div>
-        <div class="row">
+        <div class="row osm-lvl">
           <label><strong>Start %</strong>
             <input type="number" id="viewStartSvuotOsmB2" readonly placeholder="—" />
           </label>
@@ -3700,7 +3730,7 @@
             <input type="number" id="qOsmosiConcC" readonly tabindex="-1" value="0" />
           </label>
         </div>
-        <div class="row">
+        <div class="row osm-lvl">
           <label><strong>Start %</strong>
             <input type="number" id="viewStartSvuotOsmC2" readonly placeholder="—" />
           </label>
@@ -13875,8 +13905,8 @@
       qMemTotale: "Totale MBR",
       qRecycle: "11014 riciclo",
       qP11019: "P11019 A/B/C",
-      qP11019Ias: "P11019 IAS",
-      qP11019Impianto: "P11019 Impianto",
+      qP11019Ias: "IAS",
+      qP11019Impianto: "Carboni",
       qUfTotale: "Totale UF",
       qUfA: "UF A",
       qUfB: "UF B",
@@ -13944,8 +13974,8 @@
       __flowNumpadFresh = false;
     }
 
-    function showFlowNumpad() {
-      if (!isTouchUi() || !flowNumpad) return;
+    function showFlowNumpad(force) {
+      if ((!isTouchUi() && !force) || !flowNumpad) return;
       flowNumpad.classList.add("show");
       flowEditBack?.querySelector(".flow-edit-panel")?.classList.add("has-numpad");
       __flowNumpadFresh = true;
@@ -14264,7 +14294,12 @@
         syncP11019SplitKeepIas();
         return;
       }
-      if (field === "qP11019Ias" || field === "qP11019Impianto") {
+      if (field === "qP11019Ias") {
+        applyP11019SplitFrom("ias", v);
+        return;
+      }
+      if (field === "qP11019Impianto") {
+        applyP11019SplitFrom("impianto", v);
         return;
       }
       if (field === "qMandata") {
@@ -14616,8 +14651,8 @@
       syncFlowEditEstopBtn();
       updateFlowEditCorr();
       __flowNumpadFresh = true;
-      if (isTouchUi()) {
-        // Mobile: popup già pronto con numpad, niente tastiera di sistema
+      if (isTouchUi() || splitEdit) {
+        // Mobile, e le portate Carboni/IAS: numpad diretto, niente tastiera di sistema
         if (inlineInp) {
           inlineInp.setAttribute("readonly", "readonly");
           inlineInp.setAttribute("inputmode", "none");
@@ -14625,7 +14660,7 @@
           inlineInp.blur();
         }
         if (flowEditBack) flowEditBack.classList.add("show");
-        showFlowNumpad();
+        showFlowNumpad(splitEdit);
         if (inlineInp) inlineInp.value = seed;
         setTimeout(releaseLive, 80);
       } else {
