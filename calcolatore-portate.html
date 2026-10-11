@@ -203,6 +203,48 @@
       color: var(--accent);
       font-variant-numeric: tabular-nums;
       line-height: 1.15;
+      background: transparent;
+      border: 0;
+      padding: 0 2px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    #popSimJump.flow-edit-back { background: rgba(2, 8, 20, 0.72); z-index: 13000; }
+    #popSimJump .sim-jump-now {
+      margin: 2px 0 0;
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--accent);
+      font-variant-numeric: tabular-nums;
+      line-height: 1.1;
+    }
+    #popSimJump .sim-jump-sub {
+      margin: 0 0 10px;
+      color: var(--muted);
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+    #popSimJump .sim-jump-draft {
+      margin: 0 0 8px;
+      min-height: 1.5em;
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: #fde68a;
+      font-variant-numeric: tabular-nums;
+    }
+    #popSimJump .sim-jump-hint { margin: 0 0 8px; }
+    #popSimJump .flow-numpad { display: block; }
+    #popSimJump .sim-jump-enter {
+      width: 100%;
+      margin-top: 8px;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #14532d;
+      background: #166534;
+      color: #ecfdf5;
+      font-weight: 800;
+      font-size: 1rem;
+      cursor: pointer;
     }
     .sim-time .chimico-blocks {
       min-width: 1.1em;
@@ -2008,7 +2050,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v262</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v263</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -2037,7 +2079,7 @@
         <button type="button" id="simPlayToggle" class="is-start" aria-label="Avvia simulazione" aria-pressed="false">Start</button>
         <span class="sim-label">Time</span>
         <button type="button" id="simMinus5" aria-label="Indietro 1 minuto">−1′</button>
-        <span id="simTimeLabel">0′</span>
+        <button type="button" id="simTimeLabel" aria-label="Vai a un tempo">0′</button>
         <button type="button" id="simPlus5" aria-label="Avanti 1 minuto">+1′</button>
         <button type="button" id="simReset" aria-label="Azzera tempo">Reset</button>
         <span id="chimicoBlockCount" class="chimico-blocks" data-count="0" role="button" tabindex="0" title="Clic: spiega i blocchi chimico-fisico" aria-label="Blocchi chimico-fisico — clic per spiegazione">0</span>
@@ -2790,6 +2832,37 @@
         <button type="button" class="flow-estop" id="flowEditEstop" hidden>Stop</button>
         <button type="button" class="flow-ok" id="flowEditOk">OK</button>
       </div>
+    </div>
+  </div>
+
+  <div class="flow-edit-back" id="popSimJump" role="dialog" aria-modal="true" aria-labelledby="simJumpTitle">
+    <div class="flow-edit-panel">
+      <h3 id="simJumpTitle">
+        Tempo
+        <button type="button" id="simJumpClose" aria-label="Chiudi" style="float:right;background:transparent;border:0;color:#94a3b8;font-size:1.4rem;line-height:1;cursor:pointer">&times;</button>
+      </h3>
+      <p class="sim-jump-now" id="simJumpNow">0′</p>
+      <p class="sim-jump-sub" id="simJumpNowH">0 h 00</p>
+      <p class="sim-jump-draft" id="simJumpDraft">—</p>
+      <p class="mini sim-jump-hint">Ore. Punto, poi i minuti. Enter porta l’impianto a quell’istante.</p>
+      <div class="flow-numpad show" id="simJumpPad" aria-label="Tastierino tempo">
+        <div class="flow-numpad-grid">
+          <button type="button" data-sj="7">7</button>
+          <button type="button" data-sj="8">8</button>
+          <button type="button" data-sj="9">9</button>
+          <button type="button" data-sj="4">4</button>
+          <button type="button" data-sj="5">5</button>
+          <button type="button" data-sj="6">6</button>
+          <button type="button" data-sj="1">1</button>
+          <button type="button" data-sj="2">2</button>
+          <button type="button" data-sj="3">3</button>
+          <button type="button" data-sj=".">.</button>
+          <button type="button" data-sj="0">0</button>
+          <button type="button" class="np-back" data-sj="back" aria-label="Cancella">⌫</button>
+          <button type="button" class="np-clear" data-sj="clear" style="grid-column:1/-1">Pulisci</button>
+        </div>
+      </div>
+      <button type="button" class="sim-jump-enter" id="simJumpEnter">Enter</button>
     </div>
   </div>
 
@@ -10718,6 +10791,7 @@
     function updateSimTimeUI() {
       const label = el("simTimeLabel");
       if (label) label.textContent = __simMin + "′";
+      try { paintSimJumpClock(); } catch (_) { /* ok */ }
       try { paintUfHeadWash(); } catch (_) { /* ok */ }
       const minus = el("simMinus5");
       if (minus) minus.disabled = __simMin <= 0 || __simBusy || __simPlaying;
@@ -11275,6 +11349,186 @@
         paintA10608Passante();
         paintMembraneCycleUI(__mbrCycleMin);
       }
+    }
+
+    const SIM_JUMP_MAX_MIN = 72 * 60;
+    let __simJumpToken = 0;
+    let __simJumpStr = "";
+    let __simJumpFresh = true;
+
+    function fmtSimHM(totalMin) {
+      const m = Math.max(0, Math.round(Number(totalMin) || 0));
+      const h = Math.floor(m / 60);
+      const mm = m % 60;
+      return h + " h " + String(mm).padStart(2, "0");
+    }
+
+    function paintSimJumpClock() {
+      const pop = el("popSimJump");
+      if (!pop || !pop.classList.contains("show")) return;
+      const now = el("simJumpNow");
+      const sub = el("simJumpNowH");
+      if (now) now.textContent = __simMin + "′";
+      if (sub) sub.textContent = fmtSimHM(__simMin);
+    }
+
+    function simJumpParse(str) {
+      const s = String(str || "").trim();
+      if (!s || s === ".") return null;
+      const parts = s.split(".");
+      let h = parseInt(parts[0], 10);
+      if (!Number.isFinite(h)) return null;
+      h = Math.max(0, h);
+      let mm = 0;
+      if (parts.length > 1 && parts[1] !== "") {
+        const frac = parts[1].slice(0, 2);
+        mm = parseInt(frac, 10);
+        if (!Number.isFinite(mm)) mm = 0;
+        if (frac.length === 1) mm *= 10;
+        mm = Math.max(0, Math.min(59, mm));
+      }
+      return Math.max(0, Math.min(SIM_JUMP_MAX_MIN, h * 60 + mm));
+    }
+
+    function paintSimJumpDraft() {
+      const node = el("simJumpDraft");
+      if (!node) return;
+      if (!__simJumpStr) {
+        node.textContent = "—";
+        return;
+      }
+      const mins = simJumpParse(__simJumpStr);
+      if (mins == null) {
+        node.textContent = __simJumpStr;
+        return;
+      }
+      node.textContent = fmtSimHM(mins) + "   ·   " + mins + "′";
+    }
+
+    function simJumpKey(key) {
+      if (__simBusy) return;
+      const k = String(key || "");
+      if (k === "clear") {
+        __simJumpStr = "";
+        __simJumpFresh = true;
+        paintSimJumpDraft();
+        return;
+      }
+      if (k === "back") {
+        __simJumpStr = __simJumpStr.slice(0, -1);
+        __simJumpFresh = false;
+        paintSimJumpDraft();
+        return;
+      }
+      if (__simJumpFresh) {
+        __simJumpStr = "";
+        __simJumpFresh = false;
+      }
+      if (k === ".") {
+        if (__simJumpStr.includes(".")) return;
+        __simJumpStr = (__simJumpStr || "0") + ".";
+      } else if (/^[0-9]$/.test(k)) {
+        const parts = __simJumpStr.split(".");
+        if (parts.length === 1) {
+          if (parts[0].length >= 2) return;
+          __simJumpStr += k;
+        } else if (parts[1].length >= 2) {
+          return;
+        } else {
+          __simJumpStr += k;
+        }
+      } else return;
+      paintSimJumpDraft();
+    }
+
+    function showSimJump() {
+      if (__simBusy) return;
+      playCasioClick();
+      __simJumpStr = "";
+      __simJumpFresh = true;
+      const pop = el("popSimJump");
+      if (pop) pop.classList.add("show");
+      paintSimJumpDraft();
+      paintSimJumpClock();
+      try { syncScrollLock(); } catch (_) { /* ok */ }
+    }
+
+    function hideSimJump() {
+      const pop = el("popSimJump");
+      if (pop) pop.classList.remove("show");
+      try { syncScrollLock(); } catch (_) { /* ok */ }
+    }
+
+    function finishSimRunPaint() {
+      __simBusy = false;
+      updateSimTimeUI();
+      try { paintPumpColors(); } catch (_) { /* ok */ }
+      try { paintA10608Passante(); } catch (_) { /* ok */ }
+      try { paintMembraneCycleUI(__mbrCycleMin); } catch (_) { /* ok */ }
+      try { scheduleRegPreview({ immediate: true, userChange: true }); } catch (_) { /* ok */ }
+    }
+
+    function rewindSimToStart() {
+      if (!__simSnap) {
+        forcePlantRunningBaseline();
+        ensurePumpsFlowing();
+        captureSimSnap();
+      }
+      restoreSimSnap();
+      updateA10620RiempInterlocks(num("livelloAttuale"));
+      updateA10620PumpInterlocks(num("livelloAttuale"));
+      updateA10611PumpInterlocks(num("livelloAttualeA10611"));
+      updateMbrLevelInterlocks(numOrNull("livelloAttualeMbr") ?? 90);
+      updateMbrFillFor11036(numOrNull("livelloAttualeMbr") ?? 90);
+      updateTk11007PermeateInterlocks(numOrNull("livelloAttualeTk11007") ?? 91);
+      updateTk11007PumpInterlocks(numOrNull("livelloAttualeTk11007") ?? 91);
+      updateTk11021Interlocks(numOrNull("livelloAttualeTk11021") ?? 91);
+      ensurePumpsFlowing();
+      applyBalance("sim");
+      __simMin = 0;
+    }
+
+    /** Salto: stesso passo del Time, a fette, così 21 h o 24 h restano lo stato vero di quell’istante. */
+    function jumpSimToMinute(targetMin) {
+      targetMin = Math.max(0, Math.min(SIM_JUMP_MAX_MIN, Math.round(Number(targetMin) || 0)));
+      if (__simPlaying) simStop({ silent: true });
+      const token = ++__simJumpToken;
+      __simBusy = true;
+      updateSimTimeUI();
+      if (targetMin < __simMin || !__simSnap) {
+        try { rewindSimToStart(); } catch (e) { console.warn("[calcolatore] salto tempo", e); }
+      }
+      const pump = () => {
+        if (token !== __simJumpToken) return;
+        const t0 = performance.now();
+        try {
+          while (__simMin < targetMin && performance.now() - t0 < 14) {
+            __simMin += SIM_STEP_MIN;
+            simulateOneStep(SIM_STEP_MIN);
+          }
+        } catch (e) {
+          console.warn("[calcolatore] salto tempo", e);
+          finishSimRunPaint();
+          hideSimJump();
+          return;
+        }
+        updateSimTimeUI();
+        if (token === __simJumpToken && __simMin < targetMin) {
+          setTimeout(pump, 0);
+          return;
+        }
+        __simMin = targetMin;
+        finishSimRunPaint();
+        hideSimJump();
+      };
+      pump();
+    }
+
+    function commitSimJump() {
+      if (__simBusy) return;
+      const mins = simJumpParse(__simJumpStr);
+      if (mins == null) return;
+      jumpSimToMinute(mins);
     }
 
     function simPlus5() {
@@ -14198,6 +14452,8 @@
     function anyOverlayOpen() {
       const flowBack = el("popFlowEdit");
       if (flowBack && flowBack.classList.contains("show")) return true;
+      const jump = el("popSimJump");
+      if (jump && jump.classList.contains("show")) return true;
       const adj = el("popSludgeAdj");
       const pct = el("popSludgePct");
       const base = el("popSludgeBase");
@@ -15584,6 +15840,11 @@
     });
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
+        if (el("popSimJump")?.classList.contains("show")) {
+          e.preventDefault();
+          if (!__simBusy) hideSimJump();
+          return;
+        }
         if (el("popSludgePct")?.classList.contains("show") || el("popSludgeBase")?.classList.contains("show") || el("popSludgeAdj")?.classList.contains("show")) {
           e.preventDefault();
           return;
@@ -15792,6 +16053,57 @@
 
     // TIME Start/Stop (unico toggle) / −1′ / +1′ / Reset  (Start: 1 s reale = 1′ sim)
     el("simPlayToggle")?.addEventListener("click", (e) => { e.preventDefault(); simTogglePlay(); });
+    el("simTimeLabel")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      showSimJump();
+    });
+    el("simJumpClose")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!__simBusy) hideSimJump();
+    });
+    el("popSimJump")?.addEventListener("click", (e) => {
+      if (e.target !== el("popSimJump")) return;
+      if (!__simBusy) hideSimJump();
+    });
+    el("simJumpPad")?.addEventListener("click", (e) => {
+      const b = e.target && e.target.closest ? e.target.closest("[data-sj]") : null;
+      if (!b) return;
+      e.preventDefault();
+      e.stopPropagation();
+      simJumpKey(b.getAttribute("data-sj"));
+    });
+    el("simJumpEnter")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      commitSimJump();
+    });
+    document.addEventListener("keydown", (e) => {
+      const pop = el("popSimJump");
+      if (!pop || !pop.classList.contains("show")) return;
+      if (e.target && e.target.closest && e.target.closest("input, textarea")) return;
+      if (e.key === "Enter") {
+        e.preventDefault();
+        e.stopPropagation();
+        commitSimJump();
+        return;
+      }
+      if (e.key === "Backspace") {
+        e.preventDefault();
+        simJumpKey("back");
+        return;
+      }
+      if (e.key === "." || e.key === ",") {
+        e.preventDefault();
+        simJumpKey(".");
+        return;
+      }
+      if (/^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+        simJumpKey(e.key);
+      }
+    }, true);
     el("simPlus5")?.addEventListener("click", (e) => {
       e.preventDefault();
       playCasioArrow(1);
