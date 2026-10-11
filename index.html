@@ -1726,7 +1726,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v237</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.55em;font-weight:600;color:#64748b;margin-left:6px">v238</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
@@ -5420,35 +5420,84 @@
     }
 
     /**
-     * Correzione unica TIME = previsione: ΔV a monte = (qIn − qPerm)·dt.
-     * Se i tassi empirici “perdono” acqua, la rimettiamo in A11004→MBR→A10611→A10620.
+     * Toglie i m³ che sono usciti col permeato: MBR → A11004 → A10611 → A10620.
+     * Il riciclo non li ricrea.
+     */
+    function releaseUpstreamVolumeM3(liv, extraM3) {
+      let left = Math.max(0, Number(extraM3) || 0);
+      let livH = Number(liv.livH);
+      let livMbr = Number(liv.livMbr);
+      let liv11 = Number(liv.liv11);
+      let liv20 = Number(liv.liv20);
+      if (!(left > 1e-9)) {
+        return { livH, livMbr, liv11, liv20, left: 0 };
+      }
+      const Vh = Math.max(1, getA11004Volume().V);
+      const Vm = Math.max(1, getMbrCommonVolume().V);
+      const V11 = a10611VolumeM3();
+      const V20 = Math.max(1, getA10620Geom().V);
+      const take = (livNow, V) => {
+        const have = Math.max(0, (Number(livNow) || 0) / 100 * V);
+        const cut = Math.min(left, have);
+        left -= cut;
+        return Math.max(0, (Number(livNow) || 0) - cut / V * 100);
+      };
+      livMbr = take(livMbr, Vm);
+      livH = take(livH, Vh);
+      liv11 = take(liv11, V11);
+      liv20 = take(liv20, V20);
+      return {
+        livH: Math.max(0, Math.min(100, livH)),
+        livMbr: Math.max(0, Math.min(100, livMbr)),
+        liv11: Math.max(0, Math.min(100, liv11)),
+        liv20: Math.max(0, Math.min(100, liv20)),
+        left,
+      };
+    }
+
+    /**
+     * Correzione unica TIME = previsione: ΔV a monte = (qIn − qPerm)·dt, anche negativo.
+     * Chimico 0 e membrane aperte: l’acqua esce, non viene rimessa nell’A10620.
      */
     function correctUpstreamMassBalance(before, after, qIn, qPerm, dtMin, opts) {
       const dt = Math.max(0, Number(dtMin) || 1);
-      const expect = Math.max(0, (Math.max(0, Number(qIn) || 0) - Math.max(0, Number(qPerm) || 0)) * (dt / 60));
+      const expect = (Math.max(0, Number(qIn) || 0) - Math.max(0, Number(qPerm) || 0)) * (dt / 60);
       const v0 = upstreamPlantVolumeM3(before.liv20, before.liv11, before.livMbr, before.livH);
       const v1 = upstreamPlantVolumeM3(after.liv20, after.liv11, after.livMbr, after.livH);
       const miss = expect - (v1 - v0);
-      if (!(miss > 1e-6)) {
+      if (miss > 1e-6) {
+        const put = absorbUpstreamVolumeM3(
+          { livH: after.livH, livMbr: after.livMbr, liv11: after.liv11, liv20: after.liv20 },
+          miss,
+          opts
+        );
         return {
-          liv20: after.liv20,
-          liv11: after.liv11,
-          livMbr: after.livMbr,
-          livH: after.livH,
-          miss: 0,
+          liv20: put.liv20,
+          liv11: put.liv11,
+          livMbr: put.livMbr,
+          livH: put.livH,
+          miss,
         };
       }
-      const put = absorbUpstreamVolumeM3(
-        { livH: after.livH, livMbr: after.livMbr, liv11: after.liv11, liv20: after.liv20 },
-        miss,
-        opts
-      );
+      if (miss < -1e-6) {
+        const cut = releaseUpstreamVolumeM3(
+          { livH: after.livH, livMbr: after.livMbr, liv11: after.liv11, liv20: after.liv20 },
+          -miss
+        );
+        return {
+          liv20: cut.liv20,
+          liv11: cut.liv11,
+          livMbr: cut.livMbr,
+          livH: cut.livH,
+          miss,
+        };
+      }
       return {
-        liv20: put.liv20,
-        liv11: put.liv11,
-        livMbr: put.livMbr,
-        livH: put.livH,
-        miss,
+        liv20: after.liv20,
+        liv11: after.liv11,
+        livMbr: after.livMbr,
+        livH: after.livH,
+        miss: 0,
       };
     }
 
@@ -5699,6 +5748,7 @@
 
         const hFull = a11004IsFull(livH);
         const qScarico = mbrScaricoToH(qMand, qPerm, livMbr, livH, cycleMin);
+        qRec = qRecycleDeliverable(qRec, qScarico, livH, dt);
         const hBackedUp = !hFull && (livH >= 94 || qScarico > qRec + 2);
 
         const r20 = rateA10620PctPerMin(qIn, qPump, qRec);
@@ -9492,6 +9542,26 @@
       });
     }
 
+    /**
+     * Il riciclo non inventa acqua: al massimo lo scarico membrane più il volume
+     * ancora sopra lo stop dell’A11004. Il setpoint 210 non torna tutto in A10620
+     * se le membrane ne hanno già mandate via una parte.
+     */
+    function qRecycleDeliverable(qWanted, qScarico, livH, dtMin) {
+      const want = Math.max(0, Number(qWanted) || 0);
+      if (want < 0.05) return 0;
+      let Vh = 25;
+      try { Vh = Math.max(1, getA11004Volume().V); } catch (_) { /* ok */ }
+      const loN = numOrNull("stopSvuotA11004");
+      const lo = loN !== null ? loN : 77;
+      const liv = Number(livH);
+      const above = Number.isFinite(liv) ? Math.max(0, (liv - lo) / 100 * Vh) : 0;
+      const dt = Math.max(0.05, Number(dtMin) || 1);
+      const fromTank = above * (60 / dt);
+      const can = Math.max(0, Number(qScarico) || 0) + fromTank;
+      return round1(Math.min(want, can));
+    }
+
     /** Riciclo effettivo 11014: ferme → 0; in marcia + riciclo Auto → almeno Q_RECYCLE_MIN. */
     function qRecycleEffective(running14, qWanted) {
       if (pumpEstopped("riciclo")) return 0;
@@ -9791,15 +9861,16 @@
       const stopRv = stopRiemp !== null ? stopRiemp : 95;
 
       // Solo bilanciamento reale (niente rClimb forzato: era quello che mandava subito a 95% / blocco)
-      let r20 = rateA10620PctPerMin(qInMass, qPump, qRecycleDisp);
       let r11 = estimateA10611RatePctPerMin(qPump, qMandata);
       const hFull = a11004IsFull(livH);
       const qScaricoH = mbrScaricoToH(qMandata, qPerm, livMbr, livH, __mbrCycleMin);
-      let rH = estimateRicHRatePctPerMin(qScaricoH, qRecycleForH);
-      const hBackedUp = !hFull && (livH >= 94 || qScaricoH > qRecycleForH + 2);
+      const qRecReal = qRecycleDeliverable(qRecycleDisp, qScaricoH, livH, dtMin);
+      let r20 = rateA10620PctPerMin(qInMass, qPump, qRecReal);
+      let rH = estimateRicHRatePctPerMin(qScaricoH, qRecReal);
+      const hBackedUp = !hFull && (livH >= 94 || qScaricoH > qRecReal + 2);
       let rMbr = estimateMbrRatePctPerMin(qMandata, qPerm, livMbr, {
         backedUp: hBackedUp,
-        qRecycle: qRecycleForH,
+        qRecycle: qRecReal,
         hFull,
         livH,
         tMin: __mbrCycleMin,
