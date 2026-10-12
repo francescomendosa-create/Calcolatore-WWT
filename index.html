@@ -2088,7 +2088,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v288</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v290</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -9519,12 +9519,37 @@
       try { paintCarbFlows(); } catch (_) { /* ok */ }
     }
 
+    /** In lavaggio: il filtro che lava mostra lo scarico (100 o 60), l’altro il resto della portata attuale verso UF. */
+    function carbWashShownFlows() {
+      let washL = null;
+      let phase = null;
+      try {
+        CARB_LINES.forEach((L) => {
+          const ph = carbPhase(L);
+          if (ph && !washL) {
+            washL = L;
+            phase = ph;
+          }
+        });
+      } catch (_) { return null; }
+      if (!washL || !plantIsStarted()) return null;
+      const qNow = Math.max(0, qP11019ImpiantoLive());
+      const need = phase === "lav" ? carbLavQNeed() : carbCtrlQNeed();
+      const drain = round1(Math.min(qNow, Math.max(0, need)));
+      const toUf = round1(Math.max(0, qNow - drain));
+      return {
+        A: washL === "A" ? drain : toUf,
+        B: washL === "B" ? drain : toUf,
+      };
+    }
+
     function paintCarbFlows() {
       const d = carbDeliveredPair();
       const a = el("svgQCarbA");
       const b = el("svgQCarbB");
-      const showA = deviceIsManual("carbone") ? d.capA : d.a;
-      const showB = deviceIsManual("carbone") ? d.capB : d.b;
+      const washShow = carbWashShownFlows();
+      const showA = washShow ? washShow.A : (deviceIsManual("carbone") ? d.capA : d.a);
+      const showB = washShow ? washShow.B : (deviceIsManual("carbone") ? d.capB : d.b);
       if (a && !isEditing("qCarbA")) a.textContent = round1(showA).toFixed(1);
       if (b && !isEditing("qCarbB")) b.textContent = round1(showB).toFixed(1);
       let washA = false;
@@ -11902,7 +11927,18 @@
       __simJumpStr = "";
       __simJumpFresh = true;
       const pop = el("popSimJump");
-      if (pop) pop.classList.add("show");
+      if (pop) {
+        pop.classList.add("show");
+        const panel = pop.querySelector(".flow-edit-panel");
+        if (panel) {
+          panel.classList.remove("is-dragging");
+          panel.style.position = "";
+          panel.style.left = "";
+          panel.style.top = "";
+          panel.style.margin = "";
+          panel.style.transform = "";
+        }
+      }
       paintSimJumpDraft();
       paintSimJumpClock();
       try { syncScrollLock(); } catch (_) { /* ok */ }
@@ -16096,6 +16132,7 @@
 
     (function bindAllModalDrags() {
       document.querySelectorAll(".modal-back > .modal").forEach(bindModalDrag);
+      bindModalDrag(document.querySelector("#popSimJump > .flow-edit-panel"));
     })();
 
     function nudgeFlowEdit(dir) {
