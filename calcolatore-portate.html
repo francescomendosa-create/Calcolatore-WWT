@@ -2088,7 +2088,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v295</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v296</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -6226,6 +6226,28 @@
     }
 
     /**
+     * Spazio libero (m³) fino allo stop del chimico: A11004, MBR, A10611, poi A10620.
+     * Si misura dai livelli di partenza, non dal setpoint membrane.
+     */
+    function upstreamRoomToChimicoStop(liv20, liv11, livMbr, livH) {
+      const Vh = Math.max(1, getA11004Volume().V);
+      const Vm = Math.max(1, getMbrCommonVolume().V);
+      const V11 = a10611VolumeM3();
+      const V20 = Math.max(1, getA10620Geom().V);
+      const stopM = numOrNull("stopRiempMbr") ?? 92;
+      const hiB = numOrNull("stopAltoA10611") ?? 96;
+      const stop = numOrNull("stopRiempA10620") ?? 95;
+      const h = Number.isFinite(Number(livH)) ? Number(livH) : 90;
+      const m = Number.isFinite(Number(livMbr)) ? Number(livMbr) : 90;
+      const a11 = Number.isFinite(Number(liv11)) ? Number(liv11) : 90;
+      const a20 = Number.isFinite(Number(liv20)) ? Number(liv20) : 90;
+      return Math.max(0, (97 - h) / 100 * Vh)
+        + Math.max(0, (stopM - m) / 100 * Vm)
+        + Math.max(0, (hiB - a11) / 100 * V11)
+        + Math.max(0, (stop - a20) / 100 * V20);
+    }
+
+    /**
      * Correzione unica TIME = previsione: ΔV a monte = (qIn − qPerm)·dt, anche negativo.
      * Chimico 0 e membrane aperte: l’acqua esce, non viene rimessa nell’A10620.
      */
@@ -6549,7 +6571,7 @@
 
       // Già fermo sullo stop riempimento: il blocco è adesso. Non è «nessun blocco nelle 8 ore».
       if (!chimicoOn && qInSp > 0.5 && liv20 >= stop - 0.05) {
-        const qPermNow = qPermConfiguredAt(Number(__mbrCycleMin) || 0, true, qMemSp);
+        const qPermNow = qPermConfiguredAt(Number(__mbrCycleMin) || 0, true);
         const memLowNow = qPermNow + 1 < qInSp;
         firstBlockMin = 0;
         reason = memLowNow ? "mem" : "near";
@@ -6562,6 +6584,7 @@
       let t = dt;
       let upBase = upstreamPlantVolumeM3(liv20, liv11, livMbr, livH);
       let upAcc = 0;
+      const upRoom = upstreamRoomToChimicoStop(liv20, liv11, livMbr, livH);
       const stepForecastBudget = (budgetMs) => {
         const sliceEnd = budgetMs > 0 ? performance.now() + budgetMs : Infinity;
         while (t <= H) {
@@ -6605,7 +6628,8 @@
           else if (ricicloAutoControlled()) qRec = Math.max(Q_RECYCLE_MIN, round1(Math.max(0, qPumpSp - qInSp)));
         }
         const cycleMin = (Number(__mbrCycleMin) || 0) + t;
-        const qPerm = qPermConfiguredAt(cycleMin, runMbrByLevel && allowMbrByPerm, qMemSp);
+        // Portata vera di questo minuto (membrane in pausa = 0). Mai il setpoint 170.
+        const qPerm = qPermConfiguredAt(cycleMin, runMbrByLevel && allowMbrByPerm);
         // P11019: OUT dal 11007 = pompe intere (IAS + carboni).
         // Verso impianto/UF = solo Impianto (carboni); IAS esce altrove e non entra in valle.
         let qP19Out = 0;
@@ -6700,6 +6724,8 @@
             livH = cut.livH;
           }
         }
+        // I m³ che non escono con la portata vera (non col setpoint) hanno riempito fino allo stop.
+        if (qIn > 0.5 && upAcc >= upRoom - 0.05) liv20 = stop;
 
         if (livMbr >= stopMbrFill - 0.05) {
           livMbr = Math.min(livMbr, stopMbrFill);
@@ -11583,6 +11609,7 @@
           __upstreamMass = {
             base: upstreamPlantVolumeM3(liv20, liv11, livMbr, livH),
             acc: 0,
+            room: upstreamRoomToChimicoStop(liv20, liv11, livMbr, livH),
           };
         }
         __upstreamMass.acc += addM3;
@@ -11608,6 +11635,7 @@
           nMbr = round2(cut.livMbr);
           nH = round2(cut.livH);
         }
+        if (qInMass > 0.5 && __upstreamMass.acc >= __upstreamMass.room - 0.05) n20 = stopRv;
       }
       let nP = round2(Math.max(0, Math.min(100, livP + rP * dtMin)));
       let nU = round2(Math.max(0, Math.min(100, livU + rU * dtMin)));
