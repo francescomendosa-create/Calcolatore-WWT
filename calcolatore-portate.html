@@ -2088,7 +2088,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v296</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v297</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -5728,7 +5728,8 @@
       // In TIME il conto alla rovescia non deve restare su un set vecchio.
       const liveKey = regUserSetKey();
       const shownKey = __lastRegFc.userSetKey || regEtaSetKey(__lastRegFc);
-      if (liveKey !== shownKey) {
+      // Durante il salto del tempo i set non vanno riletti a ogni minuto: altrimenti la barra resta su «Regolazione».
+      if (!__simBusy && liveKey !== shownKey) {
         try { paintRegBarPending(bar); } catch (_) { /* ok */ }
         if (__forecastPumping || __regPreviewTimer) __forecastRerun = true;
         else {
@@ -6628,8 +6629,8 @@
           else if (ricicloAutoControlled()) qRec = Math.max(Q_RECYCLE_MIN, round1(Math.max(0, qPumpSp - qInSp)));
         }
         const cycleMin = (Number(__mbrCycleMin) || 0) + t;
-        // Portata vera di questo minuto (membrane in pausa = 0). Mai il setpoint 170.
-        const qPerm = qPermConfiguredAt(cycleMin, runMbrByLevel && allowMbrByPerm);
+        // Set × membrane davvero in lavoro. Il 170 intero non è la portata di questo minuto.
+        const qPerm = qPermFromSetAt(cycleMin, runMbrByLevel && allowMbrByPerm, qMemSp);
         // P11019: OUT dal 11007 = pompe intere (IAS + carboni).
         // Verso impianto/UF = solo Impianto (carboni); IAS esce altrove e non entra in valle.
         let qP19Out = 0;
@@ -6777,10 +6778,19 @@
         return true;
       };
 
-      // Solo blocco chimico A10620 trovato nel loop minuto-per-minuto entro H (8 ore).
-      // Non stimare un blocco dalla media membrane: quel conto riempie solo l’A10620
-      // e anticipa uno stop che il tempo, a 8–9 ore, non raggiunge.
+      // Se il loop non ha chiuso il chimico, la media di ciclo (set × duty) usa lo stesso spazio libero.
+      // 170 e 170: media ~149, lo spazio si riempie dentro le 8 ore. 160 e 180: il buco è piccolo e resta fuori.
       const packForecast = () => {
+      if (firstBlockMin == null && qInSp > 0.5) {
+        const gapAvg = qInSp - qMemSp * dutyAvg;
+        if (gapAvg > 0.4 && upRoom > 0.05) {
+          const mins = (upRoom / gapAvg) * 60;
+          if (mins <= H + 0.5) {
+            firstBlockMin = Math.max(1, Math.round(mins));
+            reason = "mem";
+          }
+        }
+      }
       if (firstBlockMin != null && firstBlockMin > H) firstBlockMin = null;
 
       return {
@@ -6838,6 +6848,7 @@
           try { done = stepForecastBudget(12); }
           catch (_) {
             __forecastPumping = false;
+            try { opts.onDone(packForecast()); } catch (__) { /* ok */ }
             return;
           }
           if (gen !== __forecastAsyncGen) {
@@ -10697,6 +10708,28 @@
       return u < pausaR;
     }
 
+    /** Frazione di membrane abilitate che in questo minuto mandano. La pausa non conta come portata. */
+    function membraneOnFraction(cycleMin) {
+      const ids = memIdsEnabled();
+      if (!ids.length) return 1;
+      let on = 0;
+      ids.forEach((L) => {
+        if (!membraneIsPaused(cycleMin, L, { ignoreProcess: true })) on += 1;
+      });
+      return on / ids.length;
+    }
+
+    /**
+     * Permeato di questo minuto = setpoint × membrane in lavoro.
+     * Non il setpoint intero: se una coppia è in pausa, quella portata non esce.
+     */
+    function qPermFromSetAt(cycleMin, processOn, qMemSp) {
+      if (!processOn) return 0;
+      const tot = Math.max(0, Number(qMemSp) || 0);
+      if (!(tot > 0.5)) return 0;
+      return round1(tot * membraneOnFraction(cycleMin));
+    }
+
     function membranePhaseAt(cycleMin, indexOrLetter) {
       const letter = typeof indexOrLetter === "number"
         ? MBR_MEM_IDS[indexOrLetter]
@@ -11494,10 +11527,12 @@
       // Consenso 11014 → portata; ferme → 0
       const qRecycleDisp = qRecycleEffective(run14.running, qRecycleWanted);
       const qRecycleForH = qRecycleDisp;
-      // Stesso permeato che si vede sul badge: le membrane in pausa non escono.
-      const qPerm = membranesProcessAllowed()
-        ? sumMemsRunning(__mbrCycleMin)
-        : 0;
+      // Set scritto × membrane in lavoro in questo minuto. La pausa non esce, il 170 intero nemmeno.
+      const qPerm = qPermFromSetAt(
+        __mbrCycleMin,
+        membranesProcessAllowed(),
+        Math.max(0, num("qMemTotale") || 0)
+      );
       // Valle prima: 11021 pieno → UF stop → P11019 non scaricano Impianto (11007 non si svuota a vuoto)
       updateTk11021Interlocks(livU);
       updateTk11007PumpInterlocks(livP);
@@ -12126,6 +12161,7 @@
         __simMin = targetMin;
         finishSimRunPaint();
         hideSimJump();
+        try { scheduleRegPreview({ delay: 80 }); } catch (_) { /* ok */ }
       };
       pump();
     }
