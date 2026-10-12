@@ -2088,7 +2088,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v290</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v292</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -5738,9 +5738,12 @@
       __lastRegFc.displayBlockMin = eta;
       const adv = __lastRegAdv;
       const regOk = !!(adv.ok || adv.regOk);
-      let text = regOk
-        ? ("Regolato bene · nessun blocco chimico" + (adv.barNote ? " · " + adv.barNote : ""))
-        : shortRegPreviewBad(adv, __lastRegFc);
+      const chimicoChiuso = plantIsStarted() && __chimicoAllowFill === false;
+      let text = (chimicoChiuso && regOk)
+        ? "Male · chimico fermo · blocco raggiunto"
+        : (regOk
+          ? ("Regolato bene · nessun blocco chimico" + (adv.barNote ? " · " + adv.barNote : ""))
+          : shortRegPreviewBad(adv, __lastRegFc));
       if (__simPlaying || __simMin > 0) text = `t=${__simMin}′ · ` + String(text).replace(/^t=\d+′ · /, "");
       if (bar.textContent !== text) bar.textContent = text;
     }
@@ -5888,7 +5891,8 @@
     function shortRegPreviewBad(adv, fc) {
       const eta = fc && fc.displayBlockMin != null ? fc.displayBlockMin : (fc && fc.firstBlockMin);
       const when = (eta != null && Number(eta) <= BLOCK_FORECAST_HORIZON) ? fmtForecastWhen(eta) : null;
-      const whenBit = when ? ` · blocco tra ${when}` : "";
+      const whenNow = eta != null && Number(eta) < 0.5;
+      const whenBit = when ? (whenNow ? " · blocco adesso" : ` · blocco tra ${when}`) : "";
       const qSafeNum = adv && adv.qSafeSamePumps != null ? Number(adv.qSafeSamePumps) : NaN;
       const qSafe = Number.isFinite(qSafeNum) ? fmtQ(qSafeNum) : "";
       const focus = (adv && adv.focus) || "";
@@ -5901,7 +5905,7 @@
         const have = fc && fc.qMemSp != null ? fmtQ(fc.qMemSp) : "—";
         const inn = fc && fc.qInSp != null ? fmtQ(fc.qInSp) : "—";
         return when
-          ? `Male · membrane ${have} vs chimico ${inn} · blocco tra ${when}`
+          ? `Male · membrane ${have} vs chimico ${inn} · ${whenNow ? "blocco adesso" : ("blocco tra " + when)}`
           : `Male · membrane ${have} vs chimico ${inn}`;
       }
       if (focus === "rec") {
@@ -6362,11 +6366,9 @@
         if (opts.forceManualFlows !== true && ricicloAutoControlled()) {
           qRecSp = Math.max(Q_RECYCLE_MIN, round1(Math.max(0, qPumpSp - qInSp)));
         }
-        // Membrane in automatico: il conto usa il minimo tecnico del chimico, non un totale rimasto basso.
-        if (opts.forceManualFlows !== true && deviceAutoControlled("membrane")) {
-          const qMin = qMemMinTotaleForQin(qInSp).qMemMin;
-          if (qMemSp + 0.05 < qMin) qMemSp = qMin;
-        }
+        // Il totale membrane scritto è il comando che TIME fa girare.
+        // In marcia l’automatico non lo rialza: se qui si sostituisce col minimo tecnico,
+        // la barra dice «regolato bene» e poi il chimico si chiude sul set basso.
       } catch (_) { /* ok */ }
       qPermAvg = round1(qMemSp * dutyAvg);
 
@@ -6541,6 +6543,18 @@
           runP11011By20: !!extra.pumpBy20,
           blockP11011: !!extra.blockP11,
         };
+      }
+
+      // Già fermo sullo stop riempimento: il blocco è adesso. Non è «nessun blocco nelle 8 ore».
+      if (!chimicoOn && qInSp > 0.5 && liv20 >= stop - 0.05) {
+        const qPermNow = qPermConfiguredAt(Number(__mbrCycleMin) || 0, true, qMemSp);
+        const memLowNow = qPermNow + 1 < qInSp;
+        firstBlockMin = 0;
+        reason = memLowNow ? "mem" : "near";
+        firstSnap = snapAt(0, qRecSp, qPumpSp, qMandSp, qPermNow, {
+          run11036: true, pumpOn: true, pumpBy20, blockP11, allowUf, allowMbrByPerm,
+        });
+        blocks.push(0);
       }
 
       let t = dt;
@@ -7100,11 +7114,14 @@
 
       // Timer ufficiale: solo minuti della sim 8 ore (o ETA ancorato in barra).
       const etaShow = fc.displayBlockMin != null ? fc.displayBlockMin : fc.firstBlockMin;
+      const whenNow = etaShow != null && Number(etaShow) < 0.5;
       const when = (etaShow != null && etaShow <= BLOCK_FORECAST_HORIZON)
         ? fmtForecastWhen(etaShow)
         : null;
       const whenHtml = when
-        ? ` Blocco chimico previsto tra <strong>${when}</strong> (chimico-fisico chiuso).`
+        ? (whenNow
+          ? ` Blocco chimico <strong>adesso</strong> (chimico-fisico chiuso).`
+          : ` Blocco chimico previsto tra <strong>${when}</strong> (chimico-fisico chiuso).`)
         : "";
 
       let device = "P11011 A/B";
@@ -10667,7 +10684,7 @@
         s += rows[i].q;
       }
       // Il totale in REGOLAZIONE / SET è il comando. Se le righe sono ancora quelle di prima, scala.
-      // totOverride: previsione in automatico, quando il minimo tecnico è sopra il campo ancora vecchio.
+      // totOverride è lo stesso totale che TIME fa girare, non il minimo tecnico.
       const tot = totOverride != null && Number.isFinite(Number(totOverride))
         ? Math.max(0, Number(totOverride) || 0)
         : Math.max(0, num("qMemTotale") || 0);
@@ -17157,7 +17174,8 @@
     el("simJumpClose")?.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      if (!__simBusy) hideSimJump();
+      // La X chiude solo la finestra. Il salto già partito arriva all’ora impostata.
+      hideSimJump();
     });
     el("popSimJump")?.addEventListener("click", (e) => {
       if (e.target !== el("popSimJump")) return;
