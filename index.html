@@ -2088,7 +2088,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v292</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v293</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -4520,6 +4520,8 @@
     let __simSnap = null;
     let __simBusy = false;
     let __simPlaying = false;
+    /** Salto tempo: lo schema resta in marcia (pompe, tubi, membrane) anche a popup chiuso. */
+    let __simShowRun = false;
     let __simPlayTimer = null;
     /** Oscillazione portata ingresso chimico (setpoint ± ~1–2.5 m³/h) durante Start / passi TIME */
     let __qInWobblePhase = Math.random() * Math.PI * 2;
@@ -5718,15 +5720,16 @@
     function paintRegCountdownOnly() {
       const bar = el("statusBar");
       if (!bar || !__lastRegFc || !__lastRegAdv) {
-        if (!__forecastPumping && !__regPreviewTimer) {
+        if (!__simBusy && !__forecastPumping && !__regPreviewTimer) {
           try { scheduleRegPreview({ delay: 280 }); } catch (_) { /* ok */ }
         }
         return;
       }
       // In TIME il conto alla rovescia non deve restare su un set vecchio.
+      // Durante il salto non rilanciare le 8 ore: altrimenti il filo si blocca e le pompe non scorrono.
       const liveKey = regUserSetKey();
       const shownKey = __lastRegFc.userSetKey || regEtaSetKey(__lastRegFc);
-      if (liveKey !== shownKey) {
+      if (!__simBusy && liveKey !== shownKey) {
         try { paintRegBarPending(bar); } catch (_) { /* ok */ }
         if (__forecastPumping || __regPreviewTimer) __forecastRerun = true;
         else {
@@ -10852,7 +10855,7 @@
     }
 
     function plantIsStarted() {
-      return !!__simPlaying;
+      return !!__simPlaying || !!__simShowRun;
     }
 
     const PUMP_REV_MS = 700;        // default
@@ -11294,18 +11297,19 @@
       if (reset) reset.disabled = !!__simBusy;
       const playBtn = el("simPlayToggle");
       if (playBtn) {
+        const shownRun = !!__simPlaying || !!__simShowRun;
         playBtn.disabled = !!__simBusy;
-        playBtn.classList.toggle("is-start", !__simPlaying);
-        playBtn.classList.toggle("is-stop", !!__simPlaying);
-        playBtn.textContent = __simPlaying ? "Stop" : "Start";
-        playBtn.setAttribute("aria-label", __simPlaying ? "Ferma simulazione" : "Avvia simulazione");
-        playBtn.setAttribute("aria-pressed", __simPlaying ? "true" : "false");
+        playBtn.classList.toggle("is-start", !shownRun);
+        playBtn.classList.toggle("is-stop", shownRun);
+        playBtn.textContent = shownRun ? "Stop" : "Start";
+        playBtn.setAttribute("aria-label", shownRun ? "Ferma simulazione" : "Avvia simulazione");
+        playBtn.setAttribute("aria-pressed", shownRun ? "true" : "false");
       }
     }
 
     function simTogglePlay() {
       if (__simBusy) return;
-      if (__simPlaying) simStop();
+      if (__simPlaying || __simShowRun) simStop();
       else simStart();
     }
 
@@ -11345,8 +11349,9 @@
 
     /** Ferma il conteggio automatico (il tempo resta dove è). */
     function simStop({ silent = false } = {}) {
-      if (!silent && __simPlaying) playCasioClick();
+      if (!silent && (__simPlaying || __simShowRun)) playCasioClick();
       __simPlaying = false;
+      __simShowRun = false;
       if (__simPlayTimer) {
         clearInterval(__simPlayTimer);
         __simPlayTimer = null;
@@ -12002,6 +12007,14 @@
       if (__simPlaying) simStop({ silent: true });
       const token = ++__simJumpToken;
       __simBusy = true;
+      __simShowRun = true;
+      try {
+        if (isAutoMode() && p11011Allowed()) ensurePumpsFlowing({ instant: true });
+      } catch (_) { /* ok */ }
+      try {
+        kickQInMeterTo((__chimicoAllowFill && !chimicoDutyIsPaused()) ? Math.max(0, num("qIn")) : 0);
+      } catch (_) { /* ok */ }
+      try { paintPumpColors(); } catch (_) { /* ok */ }
       updateSimTimeUI();
       if (targetMin < __simMin || !__simSnap) {
         try { rewindSimToStart(); } catch (e) { console.warn("[calcolatore] salto tempo", e); }
@@ -12021,6 +12034,7 @@
           return;
         }
         updateSimTimeUI();
+        try { paintPumpColors(); } catch (_) { /* ok */ }
         if (token === __simJumpToken && __simMin < targetMin) {
           setTimeout(pump, 0);
           return;
