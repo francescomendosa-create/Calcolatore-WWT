@@ -2088,7 +2088,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v278</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v279</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -6400,6 +6400,36 @@
       let firstBlockMin = null;
       let firstSnap = null;
       let reason = "";
+      const osmRunFc = {
+        A: typeof __runOsmA === "boolean" ? __runOsmA : true,
+        B: typeof __runOsmB === "boolean" ? __runOsmB : true,
+        C: typeof __runOsmC === "boolean" ? __runOsmC : true,
+      };
+      function osmForecastQ(liv) {
+        const rows = [
+          ["A", "startSvuotOsmA", "stopSvuotOsmA", 60, 15],
+          ["B", "startSvuotOsmB", "stopSvuotOsmB", 60, 20],
+          ["C", "startSvuotOsmC", "stopSvuotOsmC", 85, 60],
+        ];
+        rows.forEach(([L, sId, pId, sDef, pDef]) => {
+          const startV = numOrNull(sId);
+          const stopV = numOrNull(pId);
+          const hi = startV !== null ? startV : sDef;
+          const lo = stopV !== null ? stopV : pDef;
+          if (liv <= lo + 0.05) osmRunFc[L] = false;
+          else if (liv >= hi - 0.05) osmRunFc[L] = true;
+        });
+        let scale = 1;
+        if (liv < 25) scale = liv <= 8 ? 0 : Math.max(0, (liv - 8) / 17);
+        let q = 0;
+        ["A", "B", "C"].forEach((L) => {
+          if (!osmRunFc[L] || !osmLineEnabled(L)) return;
+          let sp = Math.max(0, procSetpointOf("qOsmosi" + L) || 0);
+          if (sp < 0.05) sp = Math.max(0, num("qOsmosi" + L) || 0);
+          if (sp > 0.05) q += (sp + osmConcFor(sp)) * scale;
+        });
+        return round1(q);
+      }
 
       function snapAt(t, qRec, qPump, qMand, qPerm, extra) {
         return {
@@ -6500,8 +6530,8 @@
           qP19Out = round1(Math.min(qP19Sp, qToOsm + carbDrain + qIasOut));
           qUf = round1(qToOsm);
         }
-        // Osmosi: capacità stabile anche con UF in pausa isteresi — svuota 11021 e riapre la valle
-        const qOsm = livU > 8 ? qOsmCap : 0;
+        // Stessi start/stop di linea del TK 11021: sotto lo stop quella osmosi non esce.
+        const qOsm = osmForecastQ(livU);
 
         const hFull = a11004IsFull(livH);
         const qScarico = mbrScaricoToH(qMand, qPerm, livMbr, livH, cycleMin);
