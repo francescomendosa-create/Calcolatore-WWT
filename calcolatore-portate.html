@@ -2088,7 +2088,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v276</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v277</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -6385,6 +6385,7 @@
       // Un set osmosi basso non si nasconde dietro una portata carboni alta.
       const ufBwFrac = ufBackwashPassFrac();
       const qUfNom = round1(Math.max(0, qPassSp) * ufBwFrac);
+      const cebFc = ufCebForecastInit();
       const osmShortNow = qInSp > 0.5 && qOsmCap + 0.5 < qInSp;
       const carbShortNow = qInSp > 0.5 && qImpSp + 0.5 < qInSp;
       const ufShortNow = qInSp > 0.5 && ufCmd && qUfSp + 0.5 < qInSp && qUfSp + 0.5 < qImpSp;
@@ -6484,9 +6485,11 @@
         // Verso impianto/UF = solo Impianto (carboni); IAS esce altrove e non entra in valle.
         let qP19Out = 0;
         let qUf = 0;
-        // Media backwash dai tempi veri (lavoro / lavoro+lavaggio). Non il singolo minuto a zero.
+        // Media backwash dai tempi veri. Se in questo minuto c’è un CEB, quella linea non manda.
+        const cebLine = ufCebForecastTick(cebFc, dt, runP19By07 && allowUf);
+        const cebKeep = cebLine ? Math.max(0, 1 - ufLineFlowShare(cebLine)) : 1;
         if (runP19By07 && allowUf) {
-          const qToUf = Math.max(0, qPassSp);
+          const qToUf = Math.max(0, qPassSp) * cebKeep;
           const qIasOut = Math.max(0, qP19Sp - qImpSp);
           qP19Out = round1(Math.min(qP19Sp, qToUf + qIasOut));
           qUf = round1(qToUf * ufBwFrac);
@@ -6631,6 +6634,8 @@
         qSiteExport: round1(qSiteExport),
         valleyClosed: !!valleyClosed,
         valleyShort: !!valleyShort,
+        cebCount: cebFc.count,
+        cebWords: cebFc.words.slice(),
         endLiv20: round2(liv20),
         endLiv11: round2(liv11),
         endLivMbr: round2(livMbr),
@@ -6934,6 +6939,14 @@
             stress = ` Segnalazione: membrane sotto il minimo tecnico (<strong>${fmtQ(qHaveMem)}</strong> vs <strong class="flow-val">${fmtQ(qMemTarget)} m³/h</strong>).`;
           }
           stress += ` Non chiudono il chimico-fisico nelle ${horizLbl}.`;
+        }
+        const nCeb = Math.max(0, Number(fc.cebCount) || 0);
+        let cebNote = "";
+        if (nCeb === 1) cebNote = "lavaggio CEB previsto";
+        else if (nCeb > 1) cebNote = nCeb + " lavaggi CEB previsti";
+        if (cebNote) {
+          barNote = barNote ? (barNote + " · " + cebNote) : cebNote;
+          stress += ` Nelle ${horizLbl} c’è <strong>${cebNote}</strong>: in quei minuti quella ultrafiltrazione non manda.`;
         }
         return {
           ok: true,
@@ -13316,6 +13329,99 @@
       return 1;
     }
 
+    /** Quota di una linea sul totale UF (per toglierla durante il CEB). */
+    function ufLineFlowShare(letter) {
+      const L = String(letter || "").toUpperCase();
+      let sum = 0;
+      let mine = 0;
+      let n = 0;
+      UF_LINES.forEach((x) => {
+        if (!ufLineEnabled(x)) return;
+        n += 1;
+        const sp = Math.max(0, procSetpointOf("qUf" + x));
+        if (sp > 0.05) sum += sp;
+        if (x === L) mine = sp;
+      });
+      if (!ufLineEnabled(L)) return 0;
+      if (sum > 0.05) return Math.max(0, Math.min(1, mine / sum));
+      return n > 0 ? 1 / n : 0;
+    }
+
+    function ufCebKindWord(kind) {
+      if (kind === "cev") return "ipoclorito";
+      if (kind === "ceb") return "soda";
+      if (kind === "acido") return "acido";
+      return "";
+    }
+
+    /** Copia i tempi «manca all’avvio» dei CEB. La previsione non tocca i timer veri. */
+    function ufCebForecastInit() {
+      ensureUfChem();
+      const remain = {};
+      let wash = null;
+      const words = [];
+      let count = 0;
+      UF_LINES.forEach((L) => {
+        if (!ufLineEnabled(L)) return;
+        const st = ufSched(L);
+        remain[L] = { cev: 21 * 60, ceb: 23 * 60, acido: 24 * 60 };
+        UF_CHEM_KINDS.forEach((k) => {
+          const raw = st && st.remain ? Number(st.remain[k.id]) : NaN;
+          remain[L][k.id] = Number.isFinite(raw) ? raw : ufChemLavoroMin(L, k.id);
+        });
+        if (st && st.wash && st.wash.kind && st.wash.kind !== "bw") {
+          const left = Math.max(0, (ufChemWashSec() - (Number(st.wash.elapsedSec) || 0)) / 60);
+          wash = { L, kind: st.wash.kind, left };
+          count = 1;
+          words.push(ufCebKindWord(st.wash.kind));
+        }
+      });
+      return { remain, wash, count, words };
+    }
+
+    /**
+     * Un CEB alla volta. Gli altri in scadenza restano prenotati.
+     * canWash = c’è passaggio verso l’ultrafiltrazione, come in marcia.
+     */
+    function ufCebForecastTick(st, dtMin, canWash) {
+      if (!st) return null;
+      const dt = Math.max(0, Number(dtMin) || 0);
+      Object.keys(st.remain).forEach((L) => {
+        UF_CHEM_KINDS.forEach((k) => {
+          if (st.wash && st.wash.L === L && st.wash.kind === k.id) return;
+          st.remain[L][k.id] -= dt;
+        });
+      });
+      if (st.wash) {
+        if (canWash) {
+          st.wash.left -= dt;
+          if (st.wash.left <= 1e-6) {
+            const doneL = st.wash.L;
+            const doneK = st.wash.kind;
+            if (st.remain[doneL]) st.remain[doneL][doneK] = ufChemLavoroMin(doneL, doneK);
+            st.wash = null;
+          }
+        }
+      }
+      if (!st.wash && canWash) {
+        let pick = null;
+        Object.keys(st.remain).forEach((L) => {
+          UF_CHEM_KINDS.forEach((k) => {
+            const r = st.remain[L][k.id];
+            if (r > 1e-9) return;
+            if (!pick || r < pick.r - 1e-9) pick = { L, kind: k.id, r };
+          });
+        });
+        if (pick) {
+          st.wash = { L: pick.L, kind: pick.kind, left: ufChemWashSec() / 60 };
+          st.remain[pick.L][pick.kind] = 0;
+          st.count += 1;
+          st.words.push(ufCebKindWord(pick.kind));
+        }
+      }
+      return st.wash ? st.wash.L : null;
+    }
+
     const UF_CHEM_KINDS = [
       { id: "cev", title: "Lavaggio CEB ipoclorito in corso", oreId: "ufCevOre", defH: 21 },
       { id: "ceb", title: "Lavaggio CEB soda in corso", oreId: "ufCebOre", defH: 23 },
@@ -14370,6 +14476,7 @@
       }
       try { paintUfWashUI(); } catch (_) { /* ok */ }
       try { schedulePersist(); } catch (_) { /* ok */ }
+      try { noteValleySetChanged(); } catch (_) { /* ok */ }
     }
 
     let __ufRemainEdit = null;
@@ -14697,6 +14804,7 @@
           inp.addEventListener("input", () => {
             paintUfSvgLive();
             schedulePersist();
+            try { noteValleySetChanged(); } catch (_) { /* ok */ }
           });
           lab.appendChild(inp);
           const labR = document.createElement("label");
