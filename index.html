@@ -2088,7 +2088,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v283</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v286</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -2920,15 +2920,15 @@
       <p class="mini sim-jump-hint">Ore. Punto, poi i minuti. Enter porta l’impianto a quell’istante.</p>
       <div class="flow-numpad show" id="simJumpPad" aria-label="Tastierino tempo">
         <div class="flow-numpad-grid">
-          <button type="button" data-sj="7">7</button>
-          <button type="button" data-sj="8">8</button>
-          <button type="button" data-sj="9">9</button>
-          <button type="button" data-sj="4">4</button>
-          <button type="button" data-sj="5">5</button>
-          <button type="button" data-sj="6">6</button>
           <button type="button" data-sj="1">1</button>
           <button type="button" data-sj="2">2</button>
           <button type="button" data-sj="3">3</button>
+          <button type="button" data-sj="4">4</button>
+          <button type="button" data-sj="5">5</button>
+          <button type="button" data-sj="6">6</button>
+          <button type="button" data-sj="7">7</button>
+          <button type="button" data-sj="8">8</button>
+          <button type="button" data-sj="9">9</button>
           <button type="button" data-sj=".">.</button>
           <button type="button" data-sj="0">0</button>
           <button type="button" class="np-back" data-sj="back" aria-label="Cancella">⌫</button>
@@ -5550,7 +5550,7 @@
       __chimicoAllowFill = on;
     }
 
-    let __regPreviewTimer = 0;
+    let __regPreviewWipe = false;
     let __forecastAsyncGen = 0;
     let __forecastPumping = false;
     let __forecastPumpGen = 0;
@@ -5577,7 +5577,36 @@
       __regEtaLock = { absSim: null, setKey: "", simAt: 0 };
     }
 
+    /** Set che ha digitato l’operatore. Non i valori alzati dentro la previsione. */
+    function regUserSetKey() {
+      const n = (v) => Math.round(Number(v) || 0);
+      let qOsm = 0;
+      let qUf = 0;
+      let qCarb = 0;
+      try { qOsm = osmExportCapacityStable(); } catch (_) { qOsm = 0; }
+      try { qUf = ufSetpointSum(); } catch (_) { qUf = 0; }
+      if (!(qUf > 0.05)) {
+        try { qUf = procSetpointOf("qUfTotale") || 0; } catch (_) { qUf = 0; }
+      }
+      try { qCarb = qP11019ImpiantoSetpoint(); } catch (_) { qCarb = 0; }
+      return [
+        n(chemicalSetpointNow()),
+        n(num("qMemTotale")),
+        n(flowSetpointOf("qPump")),
+        n(flowSetpointOf("qMandata")),
+        n(flowSetpointOf("qRecycle")),
+        n(qOsm),
+        n(qCarb),
+        n(qUf),
+        n(num("chimicoPausaMin")),
+        n(num("chimicoRiavvioMin")),
+        n(num("cicloLavoro")),
+        n(num("cicloPausa")),
+      ].join("|");
+    }
+
     function regEtaSetKey(fc) {
+      if (fc && fc.userSetKey) return String(fc.userSetKey);
       return [
         Math.round(Number(fc && fc.qInSp) || 0),
         Math.round(Number(fc && fc.qMemSp) || 0),
@@ -5609,6 +5638,7 @@
       opts = opts || {};
       if (opts.userChange) {
         bumpRegUserChange();
+        __regPreviewWipe = true;
         // Un tocco interrompe il conto da 8 ore già in corso, così il numpad resta libero.
         __forecastAsyncGen++;
         __forecastPumping = false;
@@ -5660,11 +5690,20 @@
       if (!bar) return;
       bar.setAttribute("data-clickable", "1");
       const seq = ++__regPreviewSeq;
-      try { paintInstantValleyIfBad(bar); } catch (_) { /* ok */ }
+      if (__regPreviewWipe) {
+        __regPreviewWipe = false;
+        try { paintRegBarPending(bar); } catch (_) { /* ok */ }
+      } else {
+        try { paintInstantValleyIfBad(bar); } catch (_) { /* ok */ }
+      }
       try {
         forecastChimicoHorizon(BLOCK_FORECAST_HORIZON, {
           onDone(fc) {
             if (seq !== __regPreviewSeq || !fc) return;
+            if (fc.userSetKey && fc.userSetKey !== regUserSetKey()) {
+              try { scheduleRegPreview({ userChange: true }); } catch (_) { /* ok */ }
+              return;
+            }
             paintRegPreviewFromForecast(bar, fc, seq);
           },
         });
@@ -5685,21 +5724,14 @@
         return;
       }
       // In TIME il conto alla rovescia non deve restare su un set vecchio.
-      const qInNow = chemicalSetpointNow();
-      const qMemNow = Math.max(0, num("qMemTotale") || 0);
-      let qOsmNow = 0;
-      let qCarbNow = 0;
-      let qUfNow = 0;
-      try { qOsmNow = osmExportCapacityStable(); } catch (_) { qOsmNow = 0; }
-      try { qCarbNow = qP11019ImpiantoSetpoint(); } catch (_) { qCarbNow = 0; }
-      try { qUfNow = procSetpointOf("qUfTotale"); } catch (_) { qUfNow = 0; }
-      const drifted = Math.abs((Number(__lastRegFc.qInSp) || 0) - qInNow) > 0.6
-        || Math.abs((Number(__lastRegFc.qMemSp) || 0) - qMemNow) > 0.6
-        || Math.abs((Number(__lastRegFc.qOsmCap) || 0) - qOsmNow) > 0.6
-        || Math.abs((Number(__lastRegFc.qImpSp) || 0) - qCarbNow) > 0.6
-        || Math.abs((Number(__lastRegFc.qUfSp) || 0) - qUfNow) > 0.6;
-      if (drifted) {
-        try { scheduleRegPreview({ userChange: true }); } catch (_) { /* ok */ }
+      const liveKey = regUserSetKey();
+      const shownKey = __lastRegFc.userSetKey || regEtaSetKey(__lastRegFc);
+      if (liveKey !== shownKey) {
+        try { paintRegBarPending(bar); } catch (_) { /* ok */ }
+        if (__forecastPumping || __regPreviewTimer) __forecastRerun = true;
+        else {
+          try { scheduleRegPreview({ userChange: true }); } catch (_) { /* ok */ }
+        }
         return;
       }
       const eta = lockedBlockRemainMin(__lastRegFc);
@@ -5818,31 +5850,37 @@
       return { fc, v: valleyCauseOf(fc) };
     }
 
-    function paintInstantValleyIfBad(bar) {
+    /** Toglie subito la frase del blocco precedente. Se il set è già storto, lo dice ora. */
+    function paintRegBarPending(bar) {
       if (!bar) return;
+      if (paintInstantValleyIfBad(bar)) return;
+      const prefix = (__simPlaying || __simMin > 0) ? `t=${__simMin}′ · ` : "";
+      bar.className = "status warn";
+      bar.textContent = prefix + "Regolazione…";
+      bar.title = "Aggiorno la previsione sulle portate attuali";
+    }
+
+    function paintInstantValleyIfBad(bar) {
+      if (!bar) return false;
       const qIn = chemicalSetpointNow();
       const qMem = Math.max(0, num("qMemTotale") || 0);
-      let dutyAvg = 0.875;
-      try {
-        const d = duty();
-        if (d && d.d > 0.05) dutyAvg = d.d;
-      } catch (_) { /* ok */ }
-      if (qIn > 0.5 && qMem * dutyAvg + 1 < qIn) {
+      if (qIn > 0.5 && qMem + 1 < qIn) {
         let text = `Male · membrane ${fmtQ(qMem)} vs chimico ${fmtQ(qIn)} · tempo in calcolo`;
         if (__simPlaying || __simMin > 0) text = `t=${__simMin}′ · ` + text;
         bar.className = "status danger is-bad";
         bar.textContent = text;
         bar.title = "Membrane sotto il chimico-fisico — il tempo preciso arriva dal conto da 8 ore";
-        return;
+        return true;
       }
       const snap = valleyNowSnapshot();
-      if (!snap || !snap.v || !snap.v.cause) return;
+      if (!snap || !snap.v || !snap.v.cause) return false;
       const text0 = shortRegPreviewBad({ focus: snap.v.cause }, snap.fc);
       let text = /blocco tra/.test(text0) ? text0 : (text0 + " · tempo in calcolo");
       if (__simPlaying || __simMin > 0) text = `t=${__simMin}′ · ` + String(text).replace(/^t=\d+′ · /, "");
       bar.className = "status danger is-bad";
       bar.textContent = text;
       bar.title = "Set osmosi / ultrafiltrazione / carboni — il tempo preciso arriva dal conto da 8 ore";
+      return true;
     }
 
     let __valleySetKey = "";
@@ -6258,6 +6296,7 @@
       __permRowsTs = 0;
       __permRowsTot = null;
       const anchorSim = Math.max(0, Number(__simMin) || 0);
+      const userSetKey = regUserSetKey();
       const H = Math.max(1, Math.round(Number(horizonMin) || BLOCK_FORECAST_HORIZON));
       const dt = 1;
       const stopR = numOrNull("stopRiempA10620");
@@ -6346,7 +6385,6 @@
       let livP = opts.livP != null ? Number(opts.livP) : (numOrNull("livelloAttualeTk11007") ?? 91);
       let livU = opts.livU != null ? Number(opts.livU) : (numOrNull("livelloAttualeTk11021") ?? 91);
       if (!Number.isFinite(liv20)) liv20 = 90;
-      const liv20Start = liv20;
       if (!Number.isFinite(liv11)) liv11 = 90;
       if (!Number.isFinite(livMbr)) livMbr = 90;
       if (!Number.isFinite(livH)) livH = 90;
@@ -6679,31 +6717,16 @@
       };
 
       // Solo blocco chimico A10620 trovato nel loop minuto-per-minuto entro H (8 ore).
-      // Mai inventare tempi oltre l’orizzonte e mai stime grezze tipo “35 ore”.
+      // Non stimare un blocco dalla media membrane: quel conto riempie solo l’A10620
+      // e anticipa uno stop che il tempo, a 8–9 ore, non raggiunge.
       const packForecast = () => {
       if (firstBlockMin != null && firstBlockMin > H) firstBlockMin = null;
-      // Il loop può non vedere il set (misura a 0, righe membrane vecchie).
-      // Se il set chimico supera l’uscita media del set membrane, e l’A10620
-      // arriva allo stop entro 8 ore, il blocco c’è lo stesso.
-      if (firstBlockMin == null && qInSp > 0.5) {
-        const deliver = Math.max(0, Number(qPermAvg) || 0);
-        const gap = qInSp - deliver;
-        if (gap > 1) {
-          let V20 = 450;
-          try { V20 = Math.max(1, getA10620Geom().V); } catch (_) { V20 = 450; }
-          const room = Math.max(0, (stop - liv20Start) / 100 * V20);
-          const mins = (room / gap) * 60;
-          if (mins <= H + 0.5) {
-            firstBlockMin = Math.max(1, Math.round(mins));
-            if (!reason) reason = "mem";
-          }
-        }
-      }
 
       return {
         ok: firstBlockMin == null,
         horizonMin: H,
         anchorSim,
+        userSetKey,
         firstBlockMin,
         blockCount: blocks.length,
         reason,
@@ -6739,6 +6762,9 @@
         const pumpFc = () => {
           if (gen !== __forecastAsyncGen) {
             if (__forecastPumpGen === gen) __forecastPumping = false;
+            if (!__inlineLiveTimer && performance.now() >= __uiHotUntil && !__regPreviewTimer && !__forecastPumping) {
+              try { scheduleRegPreview({ delay: 60 }); } catch (_) { /* ok */ }
+            }
             return;
           }
           __forecastPumping = true;
@@ -6755,6 +6781,9 @@
           }
           if (gen !== __forecastAsyncGen) {
             __forecastPumping = false;
+            if (!__inlineLiveTimer && performance.now() >= __uiHotUntil && !__regPreviewTimer && !__forecastPumping) {
+              try { scheduleRegPreview({ delay: 60 }); } catch (_) { /* ok */ }
+            }
             return;
           }
           if (!done) {
@@ -15818,7 +15847,6 @@
       try {
         __forecastAsyncGen++;
         __forecastPumping = false;
-        __forecastRerun = false;
         __qSafeJob++;
         __qSafeBusy = false;
         if (__regPreviewTimer) {
@@ -15830,6 +15858,7 @@
       __inlineLiveTimer = setTimeout(() => {
         __inlineLiveTimer = 0;
         try { applyInlineLive(); } catch (_) { /* ok */ }
+        try { scheduleRegPreview({ immediate: true, userChange: true }); } catch (_) { /* ok */ }
       }, 420);
     }
     let __flowEditGuardUntil = 0; // evita chiusura fantasma al rilascio dito su tablet
