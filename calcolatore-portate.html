@@ -2088,7 +2088,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v281</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v282</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -2570,6 +2570,7 @@
             <text class="badge-unit badge-unit-set" x="600" y="326" text-anchor="middle">set</text>
           </g>
           <text id="svgManUltra" class="svg-man-mark" data-dev="ultra" x="624" y="322" text-anchor="start" role="button" tabindex="0" aria-label="Modo UF">M</text>
+          <text id="svgManCarbone" class="svg-man-mark" data-dev="carbone" x="688" y="308" text-anchor="start" role="button" tabindex="0" aria-label="Modo carboni">A</text>
 
           <!-- Collettore ingresso (da carbone) + 4 misuratori → testata UF -->
           <path class="pipe pipe-main" data-flow="uf" d="M688 360 V500" />
@@ -5037,7 +5038,7 @@
 
     /** Override locale per dispositivo (membrane / ultra / osmosi / riciclo). Manuale vince sul modo generale. */
     // Chimico-fisico parte sempre Manuale: la portata ingresso la digita l’operatore.
-    const __devMode = { membrane: "auto", ultra: "auto", osmosi: "auto", riciclo: "auto", pompa: "auto", mandata: "auto", ingresso: "manual" };
+    const __devMode = { membrane: "auto", ultra: "auto", osmosi: "auto", riciclo: "auto", pompa: "auto", mandata: "auto", carbone: "auto", ingresso: "manual" };
 
     function deviceIsManual(dev) {
       return __devMode[dev] === "manual";
@@ -5061,6 +5062,7 @@
         membrane: ["svgManMembrane"],
         riciclo: ["svgManRiciclo"],
         ultra: ["svgManUltra"],
+        carbone: ["svgManCarbone"],
         osmosi: ["svgManOsmosi"],
       };
       Object.keys(map).forEach((dev) => {
@@ -5129,7 +5131,7 @@
     }
 
     function paintAllDevModeUI() {
-      ["membrane", "ultra", "osmosi", "riciclo", "pompa", "mandata", "ingresso"].forEach(paintDevModeUI);
+      ["membrane", "ultra", "osmosi", "riciclo", "pompa", "mandata", "carbone", "ingresso"].forEach(paintDevModeUI);
       paintDevModeMarks();
     }
 
@@ -5178,6 +5180,11 @@
             el("equiparaMandata").checked = false;
             if (el("qMandata")) el("qMandata").disabled = false;
           }
+        } else if (dev === "carbone") {
+          ensureCarbCaps();
+          rememberFlowSetpoint("qCarbA", carbCap("A"), { allowZero: true });
+          rememberFlowSetpoint("qCarbB", carbCap("B"), { allowZero: true });
+          try { paintCarbFlows(); } catch (_) { /* ok */ }
         } else if (dev === "ingresso") {
           const qi = Math.max(0, num("qIn"));
           if (el("qIn") && qi >= 0) setVal("qIn", qi, { force: true });
@@ -5280,7 +5287,7 @@
       // Membrane→Aut: "ciclo" riseeda da chimico/duty anche a impianto in marcia (non "membrana")
       const balSrc = (next === "auto" && dev === "membrane")
         ? "ciclo"
-        : (({ membrane: "membrana", ultra: "ultra", osmosi: "osmosi", riciclo: "pompa", pompa: "pompa", mandata: "mandata", ingresso: "ingresso" })[dev] || "pompa");
+        : (({ membrane: "membrana", ultra: "ultra", osmosi: "osmosi", riciclo: "pompa", pompa: "pompa", mandata: "mandata", carbone: "carbone", ingresso: "ingresso" })[dev] || "pompa");
       applyBalance(balSrc);
       if (next === "auto" && dev === "membrane") {
         try { applyMembraneAutoTot(); } catch (_) { /* ok */ }
@@ -6381,12 +6388,17 @@
       if (opts.forceManualFlows !== true && opts.qUf == null && deviceAutoControlled("ultra") && qUfSp + 0.5 < qInSp) {
         qUfSp = round1(qInSp);
       }
-      if (opts.forceManualFlows !== true) {
+      if (opts.forceManualFlows !== true && !deviceIsManual("carbone")) {
         const needImp = Math.max(qUfSp, deviceAutoControlled("ultra") ? qInSp : 0);
         if (qImpSp + 0.5 < needImp) {
           qP19Sp = Math.min(Q_P11019_MAX, round1(needImp + qIasSp));
           qImpSp = Math.max(0, round1(qP19Sp - qIasSp));
         }
+      }
+      if (deviceIsManual("carbone")) {
+        let caps = 0;
+        try { caps = carbCap("A") + carbCap("B"); } catch (_) { caps = 0; }
+        if (caps > 0.5) qImpSp = Math.min(qImpSp, caps);
       }
       const ufManual = (typeof deviceIsManual === "function") && deviceIsManual("ultra");
       const ufCmd = ufManual || qUfSp > 0.05;
@@ -6986,7 +6998,10 @@
         if (ricicloAutoControlled() && !pumpRegBad) recBad = false;
       } catch (_) { /* ok */ }
       // Nessuno stop chimico nelle 8 ore → verde (marcia). Nota soft se membrane al minimo.
-      if (fc.ok) {
+      // Carboni / UF / osmosi sotto il chimico non sono «regolato bene», anche se la vasca
+      // non ha ancora toccato lo stop nel conto: a 175 contro 170 il TK-11007 chiude lo stesso.
+      const valleyShortNow = valleyCauseOf(fc);
+      if (fc.ok && !(valleyShortNow && valleyShortNow.cause)) {
         const horizLbl = fmtForecastWhen(fc.horizonMin || BLOCK_FORECAST_HORIZON);
         let barNote = "";
         let stress = "";
@@ -9422,11 +9437,15 @@
     function qP11019OutNow() {
       if (pumpEstopped("p11019") || !p11019Allowed()) return 0;
       const ias = Math.max(0, qP11019IasSetpoint());
-      return round1(carbDeliveredPair().tot + ias);
+      let plant = Math.max(0, qP11019ImpiantoSetpoint());
+      const caps = carbCap("A") + carbCap("B");
+      if (caps > 0.05) plant = Math.min(plant, caps);
+      return round1(plant + ias);
     }
 
     /** Tiene il rapporto dei due carichi quando cambia il totale (IAS, pompe). Non li pareggia. */
     function alignCarbCapsToImpianto() {
+      if (deviceIsManual("carbone")) return;
       const imp = Math.max(0, Math.round(qP11019ImpiantoSetpoint()));
       const a = carbCap("A");
       const b = carbCap("B");
@@ -9473,8 +9492,10 @@
       const d = carbDeliveredPair();
       const a = el("svgQCarbA");
       const b = el("svgQCarbB");
-      if (a && !isEditing("qCarbA")) a.textContent = round1(d.a).toFixed(1);
-      if (b && !isEditing("qCarbB")) b.textContent = round1(d.b).toFixed(1);
+      const showA = deviceIsManual("carbone") ? d.capA : d.a;
+      const showB = deviceIsManual("carbone") ? d.capB : d.b;
+      if (a && !isEditing("qCarbA")) a.textContent = round1(showA).toFixed(1);
+      if (b && !isEditing("qCarbB")) b.textContent = round1(showB).toFixed(1);
       let washA = false;
       let washB = false;
       try {
@@ -14098,6 +14119,7 @@
      * alza le P11019 (Impianto) fino al bisogno (IAS resta; max pompe 140).
      */
     function ensureCarboniMeetsUfDemand() {
+      if (deviceIsManual("carbone")) return;
       if (!plantIsStarted()) return;
       if (!p11019ValleyOpen() || !p11019Allowed()) return;
       const need = ufDemandSetpointTotal();
@@ -15758,6 +15780,7 @@
       if (f === "qRecycle") return "riciclo";
       if (f === "qMemTotale") return "membrane";
       if (f.startsWith("qUf")) return "ultra";
+      if (f === "qCarbA" || f === "qCarbB" || f === "qP11019Impianto") return "carbone";
       if (f.startsWith("qOsmosi")) return "osmosi";
       return "";
     }
@@ -17579,6 +17602,7 @@
         riciclo: __devMode.riciclo === "manual" ? "manual" : "auto",
         pompa: __devMode.pompa === "manual" ? "manual" : "auto",
         mandata: __devMode.mandata === "manual" ? "manual" : "auto",
+        carbone: __devMode.carbone === "manual" ? "manual" : "auto",
         ingresso: __devMode.ingresso === "manual" ? "manual" : "auto",
       };
       data.memQs = Array.from(document.querySelectorAll(".mem-q")).map((inp) => inp.value);
