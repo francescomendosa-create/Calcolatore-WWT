@@ -2088,7 +2088,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v286</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v288</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -4500,9 +4500,9 @@
     const __osmMeasTarget = { A: 0, B: 0, C: 0 };
     const VALVE_SMOOTH_PCT_S = 70;   // %/s lineare valvola (osmosi)
     const MEAS_SMOOTH_Q_S = 55;      // m³/h al secondo lineare portata (osmosi)
-    // UF: più lente, così si vede la barra che apre e il numero che sale.
-    const UF_VALVE_PCT_S = 20;       // 0→100% in ~5 s
-    const UF_MEAS_Q_S = 12;          // una linea da ~30 m³/h ci mette ~2,5 s
+    // UF: un po' più svelte di prima, si vede ancora la barra che apre e il numero che sale.
+    const UF_VALVE_PCT_S = 28;       // 0→100% in ~3,6 s (prima ~5 s)
+    const UF_MEAS_Q_S = 18;          // una linea da ~30 m³/h ci mette ~1,7 s (prima ~2,5 s)
     let __valveSmoothRaf = 0;
     let __valveSmoothLast = 0;
     const __osmWobble = {
@@ -5872,15 +5872,7 @@
         bar.title = "Membrane sotto il chimico-fisico — il tempo preciso arriva dal conto da 8 ore";
         return true;
       }
-      const snap = valleyNowSnapshot();
-      if (!snap || !snap.v || !snap.v.cause) return false;
-      const text0 = shortRegPreviewBad({ focus: snap.v.cause }, snap.fc);
-      let text = /blocco tra/.test(text0) ? text0 : (text0 + " · tempo in calcolo");
-      if (__simPlaying || __simMin > 0) text = `t=${__simMin}′ · ` + String(text).replace(/^t=\d+′ · /, "");
-      bar.className = "status danger is-bad";
-      bar.textContent = text;
-      bar.title = "Set osmosi / ultrafiltrazione / carboni — il tempo preciso arriva dal conto da 8 ore";
-      return true;
+      return false;
     }
 
     let __valleySetKey = "";
@@ -7038,11 +7030,9 @@
         }
         if (ricicloAutoControlled() && !pumpRegBad) recBad = false;
       } catch (_) { /* ok */ }
-      // Nessuno stop chimico nelle 8 ore → verde (marcia). Nota soft se membrane al minimo.
-      // Carboni / UF / osmosi sotto il chimico non sono «regolato bene», anche se la vasca
-      // non ha ancora toccato lo stop nel conto: a 175 contro 170 il TK-11007 chiude lo stesso.
-      const valleyShortNow = valleyCauseOf(fc);
-      if (fc.ok && !(valleyShortNow && valleyShortNow.cause)) {
+      // Osmosi / UF / carboni: «Male» solo se nelle 8 ore chiudono il chimico.
+      // Senza quello stop non c’è un timer, e la dicitura non serve.
+      if (fc.ok) {
         const horizLbl = fmtForecastWhen(fc.horizonMin || BLOCK_FORECAST_HORIZON);
         let barNote = "";
         let stress = "";
