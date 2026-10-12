@@ -2088,7 +2088,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v294</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v295</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -4520,9 +4520,9 @@
     let __simSnap = null;
     let __simBusy = false;
     let __simPlaying = false;
-    /** Salto tempo: lo schema resta in marcia (pompe, tubi, membrane) anche a popup chiuso. */
-    let __simShowRun = false;
     let __simPlayTimer = null;
+    /** Volume a monte che deve restare: somma di (chimico − permeato visto). Non si perde se i tassi lo “sfiatano”. */
+    let __upstreamMass = null;
     /** Oscillazione portata ingresso chimico (setpoint ± ~1–2.5 m³/h) durante Start / passi TIME */
     let __qInWobblePhase = Math.random() * Math.PI * 2;
     let __qInWobbleBias = 0;
@@ -5720,16 +5720,15 @@
     function paintRegCountdownOnly() {
       const bar = el("statusBar");
       if (!bar || !__lastRegFc || !__lastRegAdv) {
-        if (!__simBusy && !__forecastPumping && !__regPreviewTimer) {
+        if (!__forecastPumping && !__regPreviewTimer) {
           try { scheduleRegPreview({ delay: 280 }); } catch (_) { /* ok */ }
         }
         return;
       }
       // In TIME il conto alla rovescia non deve restare su un set vecchio.
-      // Durante il salto non rilanciare le 8 ore: altrimenti il filo si blocca e le pompe non scorrono.
       const liveKey = regUserSetKey();
       const shownKey = __lastRegFc.userSetKey || regEtaSetKey(__lastRegFc);
-      if (!__simBusy && liveKey !== shownKey) {
+      if (liveKey !== shownKey) {
         try { paintRegBarPending(bar); } catch (_) { /* ok */ }
         if (__forecastPumping || __regPreviewTimer) __forecastRerun = true;
         else {
@@ -6561,6 +6560,8 @@
       }
 
       let t = dt;
+      let upBase = upstreamPlantVolumeM3(liv20, liv11, livMbr, livH);
+      let upAcc = 0;
       const stepForecastBudget = (budgetMs) => {
         const sliceEnd = budgetMs > 0 ? performance.now() + budgetMs : Infinity;
         while (t <= H) {
@@ -6673,6 +6674,31 @@
           liv11 = corr.liv11;
           livMbr = corr.livMbr;
           livH = corr.livH;
+        }
+        upAcc += (qIn - qPerm) * (dt / 60);
+        {
+          const have = upstreamPlantVolumeM3(liv20, liv11, livMbr, livH);
+          const gapM3 = upBase + upAcc - have;
+          if (gapM3 > 0.02) {
+            const put = absorbUpstreamVolumeM3(
+              { livH, livMbr, liv11, liv20 },
+              gapM3,
+              { stopMbrFill, hiBlock11: hiB }
+            );
+            liv20 = put.liv20;
+            liv11 = put.liv11;
+            livMbr = put.livMbr;
+            livH = put.livH;
+          } else if (gapM3 < -0.02) {
+            const cut = releaseUpstreamVolumeM3(
+              { livH, livMbr, liv11, liv20 },
+              -gapM3
+            );
+            liv20 = cut.liv20;
+            liv11 = cut.liv11;
+            livMbr = cut.livMbr;
+            livH = cut.livH;
+          }
         }
 
         if (livMbr >= stopMbrFill - 0.05) {
@@ -10686,12 +10712,12 @@
         if (membraneIsPaused(cycleMin, rows[i].letter, { ignoreProcess: true })) continue;
         s += rows[i].q;
       }
-      // Il totale in REGOLAZIONE / SET è il comando. Se le righe sono ancora quelle di prima, scala.
-      // totOverride è lo stesso totale che TIME fa girare, non il minimo tecnico.
+      // Il totale in REGOLAZIONE / SET è il comando. Se le righe sono più alte del totale, scala in giù.
+      // Non rialzare mai la somma delle membrane in lavoro fino al totale: la pausa deve restare una portata in meno.
       const tot = totOverride != null && Number.isFinite(Number(totOverride))
         ? Math.max(0, Number(totOverride) || 0)
         : Math.max(0, num("qMemTotale") || 0);
-      if (tot > 0.5 && all > 0.5 && Math.abs(all - tot) > 0.6) s *= tot / all;
+      if (tot > 0.5 && all > tot + 0.6) s *= tot / all;
       return round1(s);
     }
 
@@ -10855,7 +10881,7 @@
     }
 
     function plantIsStarted() {
-      return !!__simPlaying || !!__simShowRun;
+      return !!__simPlaying;
     }
 
     const PUMP_REV_MS = 700;        // default
@@ -11297,19 +11323,18 @@
       if (reset) reset.disabled = !!__simBusy;
       const playBtn = el("simPlayToggle");
       if (playBtn) {
-        const shownRun = !!__simPlaying || !!__simShowRun;
         playBtn.disabled = !!__simBusy;
-        playBtn.classList.toggle("is-start", !shownRun);
-        playBtn.classList.toggle("is-stop", shownRun);
-        playBtn.textContent = shownRun ? "Stop" : "Start";
-        playBtn.setAttribute("aria-label", shownRun ? "Ferma simulazione" : "Avvia simulazione");
-        playBtn.setAttribute("aria-pressed", shownRun ? "true" : "false");
+        playBtn.classList.toggle("is-start", !__simPlaying);
+        playBtn.classList.toggle("is-stop", !!__simPlaying);
+        playBtn.textContent = __simPlaying ? "Stop" : "Start";
+        playBtn.setAttribute("aria-label", __simPlaying ? "Ferma simulazione" : "Avvia simulazione");
+        playBtn.setAttribute("aria-pressed", __simPlaying ? "true" : "false");
       }
     }
 
     function simTogglePlay() {
       if (__simBusy) return;
-      if (__simPlaying || __simShowRun) simStop();
+      if (__simPlaying) simStop();
       else simStart();
     }
 
@@ -11327,6 +11352,7 @@
       // Annulla i reaffirm del Reset/boot: altrimenti forzano di nuovo tutti i livelli a 90/91
       clearResetReaffirmTimers();
       __simPlaying = true;
+      __upstreamMass = null;
       try { keepScreenAwake(); } catch (_) { /* ok */ }
       softStartPlantFlows(); // no-op (non azzerare lo stato processo)
       // Misuratore chimico: come le pompe, sale al set solo adesso
@@ -11349,9 +11375,8 @@
 
     /** Ferma il conteggio automatico (il tempo resta dove è). */
     function simStop({ silent = false } = {}) {
-      if (!silent && (__simPlaying || __simShowRun)) playCasioClick();
+      if (!silent && __simPlaying) playCasioClick();
       __simPlaying = false;
-      __simShowRun = false;
       if (__simPlayTimer) {
         clearInterval(__simPlayTimer);
         __simPlayTimer = null;
@@ -11443,8 +11468,10 @@
       // Consenso 11014 → portata; ferme → 0
       const qRecycleDisp = qRecycleEffective(run14.running, qRecycleWanted);
       const qRecycleForH = qRecycleDisp;
-      // Stesso permeato della previsione: ciclo reale (coppie in pausa), non la media.
-      const qPerm = qPermConfiguredAt(__mbrCycleMin, membranesProcessAllowed());
+      // Stesso permeato che si vede sul badge: le membrane in pausa non escono.
+      const qPerm = membranesProcessAllowed()
+        ? sumMemsRunning(__mbrCycleMin)
+        : 0;
       // Valle prima: 11021 pieno → UF stop → P11019 non scaricano Impianto (11007 non si svuota a vuoto)
       updateTk11021Interlocks(livU);
       updateTk11007PumpInterlocks(livP);
@@ -11548,6 +11575,39 @@
         n11 = round2(corr.liv11);
         nMbr = round2(corr.livMbr);
         nH = round2(corr.livH);
+      }
+      // Ciò che non è uscito come permeato resta nei serbatoi. Se un tasso lo leva, lo rimettiamo.
+      {
+        const addM3 = (qInMass - qPerm) * (dtMin / 60);
+        if (!__upstreamMass) {
+          __upstreamMass = {
+            base: upstreamPlantVolumeM3(liv20, liv11, livMbr, livH),
+            acc: 0,
+          };
+        }
+        __upstreamMass.acc += addM3;
+        const have = upstreamPlantVolumeM3(n20, n11, nMbr, nH);
+        const gapM3 = __upstreamMass.base + __upstreamMass.acc - have;
+        if (gapM3 > 0.02) {
+          const put = absorbUpstreamVolumeM3(
+            { livH: nH, livMbr: nMbr, liv11: n11, liv20: n20 },
+            gapM3,
+            {}
+          );
+          n20 = round2(put.liv20);
+          n11 = round2(put.liv11);
+          nMbr = round2(put.livMbr);
+          nH = round2(put.livH);
+        } else if (gapM3 < -0.02) {
+          const cut = releaseUpstreamVolumeM3(
+            { livH: nH, livMbr: nMbr, liv11: n11, liv20: n20 },
+            -gapM3
+          );
+          n20 = round2(cut.liv20);
+          n11 = round2(cut.liv11);
+          nMbr = round2(cut.livMbr);
+          nH = round2(cut.livH);
+        }
       }
       let nP = round2(Math.max(0, Math.min(100, livP + rP * dtMin)));
       let nU = round2(Math.max(0, Math.min(100, livU + rU * dtMin)));
@@ -11820,6 +11880,7 @@
 
     function runSimTo(targetMin) {
       targetMin = Math.max(0, Math.round(targetMin / SIM_STEP_MIN) * SIM_STEP_MIN);
+      __upstreamMass = null;
       if (!__simSnap) {
         forcePlantRunningBaseline();
         ensurePumpsFlowing();
@@ -12002,31 +12063,25 @@
       __simMin = 0;
     }
 
-    /** Salto: stesso passo del Time, a fette, così 21 h o 24 h restano lo stato vero di quell’istante. */
+    /** Salto: pochi minuti per fotogramma, così si vede l’impianto. A ora raggiunta il tempo si ferma e le pompe anche. */
     function jumpSimToMinute(targetMin) {
       targetMin = Math.max(0, Math.min(SIM_JUMP_MAX_MIN, Math.round(Number(targetMin) || 0)));
       if (__simPlaying) simStop({ silent: true });
       const token = ++__simJumpToken;
       __simBusy = true;
-      __simShowRun = true;
-      try {
-        if (isAutoMode() && p11011Allowed()) ensurePumpsFlowing({ instant: true });
-      } catch (_) { /* ok */ }
-      try {
-        kickQInMeterTo((__chimicoAllowFill && !chimicoDutyIsPaused()) ? Math.max(0, num("qIn")) : 0);
-      } catch (_) { /* ok */ }
-      try { paintPumpColors(); } catch (_) { /* ok */ }
+      __upstreamMass = null;
       updateSimTimeUI();
       if (targetMin < __simMin || !__simSnap) {
         try { rewindSimToStart(); } catch (e) { console.warn("[calcolatore] salto tempo", e); }
       }
       const pump = () => {
         if (token !== __simJumpToken) return;
-        const t0 = performance.now();
         try {
-          while (__simMin < targetMin && performance.now() - t0 < 14) {
+          let n = 0;
+          while (__simMin < targetMin && n < 2) {
             __simMin += SIM_STEP_MIN;
             simulateOneStep(SIM_STEP_MIN);
+            n += 1;
           }
         } catch (e) {
           console.warn("[calcolatore] salto tempo", e);
@@ -12037,7 +12092,7 @@
         updateSimTimeUI();
         try { paintPumpColors(); } catch (_) { /* ok */ }
         if (token === __simJumpToken && __simMin < targetMin) {
-          setTimeout(pump, 0);
+          setTimeout(pump, 40);
           return;
         }
         __simMin = targetMin;
@@ -12094,6 +12149,7 @@
       __simBusy = false;
       lock = false;
       __simMin = 0;
+      __upstreamMass = null;
       __mbrCycleMin = 0;
       __ufSvcMin = 0;
       // Chimico-fisico sempre Manuale all’avvio / Reset (portata a carico dell’operatore)
