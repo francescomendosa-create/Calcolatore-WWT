@@ -2088,7 +2088,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v279</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v280</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -5862,6 +5862,11 @@
         return `Male · riciclo basso (serve ≥ ${qRecNeed})${whenBit}`;
       }
       if (focus === "cf") {
+        if (deviceAutoControlled("pompa")) {
+          return qSafe
+            ? `11 in automatico · questo chimico regge fino a ≤ ${qSafe}${whenBit}`
+            : `Blocco chimico${whenBit}`;
+        }
         return qSafe ? `Male · scendi chimico ≤ ${qSafe}${whenBit}` : `Male · blocco chimico${whenBit}`;
       }
       if (focus === "p11") {
@@ -6295,7 +6300,7 @@
         const d = duty();
         if (d && d.d > 0.05) dutyAvg = d.d;
       } catch (_) { /* ok */ }
-      const qPermAvg = round1(qMemSp * dutyAvg);
+      let qPermAvg = round1(qMemSp * dutyAvg);
 
       try {
         if (opts.forceManualFlows !== true && isAutoMode() && deviceAutoControlled("pompa")) {
@@ -6309,7 +6314,13 @@
         if (opts.forceManualFlows !== true && ricicloAutoControlled()) {
           qRecSp = Math.max(Q_RECYCLE_MIN, round1(Math.max(0, qPumpSp - qInSp)));
         }
+        // Membrane in automatico: il conto usa il minimo tecnico del chimico, non un totale rimasto basso.
+        if (opts.forceManualFlows !== true && deviceAutoControlled("membrane")) {
+          const qMin = qMemMinTotaleForQin(qInSp).qMemMin;
+          if (qMemSp + 0.05 < qMin) qMemSp = qMin;
+        }
       } catch (_) { /* ok */ }
+      qPermAvg = round1(qMemSp * dutyAvg);
 
       let liv20 = opts.liv20 != null ? Number(opts.liv20) : (numOrNull("livelloAttuale") ?? 90);
       let liv11 = opts.liv11 != null ? Number(opts.liv11) : (numOrNull("livelloAttualeA10611") ?? 90);
@@ -6359,13 +6370,24 @@
         try { qOsmCap = osmExportCapacityStable(); } catch (__) { qOsmCap = 0; }
       }
       if (opts.qOsm != null) qOsmCap = Math.max(0, Number(opts.qOsm) || 0);
-      const qImpSp = Math.max(0, round1(qP19Sp - qIasSp));
+      let qImpSp = Math.max(0, round1(qP19Sp - qIasSp));
       let qUfSp = 0;
       try { qUfSp = ufSetpointSum(); } catch (_) { qUfSp = 0; }
       if (!(qUfSp > 0.05)) {
         try { qUfSp = Math.max(0, procSetpointOf("qUfTotale") || 0); } catch (_) { qUfSp = 0; }
       }
       if (opts.qUf != null) qUfSp = Math.max(0, Number(opts.qUf) || 0);
+      // Ultrafiltrazione in automatico: la previsione usa almeno il chimico. Un set già più alto resta.
+      if (opts.forceManualFlows !== true && opts.qUf == null && deviceAutoControlled("ultra") && qUfSp + 0.5 < qInSp) {
+        qUfSp = round1(qInSp);
+      }
+      if (opts.forceManualFlows !== true) {
+        const needImp = Math.max(qUfSp, deviceAutoControlled("ultra") ? qInSp : 0);
+        if (qImpSp + 0.5 < needImp) {
+          qP19Sp = Math.min(Q_P11019_MAX, round1(needImp + qIasSp));
+          qImpSp = Math.max(0, round1(qP19Sp - qIasSp));
+        }
+      }
       const ufManual = (typeof deviceIsManual === "function") && deviceIsManual("ultra");
       const ufCmd = ufManual || qUfSp > 0.05;
       const qPassSp = ufCmd ? Math.min(qImpSp, qUfSp) : qImpSp;
@@ -6511,7 +6533,7 @@
           else if (ricicloAutoControlled()) qRec = Math.max(Q_RECYCLE_MIN, round1(Math.max(0, qPumpSp - qInSp)));
         }
         const cycleMin = (Number(__mbrCycleMin) || 0) + t;
-        const qPerm = qPermConfiguredAt(cycleMin, runMbrByLevel && allowMbrByPerm);
+        const qPerm = qPermConfiguredAt(cycleMin, runMbrByLevel && allowMbrByPerm, qMemSp);
         // P11019: OUT dal 11007 = pompe intere (IAS + carboni).
         // Verso impianto/UF = solo Impianto (carboni); IAS esce altrove e non entra in valle.
         let qP19Out = 0;
@@ -7209,9 +7231,13 @@
         device = "chimico-fisico";
         target = qSafeSamePumps;
         haveNow = qInSp;
-        verdict = `Male: regolazione pompe già a set Automatico (<strong>P11011 ${havePumpLbl}</strong>).`
+        verdict = (deviceAutoControlled("pompa")
+          ? `Le 11 sono già in automatico su questo chimico (<strong>P11011 ${havePumpLbl}</strong>).`
+          : `Male: regolazione pompe già a set Automatico (<strong>P11011 ${havePumpLbl}</strong>).`)
           + whenHtml
-          + ` Ultima opzione: scendi il chimico.`;
+          + (deviceAutoControlled("pompa")
+            ? ` Il resto automatico è allineato: oltre questo il chimico chiude lo stesso.`
+            : ` Ultima opzione: scendi il chimico.`);
         action = `P11011 resta ${havePumpLbl}. Chimico ≤ <span class="flow-val">${fmtQ(qSafeSamePumps)} m³/h</span>.`;
         askQ = "";
         noHtml = `Scendi il chimico-fisico a ≤ <strong class="flow-val">${fmtQ(qSafeSamePumps)} m³/h</strong> `
@@ -10130,7 +10156,10 @@
       }
 
       // Linee che il livello tiene ON (priorità A→B→C).
-      let want = letters.filter((L) => osmLineRunning(L));
+      // Se sono tutte ferme, il set si scrive lo stesso sulle abilitate: è il comando per quando ripartono.
+      const running = letters.filter((L) => osmLineEnabled(L) && osmLineRunning(L));
+      let want = running.slice();
+      if (!want.length) want = letters.filter((L) => osmLineEnabled(L));
       while (want.length > 1 && qDemand / want.length < OSM_IN_MIN - 0.05) {
         want.pop();
       }
@@ -10143,7 +10172,7 @@
       letters.forEach((L, i) => {
         const id = ids[i];
         if (want.indexOf(L) >= 0) {
-          __osmFeedOk[L] = true;
+          if (running.indexOf(L) >= 0) __osmFeedOk[L] = true;
           rememberProcSetpoint(id, each);
           if (!isEditing(id)) setVal(id, each, { force: true });
         } else {
@@ -10543,7 +10572,7 @@
       __permRowsTs = n;
       return rows;
     }
-    function qPermConfiguredAt(cycleMin, processOn) {
+    function qPermConfiguredAt(cycleMin, processOn, totOverride) {
       if (!processOn) return 0;
       const rows = permRowsNow();
       let s = 0;
@@ -10554,7 +10583,10 @@
         s += rows[i].q;
       }
       // Il totale in REGOLAZIONE / SET è il comando. Se le righe sono ancora quelle di prima, scala.
-      const tot = Math.max(0, num("qMemTotale") || 0);
+      // totOverride: previsione in automatico, quando il minimo tecnico è sopra il campo ancora vecchio.
+      const tot = totOverride != null && Number.isFinite(Number(totOverride))
+        ? Math.max(0, Number(totOverride) || 0)
+        : Math.max(0, num("qMemTotale") || 0);
       if (tot > 0.5 && all > 0.5 && Math.abs(all - tot) > 0.6) s *= tot / all;
       return round1(s);
     }
@@ -12635,12 +12667,54 @@
         if (p11019Allowed() && (!__allowUfByTk11021 || qP19Plant < 0.05 || qP19Pump < 0.05)) {
           qOsm = Math.max(qOsm, linePermeateCapacity());
         }
-        applyOsmosiAutoFlows(qOsm);
+        // Già sopra il chimico (totale in uscita, concentrato compreso): non ridistribuire.
+        if (osmExportCapacityStable() + 0.5 < qOsm) applyOsmosiAutoFlows(qOsm);
+        else {
+          syncOsmosiSvg();
+          paintOsmosiRunUI();
+        }
       } else if (deviceIsManual("osmosi") || srcOsm) {
         paintOsmosiRunUI();
       } else if (!deviceAutoControlled("osmosi")) {
         paintOsmosiRunUI();
       }
+    }
+
+    /**
+     * Chimico in manuale, resto in automatico: alza solo ciò che è sotto il chimico.
+     * Non abbassa un’osmosi o una UF già più alte. Le 11 le sistema applyBalance.
+     */
+    function ensureAutoCoversChemical(qIn) {
+      const q = Math.max(0, round1(Number(qIn) || 0));
+      if (q < 0.05) return;
+      if (deviceAutoControlled("ultra") && !isEditingUf()) {
+        let uf = 0;
+        try { uf = ufSetpointSum(); } catch (_) { uf = 0; }
+        if (uf + 0.5 < q) {
+          setUfEqual(q);
+          try { paintUfPopupSetpoints(); } catch (_) { /* ok */ }
+          try { paintUfSvgLive(); } catch (_) { /* ok */ }
+        }
+      }
+      if (deviceAutoControlled("osmosi") && !isEditingOsmosi()) {
+        let exp = 0;
+        try { exp = osmExportCapacityStable(); } catch (_) { exp = 0; }
+        if (exp + 0.5 < q) applyOsmosiAutoFlows(q);
+      }
+      try {
+        const ufNow = Math.max(q, ufSetpointSum());
+        const ias = Math.max(0, qP11019IasSetpoint());
+        const pump = Math.max(0, flowSetpointOf("qP11019") || 0);
+        if (pump - ias + 0.5 < ufNow) {
+          const want = Math.min(Q_P11019_MAX, round1(ufNow + ias));
+          rememberFlowSetpoint("qP11019", want);
+          if (!isEditing("qP11019")) setVal("qP11019", want, { force: true });
+          rememberFlowSetpoint("qP11019Impianto", Math.max(0, round1(want - ias)), { allowZero: true });
+          try { syncP11019SplitKeepIas(); } catch (_) { /* ok */ }
+          try { alignCarbCapsToImpianto(); } catch (_) { /* ok */ }
+          try { paintP11019SplitUI(); } catch (_) { /* ok */ }
+        }
+      } catch (_) { /* ok */ }
     }
 
     function applyBalance(source) {
@@ -12798,20 +12872,29 @@
             }
           }
 
-          // Se cambia l'ingresso e P11011 sono in marcia: ≥ ingresso + 100 (riciclo min) e min Hz
+          // Chimico impostato: le 11 prendono gli Hz del passo (ingresso + riciclo minimo).
+          // Anche a pompe ferme si aggiornano Hz e setpoint; la misura resta 0 finché non girano.
           const ingressoDriven = source === "ingresso" || source === "ciclo"
             || source === "totale" || source === "membrana" || source === "sim";
-          if (pumpOn && ingressoDriven && !isEditing("qPump") && !isEditing("freqHz")) {
+          const setPumpHz = (source === "ingresso" || source === "ciclo")
+            ? ingressoDriven
+            : (pumpOn && ingressoDriven);
+          if (setPumpHz && !isEditing("qPump") && !isEditing("freqHz")) {
             const step = pumpStepForNeed(pumpFloorForIngresso(qInSet));
             qPump = step.q;
             lastQPump = qPump;
-            el("freqHz").value = String(step.hz);
+            rememberFlowSetpoint("qPump", qPump);
+            if (el("freqHz")) el("freqHz").value = String(step.hz);
             const svgHz = el("svgFreqHz");
             if (svgHz) svgHz.textContent = String(step.hz);
-            commitFlow("qPump", qPump, { setpoint: qPump });
-            if (autoMand && el("equiparaMandata")?.checked && __run11036) {
+            if (pumpOn) commitFlow("qPump", qPump, { setpoint: qPump });
+            if (autoMand && el("equiparaMandata")?.checked) {
               lastQMandata = qPump;
-              commitFlow("qMandata", qPump);
+              rememberFlowSetpoint("qMandata", qPump);
+              if (!isEditing("freqHzMand") && el("freqHzMand")) el("freqHzMand").value = String(step.hz);
+              const svgHzM = el("svgFreqHzMand");
+              if (svgHzM) svgHzM.textContent = String(step.hz);
+              if (__run11036) commitFlow("qMandata", qPump, { setpoint: qPump });
             }
           }
 
@@ -12955,11 +13038,12 @@
         // In sim NON riscrivere le portate membrane: restano il setpoint "tutte ON".
         // L'uscita effettiva scende da sola via sumMemsRunning (membrane in pausa = 0).
         // Abilita/disabilita: le portate delle altre restano invariate.
-        if (deviceAutoControlled("membrane") && !editingMem && !simulating) {
-          // Alza al minimo tecnico solo se cambia chimico/ciclo — mai dopo un disable
+        if (deviceAutoControlled("membrane") && !editingMem && (source === "ingresso" || source === "ciclo" || !simulating)) {
+          // Alza al minimo tecnico quando cambia il chimico, anche a impianto in marcia.
+          // Negli altri passaggi, a impianto fermo, non riscrivere le linee.
           if (source === "ingresso" || source === "ciclo") {
             ensureMembranesAutoMin();
-          } else {
+          } else if (!simulating) {
             const cur = roundMem(sumMems());
             if (!isEditing("qMemTotale")) setVal("qMemTotale", cur, { force: true });
             try { paintMemMinHint(); } catch (_) { /* ok */ }
@@ -13115,6 +13199,9 @@
 
         // Downstream: permeato medio → P11019 → UF → Osmosi (demi)
         syncDownstreamPermeate(totAvg, source);
+        if (source === "ingresso" || source === "ciclo") {
+          try { ensureAutoCoversChemical(qInSet); } catch (_) { /* ok */ }
+        }
 
         const hintM = el("qMandHint");
         if (hintM) {
