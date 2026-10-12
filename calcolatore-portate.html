@@ -2088,7 +2088,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v272</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v273</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -2743,7 +2743,7 @@
         <!-- OSMOSI A B C — totali in alto · linea → misuratore → osmosi -->
         <g aria-label="Osmosi A B C">
           <text x="163" y="286" text-anchor="middle" fill="#bae6fd" font-size="9" font-weight="700">OSMOSI</text>
-          <!-- Totale e SET: stesso numpad. Il totale si divide su A B C; ogni linea ricalcola la somma. -->
+          <!-- Totale e SET: il numpad resta l’ingresso. In schema il numero è ingresso + concentrato. -->
           <g class="flow-edit" data-field="qOsmosiTotale" data-source="osm-totale" aria-label="Totale osmosi">
             <rect class="badge" x="88" y="292" width="74" height="34" rx="5" stroke="#7dd3fc" />
             <text class="badge-label" x="125" y="304" text-anchor="middle">TOTALE</text>
@@ -2772,6 +2772,11 @@
             <rect id="svgOsmValveA" class="osm-valve-fill" x="193" y="360" width="0" height="4" rx="1" />
             <text id="svgOsmValvePctA" class="osm-valve-pct" x="266" y="364" text-anchor="middle">0%</text>
           </g>
+          <g pointer-events="none" aria-hidden="true">
+            <rect x="214" y="371" width="58" height="14" rx="3" fill="#1c1408" stroke="#854d0e" stroke-width="0.7" />
+            <text id="svgOsmConcA" x="232" y="381" text-anchor="middle" fill="#fde68a" font-size="7" font-weight="700">0.0</text>
+            <text x="258" y="381" text-anchor="middle" fill="#fbbf24" font-size="6">m³/h</text>
+          </g>
           <path class="pipe pipe-main" data-flow="osmA" d="M188 348 H190" />
           <g class="node" tabindex="0" data-popup="osmosi" data-osm-line="A" role="button" aria-label="Osmosi A" transform="translate(90,340)">
             <rect x="-4" y="-18" width="108" height="42" fill="#000" opacity="0.001" pointer-events="all" />
@@ -2797,6 +2802,11 @@
             <rect id="svgOsmValveB" class="osm-valve-fill" x="193" y="427" width="0" height="4" rx="1" />
             <text id="svgOsmValvePctB" class="osm-valve-pct" x="266" y="431" text-anchor="middle">0%</text>
           </g>
+          <g pointer-events="none" aria-hidden="true">
+            <rect x="214" y="438" width="58" height="14" rx="3" fill="#1c1408" stroke="#854d0e" stroke-width="0.7" />
+            <text id="svgOsmConcB" x="232" y="448" text-anchor="middle" fill="#fde68a" font-size="7" font-weight="700">0.0</text>
+            <text x="258" y="448" text-anchor="middle" fill="#fbbf24" font-size="6">m³/h</text>
+          </g>
           <path class="pipe pipe-main" data-flow="osmB" d="M188 415 H190" />
           <g class="node" tabindex="0" data-popup="osmosi" data-osm-line="B" role="button" aria-label="Osmosi B" transform="translate(90,407)">
             <rect x="-4" y="-18" width="108" height="42" fill="#000" opacity="0.001" pointer-events="all" />
@@ -2821,6 +2831,11 @@
             <rect class="osm-valve-track" x="192" y="493" width="58" height="6" rx="2" />
             <rect id="svgOsmValveC" class="osm-valve-fill" x="193" y="494" width="0" height="4" rx="1" />
             <text id="svgOsmValvePctC" class="osm-valve-pct" x="266" y="498" text-anchor="middle">0%</text>
+          </g>
+          <g pointer-events="none" aria-hidden="true">
+            <rect x="214" y="505" width="58" height="14" rx="3" fill="#1c1408" stroke="#854d0e" stroke-width="0.7" />
+            <text id="svgOsmConcC" x="232" y="515" text-anchor="middle" fill="#fde68a" font-size="7" font-weight="700">0.0</text>
+            <text x="258" y="515" text-anchor="middle" fill="#fbbf24" font-size="6">m³/h</text>
           </g>
           <path class="pipe pipe-main" data-flow="osmC" d="M188 482 H190" />
           <g class="node" tabindex="0" data-popup="osmosi" data-osm-line="C" role="button" aria-label="Osmosi C" transform="translate(90,474)">
@@ -4480,6 +4495,11 @@
     let __valveSmoothRaf = 0;
     let __valveSmoothLast = 0;
     const __osmWobble = {
+      A: { bias: 0, goal: 0, until: 0 },
+      B: { bias: 0, goal: 0, until: 0 },
+      C: { bias: 0, goal: 0, until: 0 },
+    };
+    const __osmConcWobble = {
       A: { bias: 0, goal: 0, until: 0 },
       B: { bias: 0, goal: 0, until: 0 },
       C: { bias: 0, goal: 0, until: 0 },
@@ -13809,7 +13829,14 @@
      * A tratti resta sulla misura giusta, a tratti sale o scende di qualche decimo.
      */
     function stepOsmWander(L, dtSec, active) {
-      const w = __osmWobble[L];
+      return stepFlowWander(__osmWobble[L], dtSec, active);
+    }
+
+    function stepOsmConcWander(L, dtSec, active) {
+      return stepFlowWander(__osmConcWobble[L], dtSec, active);
+    }
+
+    function stepFlowWander(w, dtSec, active) {
       if (!w) return 0;
       if (!active) {
         w.goal = 0;
@@ -13874,6 +13901,7 @@
       }
 
       let osmTotLive = 0;
+      let osmConcShown = 0;
       OSM_LINES.forEach((L) => {
         const v0 = Number(__osmValvePct[L]) || 0;
         const m0 = Number(__osmMeas[L]) || 0;
@@ -13891,9 +13919,22 @@
         osmTotLive += qLive;
         const node = el({ A: "svgQOsmA", B: "svgQOsmB", C: "svgQOsmC" }[L]);
         if (node) node.textContent = round1(qLive).toFixed(1);
+        const spLine = Math.max(0, procSetpointOf("qOsmosi" + L));
+        const concOn = osmLineEnabled(L) && spLine > 0.05;
+        const concBias = stepOsmConcWander(L, dtSec, concOn && live);
+        const conc = concOn ? Math.max(0, OSM_CONC_FISSO + (live ? concBias : 0)) : 0;
+        osmConcShown += conc;
+        const chip = el("svgOsmConc" + L);
+        if (chip) chip.textContent = round1(conc).toFixed(1);
       });
       const svgOsmTot = el("svgQOsmTotale");
-      if (svgOsmTot) svgOsmTot.textContent = round1(osmTotLive).toFixed(1);
+      if (svgOsmTot) {
+        const spTot = osmSetpointSum();
+        const inletTot = plantIsStarted() && osmTotLive > 0.05 && Math.abs(osmTotLive - spTot) < 1.2
+          ? osmTotLive
+          : spTot;
+        svgOsmTot.textContent = round1(inletTot + osmConcShown).toFixed(1);
+      }
 
       try { paintUfValveUI(); } catch (_) { /* ignore */ }
       try { paintOsmValveUI(); } catch (_) { /* ignore */ }
@@ -14745,21 +14786,28 @@
         }
         const svg = el(["svgQOsmA", "svgQOsmB", "svgQOsmC"][i]);
         if (svg) svg.textContent = round1(qLive).toFixed(1);
+        const chip = el("svgOsmConc" + L);
+        if (chip) chip.textContent = round1(osmLineEnabled(L) ? concSp : 0).toFixed(1);
         const concNode = el(OSM_CONC_IDS[i]);
         // Concentrato in popup riflette il setpoint di linea (anche se ferma con IN>0 in memoria)
         if (concNode && !isEditing(OSM_CONC_IDS[i])) concNode.value = String(round1(concSp));
       });
       totDemiSp = round1(totDemiSp);
       totConcSp = round1(totConcSp);
-      const totaleSp = totDemiSp;
+      const totaleVis = round1(totDemiSp + totConcSp);
       const totSvg = el("svgQOsmTotale");
-      if (totSvg) totSvg.textContent = round1(totDemiLive).toFixed(1);
+      if (totSvg) {
+        const measured = plantIsStarted() && totDemiLive > 0.05 && Math.abs(totDemiLive - totDemiSp) < 1.2
+          ? round1(totDemiLive + totConcLive)
+          : totaleVis;
+        totSvg.textContent = measured.toFixed(1);
+      }
       const totSpSvg = el("svgQOsmTotaleSp");
-      if (totSpSvg) totSpSvg.textContent = totaleSp.toFixed(1);
-      // Popup: il totale è la somma degli ingressi A B C, non il concentrato
+      if (totSpSvg) totSpSvg.textContent = totaleVis.toFixed(1);
+      // Il numpad del totale resta la somma degli ingressi. In schema si vede ingresso + concentrato.
       if (!isEditing("qOsmosiTotale")) {
-        rememberProcSetpoint("qOsmosiTotale", totaleSp, { allowZero: true });
-        setVal("qOsmosiTotale", totaleSp, { force: true });
+        rememberProcSetpoint("qOsmosiTotale", totDemiSp, { allowZero: true });
+        setVal("qOsmosiTotale", totDemiSp, { force: true });
       }
       if (!isEditing("qOsmosiDemi")) setVal("qOsmosiDemi", totDemiSp, { force: true });
       if (!isEditing("qOsmosiTotConc")) setVal("qOsmosiTotConc", totConcSp, { force: true });
