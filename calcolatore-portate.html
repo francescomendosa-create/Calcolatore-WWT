@@ -2088,7 +2088,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v293</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v294</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -11810,7 +11810,8 @@
         if (deferToStep) __flowDesire.qRecycle = qRec;
         else commitFlow("qRecycle", qRec, { setpoint: qRec, instant: snap });
       }
-      try { ensureMembranesAutoMin(); } catch (_) { /* ok */ }
+      // Non alzare le membrane qui. Il totale scritto (anche 170 contro chimico 170)
+      // è il comando: in marcia e nel salto deve restare quello, pausa compresa.
       return q;
       } finally {
         if (!nested && !deferToStep && !snap) endFlowStep();
@@ -13492,20 +13493,8 @@
         if (svgQMem) kickMemPermTween(totOn);
         const svgQMemSp = el("svgQMemSp");
         if (svgQMemSp) {
-          let memSp = 0;
-          try {
-            // Manuale: solo il set digitato (anche basso → dicitura allarme).
-            // Auto: max campo / memoria / target tecnico.
-            if (deviceIsManual("membrane")) {
-              memSp = Math.max(0, num("qMemTotale") || 0);
-            } else {
-              memSp = Math.max(0, num("qMemTotale") || 0, Number(__memAutoTotSp) || 0);
-              memSp = Math.max(memSp, membraneAutoTargetTot());
-            }
-          } catch (_) {
-            memSp = Math.max(0, num("qMemTotale") || 0);
-          }
-          svgQMemSp.textContent = String(roundMem(memSp));
+          // Il set in schema è il totale scritto, non il minimo tecnico.
+          svgQMemSp.textContent = String(roundMem(Math.max(0, num("qMemTotale") || 0)));
         }
         const svgAvg = el("svgQAvg");
         if (svgAvg) svgAvg.textContent = totAvg.toFixed(1);
@@ -16674,13 +16663,9 @@
           const spTxt = parseFloat(String(el("svgQMemSp")?.textContent || "").replace(",", "."));
           if (!(val > 0.05) && Number.isFinite(spTxt) && spTxt >= 0) val = spTxt;
         } else {
-          val = Math.max(
-            0,
-            num("qMemTotale") || 0,
-            parseFloat(String(el("svgQMemSp")?.textContent || "").replace(",", ".")) || 0,
-            Number(__memAutoTotSp) || 0
-          );
-          try { val = Math.max(val, membraneAutoTargetTot()); } catch (_) { /* ok */ }
+          val = Math.max(0, num("qMemTotale") || 0);
+          const spTxt = parseFloat(String(el("svgQMemSp")?.textContent || "").replace(",", "."));
+          if (!(val > 0.05) && Number.isFinite(spTxt) && spTxt >= 0) val = spTxt;
         }
       } else {
         val = num(field);
