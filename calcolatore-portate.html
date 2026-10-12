@@ -2088,7 +2088,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v274</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v275</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -10388,8 +10388,9 @@
     }
 
     /**
-     * Capacità osmosi STABILE per previsioni: somma setpoint linee abilitate (SP>0).
-     * Non dipende da feeding/misura istantanea (altrimenti bene↔male a ogni oscillazione valvola).
+     * Uscita osmosi STABILE per previsioni e blocco: setpoint delle valvole principali
+     * più il concentrato (15 m³/h per linea accesa). Il concentrato esce comunque.
+     * Non dipende dalla misura istantanea (altrimenti bene↔male a ogni oscillazione valvola).
      */
     function osmExportCapacityStable() {
       let q = 0;
@@ -10399,10 +10400,21 @@
           const id = "qOsmosi" + L;
           let sp = Math.max(0, procSetpointOf(id) || 0);
           if (sp < 0.05) sp = Math.max(0, num(id) || 0);
-          if (sp > 0.05) q += sp;
+          if (sp > 0.05) q += sp + osmConcFor(sp);
         });
       } catch (_) { /* ok */ }
       return round1(q);
+    }
+
+    /** Concentrato che esce ora: linee in marcia con ingresso comandato. */
+    function osmConcLeavingNow() {
+      let c = 0;
+      ["A", "B", "C"].forEach((L) => {
+        if (!osmLineEnabled(L) || !plantIsStarted() || !osmLineFeeding(L)) return;
+        const sp = Math.max(0, procSetpointOf("qOsmosi" + L) || 0);
+        if (sp > 0.05) c += osmConcFor(sp);
+      });
+      return round1(c);
     }
 
     /** Previsione: solo il set comandato. La misura viva non deve nascondere un set appena abbassato. */
@@ -11284,7 +11296,9 @@
       if (!p11019Allowed()) paintUfPopupSetpoints();
       const qUfIn = sumUfEffective();
       paintUfSvgLive();
-      const qOsmOut = round1(osmQinEffective("A") + osmQinEffective("B") + osmQinEffective("C"));
+      const qOsmOut = round1(
+        osmQinEffective("A") + osmQinEffective("B") + osmQinEffective("C") + osmConcLeavingNow()
+      );
       syncOsmosiSvg();
 
       const stopRiemp = numOrNull("stopRiempA10620");
@@ -12302,8 +12316,13 @@
           ? Math.max(permeateDemandOut(), linePermeateCapacity())
           : permeateDemandOut())
         : Math.max(0, num("qOsmosiDemi") || (num("qOsmosiA") + num("qOsmosiB") + num("qOsmosiC")));
+      const qOsmUiOut = round1(qOsmUi + ["A", "B", "C"].reduce((c, L) => {
+        if (!osmLineEnabled(L)) return c;
+        const sp = Math.max(0, procSetpointOf("qOsmosi" + L) || 0);
+        return c + (sp > 0.05 ? osmConcFor(sp) : 0);
+      }, 0));
       const qUfUi = sumUfEffective();
-      const rateUUi = estimateTk11021RatePctPerMin(qUfUi, qOsmUi);
+      const rateUUi = estimateTk11021RatePctPerMin(qUfUi, qOsmUiOut);
       paintTk11021UI(livUUi, rateUUi, !__allowUfByTk11021);
       paintOsmosiRunUI();
       paintUfSvgLive();
