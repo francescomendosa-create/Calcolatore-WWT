@@ -2088,7 +2088,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v273</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v274</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -2743,7 +2743,7 @@
         <!-- OSMOSI A B C — totali in alto · linea → misuratore → osmosi -->
         <g aria-label="Osmosi A B C">
           <text x="163" y="286" text-anchor="middle" fill="#bae6fd" font-size="9" font-weight="700">OSMOSI</text>
-          <!-- Totale e SET: il numpad resta l’ingresso. In schema il numero è ingresso + concentrato. -->
+          <!-- SET = somma ingressi. TOTALE = ingressi + concentrato. Il clic, su entrambi, modifica solo il SET. -->
           <g class="flow-edit" data-field="qOsmosiTotale" data-source="osm-totale" aria-label="Totale osmosi">
             <rect class="badge" x="88" y="292" width="74" height="34" rx="5" stroke="#7dd3fc" />
             <text class="badge-label" x="125" y="304" text-anchor="middle">TOTALE</text>
@@ -14803,8 +14803,8 @@
         totSvg.textContent = measured.toFixed(1);
       }
       const totSpSvg = el("svgQOsmTotaleSp");
-      if (totSpSvg) totSpSvg.textContent = totaleVis.toFixed(1);
-      // Il numpad del totale resta la somma degli ingressi. In schema si vede ingresso + concentrato.
+      if (totSpSvg) totSpSvg.textContent = totDemiSp.toFixed(1);
+      // SET = solo gli ingressi. Il misuratore TOTALE aggiunge il concentrato. Il numpad modifica sempre il SET.
       if (!isEditing("qOsmosiTotale")) {
         rememberProcSetpoint("qOsmosiTotale", totDemiSp, { allowZero: true });
         setVal("qOsmosiTotale", totDemiSp, { force: true });
@@ -15375,7 +15375,7 @@
       qCarbA: "Carbone A",
       qCarbB: "Carbone B",
       qUfTotale: "Totale UF",
-      qOsmosiTotale: "Totale osmosi",
+      qOsmosiTotale: "Set osmosi",
       qUfA: "UF A",
       qUfB: "UF B",
       qUfC: "UF C",
