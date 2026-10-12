@@ -11265,7 +11265,7 @@
       try { keepScreenAwake(); } catch (_) { /* ok */ }
       softStartPlantFlows(); // no-op (non azzerare lo stato processo)
       // Misuratore chimico: come le pompe, sale al set solo adesso
-      try { kickQInMeterTo(__chimicoAllowFill ? Math.max(0, num("qIn")) : 0); } catch (_) { /* ok */ }
+      try { kickQInMeterTo((__chimicoAllowFill && !chimicoDutyIsPaused()) ? Math.max(0, num("qIn")) : 0); } catch (_) { /* ok */ }
       // Allinea viva ai campi attuali (setpoint/portate già impostati) — niente rampa da 0
       try { snapFlowLiveFromFields(); } catch (_) { /* ignore */ }
       advanceQInWobble(1);
@@ -13368,7 +13368,7 @@
 
         const svgQIn = el("svgQIn");
         // Chimico: prima dello Start la misura non copia il set. In marcia resta l’oscillazione.
-        if (svgQIn) syncChimicoMeter(qInEff);
+        if (svgQIn) syncChimicoMeter(chimicoDutyIsPaused() ? 0 : qInEff);
         const svgQInSp = el("svgQInSp");
         if (svgQInSp) svgQInSp.textContent = round1(Math.max(0, num("qIn"))).toFixed(1);
         // Occhio pompe: portata VIVA (in tween 0,5 s) — non sovrascrivere col target a scatto

@@ -2088,7 +2088,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v282</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v283</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -2989,6 +2989,15 @@
       <label><strong>Portata ingresso (m³/h)</strong>
         <input type="number" id="qIn" min="0" max="500" step="1" value="150" />
       </label>
+      <div class="row">
+        <label><strong>Tempo di arresto (min)</strong>
+          <input type="number" id="chimicoPausaMin" min="0" max="1440" step="1" value="0" inputmode="numeric" />
+        </label>
+        <label><strong>Tempo di riavvio (min)</strong>
+          <input type="number" id="chimicoRiavvioMin" min="0" max="1440" step="1" value="0" inputmode="numeric" />
+        </label>
+      </div>
+      <p class="mini" id="chimicoDutyHint">Nessun arresto a tempo. Il chimico resta verde e manda, finché non è un blocco di livello (rosso).</p>
       <p class="mini">Variando l’ingresso le altre portate si adeguano. Impostazioni A10620: popup vasca A10620.</p>
       <div class="actions"><button type="button" data-close>Applica</button></div>
     </div>
@@ -4436,6 +4445,7 @@
     let __allow11036ByMbr = true; // isteresi riempimento MBR/A11003 (start 85 / stop 92)
     let __runP11011By20 = false; // isteresi P11011 su A10620 (start/stop svuotamento)
     let __chimicoAllowFill = true; // isteresi chimico su A10620 (start/stop riempimento)
+    let __chimicoDuty = { phase: "run", elapsed: 0 }; // arresto a tempo: run = verde, pause = grigio
     let __chimicoWasAllow = true;  // fronte per conteggio blocchi
     let __chimicoBlockCount = 0;   // quante volte il chimico è andato in blocco (dal Reset)
     let __chimicoBlockLog = [];    // ultimi eventi blocco (motivo + portate)
@@ -6421,6 +6431,7 @@
       const qUfNom = round1(Math.max(0, qPassSp) * ufBwFrac);
       const cebFc = ufCebForecastInit();
       const carbFc = carbForecastInit();
+      const chimFc = chimicoDutyClone();
       const osmShortNow = qInSp > 0.5 && qOsmCap + 0.5 < qInSp;
       const carbShortNow = qInSp > 0.5 && qImpSp + 0.5 < qInSp;
       const ufShortNow = qInSp > 0.5 && ufCmd && qUfSp + 0.5 < qInSp && qUfSp + 0.5 < qImpSp;
@@ -6537,7 +6548,8 @@
         const pumpOn = pumpBy20 && !blockP11;
         const qPump = pumpOn ? qPumpSp : 0;
         const qMand = run11036 ? qMandSp : 0;
-        const qIn = chimicoOn ? qInSp : 0;
+        const dutyPause = chimicoOn ? chimicoDutyMinute(chimFc, dt) : false;
+        const qIn = (chimicoOn && !dutyPause) ? qInSp : 0;
         let qRec = 0;
         // 11014 aspira solo se A11004 è sopra lo stop: vasca vuota non rimanda portata fantasma in A10620
         if (pumpOn && run14) {
@@ -11253,7 +11265,7 @@
       try { keepScreenAwake(); } catch (_) { /* ok */ }
       softStartPlantFlows(); // no-op (non azzerare lo stato processo)
       // Misuratore chimico: come le pompe, sale al set solo adesso
-      try { kickQInMeterTo(__chimicoAllowFill ? Math.max(0, num("qIn")) : 0); } catch (_) { /* ok */ }
+      try { kickQInMeterTo((__chimicoAllowFill && !chimicoDutyIsPaused()) ? Math.max(0, num("qIn")) : 0); } catch (_) { /* ok */ }
       // Allinea viva ai campi attuali (setpoint/portate già impostati) — niente rampa da 0
       try { snapFlowLiveFromFields(); } catch (_) { /* ignore */ }
       advanceQInWobble(1);
@@ -11329,7 +11341,12 @@
       applyBalance("sim");
       const qInSet = num("qIn");
       const qIn = qInEffective(qInSet);
-      const qInMass = (__chimicoAllowFill && qInSet > 0.05) ? qInSet : 0;
+      const dutyPause = __chimicoAllowFill ? tickChimicoDuty(dtMin) : false;
+      const qInMass = (__chimicoAllowFill && qInSet > 0.05 && !dutyPause) ? qInSet : 0;
+      const qInShow = (__chimicoAllowFill && qInSet > 0.05 && !chimicoDutyIsPaused()) ? qInSet : 0;
+      if (plantIsStarted()) {
+        try { kickQInMeterTo(qInShow); } catch (_) { /* ok */ }
+      }
       // Processo fermo → misura a 0 SUBITO (niente rampa che riempie A10611 a P11011 rosse).
       if (pumpEstopped("pompa") || !p11011Allowed()) snapFlowClosed("qPump");
       if (pumpEstopped("mandata") || !__run11036) snapFlowClosed("qMandata");
@@ -11550,6 +11567,7 @@
       updateTk11021Interlocks(nU);
       applyBalance("sim");
       paintChimico(__chimicoAllowFill && num("qIn") > 0.05);
+      paintChimicoDutyHint();
       paintMembraneCycleUI(__mbrCycleMin);
       } finally {
         endFlowStep();
@@ -11567,6 +11585,7 @@
       __run11036 = true;
       __blockP11011By11 = false;
       setChimicoAllowFill(true, { silent: true });
+      __chimicoDuty = { phase: "run", elapsed: 0 };
       __runMbrByLevel = true;
       __allowMbrByPermeate = true;
       __runP11019By07 = true;
@@ -12129,12 +12148,82 @@
       }
     }
 
+    function chimicoDutyTimes() {
+      const runMin = Math.max(0, num("chimicoPausaMin") || 0);
+      const offMin = Math.max(0, num("chimicoRiavvioMin") || 0);
+      return { runMin, offMin, on: runMin > 0.05 && offMin > 0.05 };
+    }
+
+    function chimicoDutyClone() {
+      const live = __chimicoDuty || { phase: "run", elapsed: 0 };
+      const playing = !!(__simPlaying || __simMin > 0);
+      return {
+        phase: playing && live.phase === "pause" ? "pause" : "run",
+        elapsed: playing ? Math.max(0, Number(live.elapsed) || 0) : 0,
+      };
+    }
+
+    /** Un minuto di ciclo. Ritorna true se QUESTO minuto il chimico è fermo (grigio). */
+    function chimicoDutyMinute(st, dtMin) {
+      const t = chimicoDutyTimes();
+      if (!st) return false;
+      if (!t.on) {
+        st.phase = "run";
+        st.elapsed = 0;
+        return false;
+      }
+      const paused = st.phase === "pause";
+      st.elapsed = Math.max(0, Number(st.elapsed) || 0) + Math.max(0, Number(dtMin) || 0);
+      const limit = paused ? t.offMin : t.runMin;
+      if (st.elapsed >= limit - 1e-6) {
+        st.phase = paused ? "run" : "pause";
+        st.elapsed = 0;
+      }
+      return paused;
+    }
+
+    function tickChimicoDuty(dtMin) {
+      if (!plantIsStarted() || !__chimicoAllowFill) return false;
+      return chimicoDutyMinute(__chimicoDuty, dtMin);
+    }
+
+    function chimicoDutyIsPaused() {
+      return chimicoDutyTimes().on && __chimicoDuty.phase === "pause" && !!(__simPlaying || __simMin > 0);
+    }
+
+    function paintChimicoDutyHint() {
+      const hint = el("chimicoDutyHint");
+      if (!hint) return;
+      const t = chimicoDutyTimes();
+      if (!t.on) {
+        hint.textContent = "Nessun arresto a tempo. Il chimico resta verde e manda, finché non è un blocco di livello (rosso).";
+        return;
+      }
+      if (!(__simPlaying || __simMin > 0)) {
+        hint.textContent = `Con Start: manda ${Math.round(t.runMin)} min, poi si chiude (grigio, ingresso 0) per ${Math.round(t.offMin)} min e riparte. Non è un blocco.`;
+        return;
+      }
+      const left = Math.max(0, Math.ceil(((__chimicoDuty.phase === "pause" ? t.offMin : t.runMin) - (__chimicoDuty.elapsed || 0))));
+      if (__chimicoDuty.phase === "pause") {
+        hint.textContent = `Fermo (grigio): non manda. Riparte verde tra ${left} min.`;
+      } else {
+        hint.textContent = `In marcia (verde). Si chiude, grigio, tra ${left} min.`;
+      }
+    }
+
     function paintChimico(ok) {
       const body = el("svgChimicoBody");
       const b1 = el("svgChimicoT1");
       const b2 = el("svgChimicoT2");
       const badge = el("svgChimicoBadge");
-      if (ok) {
+      const gray = !!(ok && chimicoDutyIsPaused());
+      if (gray) {
+        // GRIGIO = arresto a tempo: ingresso 0, non è il blocco rosso di livello
+        if (body) { body.setAttribute("fill", "#334155"); body.setAttribute("stroke", "#94a3b8"); }
+        if (b1) b1.setAttribute("fill", "#cbd5e1");
+        if (b2) b2.setAttribute("fill", "#cbd5e1");
+        if (badge) badge.setAttribute("stroke", "#94a3b8");
+      } else if (ok) {
         // VERDE = sta mandando la portata impostata
         if (body) { body.setAttribute("fill", "#14532d"); body.setAttribute("stroke", "#4ade80"); }
         if (b1) b1.setAttribute("fill", "#86efac");
@@ -13279,7 +13368,7 @@
 
         const svgQIn = el("svgQIn");
         // Chimico: prima dello Start la misura non copia il set. In marcia resta l’oscillazione.
-        if (svgQIn) syncChimicoMeter(qInEff);
+        if (svgQIn) syncChimicoMeter(chimicoDutyIsPaused() ? 0 : qInEff);
         const svgQInSp = el("svgQInSp");
         if (svgQInSp) svgQInSp.textContent = round1(Math.max(0, num("qIn"))).toFixed(1);
         // Occhio pompe: portata VIVA (in tween 0,5 s) — non sovrascrivere col target a scatto
@@ -16923,6 +17012,12 @@
       if (numOrNull("qIn") === null) setVal("qIn", 0, { force: true });
       applyBalance("ingresso");
     });
+    ["chimicoPausaMin", "chimicoRiavvioMin"].forEach((id) => {
+      el(id)?.addEventListener("input", () => {
+        paintChimicoDutyHint();
+        try { scheduleRegPreview({ immediate: true, userChange: true }); } catch (_) { /* ok */ }
+      });
+    });
 
     el("qMemTotale").addEventListener("input", () => {
       if (numOrNull("qMemTotale") === null) return;
@@ -17518,7 +17613,7 @@
       appId: "1:844169156848:web:91b6c4e08900a350078a35",
     };
     const PERSIST_IDS = [
-      "qIn", "qPump", "qMandata", "qMemTotale", "qUfTotale", "qP11019", "qP11019Ias",
+      "qIn", "chimicoPausaMin", "chimicoRiavvioMin", "qPump", "qMandata", "qMemTotale", "qUfTotale", "qP11019", "qP11019Ias",
       "qOsmosiA", "qOsmosiB", "qOsmosiC",
       "ufLavoroMinA", "ufLavoroMinB", "ufLavoroMinC", "ufLavoroMinD",
       "ufLavaggioSecA", "ufLavaggioSecB", "ufLavaggioSecC", "ufLavaggioSecD",
@@ -17792,6 +17887,7 @@
         if (rev > __calcSyncRevision) __calcSyncRevision = rev;
         if (fromRemote) __appliedCalcSyncRevision = rev;
         updateA10620RiempInterlocks(num("livelloAttuale"));
+        try { paintChimicoDutyHint(); } catch (_) { /* ok */ }
         updateA10620PumpInterlocks(num("livelloAttuale"));
         updateA10611PumpInterlocks(num("livelloAttualeA10611"));
         {
