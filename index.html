@@ -2088,7 +2088,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v277</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v278</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -5761,7 +5761,7 @@
       const qUfSp = Math.max(0, Number(fc && fc.qUfSp) || 0);
       const ufManual = !!(fc && fc.ufManual);
       const qPass = (ufManual || qUfSp > 0.05) ? Math.min(qCarb, qUfSp) : qCarb;
-      const qUfNom = round1(Math.max(0, qPass) * ufBackwashPassFrac());
+      const qUfNom = round1(Math.max(0, qPass));
       const osmShort = qIn > 0.5 && qOsm + 0.5 < qIn;
       const carbShort = qIn > 0.5 && qCarb + 0.5 < qIn;
       const ufShort = qIn > 0.5 && (ufManual || qUfSp > 0.05) && qUfSp + 0.5 < qIn && qUfSp + 0.5 < qCarb;
@@ -6383,9 +6383,10 @@
       let runMbrByLevel = opts.runMbrByLevel != null ? !!opts.runMbrByLevel : (__runMbrByLevel !== false);
       // Export che tiene la valle = set osmosi. I carboni/UF sono l'ingresso del TK 11021, non l'uscita.
       // Un set osmosi basso non si nasconde dietro una portata carboni alta.
-      const ufBwFrac = ufBackwashPassFrac();
+      const ufBwFrac = 1;
       const qUfNom = round1(Math.max(0, qPassSp) * ufBwFrac);
       const cebFc = ufCebForecastInit();
+      const carbFc = carbForecastInit();
       const osmShortNow = qInSp > 0.5 && qOsmCap + 0.5 < qInSp;
       const carbShortNow = qInSp > 0.5 && qImpSp + 0.5 < qInSp;
       const ufShortNow = qInSp > 0.5 && ufCmd && qUfSp + 0.5 < qInSp && qUfSp + 0.5 < qImpSp;
@@ -6485,14 +6486,19 @@
         // Verso impianto/UF = solo Impianto (carboni); IAS esce altrove e non entra in valle.
         let qP19Out = 0;
         let qUf = 0;
-        // Media backwash dai tempi veri. Se in questo minuto c’è un CEB, quella linea non manda.
-        const cebLine = ufCebForecastTick(cebFc, dt, runP19By07 && allowUf);
-        const cebKeep = cebLine ? Math.max(0, 1 - ufLineFlowShare(cebLine)) : 1;
-        if (runP19By07 && allowUf) {
-          const qToUf = Math.max(0, qPassSp) * cebKeep;
+        // Portata normale verso le osmosi. In lavaggio UF o carbone, in quel minuto ne arriva meno.
+        const canValley = runP19By07 && allowUf;
+        const ufWashLine = ufCebForecastTick(cebFc, dt, canValley);
+        const carbHit = carbForecastTick(carbFc, dt, canValley);
+        const qImpLeave = Math.max(0, qImpSp);
+        const carbDrain = carbForecastConsume(carbHit, qImpLeave);
+        let qToOsm = Math.max(0, qImpLeave - carbDrain);
+        if (ufCmd) qToOsm = Math.min(qToOsm, Math.max(0, qUfSp));
+        if (ufWashLine) qToOsm *= Math.max(0, 1 - ufLineFlowShare(ufWashLine));
+        if (canValley) {
           const qIasOut = Math.max(0, qP19Sp - qImpSp);
-          qP19Out = round1(Math.min(qP19Sp, qToUf + qIasOut));
-          qUf = round1(qToUf * ufBwFrac);
+          qP19Out = round1(Math.min(qP19Sp, qToOsm + carbDrain + qIasOut));
+          qUf = round1(qToOsm);
         }
         // Osmosi: capacità stabile anche con UF in pausa isteresi — svuota 11021 e riapre la valle
         const qOsm = livU > 8 ? qOsmCap : 0;
@@ -13364,32 +13370,39 @@
       UF_LINES.forEach((L) => {
         if (!ufLineEnabled(L)) return;
         const st = ufSched(L);
-        remain[L] = { cev: 21 * 60, ceb: 23 * 60, acido: 24 * 60 };
+        remain[L] = { bw: ufLavoroMin(L), cev: 21 * 60, ceb: 23 * 60, acido: 24 * 60 };
+        const bwRaw = st && st.remain ? Number(st.remain.bw) : NaN;
+        if (Number.isFinite(bwRaw)) remain[L].bw = bwRaw;
         UF_CHEM_KINDS.forEach((k) => {
           const raw = st && st.remain ? Number(st.remain[k.id]) : NaN;
           remain[L][k.id] = Number.isFinite(raw) ? raw : ufChemLavoroMin(L, k.id);
         });
-        if (st && st.wash && st.wash.kind && st.wash.kind !== "bw") {
-          const left = Math.max(0, (ufChemWashSec() - (Number(st.wash.elapsedSec) || 0)) / 60);
+        if (st && st.wash && st.wash.kind) {
+          const durSec = st.wash.kind === "bw" ? ufLavaggioSec(L) : ufChemWashSec();
+          const left = Math.max(0, (durSec - (Number(st.wash.elapsedSec) || 0)) / 60);
           wash = { L, kind: st.wash.kind, left };
-          count = 1;
-          words.push(ufCebKindWord(st.wash.kind));
+          if (st.wash.kind !== "bw") {
+            count = 1;
+            words.push(ufCebKindWord(st.wash.kind));
+          }
         }
       });
       return { remain, wash, count, words };
     }
 
     /**
-     * Un CEB alla volta. Gli altri in scadenza restano prenotati.
+     * Un lavaggio UF alla volta (backwash o CEB). Gli altri in scadenza restano prenotati.
      * canWash = c’è passaggio verso l’ultrafiltrazione, come in marcia.
      */
     function ufCebForecastTick(st, dtMin, canWash) {
       if (!st) return null;
       const dt = Math.max(0, Number(dtMin) || 0);
+      const kinds = ["bw", "cev", "ceb", "acido"];
       Object.keys(st.remain).forEach((L) => {
-        UF_CHEM_KINDS.forEach((k) => {
-          if (st.wash && st.wash.L === L && st.wash.kind === k.id) return;
-          st.remain[L][k.id] -= dt;
+        kinds.forEach((k) => {
+          if (st.wash && st.wash.L === L && st.wash.kind === k) return;
+          if (st.remain[L][k] == null) return;
+          st.remain[L][k] -= dt;
         });
       });
       if (st.wash) {
@@ -13398,7 +13411,11 @@
           if (st.wash.left <= 1e-6) {
             const doneL = st.wash.L;
             const doneK = st.wash.kind;
-            if (st.remain[doneL]) st.remain[doneL][doneK] = ufChemLavoroMin(doneL, doneK);
+            if (st.remain[doneL]) {
+              st.remain[doneL][doneK] = doneK === "bw"
+                ? ufLavoroMin(doneL)
+                : ufChemLavoroMin(doneL, doneK);
+            }
             st.wash = null;
           }
         }
@@ -13406,17 +13423,20 @@
       if (!st.wash && canWash) {
         let pick = null;
         Object.keys(st.remain).forEach((L) => {
-          UF_CHEM_KINDS.forEach((k) => {
-            const r = st.remain[L][k.id];
-            if (r > 1e-9) return;
-            if (!pick || r < pick.r - 1e-9) pick = { L, kind: k.id, r };
+          kinds.forEach((k) => {
+            const r = st.remain[L][k];
+            if (r == null || r > 1e-9) return;
+            if (!pick || r < pick.r - 1e-9) pick = { L, kind: k, r };
           });
         });
         if (pick) {
-          st.wash = { L: pick.L, kind: pick.kind, left: ufChemWashSec() / 60 };
+          const left = pick.kind === "bw" ? ufLavaggioSec(pick.L) / 60 : ufChemWashSec() / 60;
+          st.wash = { L: pick.L, kind: pick.kind, left };
           st.remain[pick.L][pick.kind] = 0;
-          st.count += 1;
-          st.words.push(ufCebKindWord(pick.kind));
+          if (pick.kind !== "bw") {
+            st.count += 1;
+            st.words.push(ufCebKindWord(pick.kind));
+          }
         }
       }
       return st.wash ? st.wash.L : null;
@@ -13681,6 +13701,69 @@
         else if (ph === "lav") need = Math.max(need, carbLavQNeed());
       });
       return round1(Math.min(Qin, need));
+    }
+
+    /** Copia i timer carbone. La previsione non sposta i lavaggi veri. */
+    function carbForecastInit() {
+      ensureCarbWash();
+      const lines = {};
+      CARB_LINES.forEach((L) => {
+        const st = __carbWash[L] || {};
+        lines[L] = {
+          remainMin: Number.isFinite(Number(st.remainMin)) ? Number(st.remainMin) : carbLavoroMin(L),
+          phase: st.phase === "ctrl" || st.phase === "lav" ? st.phase : null,
+          elapsedMin: Math.max(0, Number(st.elapsedMin) || 0),
+        };
+      });
+      return { lines };
+    }
+
+    function carbForecastTick(st, dtMin, canWash) {
+      if (!st) return null;
+      const dt = Math.max(0, Number(dtMin) || 0);
+      let active = null;
+      CARB_LINES.forEach((L) => {
+        const row = st.lines[L];
+        if (!row) return;
+        if (row.phase) {
+          if (canWash) {
+            row.elapsedMin += dt;
+            const dur = row.phase === "ctrl" ? carbCtrlMin(L) : carbLavMin(L);
+            if (row.elapsedMin >= dur - 1e-9) {
+              if (row.phase === "ctrl") {
+                row.phase = "lav";
+                row.elapsedMin = 0;
+              } else {
+                row.phase = null;
+                row.elapsedMin = 0;
+                row.remainMin = carbLavoroMin(L);
+              }
+            }
+          }
+          if (row.phase) active = { L, phase: row.phase };
+          return;
+        }
+        row.remainMin -= dt;
+      });
+      if (active) return active;
+      if (!canWash) return null;
+      let pick = null;
+      CARB_LINES.forEach((L) => {
+        const row = st.lines[L];
+        if (!row || row.remainMin > 1e-9) return;
+        if (!pick || row.remainMin < pick.remain) pick = { L, remain: row.remainMin };
+      });
+      if (!pick) return null;
+      st.lines[pick.L].phase = "ctrl";
+      st.lines[pick.L].elapsedMin = 0;
+      st.lines[pick.L].remainMin = 0;
+      return { L: pick.L, phase: "ctrl" };
+    }
+
+    function carbForecastConsume(active, qImp) {
+      if (!active) return 0;
+      const need = active.phase === "lav" ? carbLavQNeed() : carbCtrlQNeed();
+      return Math.min(Math.max(0, Number(qImp) || 0), Math.max(0, need));
     }
     /** Portata che prosegue verso UF (ingresso Impianto − lavaggio carbone). */
     function qCarbToUfLive() {
