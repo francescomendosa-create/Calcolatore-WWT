@@ -16657,16 +16657,9 @@
           if (el("qUfTotale")) setVal("qUfTotale", val, { force: true });
         }
       } else if (field === "qMemTotale") {
-        if (deviceIsManual("membrane")) {
-          // Manuale: apri col set reale (anche basso). Mai Math.max col vecchio auto.
-          val = Math.max(0, num("qMemTotale") || 0);
-          const spTxt = parseFloat(String(el("svgQMemSp")?.textContent || "").replace(",", "."));
-          if (!(val > 0.05) && Number.isFinite(spTxt) && spTxt >= 0) val = spTxt;
-        } else {
-          val = Math.max(0, num("qMemTotale") || 0);
-          const spTxt = parseFloat(String(el("svgQMemSp")?.textContent || "").replace(",", "."));
-          if (!(val > 0.05) && Number.isFinite(spTxt) && spTxt >= 0) val = spTxt;
-        }
+        val = Math.max(0, num("qMemTotale") || 0);
+        const spTxt = parseFloat(String(el("svgQMemSp")?.textContent || "").replace(",", "."));
+        if (!(val > 0.05) && Number.isFinite(spTxt) && spTxt >= 0) val = spTxt;
       } else {
         val = num(field);
       }
