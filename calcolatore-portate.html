@@ -2088,7 +2088,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v275</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v276</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -5761,7 +5761,7 @@
       const qUfSp = Math.max(0, Number(fc && fc.qUfSp) || 0);
       const ufManual = !!(fc && fc.ufManual);
       const qPass = (ufManual || qUfSp > 0.05) ? Math.min(qCarb, qUfSp) : qCarb;
-      const qUfNom = round1(Math.max(0, qPass) * 0.88);
+      const qUfNom = round1(Math.max(0, qPass) * ufBackwashPassFrac());
       const osmShort = qIn > 0.5 && qOsm + 0.5 < qIn;
       const carbShort = qIn > 0.5 && qCarb + 0.5 < qIn;
       const ufShort = qIn > 0.5 && (ufManual || qUfSp > 0.05) && qUfSp + 0.5 < qIn && qUfSp + 0.5 < qCarb;
@@ -6383,7 +6383,8 @@
       let runMbrByLevel = opts.runMbrByLevel != null ? !!opts.runMbrByLevel : (__runMbrByLevel !== false);
       // Export che tiene la valle = set osmosi. I carboni/UF sono l'ingresso del TK 11021, non l'uscita.
       // Un set osmosi basso non si nasconde dietro una portata carboni alta.
-      const qUfNom = round1(Math.max(0, qPassSp) * 0.88);
+      const ufBwFrac = ufBackwashPassFrac();
+      const qUfNom = round1(Math.max(0, qPassSp) * ufBwFrac);
       const osmShortNow = qInSp > 0.5 && qOsmCap + 0.5 < qInSp;
       const carbShortNow = qInSp > 0.5 && qImpSp + 0.5 < qInSp;
       const ufShortNow = qInSp > 0.5 && ufCmd && qUfSp + 0.5 < qInSp && qUfSp + 0.5 < qImpSp;
@@ -6483,13 +6484,12 @@
         // Verso impianto/UF = solo Impianto (carboni); IAS esce altrove e non entra in valle.
         let qP19Out = 0;
         let qUf = 0;
-        // Duty lavaggi UF medi (~backwash): non azzerare la valle a ogni istante di wash
-        const UF_WASH_DUTY_AVG = 0.88;
+        // Media backwash dai tempi veri (lavoro / lavoro+lavaggio). Non il singolo minuto a zero.
         if (runP19By07 && allowUf) {
           const qToUf = Math.max(0, qPassSp);
           const qIasOut = Math.max(0, qP19Sp - qImpSp);
           qP19Out = round1(Math.min(qP19Sp, qToUf + qIasOut));
-          qUf = round1(qToUf * UF_WASH_DUTY_AVG);
+          qUf = round1(qToUf * ufBwFrac);
         }
         // Osmosi: capacità stabile anche con UF in pausa isteresi — svuota 11021 e riapre la valle
         const qOsm = livU > 8 ? qOsmCap : 0;
@@ -13288,6 +13288,34 @@
       return Math.max(1, num("ufLavaggioSec" + letter) || 190);
     }
 
+    /**
+     * Quota media di UF che arriva a valle.
+     * Ogni linea accesa passa il proprio set per il tempo di lavoro e zero nel backwash.
+     * I tempi sono quelli del popup: se cambiano, cambia la media.
+     */
+    function ufBackwashPassFrac() {
+      let wSum = 0;
+      let pass = 0;
+      let n = 0;
+      let sumFrac = 0;
+      UF_LINES.forEach((L) => {
+        if (!ufLineEnabled(L)) return;
+        const lavoro = Math.max(0.1, ufLavoroMin(L));
+        const washMin = Math.max(1 / 60, ufLavaggioSec(L) / 60);
+        const frac = lavoro / (lavoro + washMin);
+        n += 1;
+        sumFrac += frac;
+        const sp = Math.max(0, procSetpointOf("qUf" + L));
+        if (sp > 0.05) {
+          wSum += sp;
+          pass += sp * frac;
+        }
+      });
+      if (wSum > 0.05) return Math.max(0, Math.min(1, pass / wSum));
+      if (n > 0) return Math.max(0, Math.min(1, sumFrac / n));
+      return 1;
+    }
+
     const UF_CHEM_KINDS = [
       { id: "cev", title: "Lavaggio CEB ipoclorito in corso", oreId: "ufCevOre", defH: 21 },
       { id: "ceb", title: "Lavaggio CEB soda in corso", oreId: "ufCebOre", defH: 23 },
@@ -14630,6 +14658,7 @@
         inpLav.addEventListener("input", () => {
           paintUfSvgLive();
           schedulePersist();
+          try { noteValleySetChanged(); } catch (_) { /* ok */ }
         });
         labLav.appendChild(inpLav);
         box.appendChild(labLav);
@@ -14647,6 +14676,7 @@
         inpWash.addEventListener("input", () => {
           paintUfSvgLive();
           schedulePersist();
+          try { noteValleySetChanged(); } catch (_) { /* ok */ }
         });
         labWash.appendChild(inpWash);
         box.appendChild(labWash);
