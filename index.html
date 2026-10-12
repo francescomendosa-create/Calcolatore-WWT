@@ -2088,7 +2088,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v280</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v281</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -4235,9 +4235,9 @@
         <small>da TK 11007 · verso carboni / IAS</small>
       </button>
       <label><strong>Set portata pompe P11019 (m³/h)</strong>
-        <input type="number" id="qP11019" min="0" max="165" step="1" value="140" inputmode="decimal" />
+        <input type="number" id="qP11019" min="0" max="170" step="1" value="140" inputmode="decimal" />
       </label>
-      <p class="mini">Set pompe: <strong>0–165 m³/h</strong> (max 165). Puoi scendere a piacere (es. 60) <strong>senza aprire IAS</strong>: Impianto = set pompe. IAS si apre solo se lo imposti tu e si sottrae dal set (Impianto = set − IAS). Overview = portata <strong>→ carboni</strong> + badge <strong>IAS</strong> a destra (non il totale pompe).</p>
+      <p class="mini">Set pompe: <strong>0–170 m³/h</strong> (max 170). Puoi scendere a piacere (es. 60) <strong>senza aprire IAS</strong>: Impianto = set pompe. IAS si apre solo se lo imposti tu e si sottrae dal set (Impianto = set − IAS). Overview = portata <strong>→ carboni</strong> + badge <strong>IAS</strong> a destra (non il totale pompe).</p>
 
       <svg class="p11019-split" viewBox="0 0 400 150" aria-label="Schizzo split Impianto / IAS">
         <text x="200" y="16" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="700">P11019 → destinazioni · tocca per modificare</text>
@@ -4270,10 +4270,10 @@
 
       <div class="row">
         <label><strong>Verso IAS (m³/h)</strong>
-          <input type="number" id="qP11019Ias" min="0" max="165" step="0.1" value="" placeholder="" inputmode="decimal" />
+          <input type="number" id="qP11019Ias" min="0" max="170" step="0.1" value="" placeholder="" inputmode="decimal" />
         </label>
         <label><strong>Verso Impianto / carboni (m³/h)</strong>
-          <input type="number" id="qP11019Impianto" min="0" max="165" step="0.1" value="" placeholder="" inputmode="decimal" />
+          <input type="number" id="qP11019Impianto" min="0" max="170" step="0.1" value="" placeholder="" inputmode="decimal" />
         </label>
       </div>
       <p class="mini" id="p11019SplitHint">Abbassa il set pompe liberamente (IAS chiuso → tutto a Impianto/carboni). Tocca IAS solo se vuoi aprirlo: sottrae dal set. Overview = carboni + IAS.</p>
@@ -4370,7 +4370,7 @@
     const MBR_SCARICO_TO_H_FRAC = 1;
     const MBR_RETAIN_FRAC = 1 - MBR_SCARICO_TO_H_FRAC;
     const Q_P11019_DEFAULT = 140; // avvio / set vuoto
-    const Q_P11019_MAX = 165;     // tetto set pompe (non si supera)
+    const Q_P11019_MAX = 170;     // tetto set pompe (non si supera)
     /** @deprecated alias di Q_P11019_DEFAULT (retrocompat) */
     const Q_P11019_MIN = Q_P11019_DEFAULT;
 
@@ -4379,7 +4379,7 @@
       return 0;
     }
 
-    /** Clamp set pompe P11019: 0 … 165. */
+    /** Clamp set pompe P11019: 0 … 170. */
     function clampP11019Set(v) {
       const n = Math.round(Number(v) || 0);
       if (!Number.isFinite(n) || n < 0) return 0;
@@ -6546,10 +6546,17 @@
         const carbDrain = carbForecastConsume(carbHit, qImpLeave);
         let qToOsm = Math.max(0, qImpLeave - carbDrain);
         if (ufCmd) qToOsm = Math.min(qToOsm, Math.max(0, qUfSp));
-        if (ufWashLine) qToOsm *= Math.max(0, 1 - ufLineFlowShare(ufWashLine));
+        // Il controlavaggio UF non manda quel filtro alle osmosi, ma l’acqua esce lo stesso dal 11007 (a scarico).
+        // Se restasse in vasca, un lavaggio da 3 minuti riempirebbe il TK e fermerebbe le membrane.
+        let ufDrain = 0;
+        if (ufWashLine) {
+          const share = Math.max(0, Math.min(1, ufLineFlowShare(ufWashLine)));
+          ufDrain = qToOsm * share;
+          qToOsm = Math.max(0, qToOsm - ufDrain);
+        }
         if (canValley) {
           const qIasOut = Math.max(0, qP19Sp - qImpSp);
-          qP19Out = round1(Math.min(qP19Sp, qToOsm + carbDrain + qIasOut));
+          qP19Out = round1(Math.min(qP19Sp, qToOsm + carbDrain + ufDrain + qIasOut));
           qUf = round1(qToOsm);
         }
         // Stessi start/stop di linea del TK 11021: sotto lo stop quella osmosi non esce.
@@ -12711,9 +12718,10 @@
           if (!isEditing("qP11019")) setVal("qP11019", want, { force: true });
           rememberFlowSetpoint("qP11019Impianto", Math.max(0, round1(want - ias)), { allowZero: true });
           try { syncP11019SplitKeepIas(); } catch (_) { /* ok */ }
-          try { alignCarbCapsToImpianto(); } catch (_) { /* ok */ }
           try { paintP11019SplitUI(); } catch (_) { /* ok */ }
         }
+        try { alignCarbCapsToImpianto(); } catch (_) { /* ok */ }
+        try { paintCarbFlows(); } catch (_) { /* ok */ }
       } catch (_) { /* ok */ }
     }
 
