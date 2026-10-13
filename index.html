@@ -2088,7 +2088,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v297</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v298</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -5640,7 +5640,9 @@
       opts = opts || {};
       if (opts.userChange) {
         bumpRegUserChange();
-        __regPreviewWipe = true;
+        __regPreviewWipe = false;
+        // La frase in barra è immediata. Il conto da 8 ore, se serve, arriva dopo e non tiene la notifica vecchia.
+        try { paintInstantRegNow(el("statusBar")); } catch (_) { /* ok */ }
         // Un tocco interrompe il conto da 8 ore già in corso, così il numpad resta libero.
         __forecastAsyncGen++;
         __forecastPumping = false;
@@ -5692,18 +5694,14 @@
       if (!bar) return;
       bar.setAttribute("data-clickable", "1");
       const seq = ++__regPreviewSeq;
-      if (__regPreviewWipe) {
-        __regPreviewWipe = false;
-        try { paintRegBarPending(bar); } catch (_) { /* ok */ }
-      } else {
-        try { paintInstantValleyIfBad(bar); } catch (_) { /* ok */ }
-      }
+      __regPreviewWipe = false;
+      try { paintInstantRegNow(bar); } catch (_) { /* ok */ }
       try {
         forecastChimicoHorizon(BLOCK_FORECAST_HORIZON, {
           onDone(fc) {
             if (seq !== __regPreviewSeq || !fc) return;
             if (fc.userSetKey && fc.userSetKey !== regUserSetKey()) {
-              try { scheduleRegPreview({ userChange: true }); } catch (_) { /* ok */ }
+              try { paintInstantRegNow(bar); } catch (_) { /* ok */ }
               return;
             }
             paintRegPreviewFromForecast(bar, fc, seq);
@@ -5711,6 +5709,7 @@
         });
       } catch (_) {
         if (seq !== __regPreviewSeq) return;
+        if (bar.classList.contains("is-bad") || bar.classList.contains("is-ok")) return;
         bar.className = "status warn";
         bar.textContent = "Regolazione · in aggiornamento…";
         bar.title = "Clic: dettaglio previsione 8 ore";
@@ -5802,6 +5801,7 @@
         }
       } catch (_) {
         if (seq !== __regPreviewSeq) return;
+        if (bar.classList.contains("is-bad") || bar.classList.contains("is-ok")) return;
         bar.className = "status warn";
         bar.textContent = "Regolazione · in aggiornamento…";
         bar.title = "Clic: dettaglio previsione 8 ore";
@@ -5856,14 +5856,151 @@
       return { fc, v: valleyCauseOf(fc) };
     }
 
+    /**
+     * Minuti al blocco chimico con la media di ciclo (set membrane × duty).
+     * Un conto solo: niente simulazione da 8 ore. null = dentro le 8 ore non si chiude.
+     */
+    function instantMembraneBlockMin() {
+      const qIn = chemicalSetpointNow();
+      const qMem = Math.max(0, num("qMemTotale") || 0);
+      if (!(qIn > 0.5)) return null;
+      let dutyAvg = 0.875;
+      try {
+        const d = duty();
+        if (d && d.d > 0.05 && d.d <= 1) dutyAvg = d.d;
+      } catch (_) { /* ok */ }
+      const gap = qIn - qMem * dutyAvg;
+      if (!(gap > 0.4)) return null;
+      const liv20 = numOrNull("livelloAttuale");
+      const liv11 = numOrNull("livelloAttualeA10611");
+      const livMbr = numOrNull("livelloAttualeMbr");
+      const livH = numOrNull("livelloAttualeH");
+      const room = upstreamRoomToChimicoStop(
+        liv20 != null ? liv20 : 90,
+        liv11 != null ? liv11 : 90,
+        livMbr != null ? livMbr : 90,
+        livH != null ? livH : 90
+      );
+      if (!(room > 0.05)) return null;
+      const mins = (room / gap) * 60;
+      if (mins <= BLOCK_FORECAST_HORIZON + 0.5) return Math.max(1, Math.round(mins));
+      return null;
+    }
+
+    /** Barra subito: Male se il set chiude il chimico, Bene se rientra. Senza aspettare le 8 ore. */
+    function paintInstantRegNow(bar) {
+      if (!bar) return;
+      const prefix = (__simPlaying || __simMin > 0) ? `t=${__simMin}′ · ` : "";
+      const qIn = chemicalSetpointNow();
+      const qMem = Math.max(0, num("qMemTotale") || 0);
+      const key = regUserSetKey();
+      const anchorSim = Math.max(0, Number(__simMin) || 0);
+      const badge = el("chimicoBlockCount");
+      if (plantIsStarted() && __chimicoAllowFill === false) {
+        bar.className = "status danger is-bad";
+        bar.textContent = prefix + "Male · chimico fermo · blocco raggiunto";
+        bar.title = "Il chimico-fisico è già sullo stop";
+        if (badge && __chimicoBlockCount === 0) badge.setAttribute("data-warn", "1");
+        return;
+      }
+      const mins = instantMembraneBlockMin();
+      if (mins != null) {
+        const fc = {
+          ok: false,
+          firstBlockMin: mins,
+          displayBlockMin: mins,
+          qInSp: qIn,
+          qMemSp: qMem,
+          userSetKey: key,
+          horizonMin: BLOCK_FORECAST_HORIZON,
+          reason: "mem",
+          anchorSim,
+        };
+        const adv = {
+          ok: false,
+          regOk: false,
+          focus: "mem",
+          barNote: "",
+          verdict: "Membrane sotto la media",
+          forecastHtml: `<div class="block-forecast"><strong>Male — membrane sotto il chimico</strong><br>`
+            + `Blocco chimico previsto tra <strong>${fmtForecastWhen(mins)}</strong>. `
+            + `Set membrane ${fmtQ(qMem)}, uscita media sotto il chimico ${fmtQ(qIn)}.</div>`,
+        };
+        __lastRegFc = fc;
+        __lastRegAdv = adv;
+        __regEtaLock = { absSim: null, setKey: "", simAt: 0 };
+        bar.className = "status danger is-bad";
+        bar.textContent = prefix + shortRegPreviewBad(adv, fc);
+        bar.title = "Uscita media membrane sotto il chimico-fisico";
+        if (badge && __chimicoBlockCount === 0) badge.setAttribute("data-warn", "1");
+        return;
+      }
+      let valleyCause = "";
+      let valleyFc = null;
+      try {
+        const snap = valleyNowSnapshot();
+        valleyCause = (snap.v && snap.v.cause) || "";
+        valleyFc = snap.fc;
+      } catch (_) { valleyCause = ""; }
+      if (valleyCause === "uf" || valleyCause === "carb" || valleyCause === "osm" || valleyCause === "both" || valleyCause === "valley") {
+        const fc = valleyFc || { qInSp: qIn, qMemSp: qMem };
+        fc.ok = false;
+        fc.firstBlockMin = null;
+        fc.displayBlockMin = null;
+        fc.userSetKey = key;
+        fc.qInSp = qIn;
+        fc.qMemSp = qMem;
+        fc.horizonMin = BLOCK_FORECAST_HORIZON;
+        fc.anchorSim = anchorSim;
+        const adv = {
+          ok: false,
+          regOk: false,
+          focus: valleyCause,
+          barNote: "",
+          verdict: "Valle sotto il chimico",
+          forecastHtml: `<div class="block-forecast"><strong>Male — la valle non smaltisce il chimico</strong><br>${shortRegPreviewBad({ focus: valleyCause, ok: false }, fc)}</div>`,
+        };
+        __lastRegFc = fc;
+        __lastRegAdv = adv;
+        bar.className = "status danger is-bad";
+        bar.textContent = prefix + shortRegPreviewBad(adv, fc);
+        bar.title = "La valle non smaltisce il chimico-fisico";
+        if (badge && __chimicoBlockCount === 0) badge.setAttribute("data-warn", "1");
+        return;
+      }
+      const fcOk = {
+        ok: true,
+        firstBlockMin: null,
+        displayBlockMin: null,
+        qInSp: qIn,
+        qMemSp: qMem,
+        userSetKey: key,
+        horizonMin: BLOCK_FORECAST_HORIZON,
+        reason: "",
+        anchorSim,
+      };
+      const advOk = {
+        ok: true,
+        regOk: true,
+        focus: "",
+        barNote: "",
+        verdict: "",
+        forecastHtml: `<div class="block-forecast is-ok"><strong>Regolato bene — nessun blocco chimico in 8 h</strong><br>`
+          + `Il chimico-fisico non si chiude nelle 8 ore.</div>`,
+      };
+      __lastRegFc = fcOk;
+      __lastRegAdv = advOk;
+      __regEtaLock = { absSim: null, setKey: "", simAt: 0 };
+      bar.className = "status is-ok";
+      bar.textContent = prefix + "Regolato bene · nessun blocco chimico";
+      bar.title = "Nelle 8 ore il chimico-fisico non si chiude";
+      if (badge && __chimicoBlockCount === 0) badge.setAttribute("data-warn", "0");
+    }
+
     /** Toglie subito la frase del blocco precedente. Se il set è già storto, lo dice ora. */
     function paintRegBarPending(bar) {
       if (!bar) return;
-      if (paintInstantValleyIfBad(bar)) return;
-      const prefix = (__simPlaying || __simMin > 0) ? `t=${__simMin}′ · ` : "";
-      bar.className = "status warn";
-      bar.textContent = prefix + "Regolazione…";
-      bar.title = "Aggiorno la previsione sulle portate attuali";
+      try { paintInstantRegNow(bar); } catch (_) { /* ok */ }
     }
 
     function paintInstantValleyIfBad(bar) {
@@ -7787,14 +7924,8 @@
 
       let html = "";
       let fc = null;
-      const qInNowPop = chemicalSetpointNow();
-      const qMemNowPop = Math.max(0, num("qMemTotale") || 0);
-      const reuseFc = __lastRegFc && __lastRegAdv && !__forecastPumping
-        && Math.abs((Number(__lastRegFc.qInSp) || 0) - qInNowPop) <= 0.6
-        && Math.abs((Number(__lastRegFc.qMemSp) || 0) - qMemNowPop) <= 0.6
-        && (__lastRegFc.ok || __lastRegAdv.ok || (
-          __lastRegAdv.qSafeSamePumps != null && Number.isFinite(Number(__lastRegAdv.qSafeSamePumps))
-        ));
+      const reuseFc = __lastRegFc && __lastRegAdv
+        && String(__lastRegFc.userSetKey || "") === regUserSetKey();
       if (reuseFc) {
         fc = __lastRegFc;
       } else {
@@ -7806,7 +7937,7 @@
       let adv = null;
       if (reuseFc) adv = __lastRegAdv;
       else try { adv = fc ? buildHorizonAdvice(fc) : null; } catch (_) { adv = null; }
-      if (fc) {
+      if (fc && !reuseFc) {
         const barNow = el("statusBar");
         if (barNow) {
           try { paintRegPreviewFromForecast(barNow, fc, __regPreviewSeq); } catch (_) { /* ok */ }
