@@ -635,6 +635,40 @@
       margin-left: 10px;
       margin-right: 10px;
     }
+    details.carb-fold {
+      margin: 14px 0 4px;
+      border: none;
+      background: transparent;
+    }
+    details.carb-fold > summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      width: 100%;
+      box-sizing: border-box;
+      margin: 0;
+      padding: 13px 16px;
+      min-height: 52px;
+      border-radius: 12px;
+      border: 1px solid #7dd3fc;
+      background: linear-gradient(180deg, #38bdf8 0%, #0284c7 42%, #0c4a6e 100%);
+      color: #f0f9ff;
+      font-size: 1.02rem;
+      font-weight: 800;
+      cursor: pointer;
+      list-style: none;
+      user-select: none;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 4px 0 #082f49;
+    }
+    details.carb-fold > summary::-webkit-details-marker { display: none; }
+    details.carb-fold > summary::after { content: "▸"; font-size: 1.2rem; }
+    details.carb-fold[open] > summary::after { content: "▾"; color: #fde68a; }
+    details.carb-fold[open] > summary {
+      background: linear-gradient(180deg, #075985 0%, #0c4a6e 100%);
+      margin-bottom: 10px;
+    }
+    details.carb-fold > .row { margin-top: 8px; }
     #popMembrane details.proc-fold,
     #popMembrane details.sludge-fold {
       margin: 22px 0 0;
@@ -2088,7 +2122,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v300</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v301</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -4157,15 +4191,7 @@
         <span>PROCESSO — Filtri a carbone</span>
         <small>A · B indipendenti · sfalsati 15 h</small>
       </button>
-      <p class="mini">Ogni filtro: <strong>tempo di lavoro</strong> (default 30 h) poi <strong>controlavaggio</strong> (30′) e <strong>lavaggio</strong> (10′) = 40′. Partono sfalsati di <strong>15 h</strong> così non lavano insieme. In controlavaggio usa fino a <strong>100 m³/h</strong> a scarico; il resto passa dall’altro filtro verso UF. In lavaggio usa fino a <strong>60 m³/h</strong>; il resto passa avanti.</p>
-      <div class="row">
-        <label><strong>Portata controlavaggio (m³/h)</strong>
-          <input type="number" id="carbCtrlQ" min="0" max="500" step="1" value="100" inputmode="decimal" />
-        </label>
-        <label><strong>Portata lavaggio (m³/h)</strong>
-          <input type="number" id="carbLavQ" min="0" max="500" step="1" value="60" inputmode="decimal" />
-        </label>
-      </div>
+      <p class="mini">Ogni filtro: <strong>tempo di lavoro</strong> (default 30 h) poi <strong>controlavaggio</strong> e <strong>lavaggio</strong>. Partono sfalsati di <strong>15 h</strong>. In servizio la portata è il set di saturazione. Durante il lavaggio le MP 11019 vanno al valore di comportamento, poi tornano a quel set.</p>
       <div id="carbRowA" class="uf-row" style="margin-top:10px">
         <strong style="display:block;margin-bottom:6px;color:#e2e8f0">FILTRI CARB A</strong>
         <div class="row">
@@ -4201,6 +4227,26 @@
         <p class="mini" id="carbStatusB">In attesa…</p>
       </div>
       <p class="mini" id="carbFlowHint">Solo la quota <strong>→ carboni</strong> entra in impianto (UF). L’IAS esce altrove e non passa dai carboni. Verso UF = carboni − lavaggio in corso.</p>
+      <details class="carb-fold">
+        <summary>Comportamento</summary>
+        <div class="row">
+          <label><strong>Portata in ingresso durante controlavaggio · MP 11019 (m³/h)</strong>
+            <input type="number" id="carbInCtrlQ" min="0" max="170" step="1" value="140" inputmode="decimal" />
+          </label>
+          <label><strong>Portata in ingresso durante lavaggio · MP 11019 (m³/h)</strong>
+            <input type="number" id="carbInLavQ" min="0" max="170" step="1" value="140" inputmode="decimal" />
+          </label>
+        </div>
+        <div class="row">
+          <label><strong>Portata controlavaggio, filtro in rigenerazione (m³/h)</strong>
+            <input type="number" id="carbCtrlQ" min="0" max="170" step="1" value="105" inputmode="decimal" />
+          </label>
+          <label><strong>Portata lavaggio, filtro in rigenerazione (m³/h)</strong>
+            <input type="number" id="carbLavQ" min="0" max="170" step="1" value="65" inputmode="decimal" />
+          </label>
+        </div>
+        <p class="mini">In controlavaggio il filtro in rigenerazione prende la sua portata (ora 105) e il resto dell’ingresso MP 11019 va all’altro filtro in servizio. In lavaggio la quota di rigenerazione è quella sotto (ora 65), il resto resta sull’altro. A lavaggio finito le 19 tornano al set di saturazione.</p>
+      </details>
       <div class="actions"><button type="button" data-close>Applica</button></div>
     </div>
   </div>
@@ -6805,7 +6851,8 @@
         const canValley = runP19By07 && allowUf;
         const ufWashLine = ufCebForecastTick(cebFc, dt, canValley);
         const carbHit = carbForecastTick(carbFc, dt, canValley);
-        const qImpLeave = Math.max(0, qImpSp);
+        let qImpLeave = Math.max(0, qImpSp);
+        if (carbHit && carbHit.phase) qImpLeave = Math.max(qImpLeave, carbInletDuring(carbHit.phase));
         const carbDrain = carbForecastConsume(carbHit, qImpLeave);
         let qToOsm = Math.max(0, qImpLeave - carbDrain);
         if (ufCmd) qToOsm = Math.min(qToOsm, Math.max(0, qUfSp));
@@ -6819,7 +6866,10 @@
         }
         if (canValley) {
           const qIasOut = Math.max(0, qP19Sp - qImpSp);
-          qP19Out = round1(Math.min(qP19Sp, qToOsm + carbDrain + ufDrain + qIasOut));
+          const pumpCap = (carbHit && carbHit.phase)
+            ? Math.max(qP19Sp, qImpLeave + qIasOut)
+            : qP19Sp;
+          qP19Out = round1(Math.min(Q_P11019_MAX, pumpCap, qToOsm + carbDrain + ufDrain + qIasOut));
           qUf = round1(qToOsm);
         }
         // Stessi start/stop di linea del TK 11021: sotto lo stop quella osmosi non esce.
@@ -9714,6 +9764,10 @@
       if (pumpEstopped("p11019") || !p11019Allowed()) return 0;
       const ias = Math.max(0, qP11019IasSetpoint());
       let plant = Math.max(0, qP11019ImpiantoSetpoint());
+      // In lavaggio carbone l'ingresso è il comportamento (es. 140), non il tetto di saturazione.
+      if (typeof carbAnyoneWashing === "function" && carbAnyoneWashing()) {
+        return round1(plant + ias);
+      }
       const caps = carbCap("A") + carbCap("B");
       if (caps > 0.05) plant = Math.min(plant, caps);
       return round1(plant + ias);
@@ -9721,6 +9775,7 @@
 
     /** Tiene il rapporto dei due carichi quando cambia il totale (IAS, pompe). Non li pareggia. */
     function alignCarbCapsToImpianto() {
+      if (typeof carbAnyoneWashing === "function" && carbAnyoneWashing()) return;
       if (deviceIsManual("carbone")) return;
       const imp = Math.max(0, Math.round(qP11019ImpiantoSetpoint()));
       const a = carbCap("A");
@@ -9778,7 +9833,10 @@
         });
       } catch (_) { return null; }
       if (!washL || !plantIsStarted()) return null;
-      const qNow = Math.max(0, qP11019ImpiantoLive());
+      const inlet = (p11019Allowed() && !pumpEstopped("p11019"))
+        ? carbInletDuring(phase)
+        : 0;
+      const qNow = inlet > 0.05 ? inlet : Math.max(0, qP11019ImpiantoLive());
       const need = phase === "lav" ? carbLavQNeed() : carbCtrlQNeed();
       const drain = round1(Math.min(qNow, Math.max(0, need)));
       const toUf = round1(Math.max(0, qNow - drain));
@@ -11482,6 +11540,7 @@
         ufSvcMin: __ufSvcMin,
         ufChem: __ufChem ? JSON.parse(JSON.stringify(__ufChem)) : null,
         carbWash: __carbWash ? JSON.parse(JSON.stringify(__carbWash)) : null,
+        carbSatHold: __carbSatHold ? { pump: __carbSatHold.pump, ias: __carbSatHold.ias, imp: __carbSatHold.imp } : null,
         startupPumpHold: __startupPumpHold,
       };
     }
@@ -11522,6 +11581,23 @@
       if (__simSnap.carbWash && typeof __simSnap.carbWash === "object") {
         __carbWash = JSON.parse(JSON.stringify(__simSnap.carbWash));
         ensureCarbWash();
+      }
+      if (__simSnap.carbSatHold && typeof __simSnap.carbSatHold === "object") {
+        __carbSatHold = {
+          pump: __simSnap.carbSatHold.pump,
+          ias: __simSnap.carbSatHold.ias,
+          imp: __simSnap.carbSatHold.imp,
+        };
+      } else if (__carbSatHold) {
+        const h = __carbSatHold;
+        __carbSatHold = null;
+        try {
+          rememberFlowSetpoint("qP11019", h.pump);
+          if (!isEditing("qP11019")) setVal("qP11019", h.pump, { force: true });
+          rememberFlowSetpoint("qP11019Ias", h.ias, { allowZero: true });
+          rememberFlowSetpoint("qP11019Impianto", h.imp, { allowZero: true });
+          syncP11019SplitKeepIas();
+        } catch (_) { /* ok */ }
       }
       __startupPumpHold = __simSnap.startupPumpHold !== false;
       // Riallinea isteresi 11014 ai livelli ripristinati
@@ -14277,13 +14353,79 @@
     }
     function carbCtrlQNeed() {
       const q = num("carbCtrlQ");
-      return Math.max(0, Number.isFinite(q) ? q : 100);
+      return Math.max(0, Number.isFinite(q) ? q : 105);
     }
     function carbLavQNeed() {
       const q = num("carbLavQ");
-      return Math.max(0, Number.isFinite(q) ? q : 60);
+      return Math.max(0, Number.isFinite(q) ? q : 65);
+    }
+    /** Ingresso MP 11019 durante la fase di lavaggio (set di comportamento, non la saturazione). */
+    function carbInletDuring(phase) {
+      const id = phase === "lav" ? "carbInLavQ" : "carbInCtrlQ";
+      const q = num(id);
+      const fallback = 140;
+      return clampP11019Set(Number.isFinite(q) && q > 0 ? q : fallback);
+    }
+    function carbActivePhase() {
+      ensureCarbWash();
+      let phase = null;
+      CARB_LINES.forEach((L) => {
+        const ph = carbPhase(L);
+        if (ph === "ctrl") phase = "ctrl";
+        else if (ph === "lav" && phase !== "ctrl") phase = "lav";
+      });
+      return phase;
+    }
+    /** Set pompe prima del lavaggio: si ripristina quando entrambi i filtri tornano in servizio. */
+    let __carbSatHold = null;
+    function applyCarbWashPump() {
+      if (!plantIsStarted()) return;
+      const phase = carbActivePhase();
+      if (!phase) {
+        if (!__carbSatHold) return;
+        const h = __carbSatHold;
+        __carbSatHold = null;
+        rememberFlowSetpoint("qP11019", h.pump);
+        if (!isEditing("qP11019")) setVal("qP11019", h.pump, { force: true });
+        rememberFlowSetpoint("qP11019Ias", h.ias, { allowZero: true });
+        rememberFlowSetpoint("qP11019Impianto", h.imp, { allowZero: true });
+        try { syncP11019SplitKeepIas(); } catch (_) { /* ok */ }
+        if (p11019Allowed() && !pumpEstopped("p11019")) {
+          commitFlow("qP11019", qP11019LiveTargetFromValley(), { setpoint: h.pump });
+        }
+        return;
+      }
+      if (!__carbSatHold) {
+        const pump = qP11019SplitPumpMem();
+        const ias = Math.max(0, Math.round(Number(__flowSetpoint.qP11019Ias) || 0));
+        __carbSatHold = { pump, ias, imp: Math.max(0, pump - ias) };
+      }
+      const ias = Math.max(0, Math.round(Number(__carbSatHold.ias) || 0));
+      const inlet = carbInletDuring(phase);
+      const pump = clampP11019Set(inlet + ias);
+      const imp = Math.max(0, pump - ias);
+      if (Math.abs(qP11019SplitPumpMem() - pump) < 0.05) return;
+      rememberFlowSetpoint("qP11019", pump);
+      if (!isEditing("qP11019")) setVal("qP11019", pump, { force: true });
+      rememberFlowSetpoint("qP11019Ias", ias, { allowZero: true });
+      rememberFlowSetpoint("qP11019Impianto", imp, { allowZero: true });
+      if (p11019Allowed() && !pumpEstopped("p11019")) {
+        commitFlow("qP11019", pump, { setpoint: pump });
+      }
+      try { paintP11019SplitUI(); } catch (_) { /* ok */ }
     }
     function resetCarbWash() {
+      if (__carbSatHold) {
+        const h = __carbSatHold;
+        __carbSatHold = null;
+        try {
+          rememberFlowSetpoint("qP11019", h.pump);
+          if (!isEditing("qP11019")) setVal("qP11019", h.pump, { force: true });
+          rememberFlowSetpoint("qP11019Ias", h.ias, { allowZero: true });
+          rememberFlowSetpoint("qP11019Impianto", h.imp, { allowZero: true });
+          syncP11019SplitKeepIas();
+        } catch (_) { /* ok */ }
+      }
       __carbWash = {};
       CARB_LINES.forEach((L, idx) => {
         __carbWash[L] = {
@@ -14446,7 +14588,11 @@
     }
     function paintCarbWashUI() {
       ensureCarbWash();
-      const qIn = qP11019ImpiantoLive();
+      try { applyCarbWashPump(); } catch (_) { /* ok */ }
+      const phaseNow = carbActivePhase();
+      const qIn = phaseNow && p11019Allowed() && !pumpEstopped("p11019")
+        ? carbInletDuring(phaseNow)
+        : qP11019ImpiantoLive();
       const consume = carbWashConsumeQ(qIn);
       const toUf = qCarbToUfLive();
       const go = plantIsStarted();
@@ -14501,11 +14647,11 @@
         if (status) {
           if (st.phase === "ctrl") {
             const left = Math.max(0, Math.ceil((carbCtrlMin(L) - st.elapsedMin) * 60));
-            status.textContent = `CONTROLAVAGGIO · restano ${fmtRemainSec(left)} · scarico fino a ${carbCtrlQNeed()} m³/h (ora ${consume.toFixed(0)}) · resto → altro filtro → UF`;
+            status.textContent = `CONTROLAVAGGIO · restano ${fmtRemainSec(left)} · MP 11019 ${carbInletDuring("ctrl")} m³/h · filtro in rigenerazione ${carbCtrlQNeed()} · resto sull’altro`;
             status.style.color = "var(--warn)";
           } else if (st.phase === "lav") {
             const left = Math.max(0, Math.ceil((carbLavMin(L) - st.elapsedMin) * 60));
-            status.textContent = `LAVAGGIO · restano ${fmtRemainSec(left)} · usa fino a ${carbLavQNeed()} m³/h (ora ${consume.toFixed(0)}) · resto → UF`;
+            status.textContent = `LAVAGGIO · restano ${fmtRemainSec(left)} · MP 11019 ${carbInletDuring("lav")} m³/h · filtro in rigenerazione ${carbLavQNeed()} · resto sull’altro`;
             status.style.color = "var(--warn)";
           } else {
             const rem = st.remainMin;
@@ -14603,6 +14749,7 @@
      * alza le P11019 (Impianto) fino al bisogno (IAS resta; max pompe 140).
      */
     function ensureCarboniMeetsUfDemand() {
+      if (typeof carbAnyoneWashing === "function" && carbAnyoneWashing()) return;
       if (deviceIsManual("carbone")) return;
       if (!plantIsStarted()) return;
       if (!p11019ValleyOpen() || !p11019Allowed()) return;
@@ -17972,7 +18119,7 @@
       paintCarbWashUI();
       [
         "carbLavoroOreA", "carbLavoroOreB", "carbCtrlMinA", "carbCtrlMinB",
-        "carbLavMinA", "carbLavMinB", "carbCtrlQ", "carbLavQ",
+        "carbLavMinA", "carbLavMinB", "carbCtrlQ", "carbLavQ", "carbInCtrlQ", "carbInLavQ",
       ].forEach((id) => {
         el(id)?.addEventListener("input", () => {
           paintCarbWashUI();
@@ -18007,7 +18154,7 @@
       "ufCebOreA", "ufCebOreB", "ufCebOreC", "ufCebOreD",
       "ufAcidoOreA", "ufAcidoOreB", "ufAcidoOreC", "ufAcidoOreD",
       "carbLavoroOreA", "carbLavoroOreB", "carbCtrlMinA", "carbCtrlMinB",
-      "carbLavMinA", "carbLavMinB", "carbCtrlQ", "carbLavQ",
+      "carbLavMinA", "carbLavMinB", "carbCtrlQ", "carbLavQ", "carbInCtrlQ", "carbInLavQ",
       "cicloLavoro", "cicloPausa",
       "sludgeOpenA", "sludgeWaitA", "sludgeOpenB", "sludgeWaitB",
       "sludgeOpenC", "sludgeWaitC", "sludgeOpenD", "sludgeWaitD",
@@ -18435,6 +18582,17 @@
       }
     });
 
+    function migrateCarbWashDefaults() {
+      const ctrl = num("carbCtrlQ");
+      const lav = num("carbLavQ");
+      if (Math.round(ctrl) === 100 && Math.round(lav) === 60) {
+        if (el("carbCtrlQ")) el("carbCtrlQ").value = "105";
+        if (el("carbLavQ")) el("carbLavQ").value = "65";
+      }
+      if (numOrNull("carbInCtrlQ") == null && el("carbInCtrlQ")) el("carbInCtrlQ").value = "140";
+      if (numOrNull("carbInLavQ") == null && el("carbInLavQ")) el("carbInLavQ").value = "140";
+    }
+
     // bootstrap locale subito — UI subito usabile, cloud dopo
     setSyncBar("Pronto", "");
     const localBoot = loadLocalBackup();
@@ -18448,6 +18606,7 @@
         setSyncBar("Pronto", "");
       }
     }
+    try { migrateCarbWashDefaults(); } catch (_) { /* ok */ }
     // Ricomincia la simulazione a 90% (dopo il restore locale, così non viene sovrascritto)
     try { simReset({ silent: true }); } catch (e) { console.warn("[calcolatore] boot reset", e); }
     // Badge previsione 8 ore: aggiorna quando cambi le portate a impianto fermo
