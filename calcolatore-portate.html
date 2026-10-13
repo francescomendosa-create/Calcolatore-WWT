@@ -2088,7 +2088,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v299</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v300</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -5811,7 +5811,11 @@
     }
 
     function valleyCauseOf(fc) {
-      const qIn = Math.max(0, Number(fc && fc.qInSp) || 0);
+      const qInSet = Math.max(0, Number(fc && fc.qInSp) || 0);
+      let frac = 1;
+      try { frac = chimicoInletFraction(); } catch (_) { frac = 1; }
+      if (!(frac > 0 && frac <= 1)) frac = 1;
+      const qIn = qInSet * frac;
       const qOsm = Math.max(0, Number(fc && fc.qOsmCap) || 0);
       const qCarb = Math.max(0, Number(fc && fc.qImpSp) || 0);
       const qIas = Math.max(0, Number(fc && fc.qIasSp) || 0);
@@ -5830,7 +5834,7 @@
       else if (carbShort) cause = "carb";
       else if (osmShort || osmBacksUp) cause = "osm";
       else if (ufClosed && qOsm + 0.5 < qIn) cause = "osm";
-      return { cause, qIn, qOsm, qCarb, qIas, qUfSp, qPass, qUfNom, osmShort, carbShort, ufShort, osmBacksUp, ufClosed };
+      return { cause, qIn, qInSet, qInFrac: frac, qOsm, qCarb, qIas, qUfSp, qPass, qUfNom, osmShort, carbShort, ufShort, osmBacksUp, ufClosed };
     }
 
     /** Appena i set osmosi / carboni / UF sono storti, la barra lo dice senza aspettare le 8 ore. */
@@ -5859,11 +5863,16 @@
     }
 
     /**
-     * Minuti al blocco chimico con la media di ciclo (set membrane × duty).
-     * Un conto solo: niente simulazione da 8 ore. null = dentro le 8 ore non si chiude.
+     * Minuti al blocco chimico con la media di ciclo.
+     * Membrane: set × lavoro/(lavoro+pausa). Chimico: set × marcia/(marcia+riavvio).
+     * null = dentro le 8 ore non si chiude.
      */
     function instantMembraneBlockMin() {
-      const qIn = chemicalSetpointNow();
+      const qInSet = chemicalSetpointNow();
+      let qInFrac = 1;
+      try { qInFrac = chimicoInletFraction(); } catch (_) { qInFrac = 1; }
+      if (!(qInFrac > 0 && qInFrac <= 1)) qInFrac = 1;
+      const qIn = qInSet * qInFrac;
       const qMem = Math.max(0, num("qMemTotale") || 0);
       if (!(qIn > 0.5)) return null;
       let dutyAvg = 0.875;
@@ -5907,11 +5916,20 @@
       }
       const mins = instantMembraneBlockMin();
       if (mins != null) {
+        let qInFrac = 1;
+        try { qInFrac = chimicoInletFraction(); } catch (_) { qInFrac = 1; }
+        if (!(qInFrac > 0 && qInFrac <= 1)) qInFrac = 1;
+        const qInAvg = round1(qIn * qInFrac);
+        const dutyBit = qInFrac < 0.999
+          ? ` Media ingresso ${fmtQ(qInAvg)} (marcia ${Math.round(num("chimicoPausaMin"))}′ / fermo ${Math.round(num("chimicoRiavvioMin"))}′).`
+          : "";
         const fc = {
           ok: false,
           firstBlockMin: mins,
           displayBlockMin: mins,
           qInSp: qIn,
+          qInAvg,
+          qInFrac,
           qMemSp: qMem,
           userSetKey: key,
           horizonMin: BLOCK_FORECAST_HORIZON,
@@ -5926,7 +5944,7 @@
           verdict: "Membrane sotto la media",
           forecastHtml: `<div class="block-forecast"><strong>Male — membrane sotto il chimico</strong><br>`
             + `Blocco chimico previsto tra <strong>${fmtForecastWhen(mins)}</strong>. `
-            + `Set membrane ${fmtQ(qMem)}, uscita media sotto il chimico ${fmtQ(qIn)}.</div>`,
+            + `Set membrane ${fmtQ(qMem)}, uscita media sotto il chimico ${fmtQ(qIn)}.${dutyBit}</div>`,
         };
         __lastRegFc = fc;
         __lastRegAdv = adv;
@@ -6045,7 +6063,11 @@
       }
       if (focus === "mem") {
         const have = fc && fc.qMemSp != null ? fmtQ(fc.qMemSp) : "—";
-        const inn = fc && fc.qInSp != null ? fmtQ(fc.qInSp) : "—";
+        const innSet = fc && fc.qInSp != null ? Number(fc.qInSp) : NaN;
+        const innAvg = fc && fc.qInAvg != null ? Number(fc.qInAvg) : NaN;
+        const inn = Number.isFinite(innAvg) && Number.isFinite(innSet) && innAvg + 0.5 < innSet
+          ? `${fmtQ(innSet)} media ${fmtQ(innAvg)}`
+          : (fc && fc.qInSp != null ? fmtQ(fc.qInSp) : "—");
         return when
           ? `Male · membrane ${have} vs chimico ${inn} · ${whenNow ? "blocco adesso" : ("blocco tra " + when)}`
           : `Male · membrane ${have} vs chimico ${inn}`;
@@ -6074,14 +6096,15 @@
         const v = valleyCauseOf(fc);
         const use = focus;
         const qSafeBit = qSafe ? ` · oppure chimico ≤ ${qSafe}` : " · oppure scendi il chimico";
+        const chimLab = (v && v.qInFrac < 0.999) ? `media ${fmtQ(v.qIn)}` : fmtQ(v ? v.qIn : 0);
         if (use === "uf") {
-          return `Male · ultrafiltrazione bassa (${fmtQ(v.qUfSp)} < chimico ${fmtQ(v.qIn)})${whenBit} · alza le UF${qSafeBit}`;
+          return `Male · ultrafiltrazione bassa (${fmtQ(v.qUfSp)} < chimico ${chimLab})${whenBit} · alza le UF${qSafeBit}`;
         }
         if (use === "carb") {
-          return `Male · filtri a carbone bassi (${fmtQ(v.qCarb)} < chimico ${fmtQ(v.qIn)})${whenBit} · alza i carboni${qSafeBit}`;
+          return `Male · filtri a carbone bassi (${fmtQ(v.qCarb)} < chimico ${chimLab})${whenBit} · alza i carboni${qSafeBit}`;
         }
         if (use === "both") {
-          return `Male · osmosi ${fmtQ(v.qOsm)} e ultrafiltrazione/carboni ${fmtQ(v.qPass)} < chimico ${fmtQ(v.qIn)}${whenBit} · alza le osmosi${qSafeBit}`;
+          return `Male · osmosi ${fmtQ(v.qOsm)} e ultrafiltrazione/carboni ${fmtQ(v.qPass)} < chimico ${chimLab}${whenBit} · alza le osmosi${qSafeBit}`;
         }
         if (use === "valley") {
           return `Male · TK 11021 pieno, ultrafiltrazione ferma${whenBit} · alza le osmosi${qSafeBit}`;
@@ -6089,7 +6112,7 @@
         if (v.osmBacksUp && !v.osmShort) {
           return `Male · osmosi ${fmtQ(v.qOsm)} < ultrafiltrazione ${fmtQ(v.qUfNom)}${whenBit} · il TK 11021 si riempie · alza le osmosi${qSafeBit}`;
         }
-        return `Male · osmosi basse (${fmtQ(v.qOsm)} < chimico ${fmtQ(v.qIn)})${whenBit} · alza le osmosi${qSafeBit}`;
+        return `Male · osmosi basse (${fmtQ(v.qOsm)} < chimico ${chimLab})${whenBit} · alza le osmosi${qSafeBit}`;
       }
       return qSafe
         ? `Male · regola impianto · o chimico ≤ ${qSafe}${whenBit}`
@@ -6484,6 +6507,10 @@
       const qInSp = opts.qIn != null
         ? Math.max(0, Number(opts.qIn) || 0)
         : chemicalSetpointNow();
+      let qInFrac = 1;
+      try { qInFrac = chimicoInletFraction(); } catch (_) { qInFrac = 1; }
+      if (!(qInFrac > 0 && qInFrac <= 1)) qInFrac = 1;
+      const qInAvg = round1(qInSp * qInFrac);
       // Previsione usa i SET (comando a pompe ON). Il loop azzera se processo ferma.
       // Mai confondere con la misura istantanea (che a pompe rosse è 0).
       let qPumpSp = opts.qPump != null ? Math.max(0, Number(opts.qPump) || 0) : flowSetpointOf("qPump");
@@ -6628,9 +6655,9 @@
       const cebFc = ufCebForecastInit();
       const carbFc = carbForecastInit();
       const chimFc = chimicoDutyClone();
-      const osmShortNow = qInSp > 0.5 && qOsmCap + 0.5 < qInSp;
-      const carbShortNow = qInSp > 0.5 && qImpSp + 0.5 < qInSp;
-      const ufShortNow = qInSp > 0.5 && ufCmd && qUfSp + 0.5 < qInSp && qUfSp + 0.5 < qImpSp;
+      const osmShortNow = qInAvg > 0.5 && qOsmCap + 0.5 < qInAvg;
+      const carbShortNow = qInAvg > 0.5 && qImpSp + 0.5 < qInAvg;
+      const ufShortNow = qInAvg > 0.5 && ufCmd && qUfSp + 0.5 < qInAvg && qUfSp + 0.5 < qImpSp;
       const osmBacksUpNow = qUfNom > 0.5 && qOsmCap + 0.5 < qUfNom;
       const qSiteExport = round1(qOsmCap + qIasSp);
       const valleyClosed = qOsmCap < 0.05 && qPassSp < 0.05;
@@ -6891,7 +6918,7 @@
             const memLowNow = qInSp > 0.5 && qPerm + 1 < qInSp;
             const recStarveNow = !hFull && qScarico > qRec + 2;
             if (valleyClosed || valleyShort || !allowUf) reason = "valley";
-            else if (!allowMbrByPerm && (valleyShort || qOsm + 0.5 < qInSp)) reason = "valley";
+            else if (!allowMbrByPerm && (valleyShort || qOsm + 0.5 < qInAvg)) reason = "valley";
             else if (recStarveNow && (hBackedUp || !allow11036ByMbr)) reason = "rec";
             else if (!allowMbrByPerm || (memLowNow && (!allow11036ByMbr || blockP11 || !run11036))) reason = "mem";
             else if (blockP11) reason = "mand";
@@ -6920,8 +6947,8 @@
       // Se il loop non ha chiuso il chimico, la media di ciclo (set × duty) usa lo stesso spazio libero.
       // 170 e 170: media ~149, lo spazio si riempie dentro le 8 ore. 160 e 180: il buco è piccolo e resta fuori.
       const packForecast = () => {
-      if (firstBlockMin == null && qInSp > 0.5) {
-        const gapAvg = qInSp - qMemSp * dutyAvg;
+      if (firstBlockMin == null && qInAvg > 0.5) {
+        const gapAvg = qInAvg - qMemSp * dutyAvg;
         if (gapAvg > 0.4 && upRoom > 0.05) {
           const mins = (upRoom / gapAvg) * 60;
           if (mins <= H + 0.5) {
@@ -6942,6 +6969,8 @@
         reason,
         snap: firstSnap,
         qInSp: round1(qInSp),
+        qInAvg: round1(qInAvg),
+        qInFrac,
         qPumpSp: round1(qPumpSp),
         qMandSp: round1(qMandSp),
         qMemSp: round1(qMemSp),
@@ -12516,6 +12545,20 @@
       const runMin = Math.max(0, num("chimicoPausaMin") || 0);
       const offMin = Math.max(0, num("chimicoRiavvioMin") || 0);
       return { runMin, offMin, on: runMin > 0.05 && offMin > 0.05 };
+    }
+
+    /**
+     * Frazione di tempo in cui il chimico manda davvero.
+     * Tempo di arresto = minuti in marcia, tempo di riavvio = minuti fermo (ingresso 0).
+     * Se uno dei due è 0, l’arresto a tempo è spento: manda sempre.
+     */
+    function chimicoInletFraction() {
+      let t = { runMin: 0, offMin: 0, on: false };
+      try { t = chimicoDutyTimes(); } catch (_) { return 1; }
+      if (!t.on) return 1;
+      const cyc = t.runMin + t.offMin;
+      if (!(cyc > 0.05)) return 1;
+      return t.runMin / cyc;
     }
 
     function chimicoDutyClone() {
