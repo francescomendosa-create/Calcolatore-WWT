@@ -2122,7 +2122,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v302</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v305</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -4427,6 +4427,7 @@
     const MBR_RETAIN_FRAC = 1 - MBR_SCARICO_TO_H_FRAC;
     const Q_P11019_DEFAULT = 140; // avvio / set vuoto
     const Q_P11019_MAX = 170;     // tetto set pompe (non si supera)
+    const UF_WASH_INLET_LEAK = 5; // m³/h in più su ogni valvola UF rimasta aperta, a valvola d’ingresso chiusa
     /** @deprecated alias di Q_P11019_DEFAULT (retrocompat) */
     const Q_P11019_MIN = Q_P11019_DEFAULT;
 
@@ -6855,14 +6856,19 @@
         if (carbHit && carbHit.phase) qImpLeave = Math.max(qImpLeave, carbInletDuring(carbHit.phase));
         const carbDrain = carbForecastConsume(carbHit, qImpLeave);
         let qToOsm = Math.max(0, qImpLeave - carbDrain);
-        if (ufCmd) qToOsm = Math.min(qToOsm, Math.max(0, qUfSp));
-        // Il controlavaggio UF non manda quel filtro alle osmosi, ma l’acqua esce lo stesso dal 11007 (a scarico).
-        // Se restasse in vasca, un lavaggio da 3 minuti riempirebbe il TK e fermerebbe le membrane.
+        // Lavaggio UF: la valvola d’ingresso di quella linea è chiusa. Non esce acqua da lì.
+        // Sulle valvole rimaste la pressione fa passare il set + un trafilamento.
         let ufDrain = 0;
         if (ufWashLine) {
-          const share = Math.max(0, Math.min(1, ufLineFlowShare(ufWashLine)));
-          ufDrain = qToOsm * share;
-          qToOsm = Math.max(0, qToOsm - ufDrain);
+          let pass = 0;
+          UF_LINES.forEach((L) => {
+            if (!ufLineEnabled(L) || L === ufWashLine) return;
+            const sp = Math.max(0, procSetpointOf("qUf" + L));
+            if (sp > 0.05) pass += sp + UF_WASH_INLET_LEAK;
+          });
+          qToOsm = round1(Math.min(qToOsm, pass));
+        } else if (ufCmd) {
+          qToOsm = Math.min(qToOsm, Math.max(0, qUfSp));
         }
         if (canValley) {
           const qIasOut = Math.max(0, qP19Sp - qImpSp);
@@ -9726,10 +9732,58 @@
     }
 
     /**
-     * Passaggio UF che i carboni possono davvero mandare.
-     * null = le UF non sono ancora un limite (nessun set, nessuna esclusa, nessun lavaggio).
-     * Altrimenti: somma dei set delle linee accese e non in lavaggio.
+     * Quanto le valvole UF sono aperte a setpoint.
+     * null = nessun set: i carboni non vengono strozzati.
+     * Una linea in lavaggio conta lo stesso: la sua quota esce a scarico e non resta nel TK-11007.
      */
+    function ufValveSetTotal() {
+      if (typeof UF_LINES === "undefined" || typeof ufLineEnabled !== "function") return null;
+      let sum = 0;
+      let n = 0;
+      UF_LINES.forEach((L) => {
+        if (!ufLineEnabled(L)) return;
+        n += 1;
+        sum += Math.max(0, procSetpointOf("qUf" + L));
+      });
+      if (sum < 0.05) {
+        const tot = Math.max(0, procSetpointOf("qUfTotale"));
+        if (tot > 0.05) return round1(tot);
+      }
+      if (n < 1 || sum < 0.05) return null;
+      return round1(sum);
+    }
+
+    /** True se almeno una UF ha la valvola d’ingresso chiusa per il lavaggio. */
+    function ufFeedLeakOn() {
+      try {
+        return UF_LINES.some((L) => ufLineEnabled(L) && ufLineInWash(L));
+      } catch (_) { return false; }
+    }
+
+    /** Portata che passa ora da una valvola UF: 0 se l’ingresso è chiuso, altrimenti set, +5 se un’altra è in lavaggio. */
+    function ufLineFeedAim(letter) {
+      const L = String(letter || "").toUpperCase();
+      if (!ufLineEnabled(L)) return 0;
+      try { if (ufLineInWash(L)) return 0; } catch (_) { return 0; }
+      const sp = Math.max(0, procSetpointOf("qUf" + L));
+      if (sp < 0.05) return 0;
+      return round1(sp + (ufFeedLeakOn() ? UF_WASH_INLET_LEAK : 0));
+    }
+
+    /** Somma di ciò che le valvole lasciano passare. null = nessun set, i carboni non si strozzano. */
+    function ufFeedPassTotal() {
+      let sum = 0;
+      let any = false;
+      UF_LINES.forEach((L) => {
+        const q = ufLineFeedAim(L);
+        if (q > 0.05) any = true;
+        sum += q;
+      });
+      if (!any) return null;
+      return round1(sum);
+    }
+
+    /** Passaggio verso le UF accese e non in lavaggio. Lo usa solo chi deve togliere la linea a scarico. */
     function ufPassageLimit() {
       if (typeof UF_LINES === "undefined" || typeof ufLineEnabled !== "function") return null;
       let pass = 0;
@@ -9748,14 +9802,14 @@
       return round1(pass);
     }
 
-    /** Portata che passa ora, in proporzione al carico di ciascun filtro. La somma non viene pareggiata. */
+    /** Misura sui carboni: il set scritto, strozzato dalle valvole UF se il loro totale è più basso. */
     function carbDeliveredPair() {
       ensureCarbCaps();
       const capA = carbCap("A");
       const capB = carbCap("B");
       const capSum = capA + capB;
       let tot = capSum;
-      const lim = ufPassageLimit();
+      const lim = ufFeedPassTotal();
       if (lim != null) tot = Math.min(capSum, Math.max(0, lim));
       tot = Math.max(0, Math.round(tot));
       if (capSum < 0.05 || tot < 0.05) return { a: 0, b: 0, tot: 0, capA, capB, capSum };
@@ -9775,6 +9829,8 @@
       }
       const caps = carbCap("A") + carbCap("B");
       if (caps > 0.05) plant = Math.min(plant, caps);
+      const lim = ufFeedPassTotal();
+      if (lim != null) plant = Math.min(plant, lim);
       return round1(plant + ias);
     }
 
@@ -9856,8 +9912,8 @@
       const a = el("svgQCarbA");
       const b = el("svgQCarbB");
       const washShow = carbWashShownFlows();
-      const showA = washShow ? washShow.A : (deviceIsManual("carbone") ? d.capA : d.a);
-      const showB = washShow ? washShow.B : (deviceIsManual("carbone") ? d.capB : d.b);
+      const showA = washShow ? washShow.A : d.a;
+      const showB = washShow ? washShow.B : d.b;
       if (a && !isEditing("qCarbA")) a.textContent = round1(showA).toFixed(1);
       if (b && !isEditing("qCarbB")) b.textContent = round1(showB).toFixed(1);
       let washA = false;
@@ -15018,9 +15074,10 @@
           } else {
             const ff = valveOpenPctForSet(sp, q100);
             const err = sp - measNow;
-            // Acqua ok → misura = setpoint (rispetta il set fissato).
-            qAim = sp;
-            if (Math.abs(err) <= 0.6) {
+            // Valvola ferma sul set. Se un’altra UF ha l’ingresso chiuso, la pressione fa trafilare +5.
+            qAim = ufLineFeedAim(L);
+            const leak = qAim > sp + 0.05;
+            if (leak || Math.abs(err) <= 0.6) {
               valveTarget = Math.max(1, Math.min(100, Math.round(ff)));
             } else {
               valveTarget = ff + err * 4;
@@ -15030,7 +15087,7 @@
           }
 
           __ufValveTarget[L] = Math.max(0, Math.min(100, valveTarget));
-          __ufMeasTarget[L] = Math.max(0, starved ? Math.max(0, share) : sp);
+          __ufMeasTarget[L] = Math.max(0, starved ? Math.max(0, share) : qAim);
         }
       });
       // Il minuto di TIME non consuma 60 s di rampa: valvola e portata salgono col RAF.
