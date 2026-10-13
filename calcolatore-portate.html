@@ -2088,7 +2088,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v298</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v299</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -4520,6 +4520,8 @@
     let __simSnap = null;
     let __simBusy = false;
     let __simPlaying = false;
+    /** Salto ore: stessa marcia dello Start, solo il tempo è accelerato. A ora raggiunta torna false. */
+    let __simJumpRun = false;
     let __simPlayTimer = null;
     /** Volume a monte che deve restare: somma di (chimico − permeato visto). Non si perde se i tassi lo “sfiatano”. */
     let __upstreamMass = null;
@@ -11071,7 +11073,7 @@
     }
 
     function plantIsStarted() {
-      return !!__simPlaying;
+      return !!((__simPlaying || __simJumpRun));
     }
 
     const PUMP_REV_MS = 700;        // default
@@ -11513,12 +11515,13 @@
       if (reset) reset.disabled = !!__simBusy;
       const playBtn = el("simPlayToggle");
       if (playBtn) {
+        const showRun = !!((__simPlaying || __simJumpRun));
         playBtn.disabled = !!__simBusy;
-        playBtn.classList.toggle("is-start", !__simPlaying);
-        playBtn.classList.toggle("is-stop", !!__simPlaying);
-        playBtn.textContent = __simPlaying ? "Stop" : "Start";
-        playBtn.setAttribute("aria-label", __simPlaying ? "Ferma simulazione" : "Avvia simulazione");
-        playBtn.setAttribute("aria-pressed", __simPlaying ? "true" : "false");
+        playBtn.classList.toggle("is-start", !showRun);
+        playBtn.classList.toggle("is-stop", showRun);
+        playBtn.textContent = showRun ? "Stop" : "Start";
+        playBtn.setAttribute("aria-label", showRun ? "Ferma simulazione" : "Avvia simulazione");
+        playBtn.setAttribute("aria-pressed", showRun ? "true" : "false");
       }
     }
 
@@ -12229,8 +12232,12 @@
     }
 
     function finishSimRunPaint() {
+      __simJumpRun = false;
       __simBusy = false;
+      __qInLive = null;
+      try { paintQInMeter(0); } catch (_) { /* ok */ }
       updateSimTimeUI();
+      try { applyBalance("livello"); } catch (_) { /* ok */ }
       try { paintPumpColors(); } catch (_) { /* ok */ }
       try { paintA10608Passante(); } catch (_) { /* ok */ }
       try { paintMembraneCycleUI(__mbrCycleMin); } catch (_) { /* ok */ }
@@ -12257,13 +12264,32 @@
       __simMin = 0;
     }
 
-    /** Salto: pochi minuti per fotogramma, così si vede l’impianto. A ora raggiunta il tempo si ferma e le pompe anche. */
+    /** Salto: stessa marcia dello Start, clock più veloce. A ora raggiunta tempo e pompe si fermano. */
     function jumpSimToMinute(targetMin) {
       targetMin = Math.max(0, Math.min(SIM_JUMP_MAX_MIN, Math.round(Number(targetMin) || 0)));
       if (__simPlaying) simStop({ silent: true });
       const token = ++__simJumpToken;
       __simBusy = true;
+      __simJumpRun = true;
       __upstreamMass = null;
+      try {
+        snapFlowLiveFromFields();
+        ["qPump", "qMandata", "qRecycle", "qP11019"].forEach((id) => {
+          let sp = 0;
+          try { sp = Math.max(0, flowSetpointOf(id) || 0); } catch (_) { sp = Math.max(0, num(id)); }
+          if (sp > 0.05) {
+            __flowLive[id] = sp;
+            __flowDesire[id] = sp;
+            __flowAnimFrom[id] = sp;
+            __flowAnimTo[id] = sp;
+          }
+        });
+      } catch (_) { /* ok */ }
+      try {
+        kickQInMeterTo((__chimicoAllowFill && !chimicoDutyIsPaused()) ? Math.max(0, num("qIn")) : 0);
+      } catch (_) { /* ok */ }
+      try { applyBalance("sim"); } catch (_) { /* ok */ }
+      try { paintPumpColors(); } catch (_) { /* ok */ }
       updateSimTimeUI();
       if (targetMin < __simMin || !__simSnap) {
         try { rewindSimToStart(); } catch (e) { console.warn("[calcolatore] salto tempo", e); }
