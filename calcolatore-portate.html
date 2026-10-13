@@ -2122,7 +2122,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v306</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v307</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -6680,6 +6680,12 @@
         try { caps = carbCap("A") + carbCap("B"); } catch (_) { caps = 0; }
         if (caps > 0.5) qImpSp = Math.min(qImpSp, caps);
       }
+      // Lavaggio già partito: il set in memoria è l’ingresso alzato. La previsione, finite le fasi, torna alla saturazione.
+      if (__carbSatHold && Number.isFinite(Number(__carbSatHold.imp))) {
+        qIasSp = Math.max(0, Number(__carbSatHold.ias) || 0);
+        qImpSp = Math.max(0, round1(Number(__carbSatHold.imp) || 0));
+        qP19Sp = clampP11019Set(Math.max(qImpSp + qIasSp, Number(__carbSatHold.pump) || 0));
+      }
       const ufManual = (typeof deviceIsManual === "function") && deviceIsManual("ultra");
       const ufCmd = ufManual || qUfSp > 0.05;
       const qPassSp = ufCmd ? Math.min(qImpSp, qUfSp) : qImpSp;
@@ -6852,13 +6858,14 @@
         const canValley = runP19By07 && allowUf;
         const ufWashLine = ufCebForecastTick(cebFc, dt, canValley);
         const carbHit = carbForecastTick(carbFc, dt, canValley);
+        // In lavaggio carbone l’ingresso è il comportamento (140), non il massimo col set di saturazione.
+        // A fase finita si torna a qImpSp, che è la saturazione.
         let qImpLeave = Math.max(0, qImpSp);
-        if (carbHit && carbHit.phase) qImpLeave = Math.max(qImpLeave, carbInletDuring(carbHit.phase));
+        if (carbHit && carbHit.phase) qImpLeave = carbInletDuring(carbHit.phase);
         const carbDrain = carbForecastConsume(carbHit, qImpLeave);
-        let qToOsm = Math.max(0, qImpLeave - carbDrain);
-        // Lavaggio UF: la valvola d’ingresso di quella linea è chiusa. Non esce acqua da lì.
-        // Sulle valvole rimaste la pressione fa passare il set + un trafilamento.
-        let ufDrain = 0;
+        let qForward = Math.max(0, qImpLeave - carbDrain);
+        // Lavaggio UF: ingresso chiuso su quella linea. Sulle altre, set + trafilamento.
+        // Lo scarico del carbone non passa da quelle valvole.
         if (ufWashLine) {
           let pass = 0;
           UF_LINES.forEach((L) => {
@@ -6866,17 +6873,20 @@
             const sp = Math.max(0, procSetpointOf("qUf" + L));
             if (sp > 0.05) pass += sp + UF_WASH_INLET_LEAK;
           });
-          qToOsm = round1(Math.min(qToOsm, pass));
+          qForward = round1(Math.min(qForward, pass));
         } else if (ufCmd) {
-          qToOsm = Math.min(qToOsm, Math.max(0, qUfSp));
+          qForward = Math.min(qForward, Math.max(0, qUfSp));
         }
         if (canValley) {
-          const qIasOut = Math.max(0, qP19Sp - qImpSp);
-          const pumpCap = (carbHit && carbHit.phase)
-            ? Math.max(qP19Sp, qImpLeave + qIasOut)
+          const qIasOut = Math.max(0, qIasSp);
+          const pumpNow = (carbHit && carbHit.phase)
+            ? clampP11019Set(qImpLeave + qIasOut)
             : qP19Sp;
-          qP19Out = round1(Math.min(Q_P11019_MAX, pumpCap, qToOsm + carbDrain + ufDrain + qIasOut));
-          qUf = round1(qToOsm);
+          // Come in TIME: in lavaggio carbone il TK-11007 perde tutto l’ingresso di comportamento.
+          // Le valvole UF limitano solo l’acqua che prosegue verso il TK-11021.
+          const plantOut = (carbHit && carbHit.phase) ? qImpLeave : qForward;
+          qP19Out = round1(Math.min(Q_P11019_MAX, pumpNow, plantOut + qIasOut));
+          qUf = round1(qForward);
         }
         // Stessi start/stop di linea del TK 11021: sotto lo stop quella osmosi non esce.
         const qOsm = osmForecastQ(livU);
