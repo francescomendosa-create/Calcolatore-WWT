@@ -2122,7 +2122,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v301</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v302</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -9677,11 +9677,16 @@
       const popImp = el("svgPopP11019Imp");
       if (popImp) popImp.textContent = fmtSet(impSp);
 
-      // Overview: acqua che sta passando verso i carboni (scende se l'UF lascia passare meno).
+      // Overview: in servizio è il carico di saturazione. In lavaggio è l’ingresso di comportamento (es. 140).
       const ov = el("svgQP11019");
       if (ov && !isEditing("qP11019Impianto")) {
         let shown = impSp;
-        try { shown = carbDeliveredPair().tot; } catch (_) { /* ok */ }
+        let washIn = null;
+        try { washIn = carbWashInletShown(); } catch (_) { washIn = null; }
+        if (washIn != null) shown = washIn;
+        else {
+          try { shown = carbDeliveredPair().tot; } catch (_) { /* ok */ }
+        }
         ov.textContent = round1(shown).toFixed(1);
       }
       const ovIas = el("svgQP11019Ias");
@@ -14391,7 +14396,7 @@
         rememberFlowSetpoint("qP11019Impianto", h.imp, { allowZero: true });
         try { syncP11019SplitKeepIas(); } catch (_) { /* ok */ }
         if (p11019Allowed() && !pumpEstopped("p11019")) {
-          commitFlow("qP11019", qP11019LiveTargetFromValley(), { setpoint: h.pump });
+          commitFlow("qP11019", h.pump, { setpoint: h.pump, instant: true });
         }
         return;
       }
@@ -14404,15 +14409,26 @@
       const inlet = carbInletDuring(phase);
       const pump = clampP11019Set(inlet + ias);
       const imp = Math.max(0, pump - ias);
-      if (Math.abs(qP11019SplitPumpMem() - pump) < 0.05) return;
-      rememberFlowSetpoint("qP11019", pump);
-      if (!isEditing("qP11019")) setVal("qP11019", pump, { force: true });
-      rememberFlowSetpoint("qP11019Ias", ias, { allowZero: true });
-      rememberFlowSetpoint("qP11019Impianto", imp, { allowZero: true });
-      if (p11019Allowed() && !pumpEstopped("p11019")) {
-        commitFlow("qP11019", pump, { setpoint: pump });
+      const already = Math.abs(qP11019SplitPumpMem() - pump) < 0.05
+        && Math.abs(qP11019ImpiantoSetpoint() - imp) < 0.05;
+      if (!already) {
+        rememberFlowSetpoint("qP11019", pump);
+        if (!isEditing("qP11019")) setVal("qP11019", pump, { force: true });
+        rememberFlowSetpoint("qP11019Ias", ias, { allowZero: true });
+        rememberFlowSetpoint("qP11019Impianto", imp, { allowZero: true });
+        if (p11019Allowed() && !pumpEstopped("p11019")) {
+          commitFlow("qP11019", pump, { setpoint: pump, instant: true });
+        }
       }
       try { paintP11019SplitUI(); } catch (_) { /* ok */ }
+    }
+    /** Ingresso MP 11019 da mostrare in lavaggio. null = servizio normale (saturazione). */
+    function carbWashInletShown() {
+      if (!plantIsStarted()) return null;
+      const phase = carbActivePhase();
+      if (!phase) return null;
+      if (!p11019Allowed() || pumpEstopped("p11019")) return 0;
+      return carbInletDuring(phase);
     }
     function resetCarbWash() {
       if (__carbSatHold) {
