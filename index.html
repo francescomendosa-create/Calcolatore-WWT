@@ -2122,7 +2122,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v305</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v306</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -9683,15 +9683,20 @@
       const popImp = el("svgPopP11019Imp");
       if (popImp) popImp.textContent = fmtSet(impSp);
 
-      // Overview: in servizio è il carico di saturazione. In lavaggio è l’ingresso di comportamento (es. 140).
+      // Overview: in servizio è il carico di saturazione. In lavaggio è l’ingresso di comportamento.
+      // Pompe ferme: sui carboni non passa acqua, la misura è 0. Il set resta.
       const ov = el("svgQP11019");
       if (ov && !isEditing("qP11019Impianto")) {
         let shown = impSp;
-        let washIn = null;
-        try { washIn = carbWashInletShown(); } catch (_) { washIn = null; }
-        if (washIn != null) shown = washIn;
+        const pumpsOff = plantIsStarted() && (!p11019Allowed() || pumpEstopped("p11019"));
+        if (pumpsOff) shown = 0;
         else {
-          try { shown = carbDeliveredPair().tot; } catch (_) { /* ok */ }
+          let washIn = null;
+          try { washIn = carbWashInletShown(); } catch (_) { washIn = null; }
+          if (washIn != null) shown = washIn;
+          else {
+            try { shown = carbDeliveredPair().tot; } catch (_) { /* ok */ }
+          }
         }
         ov.textContent = round1(shown).toFixed(1);
       }
@@ -9894,6 +9899,7 @@
         });
       } catch (_) { return null; }
       if (!washL || !plantIsStarted()) return null;
+      if (!p11019Allowed() || pumpEstopped("p11019")) return { A: 0, B: 0 };
       const inlet = (p11019Allowed() && !pumpEstopped("p11019"))
         ? carbInletDuring(phase)
         : 0;
@@ -9911,6 +9917,18 @@
       const d = carbDeliveredPair();
       const a = el("svgQCarbA");
       const b = el("svgQCarbB");
+      const pumpsOff = plantIsStarted() && (!p11019Allowed() || pumpEstopped("p11019"));
+      if (pumpsOff) {
+        if (a && !isEditing("qCarbA")) a.textContent = "0.0";
+        if (b && !isEditing("qCarbB")) b.textContent = "0.0";
+        ["A", "B"].forEach((letter) => {
+          const down = el("svgCarbArrowDown" + letter);
+          const left = el("svgCarbArrowLeft" + letter);
+          if (down) down.setAttribute("visibility", "hidden");
+          if (left) left.setAttribute("visibility", "hidden");
+        });
+        return;
+      }
       const washShow = carbWashShownFlows();
       const showA = washShow ? washShow.A : d.a;
       const showB = washShow ? washShow.B : d.b;
@@ -14618,13 +14636,19 @@
       const qIn = qP11019ImpiantoProcess();
       return round1(Math.max(0, qIn - carbWashConsumeQ(qIn)));
     }
+    function carbPumpsPushing() {
+      return !!(plantIsStarted() && p11019Allowed() && !pumpEstopped("p11019"));
+    }
     function tickCarbWashes(dtMin) {
       ensureCarbWash();
       const dt = Math.max(0, Number(dtMin) || 0);
       if (dt < 1e-9) return;
+      const water = carbPumpsPushing();
       CARB_LINES.forEach((L) => {
         const st = __carbWash[L];
         if (st.phase) {
+          // Pompe ferme: il controlavaggio / lavaggio resta fermo sul minuto già contato.
+          if (!water) return;
           st.elapsedMin = round2(st.elapsedMin + dt);
           const dur = st.phase === "ctrl" ? carbCtrlMin(L) : carbLavMin(L);
           if (st.elapsedMin >= dur - 1e-9) {
@@ -14642,6 +14666,10 @@
         st.remainMin = round2(st.remainMin - dt);
       });
       if (carbAnyoneWashing()) {
+        paintCarbWashUI();
+        return;
+      }
+      if (!water) {
         paintCarbWashUI();
         return;
       }
@@ -14712,12 +14740,22 @@
           bubbles.classList.remove("is-reverse");
         }
         if (flowRoot) {
-          if (go && st.phase === "ctrl") setWaterFlow(flowRoot, true, "down");
-          else if (go && st.phase === "lav") setWaterFlow(flowRoot, true, "up");
+          const pushing = carbPumpsPushing();
+          if (pushing && st.phase === "ctrl") setWaterFlow(flowRoot, true, "down");
+          else if (pushing && st.phase === "lav") setWaterFlow(flowRoot, true, "up");
           else setWaterFlow(flowRoot, false);
         }
         if (status) {
-          if (st.phase === "ctrl") {
+          const paused = !!st.phase && plantIsStarted() && !carbPumpsPushing();
+          if (paused && st.phase === "ctrl") {
+            const left = Math.max(0, Math.ceil((carbCtrlMin(L) - st.elapsedMin) * 60));
+            status.textContent = `CONTROLAVAGGIO IN PAUSA · restano ${fmtRemainSec(left)} · pompe ferme, riprende quando torna l’acqua`;
+            status.style.color = "var(--warn)";
+          } else if (paused && st.phase === "lav") {
+            const left = Math.max(0, Math.ceil((carbLavMin(L) - st.elapsedMin) * 60));
+            status.textContent = `LAVAGGIO IN PAUSA · restano ${fmtRemainSec(left)} · pompe ferme, riprende quando torna l’acqua`;
+            status.style.color = "var(--warn)";
+          } else if (st.phase === "ctrl") {
             const left = Math.max(0, Math.ceil((carbCtrlMin(L) - st.elapsedMin) * 60));
             status.textContent = `CONTROLAVAGGIO · restano ${fmtRemainSec(left)} · MP 11019 ${carbInletDuring("ctrl")} m³/h · filtro in rigenerazione ${carbCtrlQNeed()} · resto sull’altro`;
             status.style.color = "var(--warn)";
