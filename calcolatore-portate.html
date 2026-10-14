@@ -688,34 +688,37 @@
     }
     details.carb-fold > .row { margin-top: 8px; }
     #popUltra details.uf-ceb-fold {
-      margin: 6px 0 2px;
+      margin: 8px 0 4px;
     }
     #popUltra details.uf-ceb-fold > summary {
-      min-height: 0;
-      padding: 6px 10px;
+      min-height: 46px;
+      padding: 12px 14px;
       border-radius: 8px;
-      font-size: 0.82rem;
-      font-weight: 700;
+      font-size: 1.08rem;
+      font-weight: 750;
       box-shadow: none;
       background: #0c4a6e;
     }
-    #popUltra details.uf-ceb-fold > summary::after { font-size: 0.85rem; }
+    #popUltra details.uf-ceb-fold > summary::after { font-size: 1rem; }
     #popUltra details.uf-ceb-fold[open] > summary {
-      margin-bottom: 2px;
+      margin-bottom: 6px;
       background: #0c4a6e;
     }
-    #popUltra label.uf-ceb-time {
+    #popUltra .uf-ceb-time {
+      display: flex;
       flex-direction: row;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
+      gap: 14px;
       margin: 0;
-      padding: 2px 2px 2px 4px;
+      padding: 8px 2px 8px 6px;
+      min-height: 52px;
       border-bottom: 1px solid rgba(51, 65, 85, 0.85);
     }
     #popUltra .uf-ceb-time strong {
-      font-size: 0.78rem;
-      font-weight: 650;
+      font-size: 1rem;
+      font-weight: 700;
+      line-height: 1.25;
       color: #e2e8f0;
       text-align: left;
     }
@@ -723,35 +726,62 @@
       display: flex;
       align-items: center;
       justify-content: flex-end;
-      gap: 4px;
+      gap: 8px;
       flex: 0 0 auto;
     }
     #popUltra .uf-ceb-val input,
     html.layout-landscape #popUltra .uf-ceb-val input {
-      width: 3.4rem;
-      padding: 0 2px;
+      width: 4.6rem;
+      min-height: 40px;
+      padding: 6px 6px;
       border: none;
+      border-bottom: 1px solid rgba(253, 230, 138, 0.55);
       border-radius: 0;
       background: transparent;
       box-shadow: none;
-      font-size: 0.92rem;
+      font-size: 1.2rem;
       font-weight: 750;
       text-align: right;
       color: #fde68a;
+      -moz-appearance: textfield;
+      appearance: textfield;
+    }
+    #popUltra .uf-ceb-val input::-webkit-outer-spin-button,
+    #popUltra .uf-ceb-val input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
     }
     #popUltra .uf-ceb-val input:focus {
       outline: none;
-      border-bottom: 1px solid #fde68a;
+      border-bottom: 2px solid #fde68a;
     }
     #popUltra .uf-ceb-val em {
       font-style: normal;
-      font-weight: 700;
-      font-size: 0.75rem;
+      font-weight: 750;
+      font-size: 0.95rem;
       color: #fde68a;
-      min-width: 1.1em;
+      min-width: 1.2em;
+    }
+    #popUltra .uf-ceb-step {
+      display: flex;
+      flex-direction: row;
+      gap: 4px;
+    }
+    #popUltra .uf-ceb-step button {
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      border-radius: 8px;
+      border: 1px solid #38bdf8;
+      background: #0c4a6e;
+      color: #f0f9ff;
+      font-size: 0.85rem;
+      line-height: 1;
+      cursor: pointer;
     }
     #popUltra .uf-ceb-tot {
-      margin: 6px 2px 0;
+      margin: 10px 4px 2px;
+      font-size: 0.95rem;
       color: #fde68a;
       font-weight: 750;
     }
@@ -1097,22 +1127,7 @@
       display: block;
       margin: 0 auto;
     }
-    /* Portrait: niente stretch verticale (viewBox 1090×620, meet via syncLayoutMode) */
-    html:not(.layout-landscape) .sketch {
-      height: auto;
-      min-height: 0;
-      max-height: none;
-      padding: 0 12px 16px;
-      overflow-x: hidden;
-      overflow-y: auto;
-    }
-    html:not(.layout-landscape) .sketch svg {
-      width: 96%;
-      height: auto;
-      aspect-ratio: 1090 / 620;
-      display: block;
-      margin: 0 auto;
-    }
+    /* Overview sempre alla misura grande (landscape). Niente seconda misura portrait al refresh. */
     /* Transizioni fluide livelli / membrane durante Start */
     .sketch svg [id$="liq"],
     .sketch svg [id^="svgMem"],
@@ -2208,7 +2223,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v314</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v316</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -16038,10 +16053,49 @@
         sumBtn.innerHTML = `Tempi di lavaggio CEB <span id="ufCebSum${m}"></span>`;
         fold.appendChild(sumBtn);
         UF_CHEM_PHASES.forEach((p) => {
-          const row = document.createElement("label");
+          const row = document.createElement("div");
           row.className = "uf-ceb-time";
-          const shown = p.unit === "m" ? p.sec / 60 : p.sec;
-          row.innerHTML = `<strong>${p.label}</strong><span class="uf-ceb-val"><input type="number" id="${ufCebPhaseInputId(p.id, m)}" min="0" max="${p.unit === "m" ? 180 : 3600}" step="${p.unit === "m" ? "0.1" : "1"}" value="${shown}" inputmode="decimal" /><em>${p.unit}.</em></span>`;
+          const title = document.createElement("strong");
+          title.textContent = p.label;
+          const val = document.createElement("span");
+          val.className = "uf-ceb-val";
+          const inp = document.createElement("input");
+          inp.type = "number";
+          inp.id = ufCebPhaseInputId(p.id, m);
+          inp.min = "0";
+          inp.max = p.unit === "m" ? "180" : "3600";
+          inp.step = p.unit === "m" ? "0.1" : "1";
+          inp.value = String(p.unit === "m" ? p.sec / 60 : p.sec);
+          inp.inputMode = "decimal";
+          const unit = document.createElement("em");
+          unit.textContent = p.unit + ".";
+          const steps = document.createElement("span");
+          steps.className = "uf-ceb-step";
+          const mkStep = (dir, sign) => {
+            const b = document.createElement("button");
+            b.type = "button";
+            b.textContent = sign;
+            b.title = dir > 0 ? "Aumenta" : "Diminuisci";
+            b.addEventListener("click", (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const cur = parseFloat(inp.value);
+              const base = Number.isFinite(cur) ? cur : 0;
+              const next = Math.min(Number(inp.max), Math.max(0, base + dir));
+              inp.value = p.unit === "m"
+                ? String(Math.round(next * 10) / 10)
+                : String(Math.round(next));
+              inp.dispatchEvent(new Event("input", { bubbles: true }));
+            });
+            return b;
+          };
+          steps.appendChild(mkStep(1, "▲"));
+          steps.appendChild(mkStep(-1, "▼"));
+          val.appendChild(inp);
+          val.appendChild(unit);
+          val.appendChild(steps);
+          row.appendChild(title);
+          row.appendChild(val);
           fold.appendChild(row);
         });
         const tot = document.createElement("p");
@@ -19068,11 +19122,9 @@
       const desktopWide = w >= 900 && w > h;
       const isLand = mqLand || desktopWide;
       document.documentElement.classList.toggle("layout-landscape", isLand);
-      /* Landscape v207 freeze: none. Portrait: meet (no vertical stretch). */
+      /* Overview: sempre la misura grande, anche se il refresh classifica la finestra verticale. */
       const svg = document.getElementById("plantSketchSvg");
-      if (svg) {
-        svg.setAttribute("preserveAspectRatio", isLand ? "none" : "xMidYMin meet");
-      }
+      if (svg) svg.setAttribute("preserveAspectRatio", "none");
     }
     syncLayoutMode();
     window.addEventListener("resize", syncLayoutMode);
