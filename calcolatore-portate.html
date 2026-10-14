@@ -2285,7 +2285,7 @@
 </head>
 <body>
   <header>
-    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v328</span><span id="wwtAdminMark" hidden>admin</span></h1>
+    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v329</span><span id="wwtAdminMark" hidden>admin</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -3052,18 +3052,19 @@
             <text class="osm-mini-lab" x="50" y="-6" text-anchor="middle" fill="#7dd3fc" font-size="9" font-weight="700">Osmosi C</text>
           </g>
 
-          <path class="pipe pipe-main" data-flow="osm" d="M90 415 H40" stroke-dasharray="6 5" opacity="0.65" />
+          <!-- Tratteggiato uscita acqua: continua sotto i badge ACQUA (non confonderlo col ritorno 2°) -->
+          <path class="pipe pipe-main" data-flow="osm" d="M90 415 H2" stroke-dasharray="6 5" opacity="0.65" />
 
-          <!-- Acqua netta prodotta (demi − concentrato 2° passo) + totalizzatore m³ -->
+          <!-- Acqua netta prodotta + Σ: un po’ a sx e sopra la linea tratteggiata -->
           <g id="svgOsmProdGroup" pointer-events="none" aria-label="Acqua prodotta osmosi">
-            <rect x="4" y="352" width="72" height="30" rx="5" fill="#0f172a" stroke="#86efac" stroke-width="1.2" />
-            <text x="40" y="363" text-anchor="middle" fill="#a7f3d0" font-size="7" font-weight="800">Σ ACQUA</text>
-            <text id="svgOsmProdTot" x="28" y="376" text-anchor="middle" fill="#ecfdf5" font-size="10" font-weight="800">0.0</text>
-            <text x="56" y="376" text-anchor="middle" fill="#86efac" font-size="7" font-weight="700">m³</text>
-            <rect class="badge" x="4" y="388" width="72" height="34" rx="5" stroke="#4ade80" />
-            <text class="badge-label" x="40" y="400" text-anchor="middle" fill="#bbf7d0">ACQUA</text>
-            <text class="badge-val" x="28" y="414" text-anchor="middle" id="svgQOsmProd" fill="#ecfdf5">0.0</text>
-            <text class="badge-unit" x="56" y="414" text-anchor="middle" fill="#86efac">m³/h</text>
+            <rect x="0" y="326" width="72" height="30" rx="5" fill="#0f172a" stroke="#86efac" stroke-width="1.2" />
+            <text x="36" y="337" text-anchor="middle" fill="#a7f3d0" font-size="7" font-weight="800">Σ ACQUA</text>
+            <text id="svgOsmProdTot" x="24" y="350" text-anchor="middle" fill="#ecfdf5" font-size="10" font-weight="800">0.0</text>
+            <text x="52" y="350" text-anchor="middle" fill="#86efac" font-size="7" font-weight="700">m³</text>
+            <rect class="badge" x="0" y="362" width="72" height="34" rx="5" stroke="#4ade80" />
+            <text class="badge-label" x="36" y="374" text-anchor="middle" fill="#bbf7d0">ACQUA</text>
+            <text class="badge-val" x="24" y="388" text-anchor="middle" id="svgQOsmProd" fill="#ecfdf5">0.0</text>
+            <text class="badge-unit" x="52" y="388" text-anchor="middle" fill="#86efac">m³/h</text>
           </g>
 
           <!-- Ritorno concentrato 2° passo → TK-11021 (collettore sotto le osmosi) -->
