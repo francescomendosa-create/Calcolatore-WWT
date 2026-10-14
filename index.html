@@ -687,6 +687,36 @@
       margin-bottom: 10px;
     }
     details.carb-fold > .row { margin-top: 8px; }
+    .uf-ceb-time {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 8px 4px 0;
+    }
+    .uf-ceb-time strong {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #e2e8f0;
+    }
+    .uf-ceb-val {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 0 0 auto;
+    }
+    .uf-ceb-val input { width: 76px; }
+    .uf-ceb-val em {
+      font-style: normal;
+      font-weight: 800;
+      color: #fde68a;
+      min-width: 1.2em;
+    }
+    .uf-ceb-tot {
+      margin: 10px 4px 0;
+      color: #fde68a;
+      font-weight: 750;
+    }
     #popMembrane details.proc-fold,
     #popMembrane details.sludge-fold {
       margin: 22px 0 0;
@@ -2140,7 +2170,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v312</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v313</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -3979,7 +4009,7 @@
       <p class="mini">Apertura valvola da REGOLAZIONI: % ≈ set ÷ Q@100% (default <strong>65 m³/h</strong> a 100%). Schema = portata <strong>misurata</strong> (non il set): se dai carboni arriva meno del totale set, valvola → 100% e la misura resta sulla quota d’acqua.</p>
       <p class="mini" id="ufInletHint">Ingresso carboni→UF vs set linee…</p>
       <p class="mini">Clicca una UF sullo schema: il popup si posiziona su quella linea. <strong>Disabilita</strong> la spegne (rossa). Tap sul disegno nel popup = Abilita/Disabilita. In overview: tieni premuto ½ s.</p>
-      <p class="mini">Ogni UF: <strong>tempo di lavoro per lavaggio backwash</strong> (default 20′) poi backwash (default 190 s ferma), <strong>sfalsati</strong>. Poi i grandi lavaggi <strong>CEB</strong> (ipoclorito 21 h, soda 23 h, acido 24 h): ciascuno dura <strong>1010 s (16′ 50″)</strong> a fasi e <strong>quella UF resta ferma</strong>. I timer <strong>scorrono sempre</strong> (anche senza acqua) e possono andare <strong>in negativo</strong>: al ritorno della portata si lava prima chi è in ritardo da più tempo, poi le altre in sequenza. In lavaggio la viva va a 0; il setpoint resta.</p>
+      <p class="mini">Ogni UF: <strong>tempo di lavoro per lavaggio backwash</strong> (default 20′) poi backwash (default 190 s ferma), <strong>sfalsati</strong>. Poi i grandi lavaggi <strong>CEB</strong> (ipoclorito 21 h, soda 23 h, acido 24 h). La durata è la somma dei <strong>tempi di lavaggio CEB</strong> in fondo a ogni UF (targa 16′ 50″) e <strong>quella UF resta ferma</strong>. I timer <strong>scorrono sempre</strong> (anche senza acqua) e possono andare <strong>in negativo</strong>: al ritorno della portata si lava prima chi è in ritardo da più tempo, poi le altre in sequenza. In lavaggio la viva va a 0; il setpoint resta.</p>
       <div id="ufInputs"></div>
       <div class="settings-block show" style="margin-top:10px">
         <h4>TK 11021 — permeato UF (da PROCESSO)</h4>
@@ -14255,7 +14285,7 @@
           remain[L][k.id] = Number.isFinite(raw) ? raw : ufChemLavoroMin(L, k.id);
         });
         if (st && st.wash && st.wash.kind) {
-          const durSec = st.wash.kind === "bw" ? ufLavaggioSec(L) : ufChemWashSec();
+          const durSec = st.wash.kind === "bw" ? ufLavaggioSec(L) : ufChemWashSec(L);
           const left = Math.max(0, (durSec - (Number(st.wash.elapsedSec) || 0)) / 60);
           wash = { L, kind: st.wash.kind, left };
           if (st.wash.kind !== "bw") {
@@ -14307,7 +14337,7 @@
           });
         });
         if (pick) {
-          const left = pick.kind === "bw" ? ufLavaggioSec(pick.L) / 60 : ufChemWashSec() / 60;
+          const left = pick.kind === "bw" ? ufLavaggioSec(pick.L) / 60 : ufChemWashSec(pick.L) / 60;
           st.wash = { L: pick.L, kind: pick.kind, left };
           st.remain[pick.L][pick.kind] = 0;
           if (pick.kind !== "bw") {
@@ -14324,21 +14354,45 @@
       { id: "ceb", title: "Lavaggio CEB soda in corso", oreId: "ufCebOre", defH: 23 },
       { id: "acido", title: "Lavaggio CEB acido in corso", oreId: "ufAcidoOre", defH: 24 },
     ];
-    /** Fasi CEB. Elenco utente = 970 s; aggiunto controlavaggio basso 2 = 40 s → 1010 s. */
+    /** Fasi CEB di targa. sec = default in secondi. ammollo si edita in minuti. */
     const UF_CHEM_PHASES = [
-      { id: "aria1", label: "Tempo aria compressa 1", short: "Aria 1", sec: 30 },
-      { id: "svuot1", label: "Tempo di svuotamento 1", short: "Svuot. 1", sec: 30 },
-      { id: "alto1", label: "Tempo di controlavaggio alto 1", short: "Ctrl alto 1", sec: 40 },
-      { id: "basso1", label: "Tempo di controlavaggio basso 1", short: "Ctrl basso 1", sec: 40 },
-      { id: "ammollo", label: "Tempo di ammollo", short: "Ammollo", sec: 600 },
-      { id: "aria2", label: "Tempo aria compressa 2", short: "Aria 2", sec: 40 },
-      { id: "svuot2", label: "Tempo di svuotamento 2", short: "Svuot. 2", sec: 30 },
-      { id: "alto2", label: "Tempo di controlavaggio alto 2", short: "Ctrl alto 2", sec: 40 },
-      { id: "basso2", label: "Tempo di controlavaggio basso 2", short: "Ctrl basso 2", sec: 40 },
-      { id: "finale", label: "Tempo di lavaggio finale", short: "Finale", sec: 120 },
+      { id: "aria1", label: "Tempo di aria compressa 1", short: "Aria compressa 1", sec: 30, unit: "s" },
+      { id: "svuot1", label: "Tempo di svuotamento 1", short: "Svuotamento 1", sec: 30, unit: "s" },
+      { id: "alto1", label: "Tempo di controlavaggio alto 1", short: "Controlavaggio alto 1", sec: 40, unit: "s" },
+      { id: "basso1", label: "Tempo di controlavaggio basso 1", short: "Controlavaggio basso 1", sec: 40, unit: "s" },
+      { id: "ammollo", label: "Tempo di ammollo", short: "Ammollo", sec: 600, unit: "m" },
+      { id: "aria2", label: "Tempo di aria compressa 2", short: "Aria compressa 2", sec: 40, unit: "s" },
+      { id: "svuot2", label: "Tempo di svuotamento 2", short: "Svuotamento 2", sec: 30, unit: "s" },
+      { id: "alto2", label: "Tempo di controlavaggio alto 2", short: "Controlavaggio alto 2", sec: 40, unit: "s" },
+      { id: "basso2", label: "Tempo di controlavaggio basso 2", short: "Controlavaggio basso 2", sec: 40, unit: "s" },
+      { id: "finale", label: "Tempo di lavaggio finale", short: "Lavaggio finale", sec: 120, unit: "s" },
     ];
-    function ufChemWashSec() {
-      return UF_CHEM_PHASES.reduce((s, p) => s + p.sec, 0);
+    function ufCebPhaseInputId(phaseId, letter) {
+      return "ufCebPh_" + phaseId + "_" + String(letter || "A").toUpperCase();
+    }
+    /** Secondi della fase per quella UF. Campo assente = targa. */
+    function ufCebPhaseSec(phaseId, letter) {
+      const p = UF_CHEM_PHASES.find((x) => x.id === phaseId);
+      if (!p) return 0;
+      const node = el(ufCebPhaseInputId(phaseId, letter));
+      if (!node) return p.sec;
+      const raw = numOrNull(node.id);
+      if (raw == null || raw < 0) return p.sec;
+      return p.unit === "m" ? raw * 60 : raw;
+    }
+    function ufChemWashSec(letter) {
+      const L = String(letter || "A").toUpperCase();
+      const sum = UF_CHEM_PHASES.reduce((s, p) => s + ufCebPhaseSec(p.id, L), 0);
+      return Math.max(1, sum);
+    }
+    function paintUfCebPhaseTotals() {
+      UF_LINES.forEach((L) => {
+        const tot = fmtRemainSec(ufChemWashSec(L));
+        const sum = el("ufCebSum" + L);
+        if (sum) sum.textContent = "· " + tot;
+        const line = el("ufCebTot" + L);
+        if (line) line.textContent = "Totale lavaggio CEB " + tot;
+      });
     }
     function ufChemKindMeta(kind) {
       return UF_CHEM_KINDS.find((k) => k.id === kind) || null;
@@ -14357,7 +14411,7 @@
       const washMin = ufLavaggioSec(L) / 60;
       // Sfalsamento > durata lavaggio: evita catena continua A→B→C→D senza pausa in servizio.
       const bwStagger = Math.max(washMin + 5, ufLavoroMin(L) / Math.max(1, UF_LINES.length));
-      const chemOff = ufChemWashSec() / 60 + 30; // ~30′ tra CEB di linee diverse
+      const chemOff = ufChemWashSec(L) / 60 + 30; // ~30′ tra CEB di linee diverse
       return {
         bw: ufLavoroMin(L) + i * bwStagger,
         cev: ufChemLavoroMin(L, "cev") + i * chemOff,
@@ -14421,7 +14475,7 @@
     }
     function ufKindWashSec(letter, kind) {
       if (kind === "bw") return ufLavaggioSec(letter);
-      return ufChemWashSec();
+      return ufChemWashSec(letter);
     }
     function ufUrgent(letter) {
       const st = ufSched(letter);
@@ -14449,17 +14503,21 @@
       }
       return `${sign}${s} s`;
     }
-    function ufChemPhaseAt(elapsedSec) {
+    function ufChemPhaseAt(elapsedSec, letter) {
       let t = Math.max(0, Number(elapsedSec) || 0);
+      const L = String(letter || "A").toUpperCase();
       for (let i = 0; i < UF_CHEM_PHASES.length; i++) {
         const p = UF_CHEM_PHASES[i];
-        if (t < p.sec - 1e-9) {
-          return { id: p.id, label: p.label, short: p.short || p.label, remainSec: Math.max(0, Math.ceil(p.sec - t)), totalSec: p.sec };
+        const sec = ufCebPhaseSec(p.id, L);
+        if (sec <= 1e-9) continue;
+        if (t < sec - 1e-9) {
+          return { id: p.id, label: p.label, short: p.short || p.label, remainSec: Math.max(0, Math.ceil(sec - t)), totalSec: sec };
         }
-        t -= p.sec;
+        t -= sec;
       }
       const last = UF_CHEM_PHASES[UF_CHEM_PHASES.length - 1];
-      return last ? { id: last.id, label: last.label, short: last.short || last.label, remainSec: 0, totalSec: last.sec } : null;
+      const lastSec = last ? ufCebPhaseSec(last.id, L) : 0;
+      return last ? { id: last.id, label: last.label, short: last.short || last.label, remainSec: 0, totalSec: lastSec } : null;
     }
     function ufAnyoneWashing() {
       ensureUfChem();
@@ -15395,7 +15453,7 @@
           let phaseTxt = "";
           if (go && enabled && washChem) {
             const meta = ufChemKindMeta(kindNow);
-            const phs = ufChemPhaseAt(stc.wash.elapsedSec);
+            const phs = ufChemPhaseAt(stc.wash.elapsedSec, L);
             titleTxt = meta ? meta.title : "Lavaggio in corso";
             phaseTxt = phs ? `${phs.label} · restano ${fmtRemainSec(phs.remainSec)}` : "";
             show = true;
@@ -15405,7 +15463,7 @@
             show = true;
           } else if (go && enabled && kindNow && kindNow !== "bw" && !inletOk) {
             const meta = ufChemKindMeta(kindNow);
-            const phs = ufChemPhaseAt(stc.wash.elapsedSec);
+            const phs = ufChemPhaseAt(stc.wash.elapsedSec, L);
             titleTxt = meta ? `${meta.title.replace(" in corso", "")} in attesa acqua` : "Lavaggio in attesa";
             phaseTxt = phs ? `${phs.label} · in pausa · ${fmtRemainSec(phs.remainSec)}` : "in pausa";
             show = true;
@@ -15446,8 +15504,8 @@
             st.style.color = "var(--muted)";
           } else if (washChem) {
             const meta = ufChemKindMeta(kindNow);
-            const phs = ufChemPhaseAt(stc.wash.elapsedSec);
-            st.textContent = `${meta ? meta.title : "Lavaggio chimico"} · ${phs ? phs.label + " · " + fmtRemainSec(phs.remainSec) : fmtRemainSec(ufChemWashSec() - stc.wash.elapsedSec)}`;
+            const phs = ufChemPhaseAt(stc.wash.elapsedSec, L);
+            st.textContent = `${meta ? meta.title : "Lavaggio chimico"} · ${phs ? phs.label + " · " + fmtRemainSec(phs.remainSec) : fmtRemainSec(ufChemWashSec(L) - stc.wash.elapsedSec)}`;
             st.style.color = "var(--muted)";
           } else if (wash) {
             st.textContent = `LAVAGGIO BACKWASH · ferma (grigia) ancora ~${ph.remainSec} s (su ${Math.round(ufLavaggioSec(L))} s)`;
@@ -15471,7 +15529,7 @@
           setWaterFlow(ufNode, false);
           setWaterFlow(ufRow, false);
         } else if (washChem) {
-          const phs = stc && stc.wash ? ufChemPhaseAt(stc.wash.elapsedSec) : null;
+          const phs = stc && stc.wash ? ufChemPhaseAt(stc.wash.elapsedSec, L) : null;
           const pid = phs && phs.id;
           const reverse = pid === "alto1" || pid === "basso1" || pid === "alto2" || pid === "basso2";
           const tone = kindNow === "acido" ? "acido" : (kindNow === "ceb" ? "soda" : "ipo");
@@ -15673,8 +15731,8 @@
         const stc = ufSched(L);
         let label = `Ultrafiltrazione ${L}: ${ufWashKindLong(kindNow)}`;
         if (kindNow !== "bw") {
-          const phs = ufChemPhaseAt(stc.wash.elapsedSec);
-          if (phs && phs.label) label += ` — ${phs.label}`;
+          const phs = ufChemPhaseAt(stc.wash.elapsedSec, L);
+          if (phs && phs.label) label += ` — ${phs.short || phs.label} · restano ${fmtRemainSec(phs.remainSec)}`;
         }
         if (!ufInletAvailable()) label += " (in attesa acqua)";
         parts.push(label);
@@ -15727,6 +15785,7 @@
           ? "Nessun lavaggio in corso"
           : [text, carbText].filter(Boolean).join(" · ");
       }
+      try { paintUfCebPhaseTotals(); } catch (_) { /* ok */ }
     }
 
     /** Schema UF: portata viva per linea (0 in lavaggio / blocco); popup resta sul setpoint. */
@@ -15935,9 +15994,39 @@
         st.style.color = "var(--ok)";
         box.appendChild(st);
 
+        const fold = document.createElement("details");
+        fold.className = "carb-fold uf-ceb-fold";
+        const sumBtn = document.createElement("summary");
+        sumBtn.innerHTML = `Tempi di lavaggio CEB <span id="ufCebSum${m}"></span>`;
+        fold.appendChild(sumBtn);
+        UF_CHEM_PHASES.forEach((p) => {
+          const row = document.createElement("label");
+          row.className = "uf-ceb-time";
+          const shown = p.unit === "m" ? p.sec / 60 : p.sec;
+          row.innerHTML = `<strong>${p.label}</strong><span class="uf-ceb-val"><input type="number" id="${ufCebPhaseInputId(p.id, m)}" min="0" max="${p.unit === "m" ? 180 : 3600}" step="${p.unit === "m" ? "0.1" : "1"}" value="${shown}" inputmode="decimal" /><em>${p.unit}.</em></span>`;
+          fold.appendChild(row);
+        });
+        const tot = document.createElement("p");
+        tot.className = "mini uf-ceb-tot";
+        tot.id = "ufCebTot" + m;
+        fold.appendChild(tot);
+        const note = document.createElement("p");
+        note.className = "mini";
+        note.textContent = "Stessi passi per ipoclorito, soda e acido di questa UF. Se cambi un tempo, il lavaggio usa quello.";
+        fold.appendChild(note);
+        box.appendChild(fold);
+        fold.querySelectorAll("input").forEach((inp) => {
+          inp.addEventListener("input", () => {
+            paintUfCebPhaseTotals();
+            schedulePersist();
+            try { noteValleySetChanged(); } catch (_) { /* ok */ }
+          });
+        });
+
         wrap.appendChild(box);
       });
       bindUfEnableUi();
+      try { paintUfCebPhaseTotals(); } catch (_) { /* ok */ }
     }
 
     const OSM_CONC_FISSO = 15;
@@ -18421,6 +18510,9 @@
       "livelloAttualeTk11007",
       "livelloAttualeTk11021",
     ];
+    UF_LINES.forEach((L) => {
+      UF_CHEM_PHASES.forEach((p) => PERSIST_IDS.push(ufCebPhaseInputId(p.id, L)));
+    });
     let __calcSyncRevision = 0;
     let __appliedCalcSyncRevision = 0;
     let __persistTimer = null;
@@ -18550,6 +18642,7 @@
           const node = el(id);
           if (node) node.value = String(data[id]);
         });
+        try { paintUfCebPhaseTotals(); } catch (_) { /* ok */ }
         // Targa: TK-11007 e TK-11021 = 30 m³ (annulla valori inventati 15.4 / 11.7)
         try {
           const v07 = numOrNull("regTk11007Vutile");
