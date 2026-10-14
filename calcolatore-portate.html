@@ -2248,7 +2248,7 @@
 </head>
 <body>
   <header>
-    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v320</span><span id="wwtAdminMark" hidden>admin</span></h1>
+    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v321</span><span id="wwtAdminMark" hidden>admin</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -18646,6 +18646,34 @@
       "livelloAttualeTk11021",
     ];
     UF_CHEM_PHASES.forEach((p) => PERSIST_IDS.push(ufCebPhaseInputId(p.id)));
+    /** Portate e modi di marcia: solo su questo dispositivo, non nel cloud. */
+    const FLOW_LOCAL_IDS = [
+      "qIn", "qPump", "qMandata", "qMemTotale", "qUfTotale", "qP11019", "qP11019Ias",
+      "qOsmosiA", "qOsmosiB", "qOsmosiC",
+      "freqHz", "freqMaxHz", "freqHzMand", "freqMaxHzMand",
+    ];
+    const FLOW_LOCAL_EXTRA = [
+      "flowMode", "devMode", "memQs", "ufQs", "procSetpoint",
+      "qCarbA", "qCarbB", "equiparaMandata", "carbWash",
+    ];
+    function cloudPayload(data) {
+      const d = { ...(data || {}) };
+      FLOW_LOCAL_IDS.forEach((id) => { delete d[id]; });
+      FLOW_LOCAL_EXTRA.forEach((k) => { delete d[k]; });
+      return d;
+    }
+    function withLocalFlows(base) {
+      const local = loadLocalBackup();
+      const out = { ...(base || {}) };
+      if (!local) return out;
+      FLOW_LOCAL_IDS.forEach((id) => {
+        if (local[id] != null && local[id] !== "") out[id] = local[id];
+      });
+      FLOW_LOCAL_EXTRA.forEach((k) => {
+        if (local[k] != null) out[k] = local[k];
+      });
+      return out;
+    }
     let __calcSyncRevision = 0;
     let __appliedCalcSyncRevision = 0;
     let __persistTimer = null;
@@ -18750,6 +18778,7 @@
       if (!data || typeof data !== "object") return;
       // Dopo Reset: ignora del tutto i payload remoti (evita livelli vecchi da Firestore)
       if (fromRemote && Date.now() < __resetGuardUntil) return;
+      if (fromRemote) data = cloudPayload(data);
       // Durante Start / TIME: il cloud NON deve sovrascrivere i livelli della simulazione
       if (fromRemote && (__simPlaying || __simBusy || __simMin > 0)) {
         data = { ...data };
@@ -18797,7 +18826,7 @@
           }
         } catch (_) { /* ok */ }
         ensureA10611ProcessDefaults();
-        if (typeof data.equiparaMandata === "boolean") {
+        if (!fromRemote && typeof data.equiparaMandata === "boolean") {
           el("equiparaMandata").checked = data.equiparaMandata;
           el("qMandata").disabled = data.equiparaMandata;
         }
@@ -18805,16 +18834,22 @@
           el("usaFrequenza").checked = data.usaFrequenza;
           el("boxFrequenza").style.display = data.usaFrequenza ? "grid" : "none";
         }
-        if (data.flowMode === "manual" || data.flowMode === "auto") {
+        if (!fromRemote && (data.flowMode === "manual" || data.flowMode === "auto")) {
           __flowMode = data.flowMode;
           paintFlowModeUI();
           paintRecycleEditableUI();
           if (data.devMode && typeof data.devMode === "object") {
-            ["membrane", "ultra", "osmosi", "riciclo", "pompa", "mandata", "ingresso"].forEach((d) => {
+            ["membrane", "ultra", "osmosi", "riciclo", "pompa", "mandata", "ingresso", "carbone"].forEach((d) => {
               if (data.devMode[d] === "manual" || data.devMode[d] === "auto") __devMode[d] = data.devMode[d];
             });
           }
-          if (data.memEnabled && typeof data.memEnabled === "object") {
+          paintAllDevModeUI();
+          if (!isAutoMode() && el("equiparaMandata") && el("qMandata")) {
+            el("equiparaMandata").checked = false;
+            el("qMandata").disabled = false;
+          }
+        }
+        if (data.memEnabled && typeof data.memEnabled === "object") {
             MBR_ALL_IDS.forEach((L) => {
               if (data.memEnabled[L] === false) __memEnabled[L] = false;
               else if (data.memEnabled[L] === true) __memEnabled[L] = true;
@@ -18833,11 +18868,7 @@
             });
           }
           paintAllDevModeUI();
-          if (!isAutoMode() && el("equiparaMandata") && el("qMandata")) {
-            el("equiparaMandata").checked = false;
-            el("qMandata").disabled = false;
-          }
-        }
+        if (!fromRemote) {
         if (Array.isArray(data.memQs)) {
           document.querySelectorAll(".mem-q").forEach((inp, i) => {
             if (data.memQs[i] != null) inp.value = String(data.memQs[i]);
@@ -18862,6 +18893,7 @@
           let sumUf = 0;
           UF_LINES.forEach((L) => { sumUf += Math.max(0, num("qUf" + L) || 0); });
           if (sumUf > 0.05 && procSetpointOf("qUfTotale") < 0.05) rememberProcSetpoint("qUfTotale", round1(sumUf));
+        }
         }
         if (data.regFreqQs && typeof data.regFreqQs === "object") {
           const OLD_REG_FREQ = {
@@ -18892,7 +18924,7 @@
         try { paintChimicoDutyHint(); } catch (_) { /* ok */ }
         updateA10620PumpInterlocks(num("livelloAttuale"));
         updateA10611PumpInterlocks(num("livelloAttualeA10611"));
-        {
+        if (!fromRemote) {
           const qp = clampPump(Math.max(0, num("qPump") || lastQPump || __flowSetpoint.qPump || 0));
           const qm = Math.max(0, num("qMandata") || lastQMandata || __flowSetpoint.qMandata || 0);
           if (qp > 0.05) rememberFlowSetpoint("qPump", qp);
@@ -18929,7 +18961,7 @@
         if (data.sludgeAdj && typeof data.sludgeAdj === "object") {
           try { __sludgeAdj = normalizeSludgeAdj(data.sludgeAdj); } catch (_) { /* ok */ }
         }
-        if (data.carbWash && typeof data.carbWash === "object") {
+        if (!fromRemote && data.carbWash && typeof data.carbWash === "object") {
           __carbWash = JSON.parse(JSON.stringify(data.carbWash));
           ensureCarbWash();
         }
@@ -18972,7 +19004,7 @@
         return;
       }
       try {
-        await __setDoc(__calcDocRef, payload, { merge: true });
+        await __setDoc(__calcDocRef, cloudPayload(payload), { merge: true });
         __appliedCalcSyncRevision = payload.syncRevision || __appliedCalcSyncRevision;
         setSyncBar("Cloud OK", "ok");
       } catch (e) {
@@ -19060,7 +19092,7 @@
       const payload = collectPersistPayload(true);
       saveLocalOnly(payload);
       if (__cloudReady && __calcDocRef && __setDoc) {
-        try { __setDoc(__calcDocRef, payload, { merge: true }); } catch (_) { /* best effort */ }
+        try { __setDoc(__calcDocRef, cloudPayload(payload), { merge: true }); } catch (_) { /* best effort */ }
       }
     });
 
@@ -19143,7 +19175,7 @@
           setSyncBar("Cloud OK", "ok");
         } else if (server && sRev >= lRev && sRev > __appliedCalcSyncRevision) {
           applyPersistPayload(server, { fromRemote: true });
-          saveLocalOnly(server);
+          saveLocalOnly(withLocalFlows(server));
           setSyncBar("Cloud sync", "ok");
         } else if (local && lRev > sRev) {
           await pushCloud(local);
@@ -19164,7 +19196,7 @@
           const rev = Number(remote.syncRevision) || 0;
           if (rev <= __appliedCalcSyncRevision) return;
           applyPersistPayload(remote, { fromRemote: true });
-          saveLocalOnly(remote);
+          saveLocalOnly(withLocalFlows(remote));
           setSyncBar("Aggiornato da cloud", "ok");
         }, (err) => {
           console.warn("[calcolatore] onSnapshot", err);
