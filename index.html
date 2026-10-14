@@ -2219,11 +2219,36 @@
     html.layout-landscape .row { gap: 8px; }
     html.layout-landscape .mem-grid { gap: 6px; }
     html.layout-landscape .check { margin-bottom: 8px; font-size: 0.85rem; }
+    h1.wwt-title { cursor: pointer; }
+    h1.wwt-title #wwtAdminMark {
+      font-size: 0.62em;
+      font-weight: 700;
+      color: #86efac;
+      margin-left: 6px;
+      letter-spacing: 0.04em;
+    }
+    html.is-guest .is-guest-lock input,
+    html.is-guest .is-guest-lock textarea,
+    html.is-guest .is-guest-lock select,
+    html.is-guest .guest-field-lock {
+      pointer-events: none;
+      opacity: 0.72;
+    }
+    html.is-guest .is-guest-lock button:not([data-close]):not(#sludgeAdjX):not(#sludgePctX):not(#sludgeBaseX),
+    html.is-guest .is-guest-lock .uf-mini,
+    html.is-guest .is-guest-lock .osm-mini,
+    html.is-guest .is-guest-lock .uf-chem-remain,
+    html.is-guest .is-guest-lock .p11019-edit {
+      pointer-events: none;
+      opacity: 0.6;
+    }
+    html.is-guest .is-guest-lock .guest-note { display: block; }
+    .guest-note { display: none; color: #fde68a; margin: 0 0 8px; }
   </style>
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v318</span></h1>
+    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v319</span><span id="wwtAdminMark" hidden>admin</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -3106,6 +3131,22 @@
     </div>
   </div>
 
+  <!-- ACCESSO: clic sul titolo Process Managed -->
+  <div class="modal-back" id="popAdmin" role="dialog" aria-modal="true" aria-labelledby="adminPopTitle">
+    <div class="modal">
+      <h3><span id="adminPopTitle">Accesso</span><button type="button" data-close>&times;</button></h3>
+      <p class="mini" id="adminPopHint">Inserisci la password per sbloccare processo, regolazioni e i popup dei serbatoi.</p>
+      <label id="adminPinLabel"><strong>Password</strong>
+        <input type="password" id="adminPin" inputmode="numeric" autocomplete="off" maxlength="12" />
+      </label>
+      <p class="mini" id="adminPinErr" hidden style="color:#fca5a5">Password non corretta</p>
+      <div class="actions">
+        <button type="button" id="adminEnter">Entra</button>
+        <button type="button" id="adminLeave" hidden>Esci</button>
+      </div>
+    </div>
+  </div>
+
   <!-- POPUP INGRESSO -->
   <div class="modal-back" id="popIngresso" role="dialog" aria-modal="true">
     <div class="modal">
@@ -3129,10 +3170,10 @@
       </label>
       <div class="row">
         <label><strong>Tempo di arresto (min)</strong>
-          <input type="number" id="chimicoPausaMin" min="0" max="1440" step="1" value="0" inputmode="numeric" />
+          <input type="number" id="chimicoPausaMin" class="guest-field-lock" min="0" max="1440" step="1" value="0" inputmode="numeric" />
         </label>
         <label><strong>Tempo di riavvio (min)</strong>
-          <input type="number" id="chimicoRiavvioMin" min="0" max="1440" step="1" value="0" inputmode="numeric" />
+          <input type="number" id="chimicoRiavvioMin" class="guest-field-lock" min="0" max="1440" step="1" value="0" inputmode="numeric" />
         </label>
       </div>
       <p class="mini" id="chimicoDutyHint">Nessun arresto a tempo. Il chimico resta verde e manda, finché non è un blocco di livello (rosso).</p>
@@ -3810,7 +3851,7 @@
       </label>
       <p class="mini" id="ricicloCalcHint">Riciclo = P11011 − ingresso sediflottatore</p>
       <label><strong>Livello A11004 %</strong>
-        <input type="number" id="livelloAttualeH" min="0" max="100" step="0.1" value="90.0" inputmode="decimal" />
+        <input type="number" id="livelloAttualeH" class="guest-field-lock" min="0" max="100" step="0.1" value="90.0" inputmode="decimal" />
       </label>
       <div class="row">
         <label><strong>Start svuot. A11004 %</strong>
@@ -16266,6 +16307,7 @@
       ultra: el("popUltra"),
       osmosi: el("popOsmosi"),
       blocchi: el("popBlocchi"),
+      admin: el("popAdmin"),
     };
 
     function refreshProcViews() {
@@ -16466,6 +16508,7 @@
           resetModalDragPos(panel);
         } catch (_) { /* ok */ }
         popups[name].classList.add("show");
+        if (name === "admin") paintAdminPop();
         if (name === "membrane") {
           try { syncSludgeMirrors(true); } catch (_) { /* ok */ }
         }
@@ -19119,6 +19162,99 @@
         setSyncBar("Solo locale", "warn");
       }
     })();
+
+    const ADMIN_LS = "wwtAdminSession";
+    const GUEST_LOCK_IDS = [
+      "popPompe", "popMandata", "popMembrane",
+      "popSludgeAdj", "popSludgePct", "popSludgeBase",
+      "popPermeato", "popCarbone", "popUltra", "popTk11021",
+      "popOsmosi", "popProcesso", "popRegolazioni", "popBlocchi",
+    ];
+    function isAdmin() {
+      try { return localStorage.getItem(ADMIN_LS) === "1"; } catch (_) { return false; }
+    }
+    function paintAdminPop() {
+      const on = isAdmin();
+      const title = el("adminPopTitle");
+      const hint = el("adminPopHint");
+      const lab = el("adminPinLabel");
+      const err = el("adminPinErr");
+      const enter = el("adminEnter");
+      const leave = el("adminLeave");
+      if (title) title.textContent = on ? "Amministratore" : "Accesso";
+      if (hint) {
+        hint.textContent = on
+          ? "Questo tablet resta sbloccato anche dopo il riavvio. Esci per tornare utente normale."
+          : "Inserisci la password per sbloccare processo, regolazioni e i popup dei serbatoi.";
+      }
+      if (lab) lab.hidden = on;
+      if (enter) enter.hidden = on;
+      if (leave) leave.hidden = !on;
+      if (err) err.hidden = true;
+      const pin = el("adminPin");
+      if (pin && !on) pin.value = "";
+    }
+    function applyGuestLock() {
+      const guest = !isAdmin();
+      document.documentElement.classList.toggle("is-guest", guest);
+      const mark = el("wwtAdminMark");
+      if (mark) mark.hidden = guest;
+      GUEST_LOCK_IDS.forEach((id) => {
+        const node = el(id);
+        if (!node) return;
+        node.classList.toggle("is-guest-lock", guest);
+        if (!node.querySelector(".guest-note")) {
+          const note = document.createElement("p");
+          note.className = "mini guest-note";
+          note.textContent = "Sola lettura. Per modificare serve l’amministratore.";
+          const head = node.querySelector("h3");
+          if (head) head.insertAdjacentElement("afterend", note);
+        }
+      });
+    }
+    function guestChangeBlocked(target) {
+      if (isAdmin() || !target || !target.closest) return false;
+      if (target.closest("#popAdmin")) return false;
+      if (target.id === "chimicoPausaMin" || target.id === "chimicoRiavvioMin" || target.id === "livelloAttualeH") return true;
+      if (target.closest(".guest-field-lock")) return true;
+      const box = target.closest(".is-guest-lock");
+      if (!box) return false;
+      if (target.closest("[data-close], #sludgeAdjX, #sludgePctX, #sludgeBaseX, summary")) return false;
+      return !!target.closest("input, textarea, select, button, label, .uf-mini, .osm-mini, .uf-chem-remain, .p11019-edit, [role='button']");
+    }
+    document.addEventListener("click", (e) => {
+      if (!guestChangeBlocked(e.target)) return;
+      e.preventDefault();
+      e.stopPropagation();
+    }, true);
+    document.addEventListener("beforeinput", (e) => {
+      if (!guestChangeBlocked(e.target)) return;
+      e.preventDefault();
+    }, true);
+    el("wwtTitle")?.addEventListener("click", () => openPopup("admin"));
+    el("adminEnter")?.addEventListener("click", () => {
+      const pin = String(el("adminPin")?.value || "").trim();
+      if (pin !== "1629") {
+        const err = el("adminPinErr");
+        if (err) err.hidden = false;
+        return;
+      }
+      try { localStorage.setItem(ADMIN_LS, "1"); } catch (_) { /* ok */ }
+      applyGuestLock();
+      closePopups();
+    });
+    el("adminLeave")?.addEventListener("click", () => {
+      try { localStorage.removeItem(ADMIN_LS); } catch (_) { /* ok */ }
+      applyGuestLock();
+      closePopups();
+    });
+    el("adminPin")?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        el("adminEnter")?.click();
+      }
+    });
+    applyGuestLock();
 
     function syncLayoutMode() {
       const w = window.innerWidth || 0;
