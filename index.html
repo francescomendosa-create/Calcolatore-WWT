@@ -687,33 +687,71 @@
       margin-bottom: 10px;
     }
     details.carb-fold > .row { margin-top: 8px; }
-    .uf-ceb-time {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      margin: 8px 4px 0;
+    #popUltra details.uf-ceb-fold {
+      margin: 6px 0 2px;
     }
-    .uf-ceb-time strong {
+    #popUltra details.uf-ceb-fold > summary {
+      min-height: 0;
+      padding: 6px 10px;
+      border-radius: 8px;
       font-size: 0.82rem;
       font-weight: 700;
-      color: #e2e8f0;
+      box-shadow: none;
+      background: #0c4a6e;
     }
-    .uf-ceb-val {
+    #popUltra details.uf-ceb-fold > summary::after { font-size: 0.85rem; }
+    #popUltra details.uf-ceb-fold[open] > summary {
+      margin-bottom: 2px;
+      background: #0c4a6e;
+    }
+    #popUltra label.uf-ceb-time {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 0;
+      padding: 2px 2px 2px 4px;
+      border-bottom: 1px solid rgba(51, 65, 85, 0.85);
+    }
+    #popUltra .uf-ceb-time strong {
+      font-size: 0.78rem;
+      font-weight: 650;
+      color: #e2e8f0;
+      text-align: left;
+    }
+    #popUltra .uf-ceb-val {
       display: flex;
       align-items: center;
-      gap: 6px;
+      justify-content: flex-end;
+      gap: 4px;
       flex: 0 0 auto;
     }
-    .uf-ceb-val input { width: 76px; }
-    .uf-ceb-val em {
-      font-style: normal;
-      font-weight: 800;
+    #popUltra .uf-ceb-val input,
+    html.layout-landscape #popUltra .uf-ceb-val input {
+      width: 3.4rem;
+      padding: 0 2px;
+      border: none;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+      font-size: 0.92rem;
+      font-weight: 750;
+      text-align: right;
       color: #fde68a;
-      min-width: 1.2em;
     }
-    .uf-ceb-tot {
-      margin: 10px 4px 0;
+    #popUltra .uf-ceb-val input:focus {
+      outline: none;
+      border-bottom: 1px solid #fde68a;
+    }
+    #popUltra .uf-ceb-val em {
+      font-style: normal;
+      font-weight: 700;
+      font-size: 0.75rem;
+      color: #fde68a;
+      min-width: 1.1em;
+    }
+    #popUltra .uf-ceb-tot {
+      margin: 6px 2px 0;
       color: #fde68a;
       font-weight: 750;
     }
@@ -2170,7 +2208,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v313</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v314</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
