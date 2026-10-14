@@ -209,6 +209,12 @@
       cursor: pointer;
       font-family: inherit;
     }
+    .sim-time.is-turbo {
+      border-color: #fbbf24;
+    }
+    .sim-time.is-turbo #simTimeLabel {
+      color: #fbbf24;
+    }
     #popSimJump.flow-edit-back { background: rgba(2, 8, 20, 0.72); z-index: 13000; }
     #popSimJump .sim-jump-now {
       margin: 2px 0 0;
@@ -2122,7 +2128,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v307</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v308</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -11759,6 +11765,69 @@
         simPlus5();
       }, 1000);
     }
+
+    /** Turbo: tieni premuto mezzo secondo su una zona vuota. 3 minuti di impianto al secondo, uno alla volta. */
+    const TURBO_ARM_MS = 500;
+    const TURBO_STEP_MS = 334;
+    let __turboHold = null;
+    function turboTargetIsEmpty(target) {
+      if (!target || !target.closest) return false;
+      if (target.closest("button, a, input, textarea, select, label, .modal-back, [role='button'], .node, .flow-edit, .p11019-edit, .dev-mode, .osm-mini, .uf-mini")) return false;
+      return true;
+    }
+    function turboPaint(on) {
+      const box = document.querySelector(".sim-time");
+      if (box) box.classList.toggle("is-turbo", !!on);
+    }
+    function turboSetPace(fast) {
+      const runFast = !!fast && __simPlaying;
+      turboPaint(runFast);
+      if (!__simPlaying) return;
+      if (__simPlayTimer) clearInterval(__simPlayTimer);
+      const every = runFast ? TURBO_STEP_MS : 1000;
+      __simPlayTimer = setInterval(() => {
+        if (!__simPlaying || __simBusy) return;
+        simPlus5();
+      }, every);
+    }
+    function turboRelease() {
+      const hold = __turboHold;
+      __turboHold = null;
+      if (hold && hold.timer) clearTimeout(hold.timer);
+      if (hold && hold.on) turboSetPace(false);
+      else if (!hold || !hold.on) turboPaint(false);
+    }
+    document.addEventListener("pointerdown", (e) => {
+      if (e.button != null && e.button !== 0) return;
+      if (!turboTargetIsEmpty(e.target)) return;
+      if (__simBusy && !__simPlaying) return;
+      if (__turboHold && __turboHold.timer) clearTimeout(__turboHold.timer);
+      const pid = e.pointerId;
+      __turboHold = {
+        pointerId: pid,
+        on: false,
+        timer: setTimeout(() => {
+          if (!__turboHold || __turboHold.pointerId !== pid) return;
+          if (__simBusy && !__simPlaying) return;
+          if (!__simPlaying) simStart();
+          if (!__simPlaying) return;
+          __turboHold.on = true;
+          turboSetPace(true);
+          try { document.documentElement.setPointerCapture(pid); } catch (_) { /* ok */ }
+        }, TURBO_ARM_MS),
+      };
+    });
+    document.addEventListener("pointerup", (e) => {
+      if (!__turboHold || e.pointerId !== __turboHold.pointerId) return;
+      turboRelease();
+    });
+    document.addEventListener("pointercancel", (e) => {
+      if (!__turboHold || e.pointerId !== __turboHold.pointerId) return;
+      turboRelease();
+    });
+    document.addEventListener("contextmenu", (e) => {
+      if (__turboHold) e.preventDefault();
+    });
 
     /** Ferma il conteggio automatico (il tempo resta dove è). */
     function simStop({ silent = false } = {}) {
