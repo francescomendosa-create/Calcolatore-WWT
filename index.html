@@ -2285,7 +2285,7 @@
 </head>
 <body>
   <header>
-    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v323</span><span id="wwtAdminMark" hidden>admin</span></h1>
+    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v324</span><span id="wwtAdminMark" hidden>admin</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -5524,7 +5524,7 @@
           } catch (_) { /* ok */ }
         } else if (dev === "osmosi") {
           try {
-            if (deviceAutoControlled("osmosi") || isAutoMode()) {
+            if (deviceAutoControlled("osmosi")) {
               applyOsmosiAutoFlows(typeof permeateDemandOut === "function" ? permeateDemandOut() : 0);
             }
           } catch (_) { /* ok */ }
@@ -10825,7 +10825,7 @@
       return (osmLineFeeding("A") ? 1 : 0) + (osmLineFeeding("B") ? 1 : 0) + (osmLineFeeding("C") ? 1 : 0);
     }
 
-    /** Portate osmosi in Auto: domanda sulle linee in marcia, ciascuna ≥ OSM_IN_MIN (20).
+    /** Portate osmosi in Auto: solo se l’impianto è Automatico e il dispositivo non è Man.
      *  Con SF3 (osmosi sempre in marcia): portate BLOCCATE — non si riducono mai. */
     function applyOsmosiAutoFlows(qDemandTotal) {
       const qDemand = Math.max(0, round1(Number(qDemandTotal) || 0));
@@ -10834,7 +10834,8 @@
       __osmFeedOk.A = false;
       __osmFeedOk.B = false;
       __osmFeedOk.C = false;
-      if (deviceIsManual("osmosi")) {
+      // Manuale locale OPPURE impianto Manuale: non riscrivere i set (es. 40 = chimico/3).
+      if (!deviceAutoControlled("osmosi") || isEditingOsmosi()) {
         letters.forEach((L, i) => {
           paintProcSetpointField(ids[i]);
           if (osmLineRunning(L) && procSetpointOf(ids[i]) > 0.05) __osmFeedOk[L] = true;
@@ -15987,12 +15988,12 @@
       try { tickUfRegulationOnce(0.05); kickValveSmoothLoop(); } catch (_) { /* ok */ }
       paintUfSvgLive();
       try { paintUfInletHint(); } catch (_) { /* ok */ }
-      // UF in manuale locale: allinea solo osmosi a valle (P11019 resta sul suo set ≥140, non prende il totale UF)
+      // UF in manuale locale: allinea osmosi a valle SOLO se anche le osmosi sono in automatico
       if ((source === "uf-linea" || source === "uf-totale") && deviceIsManual("ultra")) {
         const q = totSp;
-        if (!deviceIsManual("osmosi") && !isEditingOsmosi() && q > 0.05) {
+        if (deviceAutoControlled("osmosi") && !isEditingOsmosi() && q > 0.05) {
           const ids = ["qOsmosiA", "qOsmosiB", "qOsmosiC"];
-          const each = ids.length ? round1(q / ids.length) : 0;
+          const each = ids.length ? round1(Math.min(OSM_IN_MAX, q / ids.length)) : 0;
           ids.forEach((id) => {
             rememberProcSetpoint(id, each);
             setVal(id, each, { force: true });
@@ -16343,13 +16344,10 @@
       const letters = ["A", "B", "C"];
       OSM_IDS.forEach((id, i) => {
         const L = letters[i];
-        // Campo popup = setpoint (se l’utente non sta editando)
-        const qSp = clampOsmIn(Math.max(0, num(id)));
-        if (qSp > 0.05) rememberProcSetpoint(id, qSp);
-        else rememberProcSetpoint(id, 0, { allowZero: true });
-        if (!isEditing(id) && Math.abs(qSp - Math.max(0, num(id))) > 0.05) setVal(id, qSp, { force: true });
-        const sp = Math.min(OSM_IN_MAX, procSetpointOf(id));
-        if (Math.abs(sp - procSetpointOf(id)) > 0.05) rememberProcSetpoint(id, sp, { allowZero: true });
+        // Non rileggere il DOM per sovrascrivere la memoria: syncOsm / OK l’hanno già aggiornata.
+        let sp = clampOsmIn(procSetpointOf(id));
+        rememberProcSetpoint(id, sp, { allowZero: true });
+        if (!isEditing(id)) setVal(id, sp, { force: true });
         paintProcSetpointField(id);
         const qLive = osmQinEffective(L);
         const concSp = osmConcFor(sp);
@@ -16360,12 +16358,14 @@
           totConcSp += concSp;
           totConcLive += concLive;
         }
+        // Badge IN = SETPOINT (quello che digiti). La misura viva resta sulla valvola %.
         const svg = el(["svgQOsmA", "svgQOsmB", "svgQOsmC"][i]);
-        if (svg) svg.textContent = round1(qLive).toFixed(1);
+        if (svg && !(inlineCtx && inlineCtx.field === id)) {
+          svg.textContent = round1(sp).toFixed(1);
+        }
         const chip = el("svgOsmConc" + L);
         if (chip) chip.textContent = round1(osmLineEnabled(L) ? concSp : 0).toFixed(1);
         const concNode = el(OSM_CONC_IDS[i]);
-        // Concentrato in popup riflette il setpoint di linea (anche se ferma con IN>0 in memoria)
         if (concNode && !isEditing(OSM_CONC_IDS[i])) concNode.value = String(round1(concSp));
       });
       totDemiSp = round1(totDemiSp);
@@ -16380,7 +16380,6 @@
       }
       const totSpSvg = el("svgQOsmTotaleSp");
       if (totSpSvg) totSpSvg.textContent = totDemiSp.toFixed(1);
-      // SET = solo gli ingressi. Il misuratore TOTALE aggiunge il concentrato. Il numpad modifica sempre il SET.
       if (!isEditing("qOsmosiTotale")) {
         rememberProcSetpoint("qOsmosiTotale", totDemiSp, { allowZero: true });
         setVal("qOsmosiTotale", totDemiSp, { force: true });
@@ -17258,10 +17257,10 @@
       if (__inlineSuppressLive) return;
       if (!inlineCtx) return;
       const { field, source } = inlineCtx;
-      // In Automatico locale: il numpad NON scrive sul processo mentre digiti
-      // (evita che un "4" parziale rovini riciclo/UF e passi a manuale). Solo OK decide.
+      // In Automatico di impianto sul dispositivo: il numpad NON scrive mentre digiti.
+      // Impianto Manuale, o Man locale: scrive subito (senza aspettare OK).
       const liveDev = typeof devForFlowField === "function" ? devForFlowField(field) : "";
-      if (liveDev && !deviceIsManual(liveDev)) return;
+      if (liveDev && deviceAutoControlled(liveDev)) return;
       const raw = String(inlineInp.value ?? "").trim().replace(",", ".");
       if (raw === "" || raw === "-" || raw === "." ) return; // sta cancellando: non forzare
       const v = parseFloat(raw);
@@ -17437,6 +17436,33 @@
       // Manuale solo se il valore è cambiato rispetto a quello aperto (overview/auto)
       const editDev = typeof devForFlowField === "function" ? devForFlowField(field) : "";
       const changed = !Number.isFinite(openVal) || Math.abs(v - openVal) > 0.05;
+      // Osmosi: scrivi PRIMA del cambio modo, così applyBalance non rimette il riparto (es. 40).
+      if (field === "qOsmosiA" || field === "qOsmosiB" || field === "qOsmosiC" || field === "qOsmosiTotale") {
+        if (editDev && !deviceIsManual(editDev)) {
+          if (!changed) {
+            try { paintDevModeUI(editDev); } catch (_) { /* ok */ }
+            return;
+          }
+          __devMode.osmosi = "manual";
+          try { paintDevModeUI("osmosi"); paintDevModeMarks(); } catch (_) { /* ok */ }
+        }
+        if (field === "qOsmosiTotale") {
+          const tot = Math.min(Math.max(0, v), osmFeedMaxTotal());
+          if (inlineInp) inlineInp.value = String(tot);
+          rememberProcSetpoint("qOsmosiTotale", tot, { allowZero: true });
+          setVal("qOsmosiTotale", tot, { force: true });
+          syncOsm("osm-totale");
+        } else {
+          const q = clampOsmIn(v);
+          if (inlineInp) inlineInp.value = String(q);
+          rememberProcSetpoint(field, q, { allowZero: true });
+          setVal(field, q, { force: true });
+          syncOsm("osm-linea");
+        }
+        try { schedulePersist(); } catch (_) { /* ok */ }
+        try { scheduleRegPreview({ immediate: true, userChange: true }); } catch (_) { /* ok */ }
+        return;
+      }
       if (editDev && !deviceIsManual(editDev)) {
         if (!changed) {
           // OK senza modifiche: resta Automatico, nessun write spurio
