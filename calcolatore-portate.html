@@ -2285,7 +2285,7 @@
 </head>
 <body>
   <header>
-    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v330</span><span id="wwtAdminMark" hidden>admin</span></h1>
+    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v332</span><span id="wwtAdminMark" hidden>admin</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -4802,11 +4802,11 @@
     const __osmMeas = { A: 0, B: 0, C: 0 };
     const __osmValveTarget = { A: 0, B: 0, C: 0 };
     const __osmMeasTarget = { A: 0, B: 0, C: 0 };
-    const VALVE_SMOOTH_PCT_S = 70;   // %/s lineare valvola (osmosi)
-    const MEAS_SMOOTH_Q_S = 55;      // m³/h al secondo lineare portata (osmosi)
-    // UF: un po' più svelte di prima, si vede ancora la barra che apre e il numero che sale.
-    const UF_VALVE_PCT_S = 28;       // 0→100% in ~3,6 s (prima ~5 s)
-    const UF_MEAS_Q_S = 18;          // una linea da ~30 m³/h ci mette ~1,7 s (prima ~2,5 s)
+    // UF / osmosi: stessa rampa a muro (RAF). Il minuto TIME non consuma secondi di apertura.
+    const UF_VALVE_PCT_S = 28;       // 0→100% in ~3,6 s
+    const UF_MEAS_Q_S = 18;          // ~30 m³/h in ~1,7 s
+    const VALVE_SMOOTH_PCT_S = UF_VALVE_PCT_S;
+    const MEAS_SMOOTH_Q_S = UF_MEAS_Q_S;
     let __valveSmoothRaf = 0;
     let __valveSmoothLast = 0;
     const __osmWobble = {
@@ -11191,12 +11191,28 @@
       });
     }
 
-    /** Stima %/min TK 11021: volume utile REGOLAZIONI §0 · IN UF − OUT osmosi. */
-    function estimateTk11021RatePctPerMin(qUf, qOsmOut) {
+    /**
+     * Stima %/min TK 11021: V utile · (IN − OUT).
+     * Passare IN = UF (+ ritorno 2°) e OUT = mandata P11040 = TOTALE osmosi (demi + conc. 1°).
+     */
+    function estimateTk11021RatePctPerMin(qInTotal, qOsmOut) {
       const V = getTk11021Geom().V;
-      const qIn = __allowUfByTk11021 ? Math.max(0, Number(qUf) || 0) : 0;
+      const qIn = Math.max(0, Number(qInTotal) || 0);
       const qOut = Math.max(0, Number(qOsmOut) || 0);
       return ratePctPerMinFromVolume(qIn - qOut, V);
+    }
+
+    /** Mandata P11040 A–D (= TOTALE osmosi overview): demi + concentrato 1° passo. */
+    function osmP11040MandataNow() {
+      return osmWithdrawFromTkNow();
+    }
+    function osmP11040MandataStable() {
+      return osmWithdrawFromTkStable();
+    }
+    /** IN TK-11021: permeato UF (se riempimento OK) + ritorno concentrato 2° passo. */
+    function tk11021InNow(qUf) {
+      const uf = __allowUfByTk11021 ? Math.max(0, Number(qUf) || 0) : 0;
+      return round1(uf + osmConc2ReturnNow());
     }
 
     /**
@@ -12256,7 +12272,9 @@
       if (!p11019Allowed()) paintUfPopupSetpoints();
       const qUfIn = sumUfEffective();
       paintUfSvgLive();
-      const qOsmOut = osmProductWaterNow();
+      // OUT TK = mandata P11040 = TOTALE osmosi (demi + conc. 1°); IN = UF + ritorno 2°
+      const qOsmOut = osmP11040MandataNow();
+      const qTk21In = tk11021InNow(qUfIn);
       syncOsmosiSvg();
       try { addOsmProdDt(dtMin); } catch (_) { /* ok */ }
 
@@ -12279,7 +12297,7 @@
         tMin: __mbrCycleMin,
       });
       let rP = estimateTk11007RatePctPerMin(qPerm, qP19);
-      let rU = estimateTk11021RatePctPerMin(qUfIn, qOsmOut);
+      let rU = estimateTk11021RatePctPerMin(qTk21In, qOsmOut);
 
       // Tutte le portate processo a zero: niente sali-scendi fantasma.
       // Resta solo A10620 se il chimico e' ancora aperto.
@@ -12943,6 +12961,17 @@
       __run11036 = true;
       __simSnap = null;
       try { resetOsmProdTotal(); } catch (_) { /* ok */ }
+      // Valvole/portate UF+osmosi a 0: allo Start si vedono aprire in rampa (come UF)
+      try {
+        UF_LINES.forEach((L) => {
+          __ufValvePct[L] = 0; __ufMeas[L] = 0;
+          __ufValveTarget[L] = 0; __ufMeasTarget[L] = 0;
+        });
+        OSM_LINES.forEach((L) => {
+          __osmValvePct[L] = 0; __osmMeas[L] = 0;
+          __osmValveTarget[L] = 0; __osmMeasTarget[L] = 0;
+        });
+      } catch (_) { /* ok */ }
       // Blocca sync cloud abbastanza a lungo da non ripristinare livelli vecchi
       __resetGuardUntil = Date.now() + 8000;
 
@@ -13438,10 +13467,11 @@
           ? Math.max(permeateDemandOut(), linePermeateCapacity())
           : permeateDemandOut())
         : Math.max(0, num("qOsmosiDemi") || (num("qOsmosiA") + num("qOsmosiB") + num("qOsmosiC")));
-      // OUT TK-11021 = portata reale netta (0 a fermo); previsioni usano ancora osmExportCapacityStable
-      const qOsmUiOut = osmProductWaterNow();
+      // OUT = mandata P11040 = TOTALE osmosi (demi + conc. 1°); IN = UF + ritorno 2°
+      const qOsmUiOut = osmP11040MandataNow();
       const qUfUi = sumUfEffective();
-      const rateUUi = estimateTk11021RatePctPerMin(qUfUi, qOsmUiOut);
+      const qTk21InUi = tk11021InNow(qUfUi);
+      const rateUUi = estimateTk11021RatePctPerMin(qTk21InUi, qOsmUiOut);
       paintTk11021UI(livUUi, rateUUi, !__allowUfByTk11021);
       paintOsmosiRunUI();
       paintUfSvgLive();
@@ -13452,9 +13482,13 @@
         const washN = UF_LINES.filter((L) => ufLineInWash(L)).length;
         const queueN = UF_LINES.filter((L) => ufLineQueuedWash(L)).length;
         const washTxt = washN ? ` · ${washN} UF in lavaggio` : (queueN ? ` · ${queueN} UF lavaggio in coda` : "");
+        const qRet2 = osmConc2ReturnNow();
+        const net21 = round1(qTk21InUi - qOsmUiOut);
+        const trend21 = net21 > 0.5 ? "SALE" : (net21 < -0.5 ? "SCENDE" : "STABILE");
+        const balTxt = ` · UF ${round1(__allowUfByTk11021 ? qUfUi : 0)} + rit.2° ${round1(qRet2)} − P11040 ${round1(qOsmUiOut)} → ${trend21}`;
         ufHint.textContent = __allowUfByTk11021
-          ? `TK 11021 OK · riempimento UF abilitato (stop a ≥${fmtPct(stopU)})${washTxt}`
-          : `TK 11021 PIENO ≥${fmtPct(stopU)} · riempimento bloccato · riparte a ≤${fmtPct(startU)}${washTxt}`;
+          ? `TK 11021 OK · riempimento UF abilitato (stop a ≥${fmtPct(stopU)})${washTxt}${balTxt}`
+          : `TK 11021 PIENO ≥${fmtPct(stopU)} · riempimento bloccato · riparte a ≤${fmtPct(startU)}${washTxt}${balTxt}`;
         ufHint.style.color = __allowUfByTk11021 && !washN ? "var(--ok)" : "var(--danger)";
       }
 
@@ -15400,9 +15434,9 @@
         const node = el({ A: "svgQOsmA", B: "svgQOsmB", C: "svgQOsmC" }[L]);
         if (node) node.textContent = round1(qLive).toFixed(1);
         const spLine = Math.max(0, procSetpointOf("qOsmosi" + L));
-        const concOn = osmLineEnabled(L) && spLine > 0.05;
+        const concOn = osmLineEnabled(L) && qLive > 0.05;
         const concBias = stepOsmConcWander(L, dtSec, concOn && live);
-        // Chip = solo concentrato 1° passo (il 2° torna al TK-11021)
+        // Chip = solo concentrato 1° passo, con portata reale (rampa)
         const conc1 = concOn ? Math.max(0, osmConc1For(spLine, L) + (live ? concBias : 0)) : 0;
         const chip = el("svgOsmConc" + L);
         if (chip) chip.textContent = round1(conc1).toFixed(1);
@@ -15554,14 +15588,12 @@
       kickValveSmoothLoop();
     }
 
-    function tickOsmRegulationOnce(dt) {
-      const dtSec = Math.max(0, Number(dt) || 0) * 60;
+    function tickOsmRegulationOnce(_dt) {
       OSM_LINES.forEach((L) => {
         const enabled = osmLineEnabled(L);
         const feeding = osmLineFeeding(L);
         const sp = Math.max(0, procSetpointOf("qOsmosi" + L));
         const run = plantIsStarted() && enabled && feeding && sp > 0.05;
-        const w = __osmWobble[L];
 
         if (!run) {
           __osmValveTarget[L] = 0;
@@ -15587,12 +15619,7 @@
           __osmValveTarget[L] = Math.max(0, Math.min(100, valveTarget));
           __osmMeasTarget[L] = Math.max(0, Math.min(Math.max(share, 0), qAim));
         }
-        if (dtSec > 0) {
-          __osmValvePct[L] = approachLinear(Number(__osmValvePct[L]) || 0, Number(__osmValveTarget[L]) || 0, VALVE_SMOOTH_PCT_S, dtSec);
-          let meas = approachLinear(Number(__osmMeas[L]) || 0, Number(__osmMeasTarget[L]) || 0, MEAS_SMOOTH_Q_S, dtSec);
-          if (run) meas = Math.max(0, meas + (Number(w && w.bias) || 0));
-          __osmMeas[L] = meas;
-        }
+        // Come UF: qui solo i target. Valvola/portata salgono col RAF (tickValveSmooth).
       });
     }
 
@@ -16360,10 +16387,9 @@
       });
       return round1(q);
     }
-    /** Badge TOTALE sopra: in marcia con portata usa il vivo, altrimenti il set (demi+1°). */
+    /** Badge TOTALE sopra: in marcia = vivo (anche 0 in rampa); a fermo = set demi+1°. */
     function osmWithdrawFromTkShown() {
-      const live = osmWithdrawFromTkNow();
-      if (plantIsStarted() && live > 0.05) return live;
+      if (plantIsStarted()) return osmWithdrawFromTkNow();
       return osmWithdrawFromTkStable();
     }
     /** Concentrato 2° passo che torna al TK-11021 (linee in marcia). */
@@ -16554,14 +16580,18 @@
           totDemiSp += sp;
           totConcSp += concSp;
         }
-        // Badge IN = SETPOINT (quello che digiti). La misura viva resta sulla valvola %.
+        // Badge IN: a fermo = set; in marcia = portata viva (rampa come UF, non scatto al set)
         const svg = el(["svgQOsmA", "svgQOsmB", "svgQOsmC"][i]);
         if (svg && !(inlineCtx && inlineCtx.field === id)) {
-          svg.textContent = round1(sp).toFixed(1);
+          const qShow = plantIsStarted() ? osmQinEffective(L) : sp;
+          svg.textContent = round1(qShow).toFixed(1);
         }
         const chip = el("svgOsmConc" + L);
-        // Chip sotto IN = solo concentrato 1° passo (il 2° torna al TK-11021)
-        if (chip) chip.textContent = round1(osmLineEnabled(L) && sp > 0.05 ? conc1 : 0).toFixed(1);
+        // Chip 1° passo: solo con portata reale in marcia (altrimenti 0 in rampa/fermo)
+        if (chip) {
+          const qLive = plantIsStarted() ? osmQinEffective(L) : 0;
+          chip.textContent = round1(osmLineEnabled(L) && qLive > 0.05 ? conc1 : 0).toFixed(1);
+        }
         const concNode = el(OSM_CONC_IDS[i]);
         const conc2Node = el(OSM_CONC2_IDS[i]);
         if (concNode && !isEditing(OSM_CONC_IDS[i]) && (concNode.value === "" || numOrNull(OSM_CONC_IDS[i]) == null)) {
