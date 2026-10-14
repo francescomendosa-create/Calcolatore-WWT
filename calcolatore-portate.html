@@ -2248,7 +2248,7 @@
 </head>
 <body>
   <header>
-    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v321</span><span id="wwtAdminMark" hidden>admin</span></h1>
+    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v322</span><span id="wwtAdminMark" hidden>admin</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -2620,7 +2620,7 @@
           <g class="flow-edit" data-field="qP11019Impianto" data-source="p11019" aria-label="Portata verso carboni" pointer-events="all">
             <rect class="badge" id="svgQP11019Badge" x="848" y="494" width="88" height="36" rx="5" stroke="#4ade80" />
             <text x="892" y="506" text-anchor="middle" fill="#86efac" font-size="7" font-weight="700">← carboni</text>
-            <text class="badge-val" x="880" y="522" text-anchor="middle" id="svgQP11019" font-size="12">140.0</text>
+            <text class="badge-val" x="880" y="522" text-anchor="middle" id="svgQP11019" font-size="12">100.0</text>
             <text class="badge-unit" x="914" y="522" text-anchor="middle">m³/h</text>
           </g>
           <!-- IAS a destra: numpad diretto. Alzare IAS sottrae dal totale carboni a sinistra. -->
@@ -2640,7 +2640,7 @@
           <g class="flow-edit" data-field="qCarbA" data-source="carb-linea" aria-label="Portata filtro carbone A">
             <rect class="badge" x="700" y="300" width="74" height="34" rx="5" stroke="#7dd3fc" />
             <text class="badge-label" x="737" y="312" text-anchor="middle">CARB A</text>
-            <text class="badge-val" x="724" y="326" text-anchor="middle" id="svgQCarbA">70.0</text>
+            <text class="badge-val" x="724" y="326" text-anchor="middle" id="svgQCarbA">50.0</text>
             <text class="badge-unit" x="754" y="326" text-anchor="middle">m³/h</text>
             <polygon id="svgCarbArrowDownA" points="731,336 743,336 737,346" fill="#fbbf24" visibility="hidden" pointer-events="none" />
             <polygon id="svgCarbArrowLeftA" points="743,337 731,343 743,349" fill="#7dd3fc" visibility="hidden" pointer-events="none" />
@@ -2648,7 +2648,7 @@
           <g class="flow-edit" data-field="qCarbB" data-source="carb-linea" aria-label="Portata filtro carbone B">
             <rect class="badge" x="778" y="300" width="74" height="34" rx="5" stroke="#7dd3fc" />
             <text class="badge-label" x="815" y="312" text-anchor="middle">CARB B</text>
-            <text class="badge-val" x="802" y="326" text-anchor="middle" id="svgQCarbB">70.0</text>
+            <text class="badge-val" x="802" y="326" text-anchor="middle" id="svgQCarbB">50.0</text>
             <text class="badge-unit" x="832" y="326" text-anchor="middle">m³/h</text>
             <polygon id="svgCarbArrowDownB" points="809,336 821,336 815,346" fill="#fbbf24" visibility="hidden" pointer-events="none" />
             <polygon id="svgCarbArrowLeftB" points="821,337 809,343 821,349" fill="#7dd3fc" visibility="hidden" pointer-events="none" />
@@ -4568,6 +4568,7 @@
     const MBR_SCARICO_TO_H_FRAC = 1;
     const MBR_RETAIN_FRAC = 1 - MBR_SCARICO_TO_H_FRAC;
     const Q_P11019_DEFAULT = 100; // avvio: carboni 50 + 50
+    const CARB_AUTO_CAP = 50;     // in automatico ogni filtro non supera 50 m³/h
     const Q_P11019_MAX = 170;     // tetto set pompe (non si supera)
     const UF_WASH_INLET_LEAK = 5; // m³/h in più su ogni valvola UF rimasta aperta, a valvola d’ingresso chiusa
     /** @deprecated alias di Q_P11019_DEFAULT (retrocompat) */
@@ -5479,6 +5480,9 @@
             }
           } catch (_) { /* ok */ }
           try { syncOsmosiSvg(); } catch (_) { /* ok */ }
+        } else if (dev === "carbone") {
+          applyCarbAutoCeiling();
+          try { paintCarbFlows(); } catch (_) { /* ok */ }
         }
       }
       if (next === "auto" && isAutoMode() && (dev === "pompa" || dev === "mandata" || dev === "riciclo" || dev === "membrane")) {
@@ -6810,17 +6814,20 @@
       if (opts.forceManualFlows !== true && opts.qUf == null && deviceAutoControlled("ultra") && qUfSp + 0.5 < qInSp) {
         qUfSp = round1(qInSp);
       }
-      if (opts.forceManualFlows !== true && !deviceIsManual("carbone")) {
-        const needImp = Math.max(qUfSp, deviceAutoControlled("ultra") ? qInSp : 0);
-        if (qImpSp + 0.5 < needImp) {
-          qP19Sp = Math.min(Q_P11019_MAX, round1(needImp + qIasSp));
-          qImpSp = Math.max(0, round1(qP19Sp - qIasSp));
-        }
-      }
-      if (deviceIsManual("carbone")) {
+      {
         let caps = 0;
-        try { caps = carbCap("A") + carbCap("B"); } catch (_) { caps = 0; }
-        if (caps > 0.5) qImpSp = Math.min(qImpSp, caps);
+        try {
+          const aCap = carbCap("A");
+          const bCap = carbCap("B");
+          caps = deviceIsManual("carbone")
+            ? aCap + bCap
+            : Math.min(CARB_AUTO_CAP, aCap) + Math.min(CARB_AUTO_CAP, bCap);
+        } catch (_) { caps = 0; }
+        if (!(caps > 0.5) && !deviceIsManual("carbone")) caps = CARB_AUTO_CAP * 2;
+        if (caps > 0.5) {
+          qImpSp = Math.min(qImpSp, caps);
+          qP19Sp = clampP11019Set(Math.max(qImpSp + qIasSp, 0));
+        }
       }
       // Lavaggio già partito: il set in memoria è l’ingresso alzato. La previsione, finite le fasi, torna alla saturazione.
       if (__carbSatHold && Number.isFinite(Number(__carbSatHold.imp))) {
@@ -9876,16 +9883,49 @@
       return Math.max(0, Math.round(Number(__flowSetpoint[id]) || 0));
     }
 
-    /** Se i due carichi sono vuoti, partono a metà della portata verso i carboni. */
+    /** In automatico ogni filtro resta ≤ 50. Se il totale pompe era solo la somma, scende insieme. */
+    function applyCarbAutoCeiling() {
+      if (deviceIsManual("carbone")) return false;
+      const a0 = carbCap("A");
+      const b0 = carbCap("B");
+      if (a0 + b0 < 0.05) return false;
+      const a = Math.min(a0, CARB_AUTO_CAP);
+      const b = Math.min(b0, CARB_AUTO_CAP);
+      let changed = a !== a0 || b !== b0;
+      if (changed) {
+        rememberFlowSetpoint("qCarbA", a, { allowZero: true });
+        rememberFlowSetpoint("qCarbB", b, { allowZero: true });
+      }
+      const ias = Math.round(Number(__flowSetpoint.qP11019Ias) || 0);
+      const pump = Math.round(Number(__flowSetpoint.qP11019) || num("qP11019") || 0);
+      const sum = a + b;
+      if (changed && ias === 0 && pump > sum) {
+        rememberFlowSetpoint("qP11019", sum);
+        rememberFlowSetpoint("qP11019Ias", 0, { allowZero: true });
+        rememberFlowSetpoint("qP11019Impianto", sum, { allowZero: true });
+        const p19 = el("qP11019");
+        if (p19 && !isEditing("qP11019")) p19.value = String(sum);
+      }
+      if (changed) {
+        try { paintCarbFlows(); } catch (_) { /* ok */ }
+        if (typeof __applyingRemote !== "undefined" && __applyingRemote) __carbAutoDirty = true;
+        else {
+          try { schedulePersist(); } catch (_) { /* ok */ }
+        }
+      }
+      return changed;
+    }
+
+    /** Se i due carichi sono vuoti, partono a 50 e 50. Non si inventa una metà della pompa. */
     function ensureCarbCaps() {
-      const imp = Math.max(0, Math.round(qP11019ImpiantoSetpoint()));
       const a = carbCap("A");
       const b = carbCap("B");
       if (a + b < 0.05) {
-        const aa = Math.floor(imp / 2);
-        rememberFlowSetpoint("qCarbA", aa, { allowZero: true });
-        rememberFlowSetpoint("qCarbB", Math.max(0, imp - aa), { allowZero: true });
+        rememberFlowSetpoint("qCarbA", CARB_AUTO_CAP, { allowZero: true });
+        rememberFlowSetpoint("qCarbB", CARB_AUTO_CAP, { allowZero: true });
+        return;
       }
+      applyCarbAutoCeiling();
     }
 
     /**
@@ -9991,37 +10031,31 @@
       return round1(plant + ias);
     }
 
-    /** Tiene il rapporto dei due carichi quando cambia il totale (IAS, pompe). Non li pareggia. */
+    /** In automatico non riscrive i set per inseguire la pompa: ogni filtro resta ≤ 50. */
     function alignCarbCapsToImpianto() {
       if (typeof carbAnyoneWashing === "function" && carbAnyoneWashing()) return;
       if (deviceIsManual("carbone")) return;
-      const imp = Math.max(0, Math.round(qP11019ImpiantoSetpoint()));
-      const a = carbCap("A");
-      const b = carbCap("B");
-      if (a + b < 0.05) {
-        const aa = Math.floor(imp / 2);
-        rememberFlowSetpoint("qCarbA", aa, { allowZero: true });
-        rememberFlowSetpoint("qCarbB", Math.max(0, imp - aa), { allowZero: true });
-        return;
-      }
-      if (Math.abs(a + b - imp) < 0.6) return;
-      const aa = Math.round(imp * a / (a + b));
-      const bb = Math.max(0, imp - aa);
-      rememberFlowSetpoint("qCarbA", aa, { allowZero: true });
-      rememberFlowSetpoint("qCarbB", bb, { allowZero: true });
+      ensureCarbCaps();
     }
 
-    /** Il totale scritto a mano si divide in due parti uguali. */
+    /** Il totale scritto a mano si divide in due. In automatico ogni metà non passa 50. */
     function equalizeCarbCaps(imp) {
       const n = Math.max(0, Math.round(Number(imp) || 0));
-      const aa = Math.floor(n / 2);
+      let aa = Math.floor(n / 2);
+      let bb = Math.max(0, n - aa);
+      if (!deviceIsManual("carbone")) {
+        aa = Math.min(aa, CARB_AUTO_CAP);
+        bb = Math.min(bb, CARB_AUTO_CAP);
+      }
       rememberFlowSetpoint("qCarbA", aa, { allowZero: true });
-      rememberFlowSetpoint("qCarbB", Math.max(0, n - aa), { allowZero: true });
+      rememberFlowSetpoint("qCarbB", bb, { allowZero: true });
       try { paintCarbFlows(); } catch (_) { /* ok */ }
     }
 
     function applyCarbTotal(raw) {
-      applyP11019SplitFrom("impianto", raw);
+      let n = Math.max(0, Math.round(Number(raw) || 0));
+      if (!deviceIsManual("carbone")) n = Math.min(n, CARB_AUTO_CAP * 2);
+      applyP11019SplitFrom("impianto", n);
       equalizeCarbCaps(qP11019ImpiantoSetpoint());
     }
 
@@ -10030,6 +10064,7 @@
       const other = L === "A" ? "B" : "A";
       ensureCarbCaps();
       let v = Math.max(0, Math.round(Number(raw) || 0));
+      if (!deviceIsManual("carbone")) v = Math.min(v, CARB_AUTO_CAP);
       const otherV = carbCap(other);
       if (v + otherV > Q_P11019_MAX) v = Math.max(0, Q_P11019_MAX - otherV);
       rememberFlowSetpoint("qCarb" + L, v, { allowZero: true });
@@ -13594,19 +13629,10 @@
         if (exp + 0.5 < q) applyOsmosiAutoFlows(q);
       }
       try {
-        const ufNow = Math.max(q, ufSetpointSum());
-        const ias = Math.max(0, qP11019IasSetpoint());
-        const pump = Math.max(0, flowSetpointOf("qP11019") || 0);
-        if (pump - ias + 0.5 < ufNow) {
-          const want = Math.min(Q_P11019_MAX, round1(ufNow + ias));
-          rememberFlowSetpoint("qP11019", want);
-          if (!isEditing("qP11019")) setVal("qP11019", want, { force: true });
-          rememberFlowSetpoint("qP11019Impianto", Math.max(0, round1(want - ias)), { allowZero: true });
-          try { syncP11019SplitKeepIas(); } catch (_) { /* ok */ }
-          try { paintP11019SplitUI(); } catch (_) { /* ok */ }
+        if (!deviceIsManual("carbone")) {
+          ensureCarbCaps();
+          try { paintCarbFlows(); } catch (_) { /* ok */ }
         }
-        try { alignCarbCapsToImpianto(); } catch (_) { /* ok */ }
-        try { paintCarbFlows(); } catch (_) { /* ok */ }
       } catch (_) { /* ok */ }
     }
 
@@ -15094,31 +15120,14 @@
     }
 
     /**
-     * I set UF vanno rispettati: se chiedono più acqua di Impianto→carboni,
-     * alza le P11019 (Impianto) fino al bisogno (IAS resta; max pompe 140).
+     * In automatico i set carbone restano quelli scritti, massimo 50 a filtro.
      */
     function ensureCarboniMeetsUfDemand() {
       if (typeof carbAnyoneWashing === "function" && carbAnyoneWashing()) return;
       if (deviceIsManual("carbone")) return;
-      if (!plantIsStarted()) return;
-      if (!p11019ValleyOpen() || !p11019Allowed()) return;
-      const need = ufDemandSetpointTotal();
-      if (need < 0.05) return;
-      const ias = Math.max(0, qP11019IasSetpoint());
-      let pump = qP11019SplitPumpMem();
-      const impNow = Math.max(0, pump - ias);
-      if (impNow + 0.55 >= need) return;
-      const wantPump = Math.min(Q_P11019_MAX, Math.max(pump, round1(need + ias)));
-      const wantImp = Math.max(0, wantPump - ias);
-      if (wantImp + 0.05 < need) return; // IAS troppo alto: non si può saturare il set UF
-      if (Math.abs(wantPump - pump) < 0.05) return;
-      rememberFlowSetpoint("qP11019", wantPump);
-      if (!isEditing("qP11019")) setVal("qP11019", wantPump, { force: true });
-      rememberFlowSetpoint("qP11019Impianto", wantImp, { allowZero: true });
-      syncP11019SplitKeepIas();
-      if (p11019Allowed()) commitFlow("qP11019", qP11019LiveTargetFromValley(), { setpoint: wantPump });
-      try { alignCarbCapsToImpianto(); } catch (_) { /* ok */ }
-      try { paintP11019SplitUI(); } catch (_) { /* ok */ }
+      // Automatico: il set resta quello scritto, massimo 50 a filtro. Non si alza da solo.
+      ensureCarbCaps();
+      try { paintCarbFlows(); } catch (_) { /* ok */ }
     }
 
     function paintUfInletHint() {
@@ -18681,6 +18690,7 @@
     let __calcDocRef = null;
     let __setDoc = null;
     let __applyingRemote = false;
+    let __carbAutoDirty = false;
 
     function setSyncBar(text, kind) {
       const bar = el("syncBar");
@@ -18937,26 +18947,15 @@
           const imp = round1(Math.max(0, (qp19 > 0.05 ? qp19 : 0) - ias));
           rememberFlowSetpoint("qP11019Impianto", imp, { allowZero: true });
           sanitizeP11019SplitMem();
-          if (data.qCarbA != null || data.qCarbB != null) {
+          const hadCarb = data.qCarbA != null || data.qCarbB != null;
+          if (hadCarb) {
             rememberFlowSetpoint("qCarbA", Math.max(0, Math.round(Number(data.qCarbA) || 0)), { allowZero: true });
             rememberFlowSetpoint("qCarbB", Math.max(0, Math.round(Number(data.qCarbB) || 0)), { allowZero: true });
-            try { alignCarbCapsToImpianto(); } catch (_) { /* ok */ }
           } else {
-            try { equalizeCarbCaps(imp); } catch (_) { /* ok */ }
+            rememberFlowSetpoint("qCarbA", CARB_AUTO_CAP, { allowZero: true });
+            rememberFlowSetpoint("qCarbB", CARB_AUTO_CAP, { allowZero: true });
           }
-          const carbA0 = Math.round(Number(__flowSetpoint.qCarbA) || 0);
-          const carbB0 = Math.round(Number(__flowSetpoint.qCarbB) || 0);
-          const pump0 = Math.round(Number(__flowSetpoint.qP11019) || 0);
-          const ias0 = Math.round(Number(__flowSetpoint.qP11019Ias) || 0);
-          if (carbA0 === 70 && carbB0 === 70 && pump0 === 140 && ias0 === 0) {
-            rememberFlowSetpoint("qP11019", 100);
-            rememberFlowSetpoint("qP11019Ias", 0, { allowZero: true });
-            rememberFlowSetpoint("qP11019Impianto", 100, { allowZero: true });
-            rememberFlowSetpoint("qCarbA", 50, { allowZero: true });
-            rememberFlowSetpoint("qCarbB", 50, { allowZero: true });
-            const p19 = el("qP11019");
-            if (p19 && !isEditing("qP11019")) p19.value = "100";
-          }
+          applyCarbAutoCeiling();
         }
         if (data.sludgeAdj && typeof data.sludgeAdj === "object") {
           try { __sludgeAdj = normalizeSludgeAdj(data.sludgeAdj); } catch (_) { /* ok */ }
@@ -18991,6 +18990,10 @@
         if (lastQMandata > 0.05) __flowSetpoint.qMandata = lastQMandata;
       } finally {
         __applyingRemote = false;
+      }
+      if (__carbAutoDirty) {
+        __carbAutoDirty = false;
+        try { schedulePersist(); } catch (_) { /* ok */ }
       }
     }
 
