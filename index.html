@@ -2285,7 +2285,7 @@
 </head>
 <body>
   <header>
-    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v324</span><span id="wwtAdminMark" hidden>admin</span></h1>
+    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v325</span><span id="wwtAdminMark" hidden>admin</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -4209,6 +4209,32 @@
           </label>
         </div>
         <p class="mini" id="tk11021OsmHint">Marcia/arresto linee A–C sul livello TK 11021 · P11040 D sempre OFF.</p>
+        <h4 style="margin-top:12px">Concentrato osmosi (m³/h per linea in marcia)</h4>
+        <p class="mini">1° passo e 2° passo: modificabili anche nel popup Osmosi. Default 15 + 5.</p>
+        <div class="row">
+          <label><strong>Osmosi A · 1° passo</strong>
+            <input type="number" id="viewOsmConc1A" readonly tabindex="-1" placeholder="—" />
+          </label>
+          <label><strong>Osmosi A · 2° passo</strong>
+            <input type="number" id="viewOsmConc2A" readonly tabindex="-1" placeholder="—" />
+          </label>
+        </div>
+        <div class="row">
+          <label><strong>Osmosi B · 1° passo</strong>
+            <input type="number" id="viewOsmConc1B" readonly tabindex="-1" placeholder="—" />
+          </label>
+          <label><strong>Osmosi B · 2° passo</strong>
+            <input type="number" id="viewOsmConc2B" readonly tabindex="-1" placeholder="—" />
+          </label>
+        </div>
+        <div class="row">
+          <label><strong>Osmosi C · 1° passo</strong>
+            <input type="number" id="viewOsmConc1C" readonly tabindex="-1" placeholder="—" />
+          </label>
+          <label><strong>Osmosi C · 2° passo</strong>
+            <input type="number" id="viewOsmConc2C" readonly tabindex="-1" placeholder="—" />
+          </label>
+        </div>
       </div>
       <div class="actions"><button type="button" data-close>Applica</button></div>
     </div>
@@ -4238,7 +4264,7 @@
         <label><strong>DEMI (m³/h)</strong>
           <input type="number" id="qOsmosiDemi" class="tot-mem" readonly tabindex="-1" value="0" />
         </label>
-        <label class="osm-tot-conc"><strong>TOT. CONCENTRATO (m³/h)</strong>
+        <label class="osm-tot-conc"><strong>TOT. CONCENTRATO 1°+2° (m³/h)</strong>
           <input type="number" id="qOsmosiTotConc" class="tot-mem" readonly tabindex="-1" value="0" />
         </label>
       </div>
@@ -4270,8 +4296,13 @@
               <em class="osm-in-max">max 50</em>
             </span>
           </label>
-          <label><strong>Concentrato (m³/h)</strong>
-            <input type="number" id="qOsmosiConcA" readonly tabindex="-1" value="0" />
+        </div>
+        <div class="row">
+          <label><strong>Concentrato 1° passo (m³/h)</strong>
+            <input type="number" id="qOsmosiConcA" min="0" max="80" step="0.1" value="15" inputmode="decimal" />
+          </label>
+          <label><strong>Concentrato 2° passo (m³/h)</strong>
+            <input type="number" id="qOsmosiConc2A" min="0" max="80" step="0.1" value="5" inputmode="decimal" />
           </label>
         </div>
         <div class="row osm-lvl">
@@ -4310,8 +4341,13 @@
               <em class="osm-in-max">max 50</em>
             </span>
           </label>
-          <label><strong>Concentrato (m³/h)</strong>
-            <input type="number" id="qOsmosiConcB" readonly tabindex="-1" value="0" />
+        </div>
+        <div class="row">
+          <label><strong>Concentrato 1° passo (m³/h)</strong>
+            <input type="number" id="qOsmosiConcB" min="0" max="80" step="0.1" value="15" inputmode="decimal" />
+          </label>
+          <label><strong>Concentrato 2° passo (m³/h)</strong>
+            <input type="number" id="qOsmosiConc2B" min="0" max="80" step="0.1" value="5" inputmode="decimal" />
           </label>
         </div>
         <div class="row osm-lvl">
@@ -4350,8 +4386,13 @@
               <em class="osm-in-max">max 50</em>
             </span>
           </label>
-          <label><strong>Concentrato (m³/h)</strong>
-            <input type="number" id="qOsmosiConcC" readonly tabindex="-1" value="0" />
+        </div>
+        <div class="row">
+          <label><strong>Concentrato 1° passo (m³/h)</strong>
+            <input type="number" id="qOsmosiConcC" min="0" max="80" step="0.1" value="15" inputmode="decimal" />
+          </label>
+          <label><strong>Concentrato 2° passo (m³/h)</strong>
+            <input type="number" id="qOsmosiConc2C" min="0" max="80" step="0.1" value="5" inputmode="decimal" />
           </label>
         </div>
         <div class="row osm-lvl">
@@ -4708,7 +4749,7 @@
       "startSvuotOsmB", "stopSvuotOsmB",
       "startSvuotOsmC", "stopSvuotOsmC",
     ];
-    /** Ingresso minimo per linea in marcia (demi). Concentrato fisso = +15 → totale min 35. */
+    /** Ingresso minimo per linea in marcia (demi). Concentrato 1°+2° passo (default 15+5). */
     const OSM_IN_MIN = 20;
     /** 65 m³/h a linea, concentrato 15 compreso → l’acqua che si scrive non supera 50. */
     const OSM_IN_MAX = 50;
@@ -6945,7 +6986,7 @@
           if (!osmRunFc[L] || !osmLineEnabled(L)) return;
           let sp = Math.max(0, procSetpointOf("qOsmosi" + L) || 0);
           if (sp < 0.05) sp = Math.max(0, num("qOsmosi" + L) || 0);
-          if (sp > 0.05) q += (sp + osmConcFor(sp)) * scale;
+          if (sp > 0.05) q += (sp + osmConcFor(sp, L)) * scale;
         });
         return round1(q);
       }
@@ -11181,7 +11222,7 @@
           const id = "qOsmosi" + L;
           let sp = Math.max(0, procSetpointOf(id) || 0);
           if (sp < 0.05) sp = Math.max(0, num(id) || 0);
-          if (sp > 0.05) q += sp + osmConcFor(sp);
+          if (sp > 0.05) q += sp + osmConcFor(sp, L);
         });
       } catch (_) { /* ok */ }
       return round1(q);
@@ -11193,7 +11234,7 @@
       ["A", "B", "C"].forEach((L) => {
         if (!osmLineEnabled(L) || !plantIsStarted() || !osmLineFeeding(L)) return;
         const sp = Math.max(0, procSetpointOf("qOsmosi" + L) || 0);
-        if (sp > 0.05) c += osmConcFor(sp);
+        if (sp > 0.05) c += osmConcFor(sp, L);
       });
       return round1(c);
     }
@@ -13377,7 +13418,7 @@
       const qOsmUiOut = round1(qOsmUi + ["A", "B", "C"].reduce((c, L) => {
         if (!osmLineEnabled(L)) return c;
         const sp = Math.max(0, procSetpointOf("qOsmosi" + L) || 0);
-        return c + (sp > 0.05 ? osmConcFor(sp) : 0);
+        return c + (sp > 0.05 ? osmConcFor(sp, L) : 0);
       }, 0));
       const qUfUi = sumUfEffective();
       const rateUUi = estimateTk11021RatePctPerMin(qUfUi, qOsmUiOut);
@@ -15344,7 +15385,7 @@
         const spLine = Math.max(0, procSetpointOf("qOsmosi" + L));
         const concOn = osmLineEnabled(L) && spLine > 0.05;
         const concBias = stepOsmConcWander(L, dtSec, concOn && live);
-        const conc = concOn ? Math.max(0, OSM_CONC_FISSO + (live ? concBias : 0)) : 0;
+        const conc = concOn ? Math.max(0, osmConcFor(spLine, L) + (live ? concBias : 0)) : 0;
         osmConcShown += conc;
         const chip = el("svgOsmConc" + L);
         if (chip) chip.textContent = round1(conc).toFixed(1);
@@ -16221,12 +16262,45 @@
       try { paintUfCebPhaseTotals(); } catch (_) { /* ok */ }
     }
 
-    const OSM_CONC_FISSO = 15;
+    /** Concentrato 1° passo (default 15) e 2° passo (default 5) per linea — da PROCESSO / popup Osmosi. */
+    const OSM_CONC1_DEFAULT = 15;
+    const OSM_CONC2_DEFAULT = 5;
     const OSM_IDS = ["qOsmosiA", "qOsmosiB", "qOsmosiC"];
     const OSM_CONC_IDS = ["qOsmosiConcA", "qOsmosiConcB", "qOsmosiConcC"];
+    const OSM_CONC2_IDS = ["qOsmosiConc2A", "qOsmosiConc2B", "qOsmosiConc2C"];
 
-    function osmConcFor(qin) {
-      return qin > 0 ? OSM_CONC_FISSO : 0;
+    function osmConc1Set(letter) {
+      const L = String(letter || "A").toUpperCase();
+      const v = numOrNull("qOsmosiConc" + L);
+      if (v == null) return OSM_CONC1_DEFAULT;
+      return Math.max(0, round1(v));
+    }
+    function osmConc2Set(letter) {
+      const L = String(letter || "A").toUpperCase();
+      const v = numOrNull("qOsmosiConc2" + L);
+      if (v == null) return OSM_CONC2_DEFAULT;
+      return Math.max(0, round1(v));
+    }
+    /** Concentrato totale (1°+2° passo) quando c’è ingresso sulla linea. */
+    function osmConcFor(qin, letter) {
+      if (!(qin > 0)) return 0;
+      return round1(osmConc1Set(letter) + osmConc2Set(letter));
+    }
+    function ensureOsmConcDefaults() {
+      ["A", "B", "C"].forEach((L) => {
+        const n1 = el("qOsmosiConc" + L);
+        const n2 = el("qOsmosiConc2" + L);
+        if (n1 && (n1.value === "" || numOrNull("qOsmosiConc" + L) == null)) n1.value = String(OSM_CONC1_DEFAULT);
+        if (n2 && (n2.value === "" || numOrNull("qOsmosiConc2" + L) == null)) n2.value = String(OSM_CONC2_DEFAULT);
+      });
+    }
+    function paintOsmConcProcessViews() {
+      ["A", "B", "C"].forEach((L) => {
+        const v1 = el("viewOsmConc1" + L);
+        const v2 = el("viewOsmConc2" + L);
+        if (v1) v1.value = String(osmConc1Set(L));
+        if (v2) v2.value = String(osmConc2Set(L));
+      });
     }
 
     /** Somma setpoint ingressi osmosi abilitate (A+B+C). */
@@ -16350,8 +16424,10 @@
         if (!isEditing(id)) setVal(id, sp, { force: true });
         paintProcSetpointField(id);
         const qLive = osmQinEffective(L);
-        const concSp = osmConcFor(sp);
-        const concLive = osmConcFor(qLive);
+        const conc1 = osmConc1Set(L);
+        const conc2 = osmConc2Set(L);
+        const concSp = osmConcFor(sp, L);
+        const concLive = osmConcFor(qLive, L);
         if (osmLineEnabled(L)) {
           totDemiSp += sp;
           totDemiLive += qLive;
@@ -16364,10 +16440,17 @@
           svg.textContent = round1(sp).toFixed(1);
         }
         const chip = el("svgOsmConc" + L);
-        if (chip) chip.textContent = round1(osmLineEnabled(L) ? concSp : 0).toFixed(1);
+        if (chip) chip.textContent = round1(osmLineEnabled(L) && sp > 0.05 ? (conc1 + conc2) : 0).toFixed(1);
         const concNode = el(OSM_CONC_IDS[i]);
-        if (concNode && !isEditing(OSM_CONC_IDS[i])) concNode.value = String(round1(concSp));
+        const conc2Node = el(OSM_CONC2_IDS[i]);
+        if (concNode && !isEditing(OSM_CONC_IDS[i]) && (concNode.value === "" || numOrNull(OSM_CONC_IDS[i]) == null)) {
+          concNode.value = String(OSM_CONC1_DEFAULT);
+        }
+        if (conc2Node && !isEditing(OSM_CONC2_IDS[i]) && (conc2Node.value === "" || numOrNull(OSM_CONC2_IDS[i]) == null)) {
+          conc2Node.value = String(OSM_CONC2_DEFAULT);
+        }
       });
+      try { paintOsmConcProcessViews(); } catch (_) { /* ok */ }
       totDemiSp = round1(totDemiSp);
       totConcSp = round1(totConcSp);
       const totaleVis = round1(totDemiSp + totConcSp);
@@ -16463,6 +16546,7 @@
         const raw = String(src.value ?? "").trim();
         view.value = raw === "" ? "" : raw;
       });
+      try { paintOsmConcProcessViews(); } catch (_) { /* ok */ }
     }
 
     /** Stato pompe 11014: A11004 start/stop + blocco altissimo A10620 (con isteresi su H) */
@@ -18748,8 +18832,20 @@
       if (numOrNull("qOsmosiTotale") === null) setVal("qOsmosiTotale", 0, { force: true });
       syncOsm("osm-totale");
     });
-
-    /* —— Persistenza locale + cloud (Firestore) —— */
+    ["qOsmosiConcA", "qOsmosiConcB", "qOsmosiConcC", "qOsmosiConc2A", "qOsmosiConc2B", "qOsmosiConc2C"].forEach((id) => {
+      const node = el(id);
+      if (!node) return;
+      const onConc = () => {
+        const v = parseFloat(String(node.value ?? "").replace(",", "."));
+        if (Number.isFinite(v) && v < 0) node.value = "0";
+        try { syncOsmosiSvg(); } catch (_) { /* ok */ }
+        try { paintOsmConcProcessViews(); } catch (_) { /* ok */ }
+        try { schedulePersist(); } catch (_) { /* ok */ }
+      };
+      node.addEventListener("input", onConc);
+      node.addEventListener("change", onConc);
+    });
+    try { ensureOsmConcDefaults(); paintOsmConcProcessViews(); } catch (_) { /* ok */ }
     const LS_KEY = "calcolatorePortateBackup";
     const APP_ID = "stabile-2026-v4";
     const FIREBASE_CONFIG = {
@@ -18781,7 +18877,10 @@
       "startRiempA10611", "stopRiempA10611", "startSvuotA10611", "stopSvuotA10611",
       "stopAltoA10611", "ripartenzaP11011A10611",
       "startSvuotA11004", "stopSvuotA11004", "startSvuotMbr", "stopSvuotMbr",
-      "startRiempMbr", "stopRiempMbr", "startRiempTk11007", "stopRiempTk11007", "startSvuotTk11007", "stopSvuotTk11007", "startRiempTk11021", "stopRiempTk11021", "startSvuotOsmA", "stopSvuotOsmA", "startSvuotOsmB", "stopSvuotOsmB", "startSvuotOsmC", "stopSvuotOsmC", "startRicicloA10620", "stopRicicloA10620",
+      "startRiempMbr", "stopRiempMbr", "startRiempTk11007", "stopRiempTk11007", "startSvuotTk11007", "stopSvuotTk11007", "startRiempTk11021", "stopRiempTk11021", "startSvuotOsmA", "stopSvuotOsmA", "startSvuotOsmB", "stopSvuotOsmB", "startSvuotOsmC", "stopSvuotOsmC",
+      "qOsmosiConcA", "qOsmosiConcB", "qOsmosiConcC",
+      "qOsmosiConc2A", "qOsmosiConc2B", "qOsmosiConc2C",
+      "startRicicloA10620", "stopRicicloA10620",
       "regA10620L", "regA10620W", "regA10620H", "regA10620Vutile",
       "regTk10608D", "regTk10608Htot", "regTk10608Hutile", "regTk10608Vutile",
       "regA10611QinRef", "regA10611Hz11011", "regA10611Hz11036", "regA10611Min",
@@ -19124,6 +19223,7 @@
           };
         }
         try { paintBlocchiImproveUI(); } catch (_) { /* ok */ }
+        try { ensureOsmConcDefaults(); } catch (_) { /* ok */ }
         syncUf("uf-linea");
         paintUfSvgLive();
         syncOsmosiSvg();
