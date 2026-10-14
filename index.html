@@ -2285,7 +2285,7 @@
 </head>
 <body>
   <header>
-    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v326</span><span id="wwtAdminMark" hidden>admin</span></h1>
+    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v328</span><span id="wwtAdminMark" hidden>admin</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -2944,7 +2944,7 @@
         <!-- OSMOSI A B C — totali in alto · linea → misuratore → osmosi -->
         <g aria-label="Osmosi A B C">
           <text x="163" y="286" text-anchor="middle" fill="#bae6fd" font-size="9" font-weight="700">OSMOSI</text>
-          <!-- SET = somma ingressi (demi). TOTALE overview = acqua netta (demi − conc. 2°). Clic = solo SET. -->
+          <!-- SET = somma demi. TOTALE = prelievo TK-11021 (demi + conc. 1°). Clic = solo SET. -->
           <g class="flow-edit" data-field="qOsmosiTotale" data-source="osm-totale" aria-label="Totale osmosi">
             <rect class="badge" x="88" y="292" width="74" height="34" rx="5" stroke="#7dd3fc" />
             <text class="badge-label" x="125" y="304" text-anchor="middle">TOTALE</text>
@@ -13437,10 +13437,8 @@
           ? Math.max(permeateDemandOut(), linePermeateCapacity())
           : permeateDemandOut())
         : Math.max(0, num("qOsmosiDemi") || (num("qOsmosiA") + num("qOsmosiB") + num("qOsmosiC")));
-      // OUT TK-11021 = acqua netta (demi − conc. 2°); il 2° torna al TK (netto −product)
-      const qOsmUiOut = deviceAutoControlled("osmosi")
-        ? osmProductWaterStable()
-        : (osmProductWaterNow() > 0.05 ? osmProductWaterNow() : osmProductWaterStable());
+      // OUT TK-11021 = portata reale netta (0 a fermo); previsioni usano ancora osmExportCapacityStable
+      const qOsmUiOut = osmProductWaterNow();
       const qUfUi = sumUfEffective();
       const rateUUi = estimateTk11021RatePctPerMin(qUfUi, qOsmUiOut);
       paintTk11021UI(livUUi, rateUUi, !__allowUfByTk11021);
@@ -15410,9 +15408,8 @@
       });
       const svgOsmTot = el("svgQOsmTotale");
       if (svgOsmTot) {
-        // TOTALE a sinistra = acqua netta (demi − conc. 2°)
-        const prod = plantIsStarted() ? osmProductWaterNow() : osmProductWaterStable();
-        svgOsmTot.textContent = round1(prod).toFixed(1);
+        // TOTALE sopra osmosi = prelievo TK (demi + conc. 1°), non l’acqua demi a sinistra
+        svgOsmTot.textContent = round1(osmWithdrawFromTkShown()).toFixed(1);
       }
       try { paintOsmProductUI(); } catch (_) { /* ok */ }
 
@@ -16339,6 +16336,35 @@
       });
       return round1(q);
     }
+    /**
+     * Prelievo da TK-11021 (badge TOTALE sopra osmosi): demi + concentrato 1° passo.
+     * Il 2° passo non entra qui (torna al TK).
+     */
+    function osmWithdrawFromTkStable() {
+      let q = 0;
+      ["A", "B", "C"].forEach((L) => {
+        if (!osmLineEnabled(L)) return;
+        let sp = Math.max(0, procSetpointOf("qOsmosi" + L) || 0);
+        if (sp < 0.05) sp = Math.max(0, num("qOsmosi" + L) || 0);
+        if (sp > 0.05) q += sp + osmConc1Set(L);
+      });
+      return round1(q);
+    }
+    function osmWithdrawFromTkNow() {
+      let q = 0;
+      ["A", "B", "C"].forEach((L) => {
+        if (!osmLineEnabled(L) || !plantIsStarted() || !osmLineFeeding(L)) return;
+        const qin = osmQinEffective(L);
+        if (qin > 0.05) q += qin + osmConc1Set(L);
+      });
+      return round1(q);
+    }
+    /** Badge TOTALE sopra: in marcia con portata usa il vivo, altrimenti il set (demi+1°). */
+    function osmWithdrawFromTkShown() {
+      const live = osmWithdrawFromTkNow();
+      if (plantIsStarted() && live > 0.05) return live;
+      return osmWithdrawFromTkStable();
+    }
     /** Concentrato 2° passo che torna al TK-11021 (linee in marcia). */
     function osmConc2ReturnNow() {
       let c = 0;
@@ -16368,12 +16394,15 @@
       const dt = Math.max(0, Number(dtMin) || 0);
       if (dt < 1e-9) return;
       if (!plantIsStarted()) return;
-      __osmProdM3 += osmProductWaterNow() * (dt / 60);
+      const q = osmProductWaterNow();
+      if (q < 0.05) return; // niente m³ finché non c’è portata reale in uscita
+      __osmProdM3 += q * (dt / 60);
       if (!Number.isFinite(__osmProdM3) || __osmProdM3 < 0) __osmProdM3 = 0;
     }
     function paintOsmProductUI() {
-      const qProd = plantIsStarted() ? osmProductWaterNow() : osmProductWaterStable();
-      const qRet = plantIsStarted() ? osmConc2ReturnNow() : osmConc2ReturnStable();
+      // Misuratore reale: 0 a impianto fermo / senza portata; conta solo acqua che arriva in marcia
+      const qProd = osmProductWaterNow();
+      const qRet = osmConc2ReturnNow();
       const nProd = el("svgQOsmProd");
       if (nProd) nProd.textContent = round1(qProd).toFixed(1);
       const nRet = el("svgQOsmConc2Ret");
@@ -16544,10 +16573,9 @@
       try { paintOsmConcProcessViews(); } catch (_) { /* ok */ }
       totDemiSp = round1(totDemiSp);
       totConcSp = round1(totConcSp);
-      const totProd = plantIsStarted() ? osmProductWaterNow() : osmProductWaterStable();
       const totSvg = el("svgQOsmTotale");
-      // TOTALE overview = acqua netta (demi − conc. 2°), non più demi+concentrati
-      if (totSvg) totSvg.textContent = round1(totProd).toFixed(1);
+      // TOTALE sopra = demi + conc. 1° (prelievo TK-11021). ACQUA a sinistra = prodotto netto.
+      if (totSvg) totSvg.textContent = round1(osmWithdrawFromTkShown()).toFixed(1);
       const totSpSvg = el("svgQOsmTotaleSp");
       if (totSpSvg) totSpSvg.textContent = totDemiSp.toFixed(1);
       if (!isEditing("qOsmosiTotale")) {
