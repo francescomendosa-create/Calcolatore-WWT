@@ -2285,7 +2285,7 @@
 </head>
 <body>
   <header>
-    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v334</span><span id="wwtAdminMark" hidden>admin</span></h1>
+    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v335</span><span id="wwtAdminMark" hidden>admin</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -6964,8 +6964,7 @@
       let allowUf = opts.allowUf != null ? !!opts.allowUf : (__allowUfByTk11021 !== false);
       let runP19By07 = opts.runP19 != null ? !!opts.runP19 : (__runP11019By07 !== false);
       let runMbrByLevel = opts.runMbrByLevel != null ? !!opts.runMbrByLevel : (__runMbrByLevel !== false);
-      // Export che tiene la valle = set osmosi. I carboni/UF sono l'ingresso del TK 11021, non l'uscita.
-      // Un set osmosi basso non si nasconde dietro una portata carboni alta.
+      // Export valle = TOTALE osmosi (demi + conc. 1°). Carboni/UF = ingresso TK 11021, non l'uscita.
       const ufBwFrac = 1;
       const qUfNom = round1(Math.max(0, qPassSp) * ufBwFrac);
       const cebFc = ufCebForecastInit();
@@ -11267,21 +11266,11 @@
     }
 
     /**
-     * Uscita osmosi STABILE (acqua netta prodotta): demi − concentrato 2° passo.
-     * Il 1° passo non è nel demi; il 2° torna al TK-11021 e si toglie dall’acqua.
+     * Capacità valle / “osmosi vs chimico”: TOTALE overview = demi + concentrato 1° passo
+     * (= mandata P11040 / prelievo TK-11021). NON usare l’acqua demi netta (demi − 2°).
      */
     function osmExportCapacityStable() {
-      let q = 0;
-      try {
-        ["A", "B", "C"].forEach((L) => {
-          if (!osmLineEnabled(L)) return;
-          const id = "qOsmosi" + L;
-          let sp = Math.max(0, procSetpointOf(id) || 0);
-          if (sp < 0.05) sp = Math.max(0, num(id) || 0);
-          q += osmProductOf(sp, L);
-        });
-      } catch (_) { /* ok */ }
-      return round1(q);
+      return osmWithdrawFromTkStable();
     }
 
     /** Concentrato 1° passo che esce (non torna al TK). */
@@ -11295,7 +11284,7 @@
       return round1(c);
     }
 
-    /** Previsione: solo il set comandato. La misura viva non deve nascondere un set appena abbassato. */
+    /** Previsione / barra Male-Bene: stesso TOTALE (demi + conc. 1°). */
     function osmExportForForecast() {
       return osmExportCapacityStable();
     }
