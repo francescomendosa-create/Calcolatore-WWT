@@ -2248,7 +2248,7 @@
 </head>
 <body>
   <header>
-    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v319</span><span id="wwtAdminMark" hidden>admin</span></h1>
+    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v320</span><span id="wwtAdminMark" hidden>admin</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -4433,7 +4433,7 @@
         <small>da TK 11007 · verso carboni / IAS</small>
       </button>
       <label><strong>Set portata pompe P11019 (m³/h)</strong>
-        <input type="number" id="qP11019" min="0" max="170" step="1" value="140" inputmode="decimal" />
+        <input type="number" id="qP11019" min="0" max="170" step="1" value="100" inputmode="decimal" />
       </label>
       <p class="mini">Set pompe: <strong>0–170 m³/h</strong> (max 170). Puoi scendere a piacere (es. 60) <strong>senza aprire IAS</strong>: Impianto = set pompe. IAS si apre solo se lo imposti tu e si sottrae dal set (Impianto = set − IAS). Overview = portata <strong>→ carboni</strong> + badge <strong>IAS</strong> a destra (non il totale pompe).</p>
 
@@ -4567,7 +4567,7 @@
     /** Scarico MBR → A11004: frazione dell’eccesso (mandata − permeato). Was 0.90→0.85; step soft 0.80 → meno verso 11004, più ritenzione MBR. */
     const MBR_SCARICO_TO_H_FRAC = 1;
     const MBR_RETAIN_FRAC = 1 - MBR_SCARICO_TO_H_FRAC;
-    const Q_P11019_DEFAULT = 140; // avvio / set vuoto
+    const Q_P11019_DEFAULT = 100; // avvio: carboni 50 + 50
     const Q_P11019_MAX = 170;     // tetto set pompe (non si supera)
     const UF_WASH_INLET_LEAK = 5; // m³/h in più su ogni valvola UF rimasta aperta, a valvola d’ingresso chiusa
     /** @deprecated alias di Q_P11019_DEFAULT (retrocompat) */
@@ -4598,7 +4598,7 @@
     const __flowLive = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 140 };
     const __flowDesire = { qPump: 334, qMandata: 334, qRecycle: 170.8, qP11019: 140 };
     /** Setpoint comando (popup modifica): resta anche a pompe ferme / portata viva = 0. */
-    const __flowSetpoint = { qPump: 345, qMandata: 345, qRecycle: 170.8, qP11019: 140, qP11019Ias: 0, qP11019Impianto: 140, qCarbA: 70, qCarbB: 70 };
+    const __flowSetpoint = { qPump: 345, qMandata: 345, qRecycle: 170.8, qP11019: 100, qP11019Ias: 0, qP11019Impianto: 100, qCarbA: 50, qCarbB: 50 };
     let __inlineSuppressLive = false; // non applicare 0 mentre si apre il tastierino
     /** Setpoint UF / osmosi (popup): restano anche a linee ferme / portata viva = 0. */
     const __procSetpoint = {
@@ -18911,6 +18911,19 @@
             try { alignCarbCapsToImpianto(); } catch (_) { /* ok */ }
           } else {
             try { equalizeCarbCaps(imp); } catch (_) { /* ok */ }
+          }
+          const carbA0 = Math.round(Number(__flowSetpoint.qCarbA) || 0);
+          const carbB0 = Math.round(Number(__flowSetpoint.qCarbB) || 0);
+          const pump0 = Math.round(Number(__flowSetpoint.qP11019) || 0);
+          const ias0 = Math.round(Number(__flowSetpoint.qP11019Ias) || 0);
+          if (carbA0 === 70 && carbB0 === 70 && pump0 === 140 && ias0 === 0) {
+            rememberFlowSetpoint("qP11019", 100);
+            rememberFlowSetpoint("qP11019Ias", 0, { allowZero: true });
+            rememberFlowSetpoint("qP11019Impianto", 100, { allowZero: true });
+            rememberFlowSetpoint("qCarbA", 50, { allowZero: true });
+            rememberFlowSetpoint("qCarbB", 50, { allowZero: true });
+            const p19 = el("qP11019");
+            if (p19 && !isEditing("qP11019")) p19.value = "100";
           }
         }
         if (data.sludgeAdj && typeof data.sludgeAdj === "object") {
