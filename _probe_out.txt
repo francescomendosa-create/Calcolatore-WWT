@@ -1,0 +1,1 @@
+{"only":{"uf":"","ufH":true,"carb":"Filtri a carbone A: Controlavaggio","carbH":false,"stack":false,"active":true},"both":{"uf":"Ultrafiltrazione A: Lavaggio backwash","carb":"Filtri a carbone A: Controlavaggio","stack":true}}

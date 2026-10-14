@@ -165,6 +165,19 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
+    .sim-wash-line {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sim-wash.is-stack {
+      white-space: normal;
+      line-height: 1.15;
+      padding: 2px 10px 3px;
+    }
+    .sim-wash.is-stack .sim-wash-line + .sim-wash-line {
+      margin-top: 1px;
+    }
     .sim-wash.is-idle {
       visibility: hidden;
       border-color: transparent;
@@ -2128,7 +2141,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v308</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v309</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -2152,7 +2165,10 @@
         <button type="button" id="btnModeAuto" class="is-on" aria-pressed="true">Automatico</button>
         <button type="button" id="btnModeManual" aria-pressed="false">Manuale</button>
       </div>
-      <div class="sim-wash is-idle" id="simWashBanner" aria-live="polite" title="Lavaggio ultrafiltrazione in corso"></div>
+      <div class="sim-wash is-idle" id="simWashBanner" aria-live="polite" title="Lavaggi in corso">
+        <div class="sim-wash-line" id="simWashUf"></div>
+        <div class="sim-wash-line" id="simWashCarb" hidden></div>
+      </div>
       <div class="sim-time" title="1 secondo reale = 1 minuto di impianto">
         <button type="button" id="simPlayToggle" class="is-start" aria-label="Avvia simulazione" aria-pressed="false">Start</button>
         <span class="sim-label">Time</span>
@@ -14861,6 +14877,7 @@
           : `Impianto ${qIn.toFixed(1)} m³/h · nessun lavaggio · verso UF ${toUf.toFixed(1)} m³/h`;
       }
       try { paintCarbFlows(); } catch (_) { /* ok */ }
+      try { paintUfHeadWash(); } catch (_) { /* ok */ }
     }
     function focusCarbRow(letter) {
       const L = String(letter || "").toUpperCase();
@@ -15667,19 +15684,49 @@
       });
 
       const text = parts.join(" · ");
-      const idle = !parts.length;
+      const idleUf = !parts.length;
+      let carbText = "";
+      try {
+        if (go && typeof CARB_LINES !== "undefined") {
+          const carbParts = [];
+          CARB_LINES.forEach((L) => {
+            const st = __carbWash && __carbWash[L];
+            if (!st || (st.phase !== "ctrl" && st.phase !== "lav")) return;
+            const paused = typeof carbPumpsPushing === "function" && !carbPumpsPushing();
+            const name = st.phase === "ctrl" ? "Controlavaggio" : "Lavaggio";
+            carbParts.push(`Filtri a carbone ${L}: ${name}${paused ? " in pausa" : ""}`);
+          });
+          carbText = carbParts.join(" · ");
+        }
+      } catch (_) { carbText = ""; }
 
       const pop = el("ufHeadWash");
       if (pop) {
-        pop.textContent = idle ? "Nessun lavaggio" : text;
-        pop.classList.toggle("is-idle", idle);
+        pop.textContent = idleUf ? "Nessun lavaggio" : text;
+        pop.classList.toggle("is-idle", idleUf);
       }
       const ban = el("simWashBanner");
+      const ufLine = el("simWashUf");
+      const carbLine = el("simWashCarb");
       if (ban) {
-        ban.textContent = text;
+        const stacked = !idleUf && !!carbText;
+        if (ufLine) {
+          ufLine.textContent = text;
+          ufLine.hidden = idleUf;
+        } else {
+          ban.textContent = carbText || text;
+        }
+        if (carbLine) {
+          carbLine.textContent = carbText;
+          carbLine.hidden = !carbText;
+        }
+        const idle = idleUf && !carbText;
         ban.classList.toggle("is-idle", idle);
         ban.classList.toggle("is-active", !idle);
-        ban.title = idle ? "Nessun lavaggio ultrafiltrazione in corso" : text;
+        ban.classList.toggle("is-stack", stacked);
+        ban.title = idle
+          ? "Nessun lavaggio in corso"
+          : [text, carbText].filter(Boolean).join(" · ");
       }
     }
 
