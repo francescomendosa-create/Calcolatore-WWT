@@ -2285,7 +2285,7 @@
 </head>
 <body>
   <header>
-    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v333</span><span id="wwtAdminMark" hidden>admin</span></h1>
+    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v334</span><span id="wwtAdminMark" hidden>admin</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -19021,7 +19021,7 @@
       appId: "1:844169156848:web:91b6c4e08900a350078a35",
     };
     const PERSIST_IDS = [
-      "qIn", "chimicoPausaMin", "chimicoRiavvioMin", "qPump", "qMandata", "qMemTotale", "qUfTotale", "qP11019", "qP11019Ias",
+      "qIn", "chimicoPausaMin", "chimicoRiavvioMin", "qPump", "qMandata", "qRecycle", "qMemTotale", "qUfTotale", "qP11019", "qP11019Ias",
       "qOsmosiA", "qOsmosiB", "qOsmosiC",
       "ufLavoroMinA", "ufLavoroMinB", "ufLavoroMinC", "ufLavoroMinD",
       "ufLavaggioSecA", "ufLavaggioSecB", "ufLavaggioSecC", "ufLavaggioSecD",
@@ -19066,7 +19066,7 @@
     UF_CHEM_PHASES.forEach((p) => PERSIST_IDS.push(ufCebPhaseInputId(p.id)));
     /** Portate e modi di marcia: solo su questo dispositivo, non nel cloud. */
     const FLOW_LOCAL_IDS = [
-      "qIn", "qPump", "qMandata", "qMemTotale", "qUfTotale", "qP11019", "qP11019Ias",
+      "qIn", "qPump", "qMandata", "qRecycle", "qMemTotale", "qUfTotale", "qP11019", "qP11019Ias",
       "qOsmosiA", "qOsmosiB", "qOsmosiC",
       "freqHz", "freqMaxHz", "freqHzMand", "freqMaxHzMand",
     ];
@@ -19348,6 +19348,12 @@
           const qm = Math.max(0, num("qMandata") || lastQMandata || __flowSetpoint.qMandata || 0);
           if (qp > 0.05) rememberFlowSetpoint("qPump", qp);
           if (qm > 0.05) rememberFlowSetpoint("qMandata", qm);
+          // Riciclo fanghi 11014: in Manuale resta il valore salvato; in Auto il bilancio lo ricalcola
+          const qr = Math.max(0, Math.round(num("qRecycle") || Number(__flowSetpoint.qRecycle) || 0));
+          if (qr > 0.05 || deviceIsManual("riciclo")) {
+            rememberFlowSetpoint("qRecycle", qr, { allowZero: true });
+            if (el("qRecycle") && deviceIsManual("riciclo")) setVal("qRecycle", qr, { force: true });
+          }
           const qp19 = clampP11019Set(num("qP11019") || __flowSetpoint.qP11019 || Q_P11019_DEFAULT);
           if (qp19 >= 0) rememberFlowSetpoint("qP11019", qp19);
           let ias = Math.max(0, num("qP11019Ias") || Number(data.qP11019Ias) || 0);
@@ -19393,6 +19399,16 @@
         syncOsmosiSvg();
         paintCarbWashUI();
         applyBalance("ingresso");
+        // Manuale riciclo fanghi: applyBalance non deve aver perso il valore salvato
+        if (!fromRemote && deviceIsManual("riciclo")) {
+          const qrKeep = Math.max(0, Math.round(Number(__flowSetpoint.qRecycle) || num("qRecycle") || 0));
+          rememberFlowSetpoint("qRecycle", qrKeep, { allowZero: true });
+          if (el("qRecycle")) setVal("qRecycle", qrKeep, { force: true });
+          const svgQRec = el("svgQRec");
+          if (svgQRec) svgQRec.textContent = String(Math.round(qrKeep));
+          const svgQRecSp = el("svgQRecSp");
+          if (svgQRecSp) svgQRecSp.textContent = String(Math.round(qrKeep));
+        }
         refreshProcViews();
         snapFlowLiveFromFields();
         // Se pompe ferme, ripristina i setpoint “ricordo” (la viva può essere 0)
