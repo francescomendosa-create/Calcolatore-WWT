@@ -2223,7 +2223,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v316</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v317</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -4058,11 +4058,8 @@
       <label><strong>TOTALE UF (m³/h)</strong>
         <input type="number" id="qUfTotale" class="tot-mem" min="0" max="500" step="0.1" value="0" />
       </label>
-      <p class="mini">Quattro ingressi A–D. La somma = totale. Variando il totale si ripartiscono in modo uguale sulle <strong>abilitate</strong>; variando una linea si aggiorna il totale.</p>
-      <p class="mini">Apertura valvola da REGOLAZIONI: % ≈ set ÷ Q@100% (default <strong>65 m³/h</strong> a 100%). Schema = portata <strong>misurata</strong> (non il set): se dai carboni arriva meno del totale set, valvola → 100% e la misura resta sulla quota d’acqua.</p>
+      <div id="ufCebTimes"></div>
       <p class="mini" id="ufInletHint">Ingresso carboni→UF vs set linee…</p>
-      <p class="mini">Clicca una UF sullo schema: il popup si posiziona su quella linea. <strong>Disabilita</strong> la spegne (rossa). Tap sul disegno nel popup = Abilita/Disabilita. In overview: tieni premuto ½ s.</p>
-      <p class="mini">Ogni UF: <strong>tempo di lavoro per lavaggio backwash</strong> (default 20′) poi backwash (default 190 s ferma), <strong>sfalsati</strong>. Poi i grandi lavaggi <strong>CEB</strong> (ipoclorito 21 h, soda 23 h, acido 24 h). La durata è la somma dei <strong>tempi di lavaggio CEB</strong> in fondo a ogni UF (targa 16′ 50″) e <strong>quella UF resta ferma</strong>. I timer <strong>scorrono sempre</strong> (anche senza acqua) e possono andare <strong>in negativo</strong>: al ritorno della portata si lava prima chi è in ritardo da più tempo, poi le altre in sequenza. In lavaggio la viva va a 0; il setpoint resta.</p>
       <div id="ufInputs"></div>
       <div class="settings-block show" style="margin-top:10px">
         <h4>TK 11021 — permeato UF (da PROCESSO)</h4>
@@ -14420,32 +14417,29 @@
       { id: "basso2", label: "Tempo di controlavaggio basso 2", short: "Controlavaggio basso 2", sec: 40, unit: "s" },
       { id: "finale", label: "Tempo di lavaggio finale", short: "Lavaggio finale", sec: 120, unit: "s" },
     ];
-    function ufCebPhaseInputId(phaseId, letter) {
-      return "ufCebPh_" + phaseId + "_" + String(letter || "A").toUpperCase();
+    function ufCebPhaseInputId(phaseId) {
+      return "ufCebPh_" + phaseId;
     }
-    /** Secondi della fase per quella UF. Campo assente = targa. */
-    function ufCebPhaseSec(phaseId, letter) {
+    /** Secondi della fase, uguali per tutte le UF. Campo assente = targa. */
+    function ufCebPhaseSec(phaseId) {
       const p = UF_CHEM_PHASES.find((x) => x.id === phaseId);
       if (!p) return 0;
-      const node = el(ufCebPhaseInputId(phaseId, letter));
+      const node = el(ufCebPhaseInputId(phaseId));
       if (!node) return p.sec;
       const raw = numOrNull(node.id);
       if (raw == null || raw < 0) return p.sec;
       return p.unit === "m" ? raw * 60 : raw;
     }
-    function ufChemWashSec(letter) {
-      const L = String(letter || "A").toUpperCase();
-      const sum = UF_CHEM_PHASES.reduce((s, p) => s + ufCebPhaseSec(p.id, L), 0);
+    function ufChemWashSec() {
+      const sum = UF_CHEM_PHASES.reduce((s, p) => s + ufCebPhaseSec(p.id), 0);
       return Math.max(1, sum);
     }
     function paintUfCebPhaseTotals() {
-      UF_LINES.forEach((L) => {
-        const tot = fmtRemainSec(ufChemWashSec(L));
-        const sum = el("ufCebSum" + L);
-        if (sum) sum.textContent = "· " + tot;
-        const line = el("ufCebTot" + L);
-        if (line) line.textContent = "Totale lavaggio CEB " + tot;
-      });
+      const tot = fmtRemainSec(ufChemWashSec());
+      const sum = el("ufCebSum");
+      if (sum) sum.textContent = "· " + tot;
+      const line = el("ufCebTot");
+      if (line) line.textContent = "Totale lavaggio CEB " + tot;
     }
     function ufChemKindMeta(kind) {
       return UF_CHEM_KINDS.find((k) => k.id === kind) || null;
@@ -16047,77 +16041,83 @@
         st.style.color = "var(--ok)";
         box.appendChild(st);
 
-        const fold = document.createElement("details");
-        fold.className = "carb-fold uf-ceb-fold";
-        const sumBtn = document.createElement("summary");
-        sumBtn.innerHTML = `Tempi di lavaggio CEB <span id="ufCebSum${m}"></span>`;
-        fold.appendChild(sumBtn);
-        UF_CHEM_PHASES.forEach((p) => {
-          const row = document.createElement("div");
-          row.className = "uf-ceb-time";
-          const title = document.createElement("strong");
-          title.textContent = p.label;
-          const val = document.createElement("span");
-          val.className = "uf-ceb-val";
-          const inp = document.createElement("input");
-          inp.type = "number";
-          inp.id = ufCebPhaseInputId(p.id, m);
-          inp.min = "0";
-          inp.max = p.unit === "m" ? "180" : "3600";
-          inp.step = p.unit === "m" ? "0.1" : "1";
-          inp.value = String(p.unit === "m" ? p.sec / 60 : p.sec);
-          inp.inputMode = "decimal";
-          const unit = document.createElement("em");
-          unit.textContent = p.unit + ".";
-          const steps = document.createElement("span");
-          steps.className = "uf-ceb-step";
-          const mkStep = (dir, sign) => {
-            const b = document.createElement("button");
-            b.type = "button";
-            b.textContent = sign;
-            b.title = dir > 0 ? "Aumenta" : "Diminuisci";
-            b.addEventListener("click", (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              const cur = parseFloat(inp.value);
-              const base = Number.isFinite(cur) ? cur : 0;
-              const next = Math.min(Number(inp.max), Math.max(0, base + dir));
-              inp.value = p.unit === "m"
-                ? String(Math.round(next * 10) / 10)
-                : String(Math.round(next));
-              inp.dispatchEvent(new Event("input", { bubbles: true }));
-            });
-            return b;
-          };
-          steps.appendChild(mkStep(1, "▲"));
-          steps.appendChild(mkStep(-1, "▼"));
-          val.appendChild(inp);
-          val.appendChild(unit);
-          val.appendChild(steps);
-          row.appendChild(title);
-          row.appendChild(val);
-          fold.appendChild(row);
-        });
-        const tot = document.createElement("p");
-        tot.className = "mini uf-ceb-tot";
-        tot.id = "ufCebTot" + m;
-        fold.appendChild(tot);
-        const note = document.createElement("p");
-        note.className = "mini";
-        note.textContent = "Stessi passi per ipoclorito, soda e acido di questa UF. Se cambi un tempo, il lavaggio usa quello.";
-        fold.appendChild(note);
-        box.appendChild(fold);
-        fold.querySelectorAll("input").forEach((inp) => {
-          inp.addEventListener("input", () => {
-            paintUfCebPhaseTotals();
-            schedulePersist();
-            try { noteValleySetChanged(); } catch (_) { /* ok */ }
-          });
-        });
-
         wrap.appendChild(box);
       });
       bindUfEnableUi();
+      try { buildUfCebTimes(); } catch (_) { /* ok */ }
+    }
+
+    function buildUfCebTimes() {
+      const host = el("ufCebTimes");
+      if (!host || host.dataset.ready === "1") return;
+      host.dataset.ready = "1";
+      const fold = document.createElement("details");
+      fold.className = "carb-fold uf-ceb-fold";
+      const sumBtn = document.createElement("summary");
+      sumBtn.innerHTML = `Tempi di lavaggio CEB <span id="ufCebSum"></span>`;
+      fold.appendChild(sumBtn);
+      UF_CHEM_PHASES.forEach((p) => {
+        const row = document.createElement("div");
+        row.className = "uf-ceb-time";
+        const title = document.createElement("strong");
+        title.textContent = p.label;
+        const val = document.createElement("span");
+        val.className = "uf-ceb-val";
+        const inp = document.createElement("input");
+        inp.type = "number";
+        inp.id = ufCebPhaseInputId(p.id);
+        inp.min = "0";
+        inp.max = p.unit === "m" ? "180" : "3600";
+        inp.step = p.unit === "m" ? "0.1" : "1";
+        inp.value = String(p.unit === "m" ? p.sec / 60 : p.sec);
+        inp.inputMode = "decimal";
+        const unit = document.createElement("em");
+        unit.textContent = p.unit + ".";
+        const steps = document.createElement("span");
+        steps.className = "uf-ceb-step";
+        const mkStep = (dir, sign) => {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.textContent = sign;
+          b.title = dir > 0 ? "Aumenta" : "Diminuisci";
+          b.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const cur = parseFloat(inp.value);
+            const base = Number.isFinite(cur) ? cur : 0;
+            const next = Math.min(Number(inp.max), Math.max(0, base + dir));
+            inp.value = p.unit === "m"
+              ? String(Math.round(next * 10) / 10)
+              : String(Math.round(next));
+            inp.dispatchEvent(new Event("input", { bubbles: true }));
+          });
+          return b;
+        };
+        steps.appendChild(mkStep(1, "▲"));
+        steps.appendChild(mkStep(-1, "▼"));
+        val.appendChild(inp);
+        val.appendChild(unit);
+        val.appendChild(steps);
+        row.appendChild(title);
+        row.appendChild(val);
+        fold.appendChild(row);
+      });
+      const tot = document.createElement("p");
+      tot.className = "mini uf-ceb-tot";
+      tot.id = "ufCebTot";
+      fold.appendChild(tot);
+      const note = document.createElement("p");
+      note.className = "mini";
+      note.textContent = "Uguali per tutte le ultrafiltrazioni: ipoclorito, soda e acido. Se cambi un tempo, il lavaggio usa quello.";
+      fold.appendChild(note);
+      host.appendChild(fold);
+      fold.querySelectorAll("input").forEach((inp) => {
+        inp.addEventListener("input", () => {
+          paintUfCebPhaseTotals();
+          schedulePersist();
+          try { noteValleySetChanged(); } catch (_) { /* ok */ }
+        });
+      });
       try { paintUfCebPhaseTotals(); } catch (_) { /* ok */ }
     }
 
@@ -18602,9 +18602,7 @@
       "livelloAttualeTk11007",
       "livelloAttualeTk11021",
     ];
-    UF_LINES.forEach((L) => {
-      UF_CHEM_PHASES.forEach((p) => PERSIST_IDS.push(ufCebPhaseInputId(p.id, L)));
-    });
+    UF_CHEM_PHASES.forEach((p) => PERSIST_IDS.push(ufCebPhaseInputId(p.id)));
     let __calcSyncRevision = 0;
     let __appliedCalcSyncRevision = 0;
     let __persistTimer = null;
@@ -18733,6 +18731,13 @@
           if (data[id] == null || data[id] === "") return;
           const node = el(id);
           if (node) node.value = String(data[id]);
+        });
+        UF_CHEM_PHASES.forEach((p) => {
+          const id = ufCebPhaseInputId(p.id);
+          if (data[id] != null && data[id] !== "") return;
+          const legacy = data[id + "_A"];
+          const node = el(id);
+          if (node && legacy != null && legacy !== "") node.value = String(legacy);
         });
         try { paintUfCebPhaseTotals(); } catch (_) { /* ok */ }
         // Targa: TK-11007 e TK-11021 = 30 m³ (annulla valori inventati 15.4 / 11.7)
