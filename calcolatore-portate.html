@@ -2140,7 +2140,7 @@
 </head>
 <body>
   <header>
-    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v311</span></h1>
+    <h1>Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v312</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -15691,7 +15691,9 @@
             if (!st || (st.phase !== "ctrl" && st.phase !== "lav")) return;
             const paused = typeof carbPumpsPushing === "function" && !carbPumpsPushing();
             const name = st.phase === "ctrl" ? "Controlavaggio" : "Lavaggio";
-            carbParts.push(`Filtri a carbone ${L}: ${name}${paused ? " in pausa" : ""}`);
+            const dur = st.phase === "ctrl" ? carbCtrlMin(L) : carbLavMin(L);
+            const left = Math.max(0, Math.ceil((dur - (Number(st.elapsedMin) || 0)) * 60));
+            carbParts.push(`Filtri a carbone ${L}: ${name}${paused ? " in pausa" : ""} · restano ${fmtRemainSec(left)}`);
           });
           carbText = carbParts.join(" · ");
         }
