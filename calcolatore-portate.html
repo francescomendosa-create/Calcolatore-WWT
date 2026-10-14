@@ -2285,7 +2285,7 @@
 </head>
 <body>
   <header>
-    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v325</span><span id="wwtAdminMark" hidden>admin</span></h1>
+    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v326</span><span id="wwtAdminMark" hidden>admin</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -2944,7 +2944,7 @@
         <!-- OSMOSI A B C — totali in alto · linea → misuratore → osmosi -->
         <g aria-label="Osmosi A B C">
           <text x="163" y="286" text-anchor="middle" fill="#bae6fd" font-size="9" font-weight="700">OSMOSI</text>
-          <!-- SET = somma ingressi. TOTALE = ingressi + concentrato. Il clic, su entrambi, modifica solo il SET. -->
+          <!-- SET = somma ingressi (demi). TOTALE overview = acqua netta (demi − conc. 2°). Clic = solo SET. -->
           <g class="flow-edit" data-field="qOsmosiTotale" data-source="osm-totale" aria-label="Totale osmosi">
             <rect class="badge" x="88" y="292" width="74" height="34" rx="5" stroke="#7dd3fc" />
             <text class="badge-label" x="125" y="304" text-anchor="middle">TOTALE</text>
@@ -3053,6 +3053,29 @@
           </g>
 
           <path class="pipe pipe-main" data-flow="osm" d="M90 415 H40" stroke-dasharray="6 5" opacity="0.65" />
+
+          <!-- Acqua netta prodotta (demi − concentrato 2° passo) + totalizzatore m³ -->
+          <g id="svgOsmProdGroup" pointer-events="none" aria-label="Acqua prodotta osmosi">
+            <rect x="4" y="352" width="72" height="30" rx="5" fill="#0f172a" stroke="#86efac" stroke-width="1.2" />
+            <text x="40" y="363" text-anchor="middle" fill="#a7f3d0" font-size="7" font-weight="800">Σ ACQUA</text>
+            <text id="svgOsmProdTot" x="28" y="376" text-anchor="middle" fill="#ecfdf5" font-size="10" font-weight="800">0.0</text>
+            <text x="56" y="376" text-anchor="middle" fill="#86efac" font-size="7" font-weight="700">m³</text>
+            <rect class="badge" x="4" y="388" width="72" height="34" rx="5" stroke="#4ade80" />
+            <text class="badge-label" x="40" y="400" text-anchor="middle" fill="#bbf7d0">ACQUA</text>
+            <text class="badge-val" x="28" y="414" text-anchor="middle" id="svgQOsmProd" fill="#ecfdf5">0.0</text>
+            <text class="badge-unit" x="56" y="414" text-anchor="middle" fill="#86efac">m³/h</text>
+          </g>
+
+          <!-- Ritorno concentrato 2° passo → TK-11021 (collettore sotto le osmosi) -->
+          <g id="svgOsmConc2RetGroup" pointer-events="none" aria-label="Ritorno concentrato 2 passo a TK 11021">
+            <path d="M86 348 H70 M86 415 H70 M86 482 H70" stroke="#fbbf24" stroke-width="1.05" fill="none" opacity="0.9" stroke-linecap="round" />
+            <path d="M70 348 V528 H452 V470" stroke="#fbbf24" stroke-width="1.15" fill="none" opacity="0.9" stroke-linecap="round" stroke-linejoin="round" />
+            <polygon points="448,470 456,470 452,460" fill="#fbbf24" opacity="0.95" />
+            <rect x="398" y="502" width="62" height="24" rx="4" fill="#1c1408" stroke="#854d0e" stroke-width="0.9" />
+            <text x="429" y="512" text-anchor="middle" fill="#fde68a" font-size="6.5" font-weight="800">2° → TK</text>
+            <text id="svgQOsmConc2Ret" x="418" y="522" text-anchor="middle" fill="#fef3c7" font-size="9" font-weight="800">0.0</text>
+            <text x="444" y="522" text-anchor="middle" fill="#fbbf24" font-size="6" font-weight="700">m³/h</text>
+          </g>
         </g>
 
         <!-- Acqua tubazioni: sopra i casing (non sotto serbatoi/badge) -->
@@ -11210,9 +11233,8 @@
     }
 
     /**
-     * Uscita osmosi STABILE per previsioni e blocco: setpoint delle valvole principali
-     * più il concentrato (15 m³/h per linea accesa). Il concentrato esce comunque.
-     * Non dipende dalla misura istantanea (altrimenti bene↔male a ogni oscillazione valvola).
+     * Uscita osmosi STABILE (acqua netta prodotta): demi − concentrato 2° passo.
+     * Il 1° passo non è nel demi; il 2° torna al TK-11021 e si toglie dall’acqua.
      */
     function osmExportCapacityStable() {
       let q = 0;
@@ -11222,19 +11244,19 @@
           const id = "qOsmosi" + L;
           let sp = Math.max(0, procSetpointOf(id) || 0);
           if (sp < 0.05) sp = Math.max(0, num(id) || 0);
-          if (sp > 0.05) q += sp + osmConcFor(sp, L);
+          q += osmProductOf(sp, L);
         });
       } catch (_) { /* ok */ }
       return round1(q);
     }
 
-    /** Concentrato che esce ora: linee in marcia con ingresso comandato. */
+    /** Concentrato 1° passo che esce (non torna al TK). */
     function osmConcLeavingNow() {
       let c = 0;
       ["A", "B", "C"].forEach((L) => {
         if (!osmLineEnabled(L) || !plantIsStarted() || !osmLineFeeding(L)) return;
-        const sp = Math.max(0, procSetpointOf("qOsmosi" + L) || 0);
-        if (sp > 0.05) c += osmConcFor(sp, L);
+        const q = osmQinEffective(L);
+        if (q > 0.05) c += osmConc1Set(L);
       });
       return round1(c);
     }
@@ -12233,10 +12255,9 @@
       if (!p11019Allowed()) paintUfPopupSetpoints();
       const qUfIn = sumUfEffective();
       paintUfSvgLive();
-      const qOsmOut = round1(
-        osmQinEffective("A") + osmQinEffective("B") + osmQinEffective("C") + osmConcLeavingNow()
-      );
+      const qOsmOut = osmProductWaterNow();
       syncOsmosiSvg();
+      try { addOsmProdDt(dtMin); } catch (_) { /* ok */ }
 
       const stopRiemp = numOrNull("stopRiempA10620");
       const stopRv = stopRiemp !== null ? stopRiemp : 95;
@@ -12920,6 +12941,7 @@
       __allow11036ByMbr = true;
       __run11036 = true;
       __simSnap = null;
+      try { resetOsmProdTotal(); } catch (_) { /* ok */ }
       // Blocca sync cloud abbastanza a lungo da non ripristinare livelli vecchi
       __resetGuardUntil = Date.now() + 8000;
 
@@ -13415,11 +13437,10 @@
           ? Math.max(permeateDemandOut(), linePermeateCapacity())
           : permeateDemandOut())
         : Math.max(0, num("qOsmosiDemi") || (num("qOsmosiA") + num("qOsmosiB") + num("qOsmosiC")));
-      const qOsmUiOut = round1(qOsmUi + ["A", "B", "C"].reduce((c, L) => {
-        if (!osmLineEnabled(L)) return c;
-        const sp = Math.max(0, procSetpointOf("qOsmosi" + L) || 0);
-        return c + (sp > 0.05 ? osmConcFor(sp, L) : 0);
-      }, 0));
+      // OUT TK-11021 = acqua netta (demi − conc. 2°); il 2° torna al TK (netto −product)
+      const qOsmUiOut = deviceAutoControlled("osmosi")
+        ? osmProductWaterStable()
+        : (osmProductWaterNow() > 0.05 ? osmProductWaterNow() : osmProductWaterStable());
       const qUfUi = sumUfEffective();
       const rateUUi = estimateTk11021RatePctPerMin(qUfUi, qOsmUiOut);
       paintTk11021UI(livUUi, rateUUi, !__allowUfByTk11021);
@@ -15363,8 +15384,6 @@
         svgUfTot.textContent = tot.toFixed(1);
       }
 
-      let osmTotLive = 0;
-      let osmConcShown = 0;
       OSM_LINES.forEach((L) => {
         const v0 = Number(__osmValvePct[L]) || 0;
         const m0 = Number(__osmMeas[L]) || 0;
@@ -15379,25 +15398,23 @@
         if (Math.abs(v1 - (Number(__osmValveTarget[L]) || 0)) > 0.08) need = true;
         if (Math.abs(base1 - (Number(__osmMeasTarget[L]) || 0)) > 0.05) need = true;
         const qLive = live ? shown : 0;
-        osmTotLive += qLive;
         const node = el({ A: "svgQOsmA", B: "svgQOsmB", C: "svgQOsmC" }[L]);
         if (node) node.textContent = round1(qLive).toFixed(1);
         const spLine = Math.max(0, procSetpointOf("qOsmosi" + L));
         const concOn = osmLineEnabled(L) && spLine > 0.05;
         const concBias = stepOsmConcWander(L, dtSec, concOn && live);
-        const conc = concOn ? Math.max(0, osmConcFor(spLine, L) + (live ? concBias : 0)) : 0;
-        osmConcShown += conc;
+        // Chip = solo concentrato 1° passo (il 2° torna al TK-11021)
+        const conc1 = concOn ? Math.max(0, osmConc1For(spLine, L) + (live ? concBias : 0)) : 0;
         const chip = el("svgOsmConc" + L);
-        if (chip) chip.textContent = round1(conc).toFixed(1);
+        if (chip) chip.textContent = round1(conc1).toFixed(1);
       });
       const svgOsmTot = el("svgQOsmTotale");
       if (svgOsmTot) {
-        const spTot = osmSetpointSum();
-        const inletTot = plantIsStarted() && osmTotLive > 0.05 && Math.abs(osmTotLive - spTot) < 1.2
-          ? osmTotLive
-          : spTot;
-        svgOsmTot.textContent = round1(inletTot + osmConcShown).toFixed(1);
+        // TOTALE a sinistra = acqua netta (demi − conc. 2°)
+        const prod = plantIsStarted() ? osmProductWaterNow() : osmProductWaterStable();
+        svgOsmTot.textContent = round1(prod).toFixed(1);
       }
+      try { paintOsmProductUI(); } catch (_) { /* ok */ }
 
       try { paintUfValveUI(); } catch (_) { /* ignore */ }
       try { paintOsmValveUI(); } catch (_) { /* ignore */ }
@@ -16286,6 +16303,86 @@
       if (!(qin > 0)) return 0;
       return round1(osmConc1Set(letter) + osmConc2Set(letter));
     }
+    /** Solo 1° passo (scarico / non torna al TK). */
+    function osmConc1For(qin, letter) {
+      if (!(qin > 0)) return 0;
+      return osmConc1Set(letter);
+    }
+    /** Solo 2° passo (ritorno al TK-11021). */
+    function osmConc2For(qin, letter) {
+      if (!(qin > 0)) return 0;
+      return osmConc2Set(letter);
+    }
+    /** Acqua netta prodotta da una linea: demi − concentrato 2° (mai sotto zero). */
+    function osmProductOf(qin, letter) {
+      const q = Math.max(0, Number(qin) || 0);
+      if (q < 0.05) return 0;
+      return round1(Math.max(0, q - osmConc2Set(letter)));
+    }
+    /** Somma acqua netta (setpoint) linee abilitate. */
+    function osmProductWaterStable() {
+      let q = 0;
+      ["A", "B", "C"].forEach((L) => {
+        if (!osmLineEnabled(L)) return;
+        let sp = Math.max(0, procSetpointOf("qOsmosi" + L) || 0);
+        if (sp < 0.05) sp = Math.max(0, num("qOsmosi" + L) || 0);
+        q += osmProductOf(sp, L);
+      });
+      return round1(q);
+    }
+    /** Acqua netta istantanea (linee in marcia). */
+    function osmProductWaterNow() {
+      let q = 0;
+      ["A", "B", "C"].forEach((L) => {
+        if (!osmLineEnabled(L) || !plantIsStarted() || !osmLineFeeding(L)) return;
+        q += osmProductOf(osmQinEffective(L), L);
+      });
+      return round1(q);
+    }
+    /** Concentrato 2° passo che torna al TK-11021 (linee in marcia). */
+    function osmConc2ReturnNow() {
+      let c = 0;
+      ["A", "B", "C"].forEach((L) => {
+        if (!osmLineEnabled(L) || !plantIsStarted() || !osmLineFeeding(L)) return;
+        const q = osmQinEffective(L);
+        if (q > 0.05) c += osmConc2Set(L);
+      });
+      return round1(c);
+    }
+    function osmConc2ReturnStable() {
+      let c = 0;
+      ["A", "B", "C"].forEach((L) => {
+        if (!osmLineEnabled(L)) return;
+        let sp = Math.max(0, procSetpointOf("qOsmosi" + L) || 0);
+        if (sp < 0.05) sp = Math.max(0, num("qOsmosi" + L) || 0);
+        if (sp > 0.05) c += osmConc2Set(L);
+      });
+      return round1(c);
+    }
+    let __osmProdM3 = 0;
+    function resetOsmProdTotal() {
+      __osmProdM3 = 0;
+      try { paintOsmProductUI(); } catch (_) { /* ok */ }
+    }
+    function addOsmProdDt(dtMin) {
+      const dt = Math.max(0, Number(dtMin) || 0);
+      if (dt < 1e-9) return;
+      if (!plantIsStarted()) return;
+      __osmProdM3 += osmProductWaterNow() * (dt / 60);
+      if (!Number.isFinite(__osmProdM3) || __osmProdM3 < 0) __osmProdM3 = 0;
+    }
+    function paintOsmProductUI() {
+      const qProd = plantIsStarted() ? osmProductWaterNow() : osmProductWaterStable();
+      const qRet = plantIsStarted() ? osmConc2ReturnNow() : osmConc2ReturnStable();
+      const nProd = el("svgQOsmProd");
+      if (nProd) nProd.textContent = round1(qProd).toFixed(1);
+      const nRet = el("svgQOsmConc2Ret");
+      if (nRet) nRet.textContent = round1(qRet).toFixed(1);
+      const nTot = el("svgOsmProdTot");
+      if (nTot) nTot.textContent = (Math.round(__osmProdM3 * 10) / 10).toFixed(1);
+      const gRet = el("svgOsmConc2RetGroup");
+      if (gRet) gRet.setAttribute("opacity", qRet > 0.05 ? "1" : "0.35");
+    }
     function ensureOsmConcDefaults() {
       ["A", "B", "C"].forEach((L) => {
         const n1 = el("qOsmosiConc" + L);
@@ -16412,9 +16509,7 @@
 
     function syncOsmosiSvg() {
       let totDemiSp = 0;   // somma setpoint (popup)
-      let totDemiLive = 0; // somma effettiva (schema / bilancio)
       let totConcSp = 0;
-      let totConcLive = 0;
       const letters = ["A", "B", "C"];
       OSM_IDS.forEach((id, i) => {
         const L = letters[i];
@@ -16423,16 +16518,11 @@
         rememberProcSetpoint(id, sp, { allowZero: true });
         if (!isEditing(id)) setVal(id, sp, { force: true });
         paintProcSetpointField(id);
-        const qLive = osmQinEffective(L);
         const conc1 = osmConc1Set(L);
-        const conc2 = osmConc2Set(L);
         const concSp = osmConcFor(sp, L);
-        const concLive = osmConcFor(qLive, L);
         if (osmLineEnabled(L)) {
           totDemiSp += sp;
-          totDemiLive += qLive;
           totConcSp += concSp;
-          totConcLive += concLive;
         }
         // Badge IN = SETPOINT (quello che digiti). La misura viva resta sulla valvola %.
         const svg = el(["svgQOsmA", "svgQOsmB", "svgQOsmC"][i]);
@@ -16440,7 +16530,8 @@
           svg.textContent = round1(sp).toFixed(1);
         }
         const chip = el("svgOsmConc" + L);
-        if (chip) chip.textContent = round1(osmLineEnabled(L) && sp > 0.05 ? (conc1 + conc2) : 0).toFixed(1);
+        // Chip sotto IN = solo concentrato 1° passo (il 2° torna al TK-11021)
+        if (chip) chip.textContent = round1(osmLineEnabled(L) && sp > 0.05 ? conc1 : 0).toFixed(1);
         const concNode = el(OSM_CONC_IDS[i]);
         const conc2Node = el(OSM_CONC2_IDS[i]);
         if (concNode && !isEditing(OSM_CONC_IDS[i]) && (concNode.value === "" || numOrNull(OSM_CONC_IDS[i]) == null)) {
@@ -16453,14 +16544,10 @@
       try { paintOsmConcProcessViews(); } catch (_) { /* ok */ }
       totDemiSp = round1(totDemiSp);
       totConcSp = round1(totConcSp);
-      const totaleVis = round1(totDemiSp + totConcSp);
+      const totProd = plantIsStarted() ? osmProductWaterNow() : osmProductWaterStable();
       const totSvg = el("svgQOsmTotale");
-      if (totSvg) {
-        const measured = plantIsStarted() && totDemiLive > 0.05 && Math.abs(totDemiLive - totDemiSp) < 1.2
-          ? round1(totDemiLive + totConcLive)
-          : totaleVis;
-        totSvg.textContent = measured.toFixed(1);
-      }
+      // TOTALE overview = acqua netta (demi − conc. 2°), non più demi+concentrati
+      if (totSvg) totSvg.textContent = round1(totProd).toFixed(1);
       const totSpSvg = el("svgQOsmTotaleSp");
       if (totSpSvg) totSpSvg.textContent = totDemiSp.toFixed(1);
       if (!isEditing("qOsmosiTotale")) {
@@ -16469,6 +16556,7 @@
       }
       if (!isEditing("qOsmosiDemi")) setVal("qOsmosiDemi", totDemiSp, { force: true });
       if (!isEditing("qOsmosiTotConc")) setVal("qOsmosiTotConc", totConcSp, { force: true });
+      try { paintOsmProductUI(); } catch (_) { /* ok */ }
       paintOsmValveUI();
       try { noteValleySetChanged(); } catch (_) { /* ok */ }
     }
