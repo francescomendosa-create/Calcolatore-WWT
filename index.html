@@ -928,6 +928,9 @@
       border-color: #fbbf24 !important;
       color: #fde68a;
     }
+    #popOsmosi .osm-lvl input.flow-edit {
+      cursor: pointer;
+    }
     #popSludgeAdj,
     #popSludgePct { z-index: 80; }
     #popSludgePct { z-index: 100; }
@@ -2285,7 +2288,7 @@
 </head>
 <body>
   <header>
-    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v337</span><span id="wwtAdminMark" hidden>admin</span></h1>
+    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v338</span><span id="wwtAdminMark" hidden>admin</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -4331,10 +4334,10 @@
         </div>
         <div class="row osm-lvl">
           <label><strong>Start %</strong>
-            <input type="number" id="viewStartSvuotOsmA2" readonly placeholder="—" />
+            <input type="number" id="viewStartSvuotOsmA2" class="flow-edit" data-field="startSvuotOsmA" data-source="livello" readonly min="0" max="100" step="0.1" placeholder="—" inputmode="none" title="Tocca per regolare Start %" />
           </label>
           <label><strong>Stop %</strong>
-            <input type="number" id="viewStopSvuotOsmA2" readonly placeholder="—" />
+            <input type="number" id="viewStopSvuotOsmA2" class="flow-edit" data-field="stopSvuotOsmA" data-source="livello" readonly min="0" max="100" step="0.1" placeholder="—" inputmode="none" title="Tocca per regolare Stop %" />
           </label>
         </div>
       </div>
@@ -4376,10 +4379,10 @@
         </div>
         <div class="row osm-lvl">
           <label><strong>Start %</strong>
-            <input type="number" id="viewStartSvuotOsmB2" readonly placeholder="—" />
+            <input type="number" id="viewStartSvuotOsmB2" class="flow-edit" data-field="startSvuotOsmB" data-source="livello" readonly min="0" max="100" step="0.1" placeholder="—" inputmode="none" title="Tocca per regolare Start %" />
           </label>
           <label><strong>Stop %</strong>
-            <input type="number" id="viewStopSvuotOsmB2" readonly placeholder="—" />
+            <input type="number" id="viewStopSvuotOsmB2" class="flow-edit" data-field="stopSvuotOsmB" data-source="livello" readonly min="0" max="100" step="0.1" placeholder="—" inputmode="none" title="Tocca per regolare Stop %" />
           </label>
         </div>
       </div>
@@ -4421,10 +4424,10 @@
         </div>
         <div class="row osm-lvl">
           <label><strong>Start %</strong>
-            <input type="number" id="viewStartSvuotOsmC2" readonly placeholder="—" />
+            <input type="number" id="viewStartSvuotOsmC2" class="flow-edit" data-field="startSvuotOsmC" data-source="livello" readonly min="0" max="100" step="0.1" placeholder="—" inputmode="none" title="Tocca per regolare Start %" />
           </label>
           <label><strong>Stop %</strong>
-            <input type="number" id="viewStopSvuotOsmC2" readonly placeholder="—" />
+            <input type="number" id="viewStopSvuotOsmC2" class="flow-edit" data-field="stopSvuotOsmC" data-source="livello" readonly min="0" max="100" step="0.1" placeholder="—" inputmode="none" title="Tocca per regolare Stop %" />
           </label>
         </div>
       </div>
@@ -16541,9 +16544,22 @@
       if (field === "qOsmosiTotale") return osmFeedMaxTotal();
       return null;
     }
+    function isProcPctField(field) {
+      return /^(start|stop)SvuotOsm[ABC]$/.test(String(field || ""));
+    }
+    function clampProcPct(v) {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return 0;
+      return Math.min(100, Math.max(0, round1(n)));
+    }
     function paintFlowEditMax(field) {
       const node = el("flowEditMax");
       if (!node) return;
+      if (isProcPctField(field)) {
+        node.hidden = false;
+        node.textContent = "max 100";
+        return;
+      }
       const cap = osmEditMax(field);
       if (cap == null) {
         node.hidden = true;
@@ -16955,6 +16971,7 @@
             else document.querySelectorAll(".uf-row").forEach((row) => row.classList.remove("is-focus"));
           }
           if (name === "osmosi") {
+            refreshProcViews();
             ["A", "B", "C"].forEach((L) => paintProcSetpointField("qOsmosi" + L));
             syncOsmosiSvg();
             paintOsmosiRunUI();
@@ -17250,6 +17267,12 @@
       qOsmosiB: "Osmosi B · P11040 B",
       qOsmosiC: "Osmosi C · P11040 C",
       qOsmosiD: "P11040 D · OFF",
+      startSvuotOsmA: "Osmosi A · Start %",
+      stopSvuotOsmA: "Osmosi A · Stop %",
+      startSvuotOsmB: "Osmosi B · Start %",
+      stopSvuotOsmB: "Osmosi B · Stop %",
+      startSvuotOsmC: "Osmosi C · Start %",
+      stopSvuotOsmC: "Osmosi C · Stop %",
     };
     function devForFlowField(field) {
       const f = String(field || "");
@@ -17685,6 +17708,14 @@
         applyBalance("freqMand");
         return;
       }
+      if (isProcPctField(field)) {
+        v = clampProcPct(v);
+        if (inlineInp) inlineInp.value = String(v);
+        setVal(field, v, { force: true });
+        try { refreshProcViews(); } catch (_) { /* ok */ }
+        applyBalance("livello");
+        return;
+      }
       if (FLOW_IDS.includes(field)) rememberFlowSetpoint(field, Math.max(0, v));
       setVal(field, v, { force: true });
       applyBalance(source);
@@ -17889,6 +17920,15 @@
         applyBalance("freqMand");
         return;
       }
+      if (isProcPctField(field)) {
+        v = clampProcPct(v);
+        if (inlineInp) inlineInp.value = String(v);
+        setVal(field, v, { force: true });
+        try { refreshProcViews(); } catch (_) { /* ok */ }
+        applyBalance("livello");
+        try { schedulePersist(); } catch (_) { /* ok */ }
+        return;
+      }
       if (FLOW_IDS.includes(field)) rememberFlowSetpoint(field, Math.max(0, v));
       setVal(field, v, { force: true });
       applyBalance(source);
@@ -18046,8 +18086,12 @@
             ? "MP 11036 · Hz"
             : (FLOW_EDIT_LABELS[field] || "Portata"));
       }
+      const pctEdit = isProcPctField(field);
       if (flowEditUnit) {
-        flowEditUnit.textContent = (field === "freqHz" || field === "freqHzMand") ? "Hz" : "m³/h";
+        flowEditUnit.hidden = false;
+        flowEditUnit.textContent = (field === "freqHz" || field === "freqHzMand")
+          ? "Hz"
+          : (pctEdit ? "%" : "m³/h");
       }
       syncFlowEditDevMode(field);
       paintFlowEditMax(field);
@@ -18057,8 +18101,8 @@
       __flowEditGuardUntil = Date.now() + 700;
       __flowNumpadAcceptAt = Date.now() + 320;
       __flowEditPressEl = null;
-      if (isTouchUi() || splitEdit) {
-        // Mobile, e le portate Carboni/IAS: numpad diretto, niente tastiera di sistema
+      if (isTouchUi() || splitEdit || pctEdit) {
+        // Mobile, Carboni/IAS e Start/Stop % osmosi: numpad diretto
         if (inlineInp) {
           inlineInp.setAttribute("readonly", "readonly");
           inlineInp.setAttribute("inputmode", "none");
@@ -18066,7 +18110,7 @@
           inlineInp.blur();
         }
         if (flowEditBack) flowEditBack.classList.add("show");
-        showFlowNumpad(splitEdit);
+        showFlowNumpad(splitEdit || pctEdit);
         if (inlineInp) inlineInp.value = seed;
         setTimeout(releaseLive, 80);
       } else {
