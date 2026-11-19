@@ -12,9 +12,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Process Managed" />
-  <link rel="manifest" href="manifest.json?v=wwt341" />
-  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt341" />
-  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt341" />
+  <link rel="manifest" href="manifest.json?v=wwt343" />
+  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt343" />
+  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt343" />
   <style>
     :root {
       --bg: #0b1220;
@@ -2327,7 +2327,7 @@
       pointer-events: none;
       opacity: 0.72;
     }
-    html.is-guest .is-guest-lock button:not([data-close]):not(#sludgeAdjX):not(#sludgePctX):not(#sludgeMlssX):not(#sludgeBaseX),
+    html.is-guest .is-guest-lock button:not([data-close]):not(#sludgeAdjOpen):not(#sludgeAdjX):not(#sludgeAdjAnalisi):not(#sludgeAdjPct):not(#sludgeAdjApply):not(#sludgeAdjShare):not(#sludgePctX):not(#sludgeMlssX):not(#sludgeMlssApply):not(#sludgeBaseX),
     html.is-guest .is-guest-lock .uf-mini,
     html.is-guest .is-guest-lock .osm-mini,
     html.is-guest .is-guest-lock .uf-chem-remain,
@@ -2335,30 +2335,33 @@
       pointer-events: none;
       opacity: 0.6;
     }
+    #sludgeAdjOpen {
+      touch-action: manipulation;
+      min-height: 44px;
+      font-weight: 800;
+      width: 100%;
+    }
+    #sludgeAdjShare {
+      background: #0c4a6e;
+      border-color: #38bdf8;
+      color: #e0f2fe;
+    }
+    @media print {
+      body * { visibility: hidden !important; }
+      #sludgePrintSheet, #sludgePrintSheet * { visibility: visible !important; }
+      #sludgePrintSheet {
+        position: absolute;
+        left: 0; top: 0;
+        width: 100%;
+      }
+    }
     html.is-guest .is-guest-lock .guest-note { display: block; }
     .guest-note { display: none; color: #fde68a; margin: 0 0 8px; }
   </style>
 </head>
 <body>
   <header>
-    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v342</span><span id="wwtAdminMark" hidden>admin</span></h1>
-    <button type="button" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2;cursor:pointer;font:inherit" title="Installa Process Managed su questo dispositivo">Installa app</button>
-    <script>
-      (function () {
-        var ua = navigator.userAgent || "";
-        var iPad = /iPad/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
-        var mobile = /Android|iPhone|iPod|Mobile|Tablet/i.test(ua);
-        var link = document.getElementById("wwtInstallLink");
-        if (!link) return;
-        if (iPad || mobile) {
-          link.textContent = "Installa app";
-          link.title = "Installa su tablet o telefono";
-        } else {
-          link.textContent = "Installa PC";
-          link.title = "Installa Process Managed su questo PC";
-        }
-      })();
-    </script>
+    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v343</span><span id="wwtAdminMark" hidden>admin</span></h1>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
   </header>
@@ -4132,27 +4135,6 @@
     </div>
   </div>
 
-  <!-- Installazione app (PC / tablet) -->
-  <div class="modal-back" id="popInstall" role="dialog" aria-modal="true" aria-labelledby="installTitle">
-    <div class="modal" style="width:min(440px,100%)">
-      <h3>
-        <span id="installTitle">Installa Process Managed</span>
-        <button type="button" data-close aria-label="Chiudi">&times;</button>
-      </h3>
-      <p class="mini" id="installHint">Su PC usa Edge o Chrome.</p>
-      <div class="actions" style="flex-wrap:wrap;gap:8px">
-        <button type="button" id="installPromptBtn">Installa ora</button>
-        <button type="button" id="installUrlBtn" style="background:#0c4a6e;border-color:#38bdf8">Scarica collegamento (.url)</button>
-      </div>
-      <p class="mini" id="installManual" style="margin-top:10px">
-        <strong>PC (consigliato):</strong> in Edge/Chrome menu <strong>⋯</strong> → <strong>App</strong> → <strong>Installa questa app</strong>
-        (o l’icona computer / ⊕ nella barra indirizzi).<br />
-        I file <strong>.bat</strong> il browser li blocca per sicurezza: non servono.
-        Se hai già il progetto sul PC, esegui <code>Setup-Process-Managed-PC.ps1</code> (tasto destro → Esegui con PowerShell): crea Desktop + Menu Start.
-      </p>
-    </div>
-  </div>
-
   <!-- Modifica aperture ciclo fanghi: si chiude solo con X. Applica scrive i secondi. -->
   <div class="modal-back" id="popSludgeAdj" role="dialog" aria-modal="true" aria-labelledby="sludgeAdjTitle">
     <div class="modal">
@@ -4165,7 +4147,10 @@
         </span>
       </h3>
       <div id="sludgeAdjRows"></div>
-      <div class="actions"><button type="button" id="sludgeAdjApply">Applica</button></div>
+      <div class="actions" style="flex-wrap:wrap;gap:8px">
+        <button type="button" id="sludgeAdjShare" hidden>Stampa · Condividi</button>
+        <button type="button" id="sludgeAdjApply">Applica</button>
+      </div>
     </div>
   </div>
   <div class="modal-back" id="popSludgeMlss" role="dialog" aria-modal="true" aria-labelledby="sludgeMlssTitle">
@@ -4998,6 +4983,8 @@
     let __sludgeBaseFresh = true;
     /** Analisi MLSS (mg/L) per membrana A–H — usate dal tasto Analisi in Modifica. */
     let __sludgeMlss = { A: "", B: "", C: "", D: "", E: "", F: "", G: "", H: "" };
+    /** Dopo Applica analisi: solo valvole con % ≠ 0 (per Stampa · Condividi). */
+    let __sludgeAnalisiReport = [];
     // Pause a coppie sfalsate: ciascuna fa 7′+1′, ma non tutte insieme
     const MBR_PAUSE_PAIRS = [
       ["A", "D"],
@@ -9558,6 +9545,7 @@
       let commonSign = null;
       let commonPct = null;
       let same = true;
+      const report = [];
       MBR_ALL_IDS.forEach((L) => {
         const adj = mlssAdjFromValue(__sludgeMlss[L]);
         __sludgeAdj.rows[L].sign = adj.sign;
@@ -9568,14 +9556,108 @@
         } else if (commonSign !== adj.sign || commonPct !== adj.pct) {
           same = false;
         }
+        // In stampa solo membrane davvero variate dalla tabella (pct ≠ 0)
+        if (adj.pct > 0) {
+          report.push({
+            id: L,
+            name: SLUDGE_VALVE_NAME[L],
+            mlss: String(__sludgeMlss[L] || ""),
+            base: __sludgeAdj.rows[L].base,
+            sign: adj.sign,
+            pct: adj.pct,
+            result: sludgeAdjResult(__sludgeAdj.rows[L]),
+          });
+        }
       });
       if (same && commonSign != null) {
         __sludgeAdj.globalSign = commonSign;
         __sludgeAdj.globalPct = commonPct;
       }
+      __sludgeAnalisiReport = report;
       hideSludgeMlss();
       paintSludgeAdj();
       try { schedulePersist(); } catch (_) { /* ok */ }
+    }
+
+    function syncSludgeShareBtn() {
+      const btn = el("sludgeAdjShare");
+      if (!btn) return;
+      const n = Array.isArray(__sludgeAnalisiReport) ? __sludgeAnalisiReport.length : 0;
+      btn.hidden = n < 1;
+      btn.textContent = n < 1 ? "Stampa · Condividi" : ("Stampa · Condividi (" + n + ")");
+    }
+
+    function buildSludgeAnalisiPrintHtml() {
+      const rows = Array.isArray(__sludgeAnalisiReport) ? __sludgeAnalisiReport : [];
+      const when = new Date();
+      const whenTxt = when.toLocaleString("it-IT", { dateStyle: "short", timeStyle: "short" });
+      const bodyRows = rows.map((r) => (
+        "<tr>" +
+          "<td>" + r.name + "</td>" +
+          "<td>" + (r.mlss ? (r.mlss + " mg/L") : "—") + "</td>" +
+          "<td>" + r.base + " s</td>" +
+          "<td>" + sludgeAdjFmtPct(r.sign, r.pct) + "%</td>" +
+          "<td><strong>" + r.result + " s</strong></td>" +
+        "</tr>"
+      )).join("");
+      return (
+        "<!DOCTYPE html><html lang=\"it\"><head><meta charset=\"UTF-8\" />" +
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />" +
+        "<title>Aperture valvole · analisi MLSS</title>" +
+        "<style>" +
+        "@page { size: A4; margin: 14mm; }" +
+        "body{font-family:Segoe UI,system-ui,sans-serif;color:#0f172a;margin:0;padding:12px;}" +
+        "h1{font-size:18pt;margin:0 0 4px;} .meta{color:#64748b;font-size:10pt;margin:0 0 14px;}" +
+        "table{width:100%;border-collapse:collapse;font-size:11pt;}" +
+        "th,td{border:1px solid #94a3b8;padding:8px 10px;text-align:left;}" +
+        "th{background:#e2e8f0;}" +
+        "td:nth-child(3),td:nth-child(4),td:nth-child(5){text-align:right;font-variant-numeric:tabular-nums;}" +
+        "@media print{body{padding:0;} button{display:none!important;}}" +
+        "</style></head><body>" +
+        "<h1>Process Managed · Aperture valvole</h1>" +
+        "<p class=\"meta\">Variazioni da analisi MLSS · " + whenTxt + " · solo membrane variate</p>" +
+        "<table><thead><tr>" +
+          "<th>Valvola</th><th>MLSS</th><th>Valore</th><th>Variazione %</th><th>Valore modificato</th>" +
+        "</tr></thead><tbody>" + bodyRows + "</tbody></table>" +
+        "<p class=\"meta\" style=\"margin-top:16px\">Foglio A4 · ciclo estrazione fanghi → A11004</p>" +
+        "</body></html>"
+      );
+    }
+
+    async function shareOrPrintSludgeAnalisi() {
+      const rows = Array.isArray(__sludgeAnalisiReport) ? __sludgeAnalisiReport : [];
+      if (!rows.length) return;
+      const html = buildSludgeAnalisiPrintHtml();
+      const title = "Aperture valvole · analisi MLSS";
+      const textLines = rows.map((r) => (
+        r.name + ": " + r.base + " s → " + sludgeAdjFmtPct(r.sign, r.pct) + "% → " + r.result + " s"
+        + (r.mlss ? (" (MLSS " + r.mlss + ")") : "")
+      )).join("\n");
+      try {
+        if (navigator.share) {
+          const file = new File([html], "aperture-valvole-mlss.html", { type: "text/html" });
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({ files: [file], title, text: title });
+            return;
+          }
+          await navigator.share({ title, text: title + "\n\n" + textLines });
+          return;
+        }
+      } catch (err) {
+        if (err && (err.name === "AbortError" || err.name === "NotAllowedError")) return;
+      }
+      // Windows / desktop: stampa A4 (dal dialogo si può anche salvare PDF / condividere)
+      const w = window.open("", "_blank", "noopener,noreferrer,width=900,height=700");
+      if (!w) {
+        try { window.print(); } catch (_) { /* ok */ }
+        return;
+      }
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
+      setTimeout(() => {
+        try { w.focus(); w.print(); } catch (_) { /* ok */ }
+      }, 250);
     }
 
     function captureSludgeAdj() {
@@ -9627,6 +9709,7 @@
           '</div>'
         );
       }).join("");
+      syncSludgeShareBtn();
     }
 
     function openSludgeAdj() {
@@ -17034,12 +17117,10 @@
       const pct = el("popSludgePct");
       const mlss = el("popSludgeMlss");
       const base = el("popSludgeBase");
-      const inst = el("popInstall");
       if (adj && adj.classList.contains("show")) return true;
       if (pct && pct.classList.contains("show")) return true;
       if (mlss && mlss.classList.contains("show")) return true;
       if (base && base.classList.contains("show")) return true;
-      if (inst && inst.classList.contains("show")) return true;
       return Object.values(popups).some((p) => p && p.classList.contains("show"));
     }
 
@@ -18537,11 +18618,6 @@
           if (!__simBusy) hideSimJump();
           return;
         }
-        if (el("popInstall")?.classList.contains("show")) {
-          e.preventDefault();
-          hideInstallPop();
-          return;
-        }
         if (el("popSludgePct")?.classList.contains("show") || el("popSludgeBase")?.classList.contains("show") || el("popSludgeMlss")?.classList.contains("show") || el("popSludgeAdj")?.classList.contains("show")) {
           e.preventDefault();
           return;
@@ -19087,11 +19163,31 @@
       });
     });
 
-    el("sludgeAdjOpen")?.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      openSludgeAdj();
-    });
+    (function bindSludgeAdjOpen() {
+      const btn = el("sludgeAdjOpen");
+      if (!btn) return;
+      let openedByPtr = false;
+      const open = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (typeof e.stopImmediatePropagation === "function") e.stopImmediatePropagation();
+        openSludgeAdj();
+      };
+      btn.addEventListener("pointerup", (e) => {
+        if (e.pointerType === "mouse" && e.button != null && e.button !== 0) return;
+        openedByPtr = true;
+        open(e);
+        setTimeout(() => { openedByPtr = false; }, 450);
+      });
+      btn.addEventListener("click", (e) => {
+        if (openedByPtr) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        open(e);
+      });
+    })();
     el("sludgeAdjX")?.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -19102,6 +19198,11 @@
       e.preventDefault();
       e.stopPropagation();
       applySludgeAdj();
+    });
+    el("sludgeAdjShare")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      shareOrPrintSludgeAnalisi();
     });
     el("sludgeAdjPct")?.addEventListener("click", (e) => {
       e.preventDefault();
@@ -19530,6 +19631,9 @@
         : null;
       data.sludgeAdj = __sludgeAdj ? JSON.parse(JSON.stringify(__sludgeAdj)) : null;
       data.sludgeMlss = normalizeSludgeMlss(__sludgeMlss);
+      data.sludgeAnalisiReport = Array.isArray(__sludgeAnalisiReport)
+        ? JSON.parse(JSON.stringify(__sludgeAnalisiReport))
+        : [];
       if (bump) __calcSyncRevision += 1;
       data.syncRevision = __calcSyncRevision;
       data.updatedAt = Date.now();
@@ -19725,6 +19829,9 @@
         }
         if (data.sludgeMlss && typeof data.sludgeMlss === "object") {
           try { __sludgeMlss = normalizeSludgeMlss(data.sludgeMlss); } catch (_) { /* ok */ }
+        }
+        if (Array.isArray(data.sludgeAnalisiReport)) {
+          __sludgeAnalisiReport = data.sludgeAnalisiReport.filter((r) => r && r.pct > 0);
         }
         if (!fromRemote && data.carbWash && typeof data.carbWash === "object") {
           __carbWash = JSON.parse(JSON.stringify(data.carbWash));
@@ -19991,10 +20098,11 @@
     const ADMIN_LS = "wwtAdminSession";
     const GUEST_LOCK_IDS = [
       "popPompe", "popMandata", "popMembrane",
-      "popSludgeAdj", "popSludgePct", "popSludgeMlss", "popSludgeBase",
       "popPermeato", "popCarbone", "popUltra", "popTk11021",
       "popOsmosi", "popProcesso", "popRegolazioni", "popBlocchi",
     ];
+    // popMembrane resta in lock guest, ma Modifica/Analisi fanghi sono operativi anche senza admin
+    // (whitelist CSS + guestChangeBlocked). popSludge* non sono in guest-lock.
     function isAdmin() {
       try { return localStorage.getItem(ADMIN_LS) === "1"; } catch (_) { return false; }
     }
@@ -20044,7 +20152,8 @@
       if (target.closest(".guest-field-lock")) return true;
       const box = target.closest(".is-guest-lock");
       if (!box) return false;
-      if (target.closest("[data-close], #sludgeAdjX, #sludgePctX, #sludgeMlssX, #sludgeBaseX, summary")) return false;
+      if (target.closest("[data-close], #sludgeAdjOpen, #sludgeAdjX, #sludgeAdjAnalisi, #sludgeAdjPct, #sludgeAdjApply, #sludgeAdjShare, #sludgePctX, #sludgeMlssX, #sludgeMlssApply, #sludgeBaseX, summary")) return false;
+      if (target.closest("#popSludgeAdj, #popSludgeMlss, #popSludgePct, #popSludgeBase")) return false;
       return !!target.closest("input, textarea, select, button, label, .uf-mini, .osm-mini, .uf-chem-remain, .p11019-edit, [role='button']");
     }
     document.addEventListener("click", (e) => {
@@ -20095,122 +20204,6 @@
     syncLayoutMode();
     window.addEventListener("resize", syncLayoutMode);
     window.addEventListener("orientationchange", syncLayoutMode);
-
-    try {
-      if (window.self !== window.top) {
-        const l = el("wwtInstallLink");
-        if (l) l.style.display = "none";
-      }
-    } catch (_) { /* ok */ }
-
-    /** Installazione PWA / collegamento PC (niente .bat: i browser li bloccano) */
-    let __deferredInstall = null;
-    const isStandaloneApp = () => {
-      try {
-        // Solo modalità app reale — NON usare ?standalone=1 (rompe Installa)
-        return window.matchMedia("(display-mode: standalone)").matches
-          || window.matchMedia("(display-mode: minimal-ui)").matches
-          || window.navigator.standalone === true;
-      } catch (_) {
-        return false;
-      }
-    };
-    function paintInstallUi() {
-      const promptBtn = el("installPromptBtn");
-      const hint = el("installHint");
-      const already = isStandaloneApp();
-      if (hint) {
-        hint.textContent = already
-          ? "Process Managed è già aperto come app."
-          : (__deferredInstall
-            ? "Pronto: tocca «Installa ora» (va nel menu Start come le altre app)."
-            : "Il browser non ha ancora offerto il prompt. Usa ⋯ → App → Installa questa app, oppure scarica il collegamento .url.");
-      }
-      if (promptBtn) {
-        promptBtn.disabled = already || !__deferredInstall;
-        promptBtn.textContent = already ? "Già installata" : (__deferredInstall ? "Installa ora" : "Installa (usa menu ⋯ App)");
-      }
-    }
-    function openInstallPop() {
-      paintInstallUi();
-      const pop = el("popInstall");
-      if (pop) pop.classList.add("show");
-      try { syncScrollLock(); } catch (_) { /* ok */ }
-    }
-    function hideInstallPop() {
-      const pop = el("popInstall");
-      if (pop) pop.classList.remove("show");
-      try { syncScrollLock(); } catch (_) { /* ok */ }
-    }
-    function downloadPcUrlShortcut() {
-      const body = [
-        "[InternetShortcut]",
-        "URL=https://francescomendosa-create.github.io/Calcolatore-WWT/index.html?standalone=1",
-        "IconIndex=0",
-        ""
-      ].join("\r\n");
-      const blob = new Blob([body], { type: "application/internet-shortcut" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "Process-Managed.url";
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        try { URL.revokeObjectURL(a.href); } catch (_) { /* ok */ }
-        a.remove();
-      }, 800);
-    }
-    window.addEventListener("beforeinstallprompt", (e) => {
-      e.preventDefault();
-      __deferredInstall = e;
-      paintInstallUi();
-      const btn = el("wwtInstallLink");
-      if (btn && !isStandaloneApp()) {
-        btn.style.borderColor = "#4ade80";
-        btn.style.color = "#bbf7d0";
-      }
-    });
-    window.addEventListener("appinstalled", () => {
-      __deferredInstall = null;
-      paintInstallUi();
-      hideInstallPop();
-    });
-    el("wwtInstallLink")?.addEventListener("click", async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (__deferredInstall && !isStandaloneApp()) {
-        try {
-          await __deferredInstall.prompt();
-          await __deferredInstall.userChoice;
-        } catch (_) { /* ok */ }
-        __deferredInstall = null;
-        paintInstallUi();
-        return;
-      }
-      openInstallPop();
-    });
-    el("installPromptBtn")?.addEventListener("click", async (e) => {
-      e.preventDefault();
-      if (!__deferredInstall) return;
-      try {
-        await __deferredInstall.prompt();
-        await __deferredInstall.userChoice;
-      } catch (_) { /* ok */ }
-      __deferredInstall = null;
-      paintInstallUi();
-      hideInstallPop();
-    });
-    el("installUrlBtn")?.addEventListener("click", (e) => {
-      e.preventDefault();
-      downloadPcUrlShortcut();
-    });
-    el("popInstall")?.addEventListener("click", (e) => {
-      if (e.target === el("popInstall")) hideInstallPop();
-    });
-    el("popInstall")?.querySelector("[data-close]")?.addEventListener("click", (e) => {
-      e.preventDefault();
-      hideInstallPop();
-    });
 
     /* Display acceso ≥ 5 min (Wake Lock), poi il telefono può andare in standby da solo.
        L’impianto continua a lavorare anche a schermo spento. Ogni tocco / Start rinnova i 5 min. */
@@ -20274,7 +20267,7 @@
         __wwtSwReloaded = true;
         try { location.reload(); } catch (_) { /* ok */ }
       });
-      navigator.serviceWorker.register("sw.js?v=wwt342", { scope: "./", updateViaCache: "none" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt343", { scope: "./", updateViaCache: "none" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
         try {
