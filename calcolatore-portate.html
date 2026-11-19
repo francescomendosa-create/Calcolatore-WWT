@@ -2341,7 +2341,7 @@
 </head>
 <body>
   <header>
-    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v341</span><span id="wwtAdminMark" hidden>admin</span></h1>
+    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v342</span><span id="wwtAdminMark" hidden>admin</span></h1>
     <button type="button" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2;cursor:pointer;font:inherit" title="Installa Process Managed su questo dispositivo">Installa app</button>
     <script>
       (function () {
@@ -4134,19 +4134,21 @@
 
   <!-- Installazione app (PC / tablet) -->
   <div class="modal-back" id="popInstall" role="dialog" aria-modal="true" aria-labelledby="installTitle">
-    <div class="modal" style="width:min(420px,100%)">
+    <div class="modal" style="width:min(440px,100%)">
       <h3>
         <span id="installTitle">Installa Process Managed</span>
         <button type="button" data-close aria-label="Chiudi">&times;</button>
       </h3>
-      <p class="mini" id="installHint">Puoi installarlo come app sul PC (Edge o Chrome).</p>
+      <p class="mini" id="installHint">Su PC usa Edge o Chrome.</p>
       <div class="actions" style="flex-wrap:wrap;gap:8px">
         <button type="button" id="installPromptBtn">Installa ora</button>
-        <button type="button" id="installBatBtn" style="background:#0c4a6e;border-color:#38bdf8">Scarica scorciatoia PC (.bat)</button>
+        <button type="button" id="installUrlBtn" style="background:#0c4a6e;border-color:#38bdf8">Scarica collegamento (.url)</button>
       </div>
       <p class="mini" id="installManual" style="margin-top:10px">
-        Se «Installa ora» non appare: in Edge/Chrome apri il menu <strong>⋯</strong> → <strong>App</strong> → <strong>Installa questa app</strong>
-        (oppure l’icona ⊕ / computer nella barra indirizzi).
+        <strong>PC (consigliato):</strong> in Edge/Chrome menu <strong>⋯</strong> → <strong>App</strong> → <strong>Installa questa app</strong>
+        (o l’icona computer / ⊕ nella barra indirizzi).<br />
+        I file <strong>.bat</strong> il browser li blocca per sicurezza: non servono.
+        Se hai già il progetto sul PC, esegui <code>Setup-Process-Managed-PC.ps1</code> (tasto destro → Esegui con PowerShell): crea Desktop + Menu Start.
       </p>
     </div>
   </div>
@@ -20101,13 +20103,14 @@
       }
     } catch (_) { /* ok */ }
 
-    /** Installazione PWA / scorciatoia PC */
+    /** Installazione PWA / collegamento PC (niente .bat: i browser li bloccano) */
     let __deferredInstall = null;
     const isStandaloneApp = () => {
       try {
+        // Solo modalità app reale — NON usare ?standalone=1 (rompe Installa)
         return window.matchMedia("(display-mode: standalone)").matches
-          || window.navigator.standalone === true
-          || /standalone=1/i.test(String(location.search || ""));
+          || window.matchMedia("(display-mode: minimal-ui)").matches
+          || window.navigator.standalone === true;
       } catch (_) {
         return false;
       }
@@ -20120,12 +20123,12 @@
         hint.textContent = already
           ? "Process Managed è già aperto come app."
           : (__deferredInstall
-            ? "Pronto: tocca «Installa ora» per metterlo sul PC (menu Start / desktop)."
-            : "Se il browser non propone ancora l’installazione, usa la scorciatoia .bat oppure il menu ⋯ → App → Installa.");
+            ? "Pronto: tocca «Installa ora» (va nel menu Start come le altre app)."
+            : "Il browser non ha ancora offerto il prompt. Usa ⋯ → App → Installa questa app, oppure scarica il collegamento .url.");
       }
       if (promptBtn) {
         promptBtn.disabled = already || !__deferredInstall;
-        promptBtn.textContent = already ? "Già installata" : (__deferredInstall ? "Installa ora" : "Installa (non ancora disponibile)");
+        promptBtn.textContent = already ? "Già installata" : (__deferredInstall ? "Installa ora" : "Installa (usa menu ⋯ App)");
       }
     }
     function openInstallPop() {
@@ -20139,24 +20142,17 @@
       if (pop) pop.classList.remove("show");
       try { syncScrollLock(); } catch (_) { /* ok */ }
     }
-    function downloadPcShortcutBat() {
+    function downloadPcUrlShortcut() {
       const body = [
-        "@echo off",
-        "REM Process Managed — finestra app (Edge o Chrome)",
-        "set \"URL=https://francescomendosa-create.github.io/Calcolatore-WWT/index.html?standalone=1\"",
-        "where msedge >nul 2>&1 && start \"\" msedge --app=\"%URL%\" && exit /b 0",
-        "if exist \"%ProgramFiles(x86)%\\Microsoft\\Edge\\Application\\msedge.exe\" (start \"\" \"%ProgramFiles(x86)%\\Microsoft\\Edge\\Application\\msedge.exe\" --app=\"%URL%\" & exit /b 0)",
-        "if exist \"%ProgramFiles%\\Microsoft\\Edge\\Application\\msedge.exe\" (start \"\" \"%ProgramFiles%\\Microsoft\\Edge\\Application\\msedge.exe\" --app=\"%URL%\" & exit /b 0)",
-        "where chrome >nul 2>&1 && start \"\" chrome --app=\"%URL%\" && exit /b 0",
-        "if exist \"%ProgramFiles%\\Google\\Chrome\\Application\\chrome.exe\" (start \"\" \"%ProgramFiles%\\Google\\Chrome\\Application\\chrome.exe\" --app=\"%URL%\" & exit /b 0)",
-        "if exist \"%LocalAppData%\\Google\\Chrome\\Application\\chrome.exe\" (start \"\" \"%LocalAppData%\\Google\\Chrome\\Application\\chrome.exe\" --app=\"%URL%\" & exit /b 0)",
-        "start \"\" \"%URL%\"",
+        "[InternetShortcut]",
+        "URL=https://francescomendosa-create.github.io/Calcolatore-WWT/index.html?standalone=1",
+        "IconIndex=0",
         ""
       ].join("\r\n");
-      const blob = new Blob([body], { type: "application/octet-stream" });
+      const blob = new Blob([body], { type: "application/internet-shortcut" });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = "Installa-Process-Managed-PC.bat";
+      a.download = "Process-Managed.url";
       document.body.appendChild(a);
       a.click();
       setTimeout(() => {
@@ -20168,6 +20164,11 @@
       e.preventDefault();
       __deferredInstall = e;
       paintInstallUi();
+      const btn = el("wwtInstallLink");
+      if (btn && !isStandaloneApp()) {
+        btn.style.borderColor = "#4ade80";
+        btn.style.color = "#bbf7d0";
+      }
     });
     window.addEventListener("appinstalled", () => {
       __deferredInstall = null;
@@ -20177,11 +20178,7 @@
     el("wwtInstallLink")?.addEventListener("click", async (e) => {
       e.preventDefault();
       e.stopPropagation();
-      if (isStandaloneApp()) {
-        openInstallPop();
-        return;
-      }
-      if (__deferredInstall) {
+      if (__deferredInstall && !isStandaloneApp()) {
         try {
           await __deferredInstall.prompt();
           await __deferredInstall.userChoice;
@@ -20203,9 +20200,9 @@
       paintInstallUi();
       hideInstallPop();
     });
-    el("installBatBtn")?.addEventListener("click", (e) => {
+    el("installUrlBtn")?.addEventListener("click", (e) => {
       e.preventDefault();
-      downloadPcShortcutBat();
+      downloadPcUrlShortcut();
     });
     el("popInstall")?.addEventListener("click", (e) => {
       if (e.target === el("popInstall")) hideInstallPop();
@@ -20277,7 +20274,7 @@
         __wwtSwReloaded = true;
         try { location.reload(); } catch (_) { /* ok */ }
       });
-      navigator.serviceWorker.register("sw.js?v=wwt341", { scope: "./", updateViaCache: "none" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt342", { scope: "./", updateViaCache: "none" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
         try {

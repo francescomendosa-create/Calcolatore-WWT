@@ -9,9 +9,9 @@ Simulatore portate / linea MBR — **app separata da ServiceHub**.
 
 ## Installa sul PC
 
-1. Apri il link sopra con **Edge** o **Chrome**
-2. Tocca **Installa PC** in alto (oppure ⋯ → App → Installa questa app)
-3. Se non compare: scarica / esegui `Installa-Process-Managed-PC.bat` (apre una finestra app senza barra del browser)
+1. Con **Edge** o **Chrome**: ⋯ → **App** → **Installa questa app** (oppure tasto **Installa PC** in alto)
+2. Oppure, dal PC: esegui `Setup-Process-Managed-PC.ps1` (tasto destro → Esegui con PowerShell) → crea Desktop + Menu Start
+3. Non scaricare `.bat` dal browser: Windows/Edge li bloccano per sicurezza
 
 ## GitHub Desktop
 
