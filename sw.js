@@ -1,5 +1,5 @@
 ﻿/* Process Managed â€” service worker (force update mobile) */
-const CACHE = "process-managed-sw-v344";
+const CACHE = "process-managed-sw-v345";
 self.addEventListener("install", (e) => {
   e.waitUntil(self.skipWaiting());
 });

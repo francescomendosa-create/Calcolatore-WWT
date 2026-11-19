@@ -2361,7 +2361,7 @@
 </head>
 <body>
   <header>
-    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v344</span><span id="wwtAdminMark" hidden>admin</span></h1>
+    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v345</span><span id="wwtAdminMark" hidden>admin</span></h1>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
   </header>
@@ -9608,40 +9608,44 @@
 
     function buildSludgeAnalisiPrintHtml() {
       const rows = rebuildSludgeAnalisiReport();
-      const when = new Date();
-      const whenTxt = when.toLocaleString("it-IT", { dateStyle: "short", timeStyle: "short" });
-      const cards = rows.map((r) => (
-        '<section class="v">' +
-          '<div class="v-name">' + r.name + '</div>' +
-          '<div class="line"><span>MLSS</span><b>' + r.mlss + ' mg/L</b></div>' +
-          '<div class="line"><span>Valore</span><b>' + r.base + ' s</b></div>' +
-          '<div class="line"><span>Variazione</span><b>' + sludgeAdjFmtPct(r.sign, r.pct) + '%</b></div>' +
-          '<div class="line result"><span>Valore modificato</span><b>' + r.result + ' s</b></div>' +
-        '</section>'
+      const whenTxt = new Date().toLocaleString("it-IT", { dateStyle: "short", timeStyle: "short" });
+      const body = rows.map((r) => (
+        "<tr>" +
+          "<td class=\"sig\">" + r.name + "</td>" +
+          "<td>" + r.base + "</td>" +
+          "<td>" + sludgeAdjFmtPct(r.sign, r.pct) + "%</td>" +
+          "<td class=\"calc\">" + r.result + "</td>" +
+        "</tr>"
       )).join("");
       return (
         "<!DOCTYPE html><html lang=\"it\"><head><meta charset=\"UTF-8\" />" +
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />" +
-        "<title>Aperture valvole · analisi MLSS</title>" +
+        "<title>Aperture valvole</title>" +
         "<style>" +
         "@page{size:A4;margin:10mm;}" +
-        "html,body{margin:0;padding:0;}" +
-        "body{font-family:Segoe UI,system-ui,sans-serif;color:#0f172a;padding:8px 10px;font-size:11pt;line-height:1.15;}" +
-        "h1{font-size:14pt;margin:0 0 2px;font-weight:800;}" +
-        ".meta{color:#64748b;font-size:9pt;margin:0 0 8px;}" +
-        ".v{border:1px solid #94a3b8;border-radius:6px;padding:6px 8px;margin:0 0 6px;}" +
-        ".v-name{font-weight:800;font-size:11.5pt;margin:0 0 3px;color:#0c4a6e;}" +
-        ".line{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:1px 0;}" +
-        ".line span{color:#64748b;font-size:9.5pt;}" +
-        ".line b{font-variant-numeric:tabular-nums;font-size:11pt;}" +
-        ".line.result{margin-top:2px;border-top:1px solid #e2e8f0;padding-top:3px;}" +
-        ".line.result b{font-size:12pt;}" +
-        "@media print{body{padding:0;} .v{break-inside:avoid;}}" +
+        "body{font-family:Segoe UI,system-ui,sans-serif;color:#0f172a;margin:0;padding:6px 8px;font-size:10.5pt;}" +
+        "h1{font-size:13pt;margin:0 0 2px;}" +
+        ".meta{color:#64748b;font-size:8.5pt;margin:0 0 6px;}" +
+        "table{width:100%;border-collapse:collapse;}" +
+        "th,td{padding:3px 5px;border-bottom:1px solid #cbd5e1;text-align:left;line-height:1.2;}" +
+        "th{font-size:8.5pt;color:#475569;font-weight:700;border-bottom:2px solid #64748b;}" +
+        "td{font-variant-numeric:tabular-nums;}" +
+        "td.sig{font-weight:700;}" +
+        "td.calc{font-weight:800;}" +
+        "th:nth-child(2),th:nth-child(3),th:nth-child(4)," +
+        "td:nth-child(2),td:nth-child(3),td:nth-child(4){text-align:right;}" +
+        "@media print{body{padding:0;}}" +
         "</style></head><body>" +
-        "<h1>Process Managed · Aperture valvole</h1>" +
-        "<p class=\"meta\">Analisi MLSS · " + whenTxt + " · solo membrane con analisi inserita e variazione</p>" +
-        (cards || "<p class=\"meta\">Nessuna membrana con analisi e variazione.</p>") +
-        "<p class=\"meta\" style=\"margin-top:6px\">Ciclo estrazione fanghi → A11004</p>" +
+        "<h1>Aperture valvole · analisi MLSS</h1>" +
+        "<p class=\"meta\">" + whenTxt + " · solo membrane con analisi</p>" +
+        (rows.length
+          ? ("<table><thead><tr>" +
+              "<th>Sigla</th>" +
+              "<th>Valore precedente</th>" +
+              "<th>% variazione</th>" +
+              "<th>Valore calcolato</th>" +
+            "</tr></thead><tbody>" + body + "</tbody></table>")
+          : "<p class=\"meta\">Nessuna membrana con analisi e variazione.</p>") +
         "</body></html>"
       );
     }
@@ -9652,10 +9656,12 @@
       if (!rows.length) return;
       const html = buildSludgeAnalisiPrintHtml();
       const title = "Aperture valvole · analisi MLSS";
-      const textLines = rows.map((r) => (
-        r.name + "\nMLSS " + r.mlss + " mg/L\nValore " + r.base + " s\nVariazione " +
-        sludgeAdjFmtPct(r.sign, r.pct) + "%\nValore modificato " + r.result + " s"
-      )).join("\n\n");
+      const textLines = [
+        "Sigla | Valore precedente | % variazione | Valore calcolato",
+        ...rows.map((r) => (
+          r.name + " | " + r.base + " | " + sludgeAdjFmtPct(r.sign, r.pct) + "% | " + r.result
+        )),
+      ].join("\n");
       try {
         if (navigator.share) {
           const file = new File([html], "aperture-valvole-mlss.html", { type: "text/html" });
@@ -20293,7 +20299,7 @@
         __wwtSwReloaded = true;
         try { location.reload(); } catch (_) { /* ok */ }
       });
-      navigator.serviceWorker.register("sw.js?v=wwt344", { scope: "./", updateViaCache: "none" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt345", { scope: "./", updateViaCache: "none" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
         try {
