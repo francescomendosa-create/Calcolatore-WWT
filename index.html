@@ -2361,7 +2361,7 @@
 </head>
 <body>
   <header>
-    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v343</span><span id="wwtAdminMark" hidden>admin</span></h1>
+    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v344</span><span id="wwtAdminMark" hidden>admin</span></h1>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
     <div class="status" id="syncBar" style="margin-left:0;background:#1e293b;border-color:#334155;color:#94a3b8">Sync…</div>
   </header>
@@ -9537,6 +9537,38 @@
       try { syncScrollLock(); } catch (_) { /* ok */ }
     }
 
+    /** True solo se in Analisi c’è un MLSS numerico inserito per quella membrana. */
+    function sludgeMlssHasValue(L) {
+      const raw = String((__sludgeMlss && __sludgeMlss[L]) != null ? __sludgeMlss[L] : "").trim().replace(",", ".");
+      if (raw === "") return false;
+      const n = parseFloat(raw);
+      return Number.isFinite(n) && n >= 0;
+    }
+
+    /** Report stampa: SOLO membrane con valore analisi presente (+ % da tabella). */
+    function rebuildSludgeAnalisiReport() {
+      if (!__sludgeAdj) __sludgeAdj = captureSludgeAdj();
+      const report = [];
+      MBR_ALL_IDS.forEach((L) => {
+        if (!sludgeMlssHasValue(L)) return; // es. D senza MLSS → assente dal foglio
+        const row = __sludgeAdj.rows[L] || { base: 0, sign: 1, pct: 0 };
+        const adj = mlssAdjFromValue(__sludgeMlss[L]);
+        // Solo se la tabella ha applicato una variazione (pct ≠ 0)
+        if (!(adj.pct > 0)) return;
+        report.push({
+          id: L,
+          name: SLUDGE_VALVE_NAME[L],
+          mlss: String(Math.round(parseFloat(String(__sludgeMlss[L]).replace(",", ".")))),
+          base: Math.max(0, Math.round(Number(row.base) || 0)),
+          sign: adj.sign,
+          pct: adj.pct,
+          result: sludgeAdjResult({ base: row.base, sign: adj.sign, pct: adj.pct }),
+        });
+      });
+      __sludgeAnalisiReport = report;
+      return report;
+    }
+
     /** Applica tabella MLSS sulle % di Modifica (sovrascrive le % manuali; le basi restano). */
     function applySludgeMlssToAdj() {
       readSludgeMlssFromForm();
@@ -9545,7 +9577,6 @@
       let commonSign = null;
       let commonPct = null;
       let same = true;
-      const report = [];
       MBR_ALL_IDS.forEach((L) => {
         const adj = mlssAdjFromValue(__sludgeMlss[L]);
         __sludgeAdj.rows[L].sign = adj.sign;
@@ -9556,24 +9587,12 @@
         } else if (commonSign !== adj.sign || commonPct !== adj.pct) {
           same = false;
         }
-        // In stampa solo membrane davvero variate dalla tabella (pct ≠ 0)
-        if (adj.pct > 0) {
-          report.push({
-            id: L,
-            name: SLUDGE_VALVE_NAME[L],
-            mlss: String(__sludgeMlss[L] || ""),
-            base: __sludgeAdj.rows[L].base,
-            sign: adj.sign,
-            pct: adj.pct,
-            result: sludgeAdjResult(__sludgeAdj.rows[L]),
-          });
-        }
       });
       if (same && commonSign != null) {
         __sludgeAdj.globalSign = commonSign;
         __sludgeAdj.globalPct = commonPct;
       }
-      __sludgeAnalisiReport = report;
+      rebuildSludgeAnalisiReport();
       hideSludgeMlss();
       paintSludgeAdj();
       try { schedulePersist(); } catch (_) { /* ok */ }
@@ -9588,51 +9607,55 @@
     }
 
     function buildSludgeAnalisiPrintHtml() {
-      const rows = Array.isArray(__sludgeAnalisiReport) ? __sludgeAnalisiReport : [];
+      const rows = rebuildSludgeAnalisiReport();
       const when = new Date();
       const whenTxt = when.toLocaleString("it-IT", { dateStyle: "short", timeStyle: "short" });
-      const bodyRows = rows.map((r) => (
-        "<tr>" +
-          "<td>" + r.name + "</td>" +
-          "<td>" + (r.mlss ? (r.mlss + " mg/L") : "—") + "</td>" +
-          "<td>" + r.base + " s</td>" +
-          "<td>" + sludgeAdjFmtPct(r.sign, r.pct) + "%</td>" +
-          "<td><strong>" + r.result + " s</strong></td>" +
-        "</tr>"
+      const cards = rows.map((r) => (
+        '<section class="v">' +
+          '<div class="v-name">' + r.name + '</div>' +
+          '<div class="line"><span>MLSS</span><b>' + r.mlss + ' mg/L</b></div>' +
+          '<div class="line"><span>Valore</span><b>' + r.base + ' s</b></div>' +
+          '<div class="line"><span>Variazione</span><b>' + sludgeAdjFmtPct(r.sign, r.pct) + '%</b></div>' +
+          '<div class="line result"><span>Valore modificato</span><b>' + r.result + ' s</b></div>' +
+        '</section>'
       )).join("");
       return (
         "<!DOCTYPE html><html lang=\"it\"><head><meta charset=\"UTF-8\" />" +
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />" +
         "<title>Aperture valvole · analisi MLSS</title>" +
         "<style>" +
-        "@page { size: A4; margin: 14mm; }" +
-        "body{font-family:Segoe UI,system-ui,sans-serif;color:#0f172a;margin:0;padding:12px;}" +
-        "h1{font-size:18pt;margin:0 0 4px;} .meta{color:#64748b;font-size:10pt;margin:0 0 14px;}" +
-        "table{width:100%;border-collapse:collapse;font-size:11pt;}" +
-        "th,td{border:1px solid #94a3b8;padding:8px 10px;text-align:left;}" +
-        "th{background:#e2e8f0;}" +
-        "td:nth-child(3),td:nth-child(4),td:nth-child(5){text-align:right;font-variant-numeric:tabular-nums;}" +
-        "@media print{body{padding:0;} button{display:none!important;}}" +
+        "@page{size:A4;margin:10mm;}" +
+        "html,body{margin:0;padding:0;}" +
+        "body{font-family:Segoe UI,system-ui,sans-serif;color:#0f172a;padding:8px 10px;font-size:11pt;line-height:1.15;}" +
+        "h1{font-size:14pt;margin:0 0 2px;font-weight:800;}" +
+        ".meta{color:#64748b;font-size:9pt;margin:0 0 8px;}" +
+        ".v{border:1px solid #94a3b8;border-radius:6px;padding:6px 8px;margin:0 0 6px;}" +
+        ".v-name{font-weight:800;font-size:11.5pt;margin:0 0 3px;color:#0c4a6e;}" +
+        ".line{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:1px 0;}" +
+        ".line span{color:#64748b;font-size:9.5pt;}" +
+        ".line b{font-variant-numeric:tabular-nums;font-size:11pt;}" +
+        ".line.result{margin-top:2px;border-top:1px solid #e2e8f0;padding-top:3px;}" +
+        ".line.result b{font-size:12pt;}" +
+        "@media print{body{padding:0;} .v{break-inside:avoid;}}" +
         "</style></head><body>" +
         "<h1>Process Managed · Aperture valvole</h1>" +
-        "<p class=\"meta\">Variazioni da analisi MLSS · " + whenTxt + " · solo membrane variate</p>" +
-        "<table><thead><tr>" +
-          "<th>Valvola</th><th>MLSS</th><th>Valore</th><th>Variazione %</th><th>Valore modificato</th>" +
-        "</tr></thead><tbody>" + bodyRows + "</tbody></table>" +
-        "<p class=\"meta\" style=\"margin-top:16px\">Foglio A4 · ciclo estrazione fanghi → A11004</p>" +
+        "<p class=\"meta\">Analisi MLSS · " + whenTxt + " · solo membrane con analisi inserita e variazione</p>" +
+        (cards || "<p class=\"meta\">Nessuna membrana con analisi e variazione.</p>") +
+        "<p class=\"meta\" style=\"margin-top:6px\">Ciclo estrazione fanghi → A11004</p>" +
         "</body></html>"
       );
     }
 
     async function shareOrPrintSludgeAnalisi() {
-      const rows = Array.isArray(__sludgeAnalisiReport) ? __sludgeAnalisiReport : [];
+      const rows = rebuildSludgeAnalisiReport();
+      syncSludgeShareBtn();
       if (!rows.length) return;
       const html = buildSludgeAnalisiPrintHtml();
       const title = "Aperture valvole · analisi MLSS";
       const textLines = rows.map((r) => (
-        r.name + ": " + r.base + " s → " + sludgeAdjFmtPct(r.sign, r.pct) + "% → " + r.result + " s"
-        + (r.mlss ? (" (MLSS " + r.mlss + ")") : "")
-      )).join("\n");
+        r.name + "\nMLSS " + r.mlss + " mg/L\nValore " + r.base + " s\nVariazione " +
+        sludgeAdjFmtPct(r.sign, r.pct) + "%\nValore modificato " + r.result + " s"
+      )).join("\n\n");
       try {
         if (navigator.share) {
           const file = new File([html], "aperture-valvole-mlss.html", { type: "text/html" });
@@ -9646,8 +9669,7 @@
       } catch (err) {
         if (err && (err.name === "AbortError" || err.name === "NotAllowedError")) return;
       }
-      // Windows / desktop: stampa A4 (dal dialogo si può anche salvare PDF / condividere)
-      const w = window.open("", "_blank", "noopener,noreferrer,width=900,height=700");
+      const w = window.open("", "_blank", "noopener,noreferrer,width=720,height=900");
       if (!w) {
         try { window.print(); } catch (_) { /* ok */ }
         return;
@@ -19831,7 +19853,11 @@
           try { __sludgeMlss = normalizeSludgeMlss(data.sludgeMlss); } catch (_) { /* ok */ }
         }
         if (Array.isArray(data.sludgeAnalisiReport)) {
-          __sludgeAnalisiReport = data.sludgeAnalisiReport.filter((r) => r && r.pct > 0);
+          __sludgeAnalisiReport = data.sludgeAnalisiReport.filter((r) => (
+            r && r.pct > 0 && String(r.mlss || "").trim() !== ""
+          ));
+        } else {
+          try { rebuildSludgeAnalisiReport(); } catch (_) { /* ok */ }
         }
         if (!fromRemote && data.carbWash && typeof data.carbWash === "object") {
           __carbWash = JSON.parse(JSON.stringify(data.carbWash));
@@ -20267,7 +20293,7 @@
         __wwtSwReloaded = true;
         try { location.reload(); } catch (_) { /* ok */ }
       });
-      navigator.serviceWorker.register("sw.js?v=wwt343", { scope: "./", updateViaCache: "none" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt344", { scope: "./", updateViaCache: "none" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
         try {
