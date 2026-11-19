@@ -12,9 +12,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Process Managed" />
-  <link rel="manifest" href="manifest.json?v=wwt34" />
-  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt34" />
-  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt34" />
+  <link rel="manifest" href="manifest.json?v=wwt341" />
+  <link rel="apple-touch-icon" href="wwt-icon-192.png?v=wwt341" />
+  <link rel="icon" type="image/png" href="wwt-icon-192.png?v=wwt341" />
   <style>
     :root {
       --bg: #0b1220;
@@ -2341,17 +2341,22 @@
 </head>
 <body>
   <header>
-    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v340</span><span id="wwtAdminMark" hidden>admin</span></h1>
-    <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
+    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v341</span><span id="wwtAdminMark" hidden>admin</span></h1>
+    <button type="button" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2;cursor:pointer;font:inherit" title="Installa Process Managed su questo dispositivo">Installa app</button>
     <script>
       (function () {
         var ua = navigator.userAgent || "";
         var iPad = /iPad/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
         var mobile = /Android|iPhone|iPod|Mobile|Tablet/i.test(ua);
         var link = document.getElementById("wwtInstallLink");
-        if (!link || iPad || mobile) return;
-        link.textContent = "PC · App";
-        link.title = "Aperta da PC";
+        if (!link) return;
+        if (iPad || mobile) {
+          link.textContent = "Installa app";
+          link.title = "Installa su tablet o telefono";
+        } else {
+          link.textContent = "Installa PC";
+          link.title = "Installa Process Managed su questo PC";
+        }
       })();
     </script>
     <div class="status" id="statusBar" data-clickable="1" role="button" tabindex="0" title="Clic: dettaglio previsione 8 ore">Regolato…</div>
@@ -4124,6 +4129,25 @@
         </table>
       </details>
       <div class="actions"><button type="button" data-close>Applica</button></div>
+    </div>
+  </div>
+
+  <!-- Installazione app (PC / tablet) -->
+  <div class="modal-back" id="popInstall" role="dialog" aria-modal="true" aria-labelledby="installTitle">
+    <div class="modal" style="width:min(420px,100%)">
+      <h3>
+        <span id="installTitle">Installa Process Managed</span>
+        <button type="button" data-close aria-label="Chiudi">&times;</button>
+      </h3>
+      <p class="mini" id="installHint">Puoi installarlo come app sul PC (Edge o Chrome).</p>
+      <div class="actions" style="flex-wrap:wrap;gap:8px">
+        <button type="button" id="installPromptBtn">Installa ora</button>
+        <button type="button" id="installBatBtn" style="background:#0c4a6e;border-color:#38bdf8">Scarica scorciatoia PC (.bat)</button>
+      </div>
+      <p class="mini" id="installManual" style="margin-top:10px">
+        Se «Installa ora» non appare: in Edge/Chrome apri il menu <strong>⋯</strong> → <strong>App</strong> → <strong>Installa questa app</strong>
+        (oppure l’icona ⊕ / computer nella barra indirizzi).
+      </p>
     </div>
   </div>
 
@@ -17008,10 +17032,12 @@
       const pct = el("popSludgePct");
       const mlss = el("popSludgeMlss");
       const base = el("popSludgeBase");
+      const inst = el("popInstall");
       if (adj && adj.classList.contains("show")) return true;
       if (pct && pct.classList.contains("show")) return true;
       if (mlss && mlss.classList.contains("show")) return true;
       if (base && base.classList.contains("show")) return true;
+      if (inst && inst.classList.contains("show")) return true;
       return Object.values(popups).some((p) => p && p.classList.contains("show"));
     }
 
@@ -20070,6 +20096,120 @@
       }
     } catch (_) { /* ok */ }
 
+    /** Installazione PWA / scorciatoia PC */
+    let __deferredInstall = null;
+    const isStandaloneApp = () => {
+      try {
+        return window.matchMedia("(display-mode: standalone)").matches
+          || window.navigator.standalone === true
+          || /standalone=1/i.test(String(location.search || ""));
+      } catch (_) {
+        return false;
+      }
+    };
+    function paintInstallUi() {
+      const promptBtn = el("installPromptBtn");
+      const hint = el("installHint");
+      const already = isStandaloneApp();
+      if (hint) {
+        hint.textContent = already
+          ? "Process Managed è già aperto come app."
+          : (__deferredInstall
+            ? "Pronto: tocca «Installa ora» per metterlo sul PC (menu Start / desktop)."
+            : "Se il browser non propone ancora l’installazione, usa la scorciatoia .bat oppure il menu ⋯ → App → Installa.");
+      }
+      if (promptBtn) {
+        promptBtn.disabled = already || !__deferredInstall;
+        promptBtn.textContent = already ? "Già installata" : (__deferredInstall ? "Installa ora" : "Installa (non ancora disponibile)");
+      }
+    }
+    function openInstallPop() {
+      paintInstallUi();
+      const pop = el("popInstall");
+      if (pop) pop.classList.add("show");
+      try { syncScrollLock(); } catch (_) { /* ok */ }
+    }
+    function hideInstallPop() {
+      const pop = el("popInstall");
+      if (pop) pop.classList.remove("show");
+      try { syncScrollLock(); } catch (_) { /* ok */ }
+    }
+    function downloadPcShortcutBat() {
+      const body = [
+        "@echo off",
+        "REM Process Managed — finestra app (Edge o Chrome)",
+        "set \"URL=https://francescomendosa-create.github.io/Calcolatore-WWT/index.html?standalone=1\"",
+        "where msedge >nul 2>&1 && start \"\" msedge --app=\"%URL%\" && exit /b 0",
+        "if exist \"%ProgramFiles(x86)%\\Microsoft\\Edge\\Application\\msedge.exe\" (start \"\" \"%ProgramFiles(x86)%\\Microsoft\\Edge\\Application\\msedge.exe\" --app=\"%URL%\" & exit /b 0)",
+        "if exist \"%ProgramFiles%\\Microsoft\\Edge\\Application\\msedge.exe\" (start \"\" \"%ProgramFiles%\\Microsoft\\Edge\\Application\\msedge.exe\" --app=\"%URL%\" & exit /b 0)",
+        "where chrome >nul 2>&1 && start \"\" chrome --app=\"%URL%\" && exit /b 0",
+        "if exist \"%ProgramFiles%\\Google\\Chrome\\Application\\chrome.exe\" (start \"\" \"%ProgramFiles%\\Google\\Chrome\\Application\\chrome.exe\" --app=\"%URL%\" & exit /b 0)",
+        "if exist \"%LocalAppData%\\Google\\Chrome\\Application\\chrome.exe\" (start \"\" \"%LocalAppData%\\Google\\Chrome\\Application\\chrome.exe\" --app=\"%URL%\" & exit /b 0)",
+        "start \"\" \"%URL%\"",
+        ""
+      ].join("\r\n");
+      const blob = new Blob([body], { type: "application/octet-stream" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "Installa-Process-Managed-PC.bat";
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        try { URL.revokeObjectURL(a.href); } catch (_) { /* ok */ }
+        a.remove();
+      }, 800);
+    }
+    window.addEventListener("beforeinstallprompt", (e) => {
+      e.preventDefault();
+      __deferredInstall = e;
+      paintInstallUi();
+    });
+    window.addEventListener("appinstalled", () => {
+      __deferredInstall = null;
+      paintInstallUi();
+      hideInstallPop();
+    });
+    el("wwtInstallLink")?.addEventListener("click", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (isStandaloneApp()) {
+        openInstallPop();
+        return;
+      }
+      if (__deferredInstall) {
+        try {
+          await __deferredInstall.prompt();
+          await __deferredInstall.userChoice;
+        } catch (_) { /* ok */ }
+        __deferredInstall = null;
+        paintInstallUi();
+        return;
+      }
+      openInstallPop();
+    });
+    el("installPromptBtn")?.addEventListener("click", async (e) => {
+      e.preventDefault();
+      if (!__deferredInstall) return;
+      try {
+        await __deferredInstall.prompt();
+        await __deferredInstall.userChoice;
+      } catch (_) { /* ok */ }
+      __deferredInstall = null;
+      paintInstallUi();
+      hideInstallPop();
+    });
+    el("installBatBtn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      downloadPcShortcutBat();
+    });
+    el("popInstall")?.addEventListener("click", (e) => {
+      if (e.target === el("popInstall")) hideInstallPop();
+    });
+    el("popInstall")?.querySelector("[data-close]")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      hideInstallPop();
+    });
+
     /* Display acceso ≥ 5 min (Wake Lock), poi il telefono può andare in standby da solo.
        L’impianto continua a lavorare anche a schermo spento. Ogni tocco / Start rinnova i 5 min. */
     const SCREEN_WAKE_MS = 5 * 60 * 1000;
@@ -20132,7 +20272,7 @@
         __wwtSwReloaded = true;
         try { location.reload(); } catch (_) { /* ok */ }
       });
-      navigator.serviceWorker.register("sw.js?v=wwt185", { scope: "./", updateViaCache: "none" }).then(function (reg) {
+      navigator.serviceWorker.register("sw.js?v=wwt341", { scope: "./", updateViaCache: "none" }).then(function (reg) {
         try { reg.update(); } catch (_) {}
         if (reg.waiting) reg.waiting.postMessage("SKIP_WAITING");
         try {
