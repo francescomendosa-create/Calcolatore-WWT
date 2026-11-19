@@ -931,11 +931,66 @@
     #popSludgeAdj,
     #popSludgePct { z-index: 80; }
     #popSludgePct { z-index: 100; }
+    #popSludgeMlss { z-index: 105; }
     #popSludgeBase { z-index: 110; }
     #popSludgeAdj .modal,
-    #popSludgePct .modal { width: min(460px, 100%); }
+    #popSludgePct .modal,
+    #popSludgeMlss .modal { width: min(460px, 100%); }
     #popSludgePct .modal,
     #popSludgeBase .modal { width: min(280px, 100%); }
+    .mlss-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 8px 0 4px;
+      font-size: 0.78rem;
+    }
+    .mlss-table th,
+    .mlss-table td {
+      border: 1px solid var(--line);
+      padding: 6px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    .mlss-table th {
+      background: #0f172a;
+      color: #93c5fd;
+      font-weight: 750;
+    }
+    .mlss-table td.mlss-act { color: #fde68a; font-weight: 650; }
+    .sludge-adj-analbtn {
+      appearance: none;
+      border: 1px solid #38bdf8;
+      background: #0c4a6e;
+      color: #e0f2fe;
+      border-radius: 8px;
+      font-weight: 800;
+      font-size: 0.82rem;
+      padding: 6px 10px;
+      cursor: pointer;
+    }
+    .sludge-mlss-row {
+      display: grid;
+      grid-template-columns: 1fr 7.5rem;
+      gap: 8px;
+      align-items: center;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .sludge-mlss-row label {
+      margin: 0;
+      font-weight: 750;
+      color: #e2e8f0;
+      font-size: 0.84rem;
+    }
+    .sludge-mlss-row input {
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .sludge-mlss-hint {
+      font-size: 0.72rem;
+      color: #94a3b8;
+      margin: 0;
+    }
     .sludge-adj-head {
       margin-left: auto;
       display: flex;
@@ -944,6 +999,7 @@
     }
     #sludgeAdjX,
     #sludgePctX,
+    #sludgeMlssX,
     #sludgeBaseX {
       border: 0;
       background: var(--panel-2);
@@ -2271,7 +2327,7 @@
       pointer-events: none;
       opacity: 0.72;
     }
-    html.is-guest .is-guest-lock button:not([data-close]):not(#sludgeAdjX):not(#sludgePctX):not(#sludgeBaseX),
+    html.is-guest .is-guest-lock button:not([data-close]):not(#sludgeAdjX):not(#sludgePctX):not(#sludgeMlssX):not(#sludgeBaseX),
     html.is-guest .is-guest-lock .uf-mini,
     html.is-guest .is-guest-lock .osm-mini,
     html.is-guest .is-guest-lock .uf-chem-remain,
@@ -2285,7 +2341,7 @@
 </head>
 <body>
   <header>
-    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v339</span><span id="wwtAdminMark" hidden>admin</span></h1>
+    <h1 id="wwtTitle" class="wwt-title" title="Accesso">Process Managed <span id="wwtBuildTag" style="font-size:0.68em;font-weight:600;color:#64748b;margin-left:6px">v340</span><span id="wwtAdminMark" hidden>admin</span></h1>
     <a href="index.html" id="wwtInstallLink" style="font-size:0.72rem;font-weight:700;color:#7dd3fc;text-decoration:none;padding:3px 8px;border:1px solid #334155;border-radius:6px;background:#0f172a;line-height:1.2" title="Apri / installa su tablet o telefono">Tablet · App</a>
     <script>
       (function () {
@@ -3430,6 +3486,22 @@
             <div class="row"><label><strong>G · XV-04202G · apertura (s)</strong><input type="number" id="sludgeOpenG" min="1" max="20000" step="1" value="1577" inputmode="numeric" /></label><label><strong>Attesa avvio (min)</strong><input type="number" id="sludgeWaitG" min="0" max="120" step="0.1" value="2" inputmode="decimal" /></label></div>
             <div class="row"><label><strong>H · XV-04202H · apertura (s)</strong><input type="number" id="sludgeOpenH" min="1" max="20000" step="1" value="1594" inputmode="numeric" /></label><label><strong>Attesa avvio (min)</strong><input type="number" id="sludgeWaitH" min="0" max="120" step="0.1" value="2" inputmode="decimal" /></label></div>
             <p class="mini" id="sludgeCycleHint">All’avvio ogni valvola attende 2 min, poi scarica verso A11004 per i suoi secondi.</p>
+            <details class="sludge-fold" style="margin-top:12px">
+              <summary>Gestione MLSS MBR per estrazione fanghi</summary>
+              <p class="mini" style="margin-top:8px">Tabella COD · tempi estrazione di fondo in funzione del MLSS (mg/L). Usata dal tasto Analisi in Modifica aperture valvole.</p>
+              <table class="mlss-table">
+                <thead><tr><th>MLSS (mg/L)</th><th>Azione sui tempi di estrazione</th></tr></thead>
+                <tbody>
+                  <tr><td>&lt; 3000</td><td class="mlss-act">Diminuire del 5%</td></tr>
+                  <tr><td>3000 – 3500</td><td class="mlss-act">Nessuna azione (fascia intermedia)</td></tr>
+                  <tr><td>3500 – 4000</td><td class="mlss-act">Nessuna azione richiesta</td></tr>
+                  <tr><td>4000 – 4500</td><td class="mlss-act">Aumentare del 5%</td></tr>
+                  <tr><td>4500 – 5000</td><td class="mlss-act">Aumentare del 10%</td></tr>
+                  <tr><td>5000 – 5500</td><td class="mlss-act">Aumentare del 15%</td></tr>
+                  <tr><td>&gt; 5500</td><td class="mlss-act">Aumentare del 20%</td></tr>
+                </tbody>
+              </table>
+            </details>
             <h4 style="margin-top:12px">Gestione — TK 11007 permeato</h4>
             <p class="mini">Serbatoio permeato sotto le membrane. Stop riempimento ferma le membrane; start/stop svuotamento comando le pompe P11019 A/B/C (aspirazione).</p>
             <div class="row">
@@ -4035,6 +4107,22 @@
         <div class="row"><label><strong>H · XV-04202H · apertura (s)</strong><input type="number" id="sludgeOpenHMbr" min="1" max="20000" step="1" value="1594" inputmode="numeric" /></label><label><strong>Attesa avvio (min)</strong><input type="number" id="sludgeWaitHMbr" min="0" max="120" step="0.1" value="2" inputmode="decimal" /></label></div>
         <div class="actions"><button type="button" id="sludgeAdjOpen">Modifica</button></div>
       </details>
+      <details class="sludge-fold">
+        <summary>Gestione MLSS MBR per estrazione fanghi</summary>
+        <p class="mini" style="margin-top:8px">Tabella COD · tempi estrazione di fondo in funzione del MLSS (mg/L). Usata dal tasto Analisi in Modifica aperture valvole.</p>
+        <table class="mlss-table">
+          <thead><tr><th>MLSS (mg/L)</th><th>Azione sui tempi di estrazione</th></tr></thead>
+          <tbody>
+            <tr><td>&lt; 3000</td><td class="mlss-act">Diminuire del 5%</td></tr>
+            <tr><td>3000 – 3500</td><td class="mlss-act">Nessuna azione (fascia intermedia)</td></tr>
+            <tr><td>3500 – 4000</td><td class="mlss-act">Nessuna azione richiesta</td></tr>
+            <tr><td>4000 – 4500</td><td class="mlss-act">Aumentare del 5%</td></tr>
+            <tr><td>4500 – 5000</td><td class="mlss-act">Aumentare del 10%</td></tr>
+            <tr><td>5000 – 5500</td><td class="mlss-act">Aumentare del 15%</td></tr>
+            <tr><td>&gt; 5500</td><td class="mlss-act">Aumentare del 20%</td></tr>
+          </tbody>
+        </table>
+      </details>
       <div class="actions"><button type="button" data-close>Applica</button></div>
     </div>
   </div>
@@ -4045,12 +4133,24 @@
       <h3>
         <span id="sludgeAdjTitle">Aperture valvole</span>
         <span class="sludge-adj-head">
+          <button type="button" id="sludgeAdjAnalisi" class="sludge-adj-analbtn" title="Analisi MLSS per membrana">Analisi</button>
           <button type="button" id="sludgeAdjPct" class="sludge-adj-pctbtn" title="Percentuale per tutte le valvole">0</button>
           <button type="button" id="sludgeAdjX" aria-label="Chiudi">&times;</button>
         </span>
       </h3>
       <div id="sludgeAdjRows"></div>
       <div class="actions"><button type="button" id="sludgeAdjApply">Applica</button></div>
+    </div>
+  </div>
+  <div class="modal-back" id="popSludgeMlss" role="dialog" aria-modal="true" aria-labelledby="sludgeMlssTitle">
+    <div class="modal">
+      <h3>
+        <span id="sludgeMlssTitle">Analisi MLSS</span>
+        <button type="button" id="sludgeMlssX" aria-label="Chiudi">&times;</button>
+      </h3>
+      <p class="mini">Inserisci il MLSS (mg/L) di ogni membrana. Applica ricalcola le % in Aperture valvole secondo la tabella COD.</p>
+      <div id="sludgeMlssRows"></div>
+      <div class="actions"><button type="button" id="sludgeMlssApply">Applica</button></div>
     </div>
   </div>
   <div class="modal-back" id="popSludgePct" role="dialog" aria-modal="true" aria-label="Percentuale">
@@ -4870,6 +4970,8 @@
     let __sludgeBaseTarget = "";
     let __sludgeBaseStr = "0";
     let __sludgeBaseFresh = true;
+    /** Analisi MLSS (mg/L) per membrana A–H — usate dal tasto Analisi in Modifica. */
+    let __sludgeMlss = { A: "", B: "", C: "", D: "", E: "", F: "", G: "", H: "" };
     // Pause a coppie sfalsate: ciascuna fa 7′+1′, ma non tutte insieme
     const MBR_PAUSE_PAIRS = [
       ["A", "D"],
@@ -9354,6 +9456,102 @@
       return v;
     }
 
+    /** Tabella COD: MLSS → % sui tempi di estrazione di fondo. */
+    function mlssAdjFromValue(mlss) {
+      const n = Number(String(mlss ?? "").trim().replace(",", "."));
+      if (!Number.isFinite(n) || n < 0) return { sign: 1, pct: 0 };
+      if (n < 3000) return { sign: -1, pct: 5 };
+      if (n < 4000) return { sign: 1, pct: 0 }; // 3000–4000: nessuna azione (gap 3000–3500 incluso)
+      if (n <= 4500) return { sign: 1, pct: 5 };
+      if (n <= 5000) return { sign: 1, pct: 10 };
+      if (n <= 5500) return { sign: 1, pct: 15 };
+      return { sign: 1, pct: 20 };
+    }
+
+    function normalizeSludgeMlss(raw) {
+      const out = {};
+      MBR_ALL_IDS.forEach((L) => {
+        const v = raw && typeof raw === "object" ? raw[L] : "";
+        if (v == null || v === "") { out[L] = ""; return; }
+        const n = Number(String(v).trim().replace(",", "."));
+        out[L] = Number.isFinite(n) && n >= 0 ? String(Math.round(n)) : "";
+      });
+      return out;
+    }
+
+    function paintSludgeMlss() {
+      const host = el("sludgeMlssRows");
+      if (!host) return;
+      host.innerHTML = MBR_ALL_IDS.map((L) => {
+        const val = __sludgeMlss[L] != null ? String(__sludgeMlss[L]) : "";
+        const adj = mlssAdjFromValue(val);
+        const hint = !val
+          ? "senza analisi → 0%"
+          : (adj.pct === 0 ? "→ nessuna azione" : ("→ " + sludgeAdjFmtPct(adj.sign, adj.pct) + "%"));
+        return (
+          '<div class="sludge-mlss-row">' +
+            '<div><label for="sludgeMlss' + L + '">' + SLUDGE_VALVE_NAME[L] + '</label>' +
+            '<p class="sludge-mlss-hint" id="sludgeMlssHint' + L + '">' + hint + '</p></div>' +
+            '<input type="number" id="sludgeMlss' + L + '" min="0" max="20000" step="1" inputmode="numeric" ' +
+              'data-sludge-mlss="' + L + '" value="' + val + '" placeholder="mg/L" />' +
+          '</div>'
+        );
+      }).join("");
+    }
+
+    function readSludgeMlssFromForm() {
+      MBR_ALL_IDS.forEach((L) => {
+        const node = el("sludgeMlss" + L);
+        if (!node) return;
+        const raw = String(node.value ?? "").trim().replace(",", ".");
+        if (raw === "") { __sludgeMlss[L] = ""; return; }
+        const n = parseFloat(raw);
+        __sludgeMlss[L] = Number.isFinite(n) && n >= 0 ? String(Math.round(n)) : "";
+      });
+    }
+
+    function openSludgeMlss() {
+      __sludgeMlss = normalizeSludgeMlss(__sludgeMlss);
+      paintSludgeMlss();
+      const pop = el("popSludgeMlss");
+      if (pop) pop.classList.add("show");
+      try { syncScrollLock(); } catch (_) { /* ok */ }
+    }
+
+    function hideSludgeMlss() {
+      const pop = el("popSludgeMlss");
+      if (pop) pop.classList.remove("show");
+      try { syncScrollLock(); } catch (_) { /* ok */ }
+    }
+
+    /** Applica tabella MLSS sulle % di Modifica (sovrascrive le % manuali; le basi restano). */
+    function applySludgeMlssToAdj() {
+      readSludgeMlssFromForm();
+      if (!__sludgeAdj) __sludgeAdj = captureSludgeAdj();
+      else __sludgeAdj = normalizeSludgeAdj(__sludgeAdj);
+      let commonSign = null;
+      let commonPct = null;
+      let same = true;
+      MBR_ALL_IDS.forEach((L) => {
+        const adj = mlssAdjFromValue(__sludgeMlss[L]);
+        __sludgeAdj.rows[L].sign = adj.sign;
+        __sludgeAdj.rows[L].pct = adj.pct;
+        if (commonSign == null) {
+          commonSign = adj.sign;
+          commonPct = adj.pct;
+        } else if (commonSign !== adj.sign || commonPct !== adj.pct) {
+          same = false;
+        }
+      });
+      if (same && commonSign != null) {
+        __sludgeAdj.globalSign = commonSign;
+        __sludgeAdj.globalPct = commonPct;
+      }
+      hideSludgeMlss();
+      paintSludgeAdj();
+      try { schedulePersist(); } catch (_) { /* ok */ }
+    }
+
     function captureSludgeAdj() {
       const rows = {};
       MBR_ALL_IDS.forEach((L) => {
@@ -9417,6 +9615,7 @@
     function hideSludgeAdj() {
       const pop = el("popSludgeAdj");
       if (pop) pop.classList.remove("show");
+      hideSludgeMlss();
       hideSludgePct();
       hideSludgeBase();
       try { syncScrollLock(); } catch (_) { /* ok */ }
@@ -16807,9 +17006,11 @@
       if (ufRem && ufRem.classList.contains("show")) return true;
       const adj = el("popSludgeAdj");
       const pct = el("popSludgePct");
+      const mlss = el("popSludgeMlss");
       const base = el("popSludgeBase");
       if (adj && adj.classList.contains("show")) return true;
       if (pct && pct.classList.contains("show")) return true;
+      if (mlss && mlss.classList.contains("show")) return true;
       if (base && base.classList.contains("show")) return true;
       return Object.values(popups).some((p) => p && p.classList.contains("show"));
     }
@@ -18308,7 +18509,7 @@
           if (!__simBusy) hideSimJump();
           return;
         }
-        if (el("popSludgePct")?.classList.contains("show") || el("popSludgeBase")?.classList.contains("show") || el("popSludgeAdj")?.classList.contains("show")) {
+        if (el("popSludgePct")?.classList.contains("show") || el("popSludgeBase")?.classList.contains("show") || el("popSludgeMlss")?.classList.contains("show") || el("popSludgeAdj")?.classList.contains("show")) {
           e.preventDefault();
           return;
         }
@@ -18874,6 +19075,38 @@
       e.stopPropagation();
       openSludgePct("all");
     });
+    el("sludgeAdjAnalisi")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openSludgeMlss();
+    });
+    el("sludgeMlssX")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      readSludgeMlssFromForm();
+      hideSludgeMlss();
+      try { schedulePersist(); } catch (_) { /* ok */ }
+    });
+    el("sludgeMlssApply")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      applySludgeMlssToAdj();
+    });
+    el("sludgeMlssRows")?.addEventListener("input", (e) => {
+      const inp = e.target && e.target.closest ? e.target.closest("[data-sludge-mlss]") : null;
+      if (!inp) return;
+      const L = inp.getAttribute("data-sludge-mlss");
+      const raw = String(inp.value ?? "").trim().replace(",", ".");
+      __sludgeMlss[L] = raw === "" ? "" : (Number.isFinite(parseFloat(raw)) ? String(Math.round(parseFloat(raw))) : raw);
+      const hint = el("sludgeMlssHint" + L);
+      if (hint) {
+        const adj = mlssAdjFromValue(inp.value);
+        const empty = String(inp.value ?? "").trim() === "";
+        hint.textContent = empty
+          ? "senza analisi → 0%"
+          : (adj.pct === 0 ? "→ nessuna azione" : ("→ " + sludgeAdjFmtPct(adj.sign, adj.pct) + "%"));
+      }
+    });
     el("sludgeAdjRows")?.addEventListener("click", (e) => {
       const baseBtn = e.target && e.target.closest ? e.target.closest("[data-sludge-base]") : null;
       if (baseBtn) {
@@ -18983,7 +19216,7 @@
     }
     bindSludgeBaseStep("sludgeBaseUp", 1);
     bindSludgeBaseStep("sludgeBaseDown", -1);
-    ["popSludgeAdj", "popSludgePct", "popSludgeBase"].forEach((id) => {
+    ["popSludgeAdj", "popSludgePct", "popSludgeMlss", "popSludgeBase"].forEach((id) => {
       el(id)?.addEventListener("click", (e) => {
         if (e.target === el(id)) e.stopPropagation();
       });
@@ -19263,6 +19496,7 @@
         ? JSON.parse(JSON.stringify(__osmAlwaysOnBackup))
         : null;
       data.sludgeAdj = __sludgeAdj ? JSON.parse(JSON.stringify(__sludgeAdj)) : null;
+      data.sludgeMlss = normalizeSludgeMlss(__sludgeMlss);
       if (bump) __calcSyncRevision += 1;
       data.syncRevision = __calcSyncRevision;
       data.updatedAt = Date.now();
@@ -19455,6 +19689,9 @@
         }
         if (data.sludgeAdj && typeof data.sludgeAdj === "object") {
           try { __sludgeAdj = normalizeSludgeAdj(data.sludgeAdj); } catch (_) { /* ok */ }
+        }
+        if (data.sludgeMlss && typeof data.sludgeMlss === "object") {
+          try { __sludgeMlss = normalizeSludgeMlss(data.sludgeMlss); } catch (_) { /* ok */ }
         }
         if (!fromRemote && data.carbWash && typeof data.carbWash === "object") {
           __carbWash = JSON.parse(JSON.stringify(data.carbWash));
@@ -19721,7 +19958,7 @@
     const ADMIN_LS = "wwtAdminSession";
     const GUEST_LOCK_IDS = [
       "popPompe", "popMandata", "popMembrane",
-      "popSludgeAdj", "popSludgePct", "popSludgeBase",
+      "popSludgeAdj", "popSludgePct", "popSludgeMlss", "popSludgeBase",
       "popPermeato", "popCarbone", "popUltra", "popTk11021",
       "popOsmosi", "popProcesso", "popRegolazioni", "popBlocchi",
     ];
@@ -19774,7 +20011,7 @@
       if (target.closest(".guest-field-lock")) return true;
       const box = target.closest(".is-guest-lock");
       if (!box) return false;
-      if (target.closest("[data-close], #sludgeAdjX, #sludgePctX, #sludgeBaseX, summary")) return false;
+      if (target.closest("[data-close], #sludgeAdjX, #sludgePctX, #sludgeMlssX, #sludgeBaseX, summary")) return false;
       return !!target.closest("input, textarea, select, button, label, .uf-mini, .osm-mini, .uf-chem-remain, .p11019-edit, [role='button']");
     }
     document.addEventListener("click", (e) => {
